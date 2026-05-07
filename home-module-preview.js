@@ -139,7 +139,17 @@
         savedComponents = cacheComponents(data.components);
       }
     } catch (error) {
-      savedComponents = cached;
+      try {
+        const response = await fetch("./home-component-library.json", { headers: { accept: "application/json" }, cache: "no-store" });
+        const data = await response.json();
+        if (Array.isArray(data.components)) {
+          savedComponents = cacheComponents(data.components);
+        } else {
+          savedComponents = cached;
+        }
+      } catch (fallbackError) {
+        savedComponents = cached;
+      }
     }
 
     renderSavedComponents();
@@ -219,6 +229,30 @@
           `;
         })
         .join("");
+    }
+  }
+
+  async function refreshSavedComposition() {
+    try {
+      const savedComposition = JSON.parse(window.localStorage.getItem(COMPOSITION_CACHE_KEY) || "null");
+      if (savedComposition) {
+        renderComposition(savedComposition);
+        return;
+      }
+    } catch (error) {
+      // Ignore invalid cached compositions.
+    }
+
+    try {
+      const response = await fetch("./home-component-compositions.json", { headers: { accept: "application/json" }, cache: "no-store" });
+      const data = await response.json();
+      const composition = Array.isArray(data.compositions) ? data.compositions[0] : null;
+      if (composition) {
+        window.localStorage.setItem(COMPOSITION_CACHE_KEY, JSON.stringify(composition));
+        renderComposition(composition);
+      }
+    } catch (error) {
+      // Static composition suggestions are optional.
     }
   }
 
@@ -343,11 +377,5 @@
   els.compose?.addEventListener("click", composeHome);
 
   refreshLibrary();
-
-  try {
-    const savedComposition = JSON.parse(window.localStorage.getItem(COMPOSITION_CACHE_KEY) || "null");
-    if (savedComposition) renderComposition(savedComposition);
-  } catch (error) {
-    // Ignore invalid cached compositions.
-  }
+  refreshSavedComposition();
 })();

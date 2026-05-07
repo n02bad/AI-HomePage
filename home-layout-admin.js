@@ -1047,6 +1047,7 @@
       currentConfig: home.normalizeConfig(currentConfig),
       defaultConfig: home.DEFAULT_CONFIG,
       features: home.FEATURES,
+      bricks: home.HOME_BRICKS,
       moduleStyleOptions: home.MODULE_STYLE_OPTIONS,
       moduleVariantOptions: home.MODULE_VARIANT_OPTIONS,
       schema: home.HOMEPAGE_CONFIG_JSON_SCHEMA,
@@ -1324,7 +1325,7 @@
     if (!els.moduleOutline) return;
 
     const config = home.normalizeConfig(currentConfig);
-    const slotLabels = { hero: "12 栅格", main: "主内容 8 栅格", rail: "右侧信息 4 栅格" };
+    const slotLabels = { hero: "首屏 12 栅格", main: "主内容 8 栅格", rail: "右侧信息 4 栅格", full: "整行 12 栅格" };
 
     els.moduleOutline.innerHTML = config.layout
       .map((block, index) => {
@@ -1334,7 +1335,12 @@
             <div>
               <strong>${escapeHtml(home.featureLabel(block.component))}</strong>
               <small>${escapeHtml(slotLabels[block.slot] || block.slot)}</small>
-              <p><span>${escapeHtml(block.component)}</span>${block.module?.variant ? `<span>${escapeHtml(block.module.variant)}</span>` : ""}</p>
+              <p>
+                <span>${escapeHtml(block.brickName || block.component)}</span>
+                ${block.brickSize ? `<span>${escapeHtml(block.brickSize)}</span>` : ""}
+                ${block.module?.variant ? `<span>${escapeHtml(block.module.variant)}</span>` : ""}
+              </p>
+              ${block.brickReason ? `<small>${escapeHtml(block.brickReason)}</small>` : ""}
             </div>
           </article>
         `;

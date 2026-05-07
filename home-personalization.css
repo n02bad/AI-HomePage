@@ -108,6 +108,10 @@ body[data-home-emphasis-accounts="high"] .accounts-panel {
   grid-column: 1 / -1;
 }
 
+.ai-home-block-full {
+  grid-column: 1 / -1;
+}
+
 .ai-home-block-main {
   grid-column: span 8;
 }
@@ -488,6 +492,10 @@ body[data-home-layout="traderConsole"] .ai-section-rail .ai-quick-feature {
 .ai-quick-feature,
 .ai-referral-feature,
 .ai-accounts-feature,
+.ai-user-rail-feature,
+.ai-performance-feature,
+.ai-wallet-list-feature,
+.ai-create-account-feature,
 .ai-market-feature,
 .ai-risk-feature,
 .ai-copytrading-feature {
@@ -502,6 +510,10 @@ body[data-home-layout="traderConsole"] .ai-section-rail .ai-quick-feature {
 .ai-ad-carousel-feature,
 .ai-quick-feature,
 .ai-referral-feature,
+.ai-user-rail-feature,
+.ai-performance-feature,
+.ai-wallet-list-feature,
+.ai-create-account-feature,
 .ai-market-feature,
 .ai-risk-feature,
 .ai-copytrading-feature {
@@ -921,6 +933,156 @@ body[data-home-layout="traderConsole"] .ai-section-rail .ai-quick-feature {
   background: #f8fbff;
   color: #111827;
   font-weight: 950;
+}
+
+.ai-user-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--home-glass-border);
+  border-radius: var(--home-radius-sm);
+  background: var(--home-soft-panel-bg);
+}
+
+.ai-user-avatar {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--home-primary);
+  color: var(--home-button-text);
+  font-weight: 950;
+}
+
+.ai-user-card b,
+.ai-create-form b {
+  color: var(--home-text-strong);
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.ai-user-card small,
+.ai-performance-feature p,
+.ai-wallet-list-feature p,
+.ai-create-account-feature p {
+  margin: 0;
+  color: var(--home-text-muted);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.ai-status-list,
+.ai-performance-metrics {
+  display: grid;
+  gap: 10px;
+}
+
+.ai-status-list span,
+.ai-performance-metrics span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--home-glass-border);
+  border-radius: var(--home-radius-sm);
+  background: var(--home-muted-panel-bg);
+}
+
+.ai-status-list small,
+.ai-performance-metrics small,
+.ai-wallet-table div:first-child span,
+.ai-create-form span {
+  color: var(--home-text-muted);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.ai-status-list b,
+.ai-performance-metrics b,
+.ai-wallet-table b,
+.ai-wallet-table span {
+  min-width: 0;
+  color: var(--home-text-strong);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 950;
+}
+
+.ai-performance-chart {
+  height: 126px;
+  display: flex;
+  align-items: end;
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid var(--home-glass-border);
+  border-radius: var(--home-radius-sm);
+  background: linear-gradient(180deg, var(--home-soft-panel-bg), var(--home-muted-panel-bg));
+}
+
+.ai-performance-chart i {
+  flex: 1;
+  min-width: 12px;
+  border-radius: 5px 5px 0 0;
+  background: var(--home-primary);
+  opacity: 0.82;
+}
+
+.ai-wallet-table,
+.ai-create-form {
+  display: grid;
+  gap: 8px;
+}
+
+.ai-wallet-table div {
+  display: grid;
+  grid-template-columns: 0.8fr 1fr 1fr auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 9px 10px;
+  border: 1px solid var(--home-glass-border);
+  border-radius: var(--home-radius-sm);
+  background: var(--home-soft-panel-bg);
+}
+
+.ai-wallet-table a,
+.ai-create-form button {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 11px;
+  border: 0;
+  border-radius: var(--home-radius-sm);
+  background: var(--home-button-bg);
+  color: var(--home-button-text);
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.ai-create-form label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--home-glass-border);
+  border-radius: var(--home-radius-sm);
+  background: var(--home-soft-panel-bg);
+}
+
+@media (max-width: 760px) {
+  .ai-wallet-table div {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .ai-performance-metrics {
+    grid-template-columns: 1fr;
+  }
 }
 
 .ai-market-feature p,

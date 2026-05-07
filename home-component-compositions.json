@@ -1,3 +1,121 @@
 {
-  "compositions": []
+  "compositions": [
+    {
+      "id": "vip-capital-brick-flow",
+      "name": "高净值资产中枢积木组合",
+      "summary": "资产 Hero、资金 Dock、广告轮播和右侧开户面板组成高净值首屏，交易账号下沉为管理区。",
+      "layout": [
+        {
+          "componentId": "asset-overview-vip-hero",
+          "size": "2x2",
+          "zone": "hero",
+          "reason": "高净值客户首先需要看到资产规模和资金安全感。"
+        },
+        {
+          "componentId": "fund-actions-priority-dock",
+          "size": "1x1",
+          "zone": "rail",
+          "reason": "入金和出金从资产卡拆出，便于快速行动。"
+        },
+        {
+          "componentId": "ad-carousel-hero-campaign",
+          "size": "3x1",
+          "zone": "hero",
+          "reason": "用权益活动和 VIP 服务承接品牌曝光。"
+        },
+        {
+          "componentId": "open-account-side-panel",
+          "size": "1x2",
+          "zone": "rail",
+          "reason": "开户动作放右侧，和资金动作形成转化路径。"
+        },
+        {
+          "componentId": "trading-accounts-separated-list",
+          "size": "3x2",
+          "zone": "full",
+          "reason": "账号列表放下方，保留专业管理能力但不抢首屏。"
+        }
+      ],
+      "themeAdvice": "使用 blackGold 主题，资产和广告权重最高，账号列表保持安静表格。",
+      "polishInstructions": "首屏保持宽松，右侧只放开户和资金动作，不再堆叠过多小卡片。",
+      "createdAt": "2026-05-07T00:00:00.000Z",
+      "updatedAt": "2026-05-07T00:00:00.000Z"
+    },
+    {
+      "id": "trader-console-brick-flow",
+      "name": "专业交易工作台积木组合",
+      "summary": "交易操作 Dock、账号表现图表、用户/KYC 侧栏和真实/模拟双列表构成专业交易首页。",
+      "layout": [
+        {
+          "componentId": "quick-actions-action-dock",
+          "size": "3x1",
+          "zone": "hero",
+          "reason": "专业客户优先需要进入订单、持仓和资金动作。"
+        },
+        {
+          "componentId": "account-performance-pro-chart",
+          "size": "2x2",
+          "zone": "main",
+          "reason": "账号表现和权益曲线是交易客户的首屏判断依据。"
+        },
+        {
+          "componentId": "user-kyc-rail-profile-wallet",
+          "size": "1x2",
+          "zone": "rail",
+          "reason": "右侧承载身份、KYC 和钱包摘要，主栏留给交易数据。"
+        },
+        {
+          "componentId": "trading-accounts-separated-list",
+          "size": "3x2",
+          "zone": "full",
+          "reason": "真实账号和模拟账号分开，便于专业管理。"
+        }
+      ],
+      "themeAdvice": "使用 default 或 darkTech，信息密度 compact，账号列表固定 list。",
+      "polishInstructions": "减少营销卡片，优先保证表格、图表和工具条可扫读。",
+      "createdAt": "2026-05-07T00:00:00.000Z",
+      "updatedAt": "2026-05-07T00:00:00.000Z"
+    },
+    {
+      "id": "onboarding-conversion-brick-flow",
+      "name": "新客开户转化积木组合",
+      "summary": "开户清单、开户操作台、真实账户创建表单和转化快捷矩阵共同推动新客完成 KYC、开户、入金。",
+      "layout": [
+        {
+          "componentId": "onboarding-progress-checklist",
+          "size": "2x1",
+          "zone": "hero",
+          "reason": "新客进入首页后先知道下一步任务。"
+        },
+        {
+          "componentId": "open-account-side-panel",
+          "size": "1x2",
+          "zone": "rail",
+          "reason": "开真实、开模拟、绑定账号作为右侧固定操作。"
+        },
+        {
+          "componentId": "create-account-real-form",
+          "size": "1x2",
+          "zone": "rail",
+          "reason": "在开户意图强时直接展示创建账户表单。"
+        },
+        {
+          "componentId": "quick-actions-action-dock",
+          "size": "3x1",
+          "zone": "main",
+          "reason": "保留常用入口，避免新客完成开户后失去路径。"
+        },
+        {
+          "componentId": "trading-accounts-separated-list",
+          "size": "3x2",
+          "zone": "full",
+          "reason": "账号创建后能马上进入账号管理区。"
+        }
+      ],
+      "themeAdvice": "使用 blueFinance，开户路径清晰，按钮权重要高于广告。",
+      "polishInstructions": "首屏不要堆太多资产数字，优先把开户步骤、开户动作和表单连起来。",
+      "createdAt": "2026-05-07T00:00:00.000Z",
+      "updatedAt": "2026-05-07T00:00:00.000Z"
+    }
+  ]
 }
