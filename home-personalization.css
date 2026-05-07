@@ -7,7 +7,8 @@
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   align-items: start;
-  gap: 16px;
+  grid-auto-flow: dense;
+  gap: 12px;
 }
 
 .dashboard-customize-link {
@@ -104,8 +105,57 @@ body[data-home-emphasis-accounts="high"] .accounts-panel {
   min-width: 0;
 }
 
+.ai-brick-meta {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 6px 10px;
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--home-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--home-surface) 86%, var(--home-primary-soft));
+  color: var(--home-text-strong);
+}
+
+.ai-brick-meta span {
+  min-width: 44px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: var(--home-primary-soft);
+  color: var(--home-primary);
+  font-size: 11px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.ai-brick-meta strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--home-text-strong);
+  font-size: 12px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-brick-meta small {
+  grid-column: 1 / -1;
+  color: var(--home-text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .ai-home-block-hero {
   grid-column: 1 / -1;
+}
+
+.client-shell.is-blueprint-home .ai-home-block-hero.ai-home-block-polished {
+  grid-column: span var(--home-span, 6);
+}
+
+.client-shell.is-blueprint-home .ai-home-block-polished .ai-brick-meta {
+  margin-bottom: 8px;
 }
 
 .ai-home-block-full {
@@ -448,6 +498,7 @@ body[data-home-layout="traderConsole"] .ai-section-rail .ai-quick-feature {
 .ai-shortcut-matrix svg,
 .ai-promo-mark svg,
 .ai-referral-line svg,
+.ai-referral-qr svg,
 .view-toggle svg {
   width: 20px;
   height: 20px;
@@ -1760,7 +1811,10 @@ body[data-home-density="spacious"] .ai-open-feature {
 }
 
 body[data-layout-page="home-layout-admin"] {
-  background: #ffffff;
+  background:
+    radial-gradient(circle at 22% 18%, rgba(37, 99, 235, 0.16), transparent 28%),
+    radial-gradient(circle at 82% 12%, rgba(20, 184, 166, 0.12), transparent 24%),
+    linear-gradient(135deg, #f7fbff 0%, #eef6ff 46%, #f8fbff 100%);
 }
 
 body[data-layout-page="home-layout-admin"] .app > [data-common-layout="topbar"],
@@ -1778,7 +1832,10 @@ body[data-layout-page="home-layout-admin"] .personalization-page {
   display: grid;
   place-items: center;
   padding: clamp(24px, 5vw, 72px);
-  background: #ffffff;
+  background:
+    linear-gradient(rgba(37, 99, 235, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(37, 99, 235, 0.045) 1px, transparent 1px);
+  background-size: 42px 42px;
 }
 
 .ai-chat-intake {
@@ -1790,6 +1847,13 @@ body[data-layout-page="home-layout-admin"] .personalization-page {
 .ai-chat-center {
   display: grid;
   gap: 22px;
+  position: relative;
+  padding: 28px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.66);
+  box-shadow: 0 24px 80px rgba(30, 64, 175, 0.12);
+  backdrop-filter: blur(18px);
 }
 
 .ai-chat-hero {
@@ -1800,15 +1864,22 @@ body[data-layout-page="home-layout-admin"] .personalization-page {
 }
 
 .ai-chat-hero span {
-  color: #6b7280;
+  min-height: 26px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid rgba(37, 99, 235, 0.16);
+  border-radius: 999px;
+  background: rgba(239, 246, 255, 0.88);
+  color: #2563eb;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 900;
 }
 
 .ai-chat-hero h1 {
   max-width: 100%;
   margin: 0;
-  color: #111827;
+  color: #0f2747;
   font-size: clamp(28px, 4vw, 42px);
   font-weight: 850;
   letter-spacing: 0;
@@ -1820,10 +1891,12 @@ body[data-layout-page="home-layout-admin"] .personalization-page {
   display: grid;
   gap: 12px;
   padding: 14px;
-  border: 1px solid #d9dfe8;
+  border: 1px solid rgba(37, 99, 235, 0.18);
   border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 16px 44px rgba(15, 23, 42, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 251, 255, 0.94)),
+    #ffffff;
+  box-shadow: 0 18px 48px rgba(37, 99, 235, 0.12);
 }
 
 .ai-chat-composer textarea {
@@ -1875,7 +1948,7 @@ body[data-layout-page="home-layout-admin"] .personalization-page {
   justify-content: center;
   gap: 7px;
   padding: 0 10px;
-  border: 1px solid #d9dfe8;
+  border: 1px solid rgba(37, 99, 235, 0.18);
   border-radius: 8px;
   background: #ffffff;
   color: #111827;
@@ -1883,7 +1956,8 @@ body[data-layout-page="home-layout-admin"] .personalization-page {
 }
 
 .ai-tool-button:hover {
-  background: #f7f7f8;
+  background: #eff6ff;
+  color: #1d4ed8;
 }
 
 .ai-tool-button svg,
@@ -1906,13 +1980,13 @@ body[data-layout-page="home-layout-admin"] .personalization-page {
 }
 
 .ai-send-button {
-  border-color: #111827;
-  background: #111827;
+  border-color: #1d4ed8;
+  background: linear-gradient(135deg, #2563eb, #0f766e);
   color: #ffffff;
 }
 
 .ai-send-button:hover {
-  background: #374151;
+  background: linear-gradient(135deg, #1d4ed8, #0f766e);
 }
 
 .ai-send-button.is-loading {
@@ -1922,27 +1996,71 @@ body[data-layout-page="home-layout-admin"] .personalization-page {
 
 .ai-chat-suggestions {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
+}
+
+.ai-suggestion-head {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 780;
+}
+
+.ai-suggestion-head span {
+  color: #2563eb;
+  font-weight: 900;
+}
+
+.ai-suggestion-head strong {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 760;
 }
 
 .ai-chat-suggestions button {
   min-width: 0;
-  min-height: 42px;
-  padding: 0 12px;
-  border: 1px solid #e5e7eb;
+  min-height: 82px;
+  display: grid;
+  align-content: center;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid rgba(37, 99, 235, 0.14);
   border-radius: 8px;
-  background: #ffffff;
+  background:
+    radial-gradient(circle at 92% 8%, rgba(37, 99, 235, 0.12), transparent 24%),
+    rgba(255, 255, 255, 0.78);
   color: #374151;
-  font-size: 13px;
-  font-weight: 780;
+  text-align: left;
   white-space: normal;
+  box-shadow: 0 10px 26px rgba(37, 99, 235, 0.06);
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+}
+
+.ai-chat-suggestions button b {
+  color: #111827;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.ai-chat-suggestions button small {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .ai-chat-suggestions button:hover {
-  border-color: #cbd5e1;
-  background: #f8fafc;
+  transform: translateY(-1px);
+  border-color: #60a5fa;
+  background:
+    radial-gradient(circle at 92% 8%, rgba(20, 184, 166, 0.16), transparent 26%),
+    #f8fbff;
   color: #111827;
+  box-shadow: 0 16px 34px rgba(37, 99, 235, 0.12);
 }
 
 .visually-hidden {
@@ -2873,13 +2991,9 @@ body[data-layout-page="home-layout-admin"] .personalization-page {
   display: flex;
   justify-content: flex-start;
   align-items: flex-start;
-  padding: 18px;
+  padding: 0;
   overflow: auto;
-  background:
-    linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px),
-    #eef4fb;
-  background-size: 24px 24px;
+  background: #fff;
 }
 
 .preview-stage-panel .home-preview {
@@ -2888,15 +3002,15 @@ body[data-layout-page="home-layout-admin"] .personalization-page {
   max-width: none;
   height: var(--preview-frame-height);
   min-height: var(--preview-frame-height);
-  margin-inline: auto;
-  border: 1px solid var(--preview-frame-border);
-  border-radius: var(--preview-frame-radius);
+  margin-inline: 0;
+  border: 0;
+  border-radius: 0;
   background: #fff;
-  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.12);
+  box-shadow: none;
 }
 
 .preview-workspace-shell[data-preview-size="mobile"] .home-preview {
-  border-width: 8px;
+  border-width: 0;
 }
 
 .preview-stage-panel:fullscreen {
@@ -3517,17 +3631,19 @@ body[data-home-preview="content-only"] .app {
 }
 
 body[data-home-preview="content-only"] .client-home-page {
-  min-height: auto;
-  padding: 22px;
+  min-height: 100vh;
+  padding: 0;
 }
 
 body[data-home-preview="content-only"] .client-shell {
-  width: min(100%, 1180px);
+  width: 100%;
+  max-width: none;
+  margin: 0;
 }
 
 body[data-home-preview="content-only"] .client-shell.is-blueprint-home {
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 18px;
+  gap: 12px;
 }
 
 body[data-home-preview="content-only"] .ai-home-block-hero,
@@ -4431,12 +4547,12 @@ body[data-home-layout="vipService"] .ai-component-asset_summary[data-module-vari
   }
 
   body[data-home-preview="content-only"] .client-home-page {
-    padding-inline: 10px;
+    padding-inline: 0;
   }
 
   body[data-home-preview="content-only"] .client-shell {
-    width: calc(100% - 40px) !important;
-    max-width: calc(100% - 40px) !important;
+    width: 100% !important;
+    max-width: none !important;
     margin-inline: 0 !important;
   }
 
@@ -4621,5 +4737,110 @@ body[data-home-layout="vipService"] .ai-component-asset_summary[data-module-vari
 
   .model-call-table {
     min-width: 780px;
+  }
+}
+
+body[data-layout-page="client-home"] .client-home-page {
+  padding: 0;
+}
+
+body[data-layout-page="client-home"] .client-shell.is-blueprint-home {
+  align-items: stretch;
+  gap: 12px;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+
+body[data-layout-page="client-home"] .client-shell.is-blueprint-home .ai-home-block {
+  align-self: stretch;
+}
+
+body[data-layout-page="client-home"] .client-shell.is-blueprint-home :is(
+  .ai-welcome-feature,
+  .ai-balance-feature,
+  .ai-wallet-feature,
+  .ai-action-feature,
+  .ai-open-feature,
+  .ai-onboarding-feature,
+  .ai-promo-feature,
+  .ai-ad-carousel-feature,
+  .ai-quick-feature,
+  .ai-referral-feature,
+  .ai-user-rail-feature,
+  .ai-performance-feature,
+  .ai-wallet-list-feature,
+  .ai-create-account-feature,
+  .ai-accounts-feature
+) {
+  height: 100%;
+}
+
+body[data-layout-page="client-home"] .ai-home-block-polished :is(
+  .ai-balance-feature,
+  .ai-ad-carousel-feature,
+  .ai-quick-feature,
+  .ai-open-feature,
+  .ai-user-rail-feature,
+  .ai-performance-feature
+) {
+  min-height: 0;
+}
+
+body[data-layout-page="client-home"] .ai-home-block-polished .ai-balance-feature {
+  min-height: 224px;
+}
+
+body[data-layout-page="client-home"] .ai-home-block-polished .ai-ad-carousel,
+body[data-layout-page="client-home"] .ai-home-block-polished .ai-ad-carousel-feature[data-module-variant="imageBanner"] .ai-ad-carousel {
+  min-height: 224px;
+}
+
+body[data-layout-page="client-home"] .ai-home-block-polished .ai-shortcut-matrix {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+body[data-layout-page="client-home"] .ai-home-block-polished .ai-shortcut-matrix a {
+  min-height: 58px;
+}
+
+body[data-layout-page="client-home"] .ai-accounts-feature,
+body[data-layout-page="client-home"][data-home-layout="tradingPro"] .ai-accounts-feature {
+  min-height: 0;
+}
+
+body[data-layout-page="client-home"] .ai-accounts-feature {
+  padding: 14px;
+}
+
+body[data-layout-page="client-home"] .ai-accounts-feature .accounts-card-view {
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 10px;
+}
+
+body[data-layout-page="client-home"] .ai-accounts-feature .trade-account-card {
+  min-height: 188px;
+  padding: 12px;
+}
+
+body[data-layout-page="client-home"] .ai-ad-slide {
+  padding: 18px;
+}
+
+body[data-layout-page="client-home"] .ai-ad-slide strong {
+  max-width: 520px;
+  font-size: clamp(20px, 2.4vw, 30px);
+}
+
+body[data-layout-page="client-home"] .ai-brick-meta {
+  margin-bottom: 8px;
+  padding: 6px 8px;
+}
+
+@media (max-width: 860px) {
+  body[data-layout-page="client-home"] .client-shell.is-blueprint-home .ai-home-block-hero.ai-home-block-polished,
+  body[data-layout-page="client-home"] .client-shell.is-blueprint-home .ai-home-block-main,
+  body[data-layout-page="client-home"] .client-shell.is-blueprint-home .ai-home-block-rail {
+    grid-column: 1 / -1;
   }
 }

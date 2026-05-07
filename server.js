@@ -228,8 +228,9 @@ function normalizeProviderConfig(modelConfig = {}) {
   const endpoint = String(modelConfig.endpoint || envValue(preset.endpointEnv) || preset.endpoint).trim();
   const temperature = Number(modelConfig.temperature);
   const maxOutputTokens = Number(modelConfig.maxOutputTokens);
-  const defaultMaxOutputTokens = providerId === "minimax" ? MINIMAX_MAX_COMPLETION_TOKENS : 2400;
+  const defaultMaxOutputTokens = providerId === "minimax" ? MINIMAX_MAX_COMPLETION_TOKENS : 6000;
   const maxOutputCeiling = providerId === "minimax" ? MINIMAX_MAX_COMPLETION_TOKENS : 12000;
+  const minOutputTokens = providerId === "minimax" ? 512 : 6000;
 
   return {
     provider: providerId,
@@ -239,7 +240,7 @@ function normalizeProviderConfig(modelConfig = {}) {
     baseUrl,
     endpoint: /^https?:\/\//i.test(endpoint) ? endpoint : endpoint.startsWith("/") ? endpoint : `/${endpoint}`,
     temperature: normalizeTemperature(providerId, temperature),
-    maxOutputTokens: Number.isFinite(maxOutputTokens) ? Math.min(Math.max(Math.round(maxOutputTokens), 512), maxOutputCeiling) : defaultMaxOutputTokens,
+    maxOutputTokens: Number.isFinite(maxOutputTokens) ? Math.min(Math.max(Math.round(maxOutputTokens), minOutputTokens), maxOutputCeiling) : defaultMaxOutputTokens,
     apiKey: String(modelConfig.apiKey || "").trim(),
     keyEnv: preset.keyEnv,
   };
@@ -290,6 +291,7 @@ function requestJson(target, options) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify(options.body || {});
     const client = target.protocol === "http:" ? http : https;
+    const timeout = Number.isFinite(Number(options.timeout)) ? Number(options.timeout) : 120_000;
     const request = client.request(
       target,
       {
@@ -299,7 +301,7 @@ function requestJson(target, options) {
           "content-length": Buffer.byteLength(body),
           ...options.headers,
         },
-        timeout: 60_000,
+        timeout,
       },
       (response) => {
         const chunks = [];
@@ -370,7 +372,7 @@ async function requestProviderJson(config, headers, body) {
     const target = providerUrl(attemptConfig);
 
     try {
-      const response = await requestJson(target, { headers, body });
+      const response = await requestJson(target, { headers, body, timeout: attemptConfig.provider === "minimax" ? 90_000 : 120_000 });
       return { response, config: attemptConfig, target, attempts };
     } catch (error) {
       lastError = error;
@@ -659,6 +661,7 @@ function buildMiniMaxPrompt(payload) {
     "只输出一个能被 JSON.parse 解析的紧凑 JSON object。",
     "不要 markdown、不要代码块、不要解释、不要 <think>、不要注释。",
     "输出必须短，禁止返回 layout、props、schema、默认配置、HTML、CSS、JS。",
+    "必须返回 generationMode=\"brick-v2\"、blueprintVersion=5、brickPlan 和 brickTrace。",
     "必须使用白名单枚举值；未知需求用最接近的白名单值承接。",
   ].join("\n");
 
@@ -666,12 +669,15 @@ function buildMiniMaxPrompt(payload) {
     requiredFields: [
       "schemaVersion",
       "blueprintVersion",
+      "generationMode",
       "name",
       "layoutPreset",
       "themePreset",
       "personalizationStrength",
       "density",
       "heroFocus",
+      "brickPlan",
+      "brickTrace",
       "sections",
       "modules",
       "moduleStyles",
@@ -729,7 +735,8 @@ function buildMiniMaxPrompt(payload) {
     },
     rules: [
       "sections 只返回 3 到 5 个，每个为 {id,type,title,slots}，slots 只能使用 sectionSlots。",
-      "优先返回 brickPlan；可以返回 layout，但 layout 只能使用 hero/main/rail 三种 slot 和白名单 component。",
+      "brickPlan 返回 4 到 8 个，字段为 {brickId,brickName,family,feature,component,size,zone,reason}，brickId 必须来自 brickReference.bricks。",
+      "不要返回 layout；前端会根据 brickPlan 和 sections 自动映射到积木布局。",
       "交易账号如需真实/模拟分开，moduleSettings.tradingAccounts.grouping 必须为 separated 且 viewMode 为 list。",
       "列表需求优先使用 tradingAccounts.viewMode=list，不要使用卡片作为主结果。",
       "不要绑定账号入口时，moduleSettings.openAccount.bind 必须为 false。",
@@ -738,13 +745,20 @@ function buildMiniMaxPrompt(payload) {
     ],
     outputShape: {
       schemaVersion: 4,
-      blueprintVersion: 4,
+      blueprintVersion: 5,
+      generationMode: "brick-v2",
       name: "不超过28字",
       layoutPreset: "standardDashboard",
       themePreset: "default",
       personalizationStrength: "medium",
       density: "balanced",
       heroFocus: "asset_summary",
+      brickPlan: [
+        { brickId: "assetOverview.compactMetrics", brickName: "紧凑资产指标条", family: "AssetOverview", feature: "balanceTotal", component: "asset_summary", size: "3x1", zone: "hero", reason: "首屏承接资产与资金信任。" },
+        { brickId: "fundActions.priorityDock", brickName: "资金操作 Dock", family: "FundActions", feature: "fundActions", component: "fund_actions", size: "1x1", zone: "rail", reason: "让入金出金成为独立高频操作。" },
+        { brickId: "tradingAccounts.separatedList", brickName: "真实/模拟账号双列表", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "3x2", zone: "full", reason: "保留核心账号管理路径。" },
+      ],
+      brickTrace: { intent: "standard", strategy: "AI 积木编排", score: 86, selectedCount: 3, source: "model" },
       sections: [{ id: "overview", type: "hero", title: "账户总览", slots: ["balanceTotal", "fundActions"] }],
       modules: {
         AssetOverview: { variant: "standard" },
@@ -790,7 +804,7 @@ function buildMiniMaxPrompt(payload) {
 }
 
 function buildPrompt(payload, config = {}) {
-  if (config.provider === "minimax") return buildMiniMaxPrompt(payload);
+  if (config.provider === "minimax" || config.apiMode === "openai-chat") return buildMiniMaxPrompt(payload);
 
   const context = payload.context || {};
   const prompt = String(payload.prompt || "").trim();
@@ -806,6 +820,7 @@ function buildPrompt(payload, config = {}) {
     "开户动作必须保留真实账号、模拟账号、绑定账号三类可配置动作。",
     "入金、出金如果出现，应作为高可见操作。",
     "必须参考首页积木编排规则，把需求映射到 brickPlan、sections、layout、moduleStyles 和 moduleSettings。",
+    "必须返回 generationMode=\"brick-v2\"、blueprintVersion=5、brickPlan 和 brickTrace。",
     "如果管理员要求交易账号分成两个列表、真实和模拟分开、Live/Demo 分开，必须设置 moduleSettings.tradingAccounts.grouping = \"separated\" 且 viewMode = \"list\"。",
     "如果管理员要求列表形式、不是卡片，禁止返回交易账号卡片主视图。",
     "如果管理员要求不要绑定账号入口，必须设置 moduleSettings.openAccount.bind = false。",
@@ -892,6 +907,8 @@ function buildOpenAiChatBody(config, promptParts) {
     delete body.max_tokens;
     body.max_completion_tokens = Math.min(config.maxOutputTokens, MINIMAX_MAX_COMPLETION_TOKENS);
     body.reasoning_split = true;
+  } else {
+    body.response_format = { type: "json_object" };
   }
 
   return body;
@@ -950,6 +967,18 @@ function extractTextFromAiResponse(data, apiMode) {
       .join("\n");
   }
 
+  return "";
+}
+
+function extractProviderFinishReason(data) {
+  if (!data || typeof data !== "object") return "";
+  if (Array.isArray(data.choices)) {
+    return data.choices.map((choice) => choice.finish_reason || choice.finishReason || "").filter(Boolean).join(", ");
+  }
+  if (typeof data.stop_reason === "string") return data.stop_reason;
+  if (Array.isArray(data.output)) {
+    return data.output.map((item) => item.status || item.finish_reason || "").filter(Boolean).join(", ");
+  }
   return "";
 }
 
@@ -1018,7 +1047,8 @@ function mockHomepageConfig(payload, providerConfig) {
 
   return {
     schemaVersion: 4,
-    blueprintVersion: 4,
+    blueprintVersion: 5,
+    generationMode: "brick-v2",
     name: isVip ? "AI 黑金资产首页" : isGrowth ? "AI 活动增长首页" : isTrader ? "AI 专业交易首页" : "AI 平衡工作台",
     layoutPreset: isVip ? "vipService" : isGrowth ? "conversionFirst" : isTrader ? "tradingPro" : "standardDashboard",
     themePreset: isVip ? "blackGold" : isTrader ? "default" : "blueFinance",
@@ -1175,12 +1205,17 @@ async function callProviderWithPrompt(payload, promptParts, schema) {
   }
   const usedConfig = providerResult.config;
   const rawText = extractTextFromAiResponse(providerResult.response, usedConfig.apiMode);
+  const finishReason = extractProviderFinishReason(providerResult.response);
   let json;
   try {
     json = extractJsonObject(rawText);
   } catch (error) {
+    const stripped = stripReasoningText(rawText);
+    const looksTruncated = stripped.trim().startsWith("{") && stripped.lastIndexOf("}") <= stripped.indexOf("{");
     throw enrichProviderError(error, usedConfig, providerResult.target, {
       rawTextSnippet: stripReasoningText(rawText).slice(0, 500),
+      finishReason: finishReason || null,
+      likelyTruncated: looksTruncated || /length|max_tokens|content_filter/i.test(finishReason || ""),
       attempts: providerResult.attempts,
     });
   }

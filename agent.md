@@ -199,6 +199,97 @@ AI 生成首页时必须把 `home-module-bricks.md` 当成模块参考，而不�
 - 用户要求“钱包列表”时，不能把钱包余额小卡当成完整钱包列表；如果当前渲染白名单还没有 `WalletList`，要用 `WalletBalance` 作为临时承接，并在 `aiSummary` 说明后续可升级为钱包表格积木。
 - 积木组合可以参考已保存 AI 组件，但正式首页仍必须通过白名单模块渲染；未进入白名单的数据结构只能作为布局和样式参考。
 
+## brick-v2 积木方案
+
+首页生成从现在开始按 `brick-v2` 处理：先选业务积木，再生成首页蓝图，最后由白名单渲染器输出用户端首页。大模型只负责选择和排序，不直接生成正式首页 HTML/CSS/JS。
+
+核心目标：
+
+1. 让生成结果能明确看出“用了哪些积木”。
+2. 让不同 prompt 真的影响积木选择、区域和排序。
+3. 让大模型失败时仍可通过本地积木引擎生成可预览、可发布的首页。
+4. 让正式用户首页只渲染受控业务模块，不注入未校验的任意组件代码。
+
+首页蓝图必须优先包含这些字段：
+
+```js
+{
+  generationMode: "brick-v2",
+  layoutPreset: "standardDashboard | conversionFirst | assetFirst | tradingPro | vipService",
+  themePreset: "default | blueFinance | minimalWhite | blackGold | darkTech",
+  density: "compact | balanced | spacious",
+  personalizationStrength: "subtle | medium | strong",
+  layout: [
+    {
+      id: "assetOverview-vipHero",
+      component: "asset_summary",
+      slot: "hero | main | rail | full",
+      priority: 20,
+      brickId: "assetOverview.vipHero",
+      brickName: "VIP 资产 Hero",
+      brickFamily: "AssetOverview",
+      brickSize: "3x2",
+      brickZone: "hero",
+      brickReason: "高净值客户首屏需要先看到资产与资金动作。"
+    }
+  ],
+  brickPlan: [
+    {
+      brickId: "adCarousel.heroCampaign",
+      brickName: "首屏广告轮播",
+      family: "PromotionBanner",
+      feature: "adCarousel",
+      component: "ad_carousel",
+      size: "3x1",
+      zone: "hero",
+      reason: "用户要求首屏广告轮播。"
+    }
+  ],
+  brickTrace: {
+    intent: "standard | vip | asset | trader | onboarding | growth | partner",
+    strategy: "高净值资产中枢",
+    selectedCount: 6,
+    source: "model | local-brick-engine"
+  }
+}
+```
+
+排序规则：
+
+- `layout[].priority` 是最终排序依据；`priority` 越小越靠前。
+- `slot` 决定栅格区域：`hero` 和 `full` 占整行，`main` 占主内容，`rail` 占侧栏。
+- 用户明确说“首屏”“放上方”“优先”时，对应积木应进入 `hero` 或更小 `priority`。
+- 用户明确说“放下方”“列表放下方”时，对应积木应进入 `full`，并给更大的 `priority`。
+- 不能在前端成功拿到模型 `layout` 后再用本地 `optimizeConfig` 重建一遍，否则会吞掉 AI 的排序和积木选择。
+
+正式首页渲染规则：
+
+- `home-personalization.js` 只能根据 `layout[].component` 调用 `COMPONENT_MAP` 白名单组件。
+- 渲染出的首页模块必须带 `data-home-brick`、`data-home-brick-name`、`data-home-brick-reason`，便于调试和验收。
+- 用户端首页可以展示轻量积木标识条，显示积木尺寸、名称和选择理由；这能让管理员确认方案不是固定模板。
+- 未进入白名单的 AI 生成组件不能直接注入正式首页，只能先存在 `home-component-library.json`，再作为组合建议参与后续白名单扩展。
+
+本地积木引擎必须覆盖这些策略：
+
+| intent | 触发词 | 默认积木组合 |
+| --- | --- | --- |
+| `vip` | 高净值、VIP、黑金、尊贵、机构 | `assetOverview.vipHero`、`fundActions.priorityDock`、`adCarousel.heroCampaign`、`walletBalance.currencyRail`、`openAccount.sidePanel`、`tradingAccounts.separatedList` |
+| `asset` | 资产、钱包、资金、钱包列表 | `assetOverview.vipHero`、`fundActions.priorityDock`、`walletBalance.currencyRail`、`walletList.currencyTable`、`accountPerformance.proChart`、`tradingAccounts.separatedList` |
+| `trader` | 专业交易、MT5、持仓、订单、表现图表 | `quickActions.actionDock`、`accountPerformance.proChart`、`userKycRail.profileWallet`、`assetOverview.compactMetrics`、`tradingAccounts.separatedList` |
+| `onboarding` | 新客、开户、注册、KYC、创建账户 | `onboardingProgress.checklist`、`openAccount.sidePanel`、`createAccountForm.realAccount`、`fundActions.priorityDock`、`quickActions.priorityMatrix`、`tradingAccounts.separatedList` |
+| `growth` | 活动、比赛、奖池、营销、转化、广告 | `adCarousel.heroCampaign`、`quickActions.priorityMatrix`、`promoBanner.scoreboard`、`fundActions.priorityDock`、`tradingAccounts.cardProof`、`referralLink.growthConsole` |
+| `partner` | IB、代理、渠道、邀请、开户链接 | `referralLink.growthConsole`、`adCarousel.heroCampaign`、`openAccount.sidePanel`、`quickActions.priorityMatrix`、`promoBanner.scoreboard`、`tradingAccounts.cardProof` |
+| `standard` | 默认或无法判断 | `assetOverview.compactMetrics`、`fundActions.priorityDock`、`quickActions.actionDock`、`adCarousel.heroCampaign`、`referralLink.growthConsole`、`tradingAccounts.separatedList` |
+
+调用失败处理：
+
+- 现在先暂停继续追真实 provider 调用，把它视为“增强层失败”，不要阻塞积木方案落地。
+- 页面生成按钮如果模型失败，应明确提示失败原因，同时自动回退到本地积木引擎，并继续生成草稿。
+- 调用失败记录必须进入 `home-ai-call-history.json`，保留 provider、model、baseUrl、endpoint、status、message。
+- 后续再恢复排查时，优先从调用记录页看最近失败原因；不要只看 toast 上的“调用失败”。
+- 若失败原因是 “did not contain valid homepage JSON”，说明接口通了但模型输出不符合 JSON 合约；应强化 prompt、`response_format`、JSON 截取和 schema 约束。
+- 若失败原因是 “Missing API key”，说明当前浏览器或环境变量没有有效密钥；先用 `npm run start:mock` 或本地积木引擎验收主流程。
+
 ## 配置原则
 
 首页蓝图应该包含这些概念：

@@ -416,10 +416,12 @@
   const HOMEPAGE_CONFIG_JSON_SCHEMA = {
     $id: "HomepageConfig",
     type: "object",
-    required: ["schemaVersion", "layout"],
+    required: ["schemaVersion"],
     additionalProperties: true,
     properties: {
       schemaVersion: { enum: [3, 4] },
+      blueprintVersion: { type: "number" },
+      generationMode: { type: "string" },
       layoutPreset: { enum: Object.keys(LAYOUTS) },
       themePreset: { enum: Object.keys(THEMES) },
       theme: { enum: Object.keys(THEMES) },
@@ -450,7 +452,40 @@
             slot: { enum: Object.keys(LAYOUT_SLOT_SPANS) },
             priority: { type: "number" },
             props: { type: "object" },
+            brickId: { type: "string" },
+            brickName: { type: "string" },
+            brickFamily: { type: "string" },
+            brickSize: { type: "string" },
+            brickZone: { type: "string" },
+            brickReason: { type: "string" },
           },
+        },
+      },
+      brickPlan: {
+        type: "array",
+        maxItems: 14,
+        items: {
+          type: "object",
+          properties: {
+            brickId: { type: "string" },
+            brickName: { type: "string" },
+            family: { type: "string" },
+            feature: { enum: Object.keys(FEATURES) },
+            component: { enum: COMPONENT_WHITELIST },
+            size: { type: "string" },
+            zone: { enum: Object.keys(LAYOUT_SLOT_SPANS) },
+            reason: { type: "string" },
+          },
+        },
+      },
+      brickTrace: {
+        type: "object",
+        properties: {
+          intent: { type: "string" },
+          strategy: { type: "string" },
+          score: { type: "number" },
+          selectedCount: { type: "number" },
+          source: { type: "string" },
         },
       },
       sections: {
@@ -460,7 +495,7 @@
           required: ["id", "type", "title", "slots"],
           properties: {
             id: { type: "string" },
-            type: { enum: ["hero", "split", "full"] },
+            type: { enum: ["hero", "split", "full", "rail"] },
             title: { type: "string" },
             slots: {
               type: "array",
@@ -2259,16 +2294,25 @@
 
   function normalizeBrickPlan(plan) {
     return (Array.isArray(plan) ? plan : [])
-      .map((item) => ({
-        brickId: cleanMetaText(item?.brickId, "", 90),
-        brickName: cleanMetaText(item?.brickName, "", 80),
-        family: cleanMetaText(item?.family, "", 48),
-        feature: FEATURES[item?.feature] ? item.feature : "",
-        component: COMPONENTS[item?.component] ? item.component : "",
-        size: cleanMetaText(item?.size, "", 12),
-        zone: ["hero", "main", "rail", "full"].includes(item?.zone) ? item.zone : "main",
-        reason: cleanMetaText(item?.reason, "", 180),
-      }))
+      .map((item) => {
+        const brickId = cleanMetaText(item?.brickId || item?.id, "", 90);
+        const brick = brickById(brickId);
+        const feature = FEATURES[item?.feature] ? item.feature : brick?.feature || "";
+        const component = COMPONENTS[item?.component] ? item.component : brick?.component || componentFromFeature(feature);
+
+        return {
+          brickId,
+          brickName: cleanMetaText(item?.brickName || item?.name || brick?.name, "", 80),
+          family: cleanMetaText(item?.family || item?.brickFamily || brick?.family, "", 48),
+          feature,
+          component: COMPONENTS[component] ? component : "",
+          size: cleanMetaText(item?.size || item?.brickSize || brick?.size, "", 12),
+          zone: ["hero", "main", "rail", "full"].includes(item?.zone || item?.brickZone)
+            ? item.zone || item.brickZone
+            : brick?.defaultZone || "main",
+          reason: cleanMetaText(item?.reason || item?.brickReason || brick?.reason, "", 180),
+        };
+      })
       .filter((item) => item.brickId && item.component)
       .slice(0, 14);
   }
@@ -2282,6 +2326,75 @@
       selectedCount: Number.isFinite(Number(source.selectedCount)) ? Math.max(0, Math.min(20, Math.round(Number(source.selectedCount)))) : 0,
       source: cleanMetaText(source.source, "", 48),
     };
+  }
+
+  function fallbackBrickForComponent(component, modules) {
+    if (component === "welcome_header") {
+      return {
+        id: "system.welcomeHeader",
+        name: "欢迎头部",
+        family: "WelcomeHeader",
+        component: "welcome_header",
+        size: "3x1",
+        defaultZone: "hero",
+        reason: "公共欢迎区保留为首页入口和个性化管理入口。",
+      };
+    }
+
+    const candidates = HOME_BRICKS.filter((brick) => brick.component === component);
+    if (!candidates.length) return null;
+
+    const moduleId = moduleKeyFor(component);
+    const activeVariant = moduleId ? modules?.[moduleId]?.variant : "";
+
+    return (
+      candidates.find((brick) => brick.moduleId === moduleId && brick.variant === activeVariant) ||
+      candidates.find((brick) => brick.moduleId === moduleId) ||
+      candidates[0]
+    );
+  }
+
+  function applyBrickMetadataToLayout(layout, brickPlan, modules) {
+    const planByComponent = new Map();
+
+    brickPlan.forEach((item) => {
+      if (item.component && !planByComponent.has(item.component)) planByComponent.set(item.component, item);
+    });
+
+    return layout.map((block) => {
+      if (block.brickId) return block;
+
+      const planItem = planByComponent.get(block.component);
+      const brick = planItem || fallbackBrickForComponent(block.component, modules);
+      if (!brick) return block;
+
+      return {
+        ...block,
+        brickId: cleanMetaText(brick.brickId || brick.id, "", 90),
+        brickName: cleanMetaText(brick.brickName || brick.name, "", 80),
+        brickFamily: cleanMetaText(brick.family || brick.brickFamily, "", 48),
+        brickSize: cleanMetaText(brick.size || brick.brickSize, "", 12),
+        brickZone: cleanMetaText(brick.zone || brick.defaultZone || block.slot, "", 24),
+        brickReason: cleanMetaText(brick.reason || brick.brickReason, "由 AI section 自动映射到首页积木库。", 180),
+      };
+    });
+  }
+
+  function brickPlanFromLayout(layout) {
+    return layout
+      .filter((block) => block.brickId && block.component !== "welcome_header")
+      .map((block) => ({
+        brickId: block.brickId,
+        brickName: block.brickName,
+        family: block.brickFamily,
+        feature: HOME_BRICKS.find((brick) => brick.id === block.brickId)?.feature || COMPONENT_STYLE_FEATURE_MAP[block.component] || "",
+        component: block.component,
+        size: block.brickSize,
+        zone: ["hero", "main", "rail", "full"].includes(block.brickZone) ? block.brickZone : block.slot,
+        reason: block.brickReason,
+      }))
+      .filter((item) => item.brickId && item.component)
+      .slice(0, 14);
   }
 
   function promptProfile(prompt) {
@@ -2367,7 +2480,12 @@
     const emphasis = source.emphasis && typeof source.emphasis === "object" ? source.emphasis : {};
     const moduleSettings = normalizeModuleSettings(source.moduleSettings);
     const legacySections = !source.sections && source.moduleOrder ? sectionsFromLegacyOrder(source.moduleOrder) : null;
-    const sections = normalizeSections(source.sections || legacySections || DEFAULT_CONFIG.sections);
+    const sourceBrickPlan = normalizeBrickPlan(source.brickPlan);
+    const brickSections =
+      !source.sections && !legacySections && sourceBrickPlan.length
+        ? sectionsFromBrickPlan(sourceBrickPlan, { label: cleanMetaText(source.name, "AI 积木编排", 28) })
+        : null;
+    const sections = normalizeSections(source.sections || legacySections || brickSections || DEFAULT_CONFIG.sections);
     const layoutPreset = normalizeLayoutPreset(source.layoutPreset || (typeof source.layout === "string" ? source.layout : ""));
     const modules = normalizeModuleVariants(source);
     const shouldUseExplicitLayout = Array.isArray(source.layout) && (source.generationMode === "brick-v2" || (!source.sections && !legacySections));
@@ -2375,14 +2493,28 @@
     const moduleStyles = normalizeModuleStyles(source.moduleStyles, modules);
     const themePreset = normalizeThemeId(source.themePreset || source.theme);
     const personalizationStrength = normalizePersonalizationStrength(source.personalizationStrength);
+    const shouldHydrateBricks =
+      source.generationMode === "brick-v2" ||
+      Number(source.blueprintVersion) >= 5 ||
+      sourceBrickPlan.length > 0 ||
+      normalizedLayout.layout.some((block) => block.brickId);
+    const layout = shouldHydrateBricks
+      ? applyBrickMetadataToLayout(normalizedLayout.layout, sourceBrickPlan, modules)
+      : normalizedLayout.layout;
+    const brickPlan = sourceBrickPlan.length ? sourceBrickPlan : shouldHydrateBricks ? brickPlanFromLayout(layout) : [];
 
     return {
       schemaVersion: 4,
       blueprintVersion: Number(source.blueprintVersion) >= 5 ? 5 : 4,
-      generationMode: source.generationMode === "brick-v2" ? "brick-v2" : source.generationMode ? cleanMetaText(source.generationMode, "", 32) : "preset-compatible",
+      generationMode:
+        source.generationMode === "brick-v2" || Number(source.blueprintVersion) >= 5
+          ? "brick-v2"
+          : source.generationMode
+          ? cleanMetaText(source.generationMode, "", 32)
+          : "preset-compatible",
       name: String(source.name || DEFAULT_CONFIG.name).slice(0, 28),
       layoutPreset,
-      layout: normalizedLayout.layout.map((block) => attachModuleMetadata(block, modules)),
+      layout: layout.map((block) => attachModuleMetadata(block, modules)),
       themePreset,
       theme: themePreset,
       personalizationStrength,
@@ -2405,7 +2537,7 @@
       heroTitleKey: i18nKey(source.heroTitleKey, COMPONENT_PROPS_SCHEMA.welcome_header.titleKey),
       heroSubtitleKey: i18nKey(source.heroSubtitleKey, COMPONENT_PROPS_SCHEMA.welcome_header.subtitleKey),
       aiSummary: String(source.aiSummary || DEFAULT_CONFIG.aiSummary).slice(0, 260),
-      brickPlan: normalizeBrickPlan(source.brickPlan),
+      brickPlan,
       brickTrace: normalizeBrickTrace(source.brickTrace),
       compositionStrategy: cleanMetaText(source.compositionStrategy, "", 260),
       annotations: Array.isArray(source.annotations) ? source.annotations.slice(0, 24) : [],
@@ -3568,6 +3700,8 @@
     if (!shell) return;
 
     const doc = target;
+    const renderableBlocks = config.layout.filter((block) => COMPONENT_MAP[block.component] && componentEnabled(block.component, config));
+    const heroBlocks = renderableBlocks.filter((block) => block.slot === "hero" && block.component !== "welcome_header");
 
     shell.querySelectorAll(".client-welcome, [data-home-module], [data-layout-section], [data-home-feature]").forEach((node) => node.remove());
     shell.classList.add("is-blueprint-home");
@@ -3577,9 +3711,8 @@
       .concat(`ai-blueprint-layout-${config.layoutPreset}`)
       .join(" ");
 
-    config.layout.forEach((block) => {
+    renderableBlocks.forEach((block) => {
       const renderComponent = COMPONENT_MAP[block.component];
-      if (!renderComponent || !componentEnabled(block.component, config)) return;
 
       const node = renderComponent(doc, config, block.props);
       node.classList.add("ai-home-block", `ai-home-block-${block.slot}`, `ai-component-${block.component}`);
@@ -3588,8 +3721,24 @@
       if (block.brickName) node.dataset.homeBrickName = block.brickName;
       if (block.brickReason) node.dataset.homeBrickReason = block.brickReason;
       node.dataset.homeSlot = block.slot;
-      node.style.setProperty("--home-span", String(LAYOUT_SLOT_SPANS[block.slot] || 12));
+      if (block.slot === "hero" && heroBlocks.length > 1) {
+        node.classList.add("ai-home-block-polished");
+        const heroSpan = ["asset_summary", "account_list", "account_performance"].includes(block.component) ? 8 : 4;
+        node.style.setProperty("--home-span", String(heroSpan));
+      } else {
+        node.style.setProperty("--home-span", String(LAYOUT_SLOT_SPANS[block.slot] || 12));
+      }
       node.style.order = String(block.priority);
+      if (block.brickName || block.brickId) {
+        const badge = doc.createElement("div");
+        badge.className = "ai-brick-meta";
+        badge.innerHTML = `
+          <span>${escapeHtml(block.brickSize || block.slot)}</span>
+          <strong>${escapeHtml(block.brickName || block.brickId)}</strong>
+          ${block.brickReason ? `<small>${escapeHtml(block.brickReason)}</small>` : ""}
+        `;
+        node.prepend(badge);
+      }
       shell.appendChild(node);
     });
   }

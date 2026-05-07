@@ -96,7 +96,7 @@
     callMode: "serverProxy",
     proxyEndpoint: "/api/home-ai/complete",
     temperature: 0.4,
-    maxOutputTokens: 2400,
+    maxOutputTokens: 6000,
     apiKey: "",
     apiKeys: {},
   };
@@ -456,7 +456,7 @@
       proxyEndpoint: proxyEndpoint || DEFAULT_MODEL_CONFIG.proxyEndpoint,
       temperature: normalizeModelTemperature(preset.provider, temperature),
       maxOutputTokens: Number.isFinite(maxOutputTokens)
-        ? Math.min(Math.max(Math.round(maxOutputTokens), 512), preset.provider === "minimax" ? MINIMAX_MAX_COMPLETION_TOKENS : 12000)
+        ? Math.min(Math.max(Math.round(maxOutputTokens), preset.provider === "minimax" ? 512 : 6000), preset.provider === "minimax" ? MINIMAX_MAX_COMPLETION_TOKENS : 12000)
         : preset.provider === "minimax"
           ? MINIMAX_MAX_COMPLETION_TOKENS
           : DEFAULT_MODEL_CONFIG.maxOutputTokens,
@@ -1077,7 +1077,14 @@
     }
 
     if (/valid homepage JSON|AI response did not contain valid homepage JSON/i.test(source)) {
+      if (details.likelyTruncated || /length|max_tokens/i.test(String(details.finishReason || ""))) {
+        return "处理建议：模型返回了 JSON 开头，但输出可能被截断；已自动回退本地方案。请把 Max output tokens 提高到 6000 以上，或切到更快/更稳定的结构化输出模型。";
+      }
       return "处理建议：模型有响应，但没有按首页配置 JSON 返回；已自动回退本地方案。可以重试一次、降低 Temperature，或切到更稳定的结构化输出模型。";
+    }
+
+    if (/timed out|timeout|超时/i.test(source)) {
+      return "处理建议：模型连通正常，但首页蓝图生成超过代理等待时间；已自动回退本地方案。可以切到 deepseek-v4-flash，或使用更短的结构化 prompt。";
     }
 
     return "";
@@ -1094,6 +1101,8 @@
     if (details.providerName || details.model) {
       parts.push([details.providerName || details.provider, details.model].filter(Boolean).join(" / "));
     }
+    if (details.finishReason) parts.push(`finish: ${details.finishReason}`);
+    if (details.likelyTruncated) parts.push("疑似输出被截断");
     if (triedBaseUrls.length > 1) parts.push(`已尝试 ${triedBaseUrls.join(" -> ")}`);
     if (details.rawTextSnippet) parts.push(`模型返回片段：${String(details.rawTextSnippet).slice(0, 240)}`);
 
@@ -1202,14 +1211,16 @@
       });
 
     const aiConfig = {
+      generationMode: "brick-v2",
       ...(payload.config || {}),
       aiSummary:
         payload.config?.aiSummary ||
         `已通过 ${aiGenerationLabel(config)} 生成首页蓝图，并完成前端安全标准化。`,
     };
+    const normalizedConfig = home.normalizeConfig(aiConfig);
 
     return {
-      config: home.optimizeConfig(aiConfig, { prompt }),
+      config: normalizedConfig,
       usedModel: true,
       label: aiGenerationLabel(config),
       mock: Boolean(payload.mock),
