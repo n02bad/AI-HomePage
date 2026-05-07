@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="./theme.js"></script>
+    <title>ForexCRM - 大模型调用记录</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./theme.css?v=tenant-home-4" />
+    <link rel="stylesheet" href="./client-home.css?v=tenant-home-4" />
+    <link rel="stylesheet" href="./home-personalization.css?v=tenant-home-4" />
+  </head>
+  <body data-layout-page="home-model-calls">
+    <main class="app" data-layout-main>
+      <div class="page personalization-page">
+        <section class="model-calls-page" data-model-calls-page>
+          <header class="model-calls-hero">
+            <div>
+              <span class="section-kicker">MODEL CALLS</span>
+              <h1>大模型调用记录</h1>
+              <p>模型、耗时、状态和返回片段集中查看。</p>
+            </div>
+            <div class="model-calls-actions">
+              <a href="./home-layout-admin.html">生成首页</a>
+              <button type="button" data-call-refresh>刷新</button>
+              <button type="button" data-call-export>导出 JSON</button>
+              <button type="button" data-call-clear>清空</button>
+            </div>
+          </header>
+
+          <section class="model-call-stats" aria-label="调用统计">
+            <article>
+              <span>总调用</span>
+              <strong data-call-total>0</strong>
+            </article>
+            <article>
+              <span>成功</span>
+              <strong data-call-success>0</strong>
+            </article>
+            <article>
+              <span>回退/失败</span>
+              <strong data-call-problems>0</strong>
+            </article>
+            <article>
+              <span>平均耗时</span>
+              <strong data-call-average>--</strong>
+            </article>
+          </section>
+
+          <section class="model-call-board">
+            <div class="model-call-list-panel">
+              <div class="model-call-toolbar">
+                <div class="model-call-filters" role="group" aria-label="筛选调用记录">
+                  <button class="active" type="button" data-call-filter="all">全部</button>
+                  <button type="button" data-call-filter="success">成功</button>
+                  <button type="button" data-call-filter="fallback">回退</button>
+                  <button type="button" data-call-filter="failed">失败</button>
+                  <button type="button" data-call-filter="local">本地</button>
+                  <button type="button" data-call-filter="mock">Mock</button>
+                </div>
+                <label>
+                  <span class="visually-hidden">搜索调用记录</span>
+                  <input data-call-search type="search" placeholder="搜索模型、状态、提示词..." />
+                </label>
+              </div>
+
+              <div class="model-call-table" data-call-records></div>
+            </div>
+
+            <aside class="model-call-detail-panel" data-call-detail>
+              <p class="empty-history">暂无调用记录</p>
+            </aside>
+          </section>
+        </section>
+      </div>
+
+      <div class="client-toast" data-call-toast hidden></div>
+    </main>
+
+    <script src="./common-layout.js"></script>
+    <script src="./home-model-calls.js"></script>
+  </body>
+</html>

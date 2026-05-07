@@ -1,0 +1,737 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="data:," />
+    <script src="./theme.js"></script>
+    <title>ForexCRM - 首页积木组件库</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./theme.css?v=tenant-home-4" />
+    <link rel="stylesheet" href="./home-module-preview.css?v=module-bricks-1" />
+  </head>
+  <body data-layout-page="home-module-preview" data-tenant-theme="default">
+    <main class="app" data-layout-main>
+      <div class="page brick-preview-page">
+        <section class="brick-library-shell">
+          <header class="brick-page-head">
+            <div>
+              <span class="brick-kicker">Homepage Bricks</span>
+              <h1>首页积木组件库</h1>
+              <p>12 个首页模块 · 细颗粒组件 · AI 生成并保存新积木</p>
+            </div>
+            <div class="brick-head-actions">
+              <a href="./home-layout-preview.html">首页预览</a>
+              <a class="primary" href="./home-layout-admin.html">AI 生成</a>
+            </div>
+          </header>
+
+          <section class="brick-overview-band" aria-label="积木体系摘要">
+            <article>
+              <span>Modules</span>
+              <strong>12</strong>
+              <small>核心业务模块</small>
+            </article>
+            <article>
+              <span>Sizes</span>
+              <strong>1x1-3x2</strong>
+              <small>可映射到 hero/main/rail/full</small>
+            </article>
+            <article>
+              <span>Priority</span>
+              <strong>5 + 5 + 2</strong>
+              <small>核心、增强、完整性模块</small>
+            </article>
+          </section>
+
+          <section class="brick-ai-workbench" aria-label="AI 组件生成工作台">
+            <div class="brick-ai-copy">
+              <span class="brick-kicker">AI Component Studio</span>
+              <h2>用 AI 增加新的模块组件</h2>
+              <p>输入组件需求后，AI 会生成安全的组件定义，保存到系统组件库。保存后的组件可以参与首页积木组合，并生成首页草稿进入预览页。</p>
+            </div>
+            <div class="brick-ai-panel">
+              <label for="aiComponentPrompt">组件需求</label>
+              <textarea
+                id="aiComponentPrompt"
+                data-ai-component-prompt
+                rows="4"
+                placeholder="例如：做一个右侧开户提醒组件，包含 KYC 状态、开真实账号按钮、首次入金提示，风格清爽科技。"
+              ></textarea>
+              <div class="brick-ai-controls">
+                <label>
+                  模块归属
+                  <select data-ai-component-family>
+                    <option value="AssetOverview">AssetOverview</option>
+                    <option value="WalletBalance">WalletBalance</option>
+                    <option value="FundActions">FundActions</option>
+                    <option value="QuickActions">QuickActions</option>
+                    <option value="ReferralLink">ReferralLink</option>
+                    <option value="TradingAccounts">TradingAccounts</option>
+                    <option value="OpenAccount">OpenAccount</option>
+                    <option value="OnboardingProgress">OnboardingProgress</option>
+                    <option value="UserKycRail">UserKycRail</option>
+                    <option value="AccountPerformance">AccountPerformance</option>
+                    <option value="WalletList">WalletList</option>
+                    <option value="CreateAccountForm">CreateAccountForm</option>
+                    <option value="ClientHomeAtoms" selected>ClientHomeAtoms</option>
+                  </select>
+                </label>
+                <label>
+                  积木尺寸
+                  <select data-ai-component-size>
+                    <option value="1x1">1x1</option>
+                    <option value="1x2">1x2</option>
+                    <option value="2x1" selected>2x1</option>
+                    <option value="2x2">2x2</option>
+                    <option value="3x1">3x1</option>
+                    <option value="3x2">3x2</option>
+                  </select>
+                </label>
+              </div>
+              <div class="brick-ai-actions">
+                <button class="primary" type="button" data-ai-generate-component>生成并保存组件</button>
+                <button type="button" data-ai-compose-home>用保存组件生成首页草稿</button>
+              </div>
+              <p class="brick-ai-status" data-ai-component-status>等待生成组件</p>
+            </div>
+          </section>
+
+          <section class="brick-saved-section" data-saved-section hidden>
+            <div class="brick-family-head">
+              <div>
+                <span>Saved AI Components</span>
+                <h2>已保存的 AI 组件</h2>
+              </div>
+              <b data-saved-count>0</b>
+            </div>
+            <div class="brick-preview-grid" data-saved-components></div>
+          </section>
+
+          <section class="brick-composition-section" data-composition-section hidden>
+            <div class="brick-family-head">
+              <div>
+                <span>AI Composition</span>
+                <h2 data-composition-name>首页积木组合</h2>
+              </div>
+              <b>已保存</b>
+            </div>
+            <div class="brick-composition-card">
+              <p data-composition-summary></p>
+              <div data-composition-layout></div>
+              <small data-composition-polish></small>
+            </div>
+          </section>
+
+          <nav class="brick-filter-bar" aria-label="组件分类">
+            <button class="active" type="button" data-brick-filter="all">全部</button>
+            <button type="button" data-brick-filter="core">核心模块</button>
+            <button type="button" data-brick-filter="support">增强模块</button>
+            <button type="button" data-brick-filter="table">表格/表单</button>
+            <button type="button" data-brick-filter="atom">首页细组件</button>
+          </nav>
+
+          <section class="brick-family" data-brick-group="atom" id="client-home-atoms">
+            <div class="brick-family-head">
+              <div>
+                <span>ClientHomeAtoms</span>
+                <h2>client-home.html 细颗粒组件</h2>
+              </div>
+              <b>原首页拆解补齐</b>
+            </div>
+            <div class="brick-preview-grid">
+              <article class="brick-card">
+                <header><span>欢迎头部</span><b>3x1</b></header>
+                <div class="brick-canvas compact">
+                  <div class="atom-welcome-preview">
+                    <div><h3>欢迎回来, Huang!</h3><p>Track your trading performance and manage your account.</p></div>
+                    <a href="./home-layout-admin.html">首页个性化</a>
+                    <span>Sunday, May 3, 2026</span>
+                  </div>
+                </div>
+              </article>
+
+              <article class="brick-card">
+                <header><span>资产指标小卡</span><b>1x1</b></header>
+                <div class="brick-canvas">
+                  <div class="atom-balance-metric-preview">
+                    <small>账户余额 (USD)</small>
+                    <strong>999,999.99</strong>
+                    <span>按钱包币种折算</span>
+                  </div>
+                </div>
+              </article>
+
+              <article class="brick-card">
+                <header><span>资金按钮</span><b>1x1</b></header>
+                <div class="brick-canvas">
+                  <div class="atom-fund-preview">
+                    <button class="deposit" type="button">入金</button>
+                    <button type="button">出金</button>
+                  </div>
+                </div>
+              </article>
+
+              <article class="brick-card">
+                <header><span>进度任务</span><b>1x1</b></header>
+                <div class="brick-canvas">
+                  <div class="atom-progress-preview">
+                    <a class="active" href="#onboarding-progress">完善个人资料<i></i></a>
+                    <a href="#onboarding-progress">身份认证 KYC<i></i></a>
+                    <a href="#onboarding-progress">首次入金<i></i></a>
+                  </div>
+                </div>
+              </article>
+
+              <article class="brick-card">
+                <header><span>快捷入口单元</span><b>1x1</b></header>
+                <div class="brick-canvas">
+                  <div class="atom-quick-preview">
+                    <span>+</span>
+                    <b>开新账户</b>
+                  </div>
+                </div>
+              </article>
+
+              <article class="brick-card">
+                <header><span>推广徽章</span><b>1x1</b></header>
+                <div class="brick-canvas">
+                  <div class="atom-promo-preview">
+                    <i>🏆</i>
+                    <div><span>进行中</span><strong>5月盈利王挑战赛</strong></div>
+                    <a href="#promotion-banner">查看详情</a>
+                  </div>
+                </div>
+              </article>
+
+              <article class="brick-card">
+                <header><span>邀请字段</span><b>2x1</b></header>
+                <div class="brick-canvas">
+                  <div class="atom-referral-field-preview">
+                    <label>测试注册链接</label>
+                    <span>http://user-1.hcs55.com:38080/regist-real?...</span>
+                    <button type="button">Copy</button>
+                  </div>
+                </div>
+              </article>
+
+              <article class="brick-card">
+                <header><span>账号筛选 + 开户</span><b>2x1</b></header>
+                <div class="brick-canvas">
+                  <div class="atom-account-toolbar-preview">
+                    <button class="active" type="button">全部</button>
+                    <button type="button">Live</button>
+                    <button type="button">Demo</button>
+                    <button class="open" type="button">开户</button>
+                  </div>
+                </div>
+              </article>
+
+              <article class="brick-card">
+                <header><span>视图切换</span><b>1x1</b></header>
+                <div class="brick-canvas">
+                  <div class="atom-view-toggle-preview">
+                    <button class="active" type="button">▦</button>
+                    <button type="button">☰</button>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section class="brick-family" data-brick-group="core" id="asset-overview">
+            <div class="brick-family-head">
+              <div>
+                <span>AssetOverview</span>
+                <h2>资产总览</h2>
+              </div>
+              <b>2x1 / 2x2 / 3x1</b>
+            </div>
+            <div class="brick-preview-grid">
+              <article class="brick-card">
+                <header><span>指标条</span><b>3x1</b></header>
+                <div class="brick-canvas">
+                  <div class="asset-strip-preview">
+                    <div>
+                      <small>Wallet Balance</small>
+                      <strong>52 306.00</strong>
+                      <span>USD</span>
+                    </div>
+                    <div>
+                      <small>TA Balance</small>
+                      <strong>52 306.00</strong>
+                      <span>Live total</span>
+                    </div>
+                    <div>
+                      <small>TA Credit</small>
+                      <strong>52 306.00</strong>
+                      <span>Live total</span>
+                    </div>
+                    <button type="button">Deposit</button>
+                  </div>
+                </div>
+              </article>
+
+              <article class="brick-card">
+                <header><span>资产驾驶舱</span><b>2x2</b></header>
+                <div class="brick-canvas">
+                  <div class="asset-command-preview">
+                    <div>
+                      <span class="live-chip">Live</span>
+                      <b>400009-HCHoldingsGroup</b>
+                    </div>
+                    <strong>152,306.00</strong>
+                    <small>Balance</small>
+                    <dl>
+                      <div><dt>Equity</dt><dd>378,283.99</dd></div>
+                      <div><dt>Account Type</dt><dd>ECN</dd></div>
+                      <div><dt>Credit</dt><dd>89,18.00</dd></div>
+                    </dl>
+                  </div>
+                </div>
+              </article>
+
+              <article class="brick-card">
+                <header><span>暗色终端</span><b>2x1</b></header>
+                <div class="brick-canvas terminal-canvas">
+                  <div class="asset-terminal-preview">
+                    <span>NET EQUITY</span>
+                    <strong>999,999.99</strong>
+                    <div>
+                      <b>Wallet 9,999.99</b>
+                      <b>TA 990,000.00</b>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section class="brick-family" data-brick-group="core" id="quick-actions">
+            <div class="brick-family-head">
+              <div>
+                <span>QuickActions</span>
+                <h2>快捷入口</h2>
+              </div>
+              <b>1x1 / 2x1 / 3x1</b>
+            </div>
+            <div class="brick-preview-grid">
+              <article class="brick-card wide">
+                <header><span>工具 Dock</span><b>3x1</b></header>
+                <div class="brick-canvas compact">
+                  <div class="action-dock-preview">
+                    <a href="#asset-overview"><i>↓</i><span>Deposit</span></a>
+                    <a href="#asset-overview"><i>↑</i><span>Withdrawal</span></a>
+                    <a href="#asset-overview"><i>⇄</i><span>Transfer</span></a>
+                    <a href="#asset-overview"><i>◱</i><span>Wallet Flow</span></a>
+                    <a href="#trading-accounts"><i>◎</i><span>Order</span></a>
+                    <a href="#trading-accounts"><i>▤</i><span>Positions</span></a>
+                  </div>
+                </div>
+              </article>
+
+              <article class="brick-card">
+                <header><span>两行矩阵</span><b>2x1</b></header>
+                <div class="brick-canvas">
+                  <div class="action-matrix-preview">
+                    <button type="button">Deposit</button>
+                    <button type="button">Withdrawal</button>
+                    <button type="button">Internal Transfer</button>
+                    <button type="button">Wallet Flow</button>
+                    <button type="button">Order History</button>
+                    <button type="button">TA Flow</button>
+                  </div>
+                </div>
+              </article>
+
+              <article class="brick-card">
+                <header><span>优先按钮</span><b>2x1</b></header>
+                <div class="brick-canvas">
+                  <div class="priority-action-preview">
+                    <button class="primary" type="button">Deposit</button>
+                    <button class="primary soft" type="button">Open Account</button>
+                    <button type="button">Withdraw</button>
+                    <button type="button">Transfer</button>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section class="brick-family" data-brick-group="core" id="trading-accounts">
+            <div class="brick-family-head">
+              <div>
+                <span>TradingAccounts</span>
+                <h2>交易账号</h2>
+              </div>
+              <b>2x2 / 3x2</b>
+            </div>
+            <div class="brick-preview-grid">
+              <article class="brick-card wide">
+                <header><span>安静列表</span><b>3x2</b></header>
+                <div class="brick-canvas">
+                  <div class="account-table-preview">
+                    <div class="table-head"><span>Account</span><span>Server</span><span>Balance</span><span>Leverage</span><span>Operation</span></div>
+                    <div><span><i>Live</i> 2000281</span><span>MT5 HCHoldingsGroup</span><span>99,999.99</span><span>1:500</span><a href="#trading-accounts">Details</a></div>
+                    <div><span><i>Live</i> 2000282</span><span>MT4 HCHoldingsGroup</span><span>99,999.99</span><span>1:500</span><a href="#trading-accounts">Details</a></div>
+                    <div><span><i class="demo">Demo</i> 1000008</span><span>MT5 HCHoldingsGroup</span><span>50,000.00</span><span>1:500</span><a href="#trading-accounts">Details</a></div>
+                  </div>
+                </div>
+              </article>
+
+              <article class="brick-card">
+                <header><span>账号卡片</span><b>2x2</b></header>
+                <div class="brick-canvas">
+                  <div class="account-card-preview">
+                    <article>
+                      <span>Live</span>
+                      <b>80009</b>
+                      <strong>999,999.99</strong>
+                      <small>MT5 · ECN · 1:100</small>
+                    </article>
+                    <article>
+                      <span class="demo">Demo</span>
+                      <b>90021</b>
+                      <strong>50,000.00</strong>
+                      <small>MT5 · Demo · 1:500</small>
+                    </article>
+                  </div>
+                </div>
+              </article>
+
+              <article class="brick-card">
+                <header><span>分组分页</span><b>3x2</b></header>
+                <div class="brick-canvas">
+                  <div class="grouped-account-preview">
+                    <div><b>Live Account</b><a href="#open-account">+ Create</a></div>
+                    <p><span>2000281</span><span>99,999.99 USD</span></p>
+                    <p><span>2000282</span><span>99,999.99 USD</span></p>
+                    <div><b>Demo Account</b><a href="#open-account">+ Create</a></div>
+                    <p><span>1000008</span><span>50,000.00 USD</span></p>
+                    <nav><button type="button">‹</button><button class="active" type="button">2</button><button type="button">3</button><button type="button">›</button></nav>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section class="brick-family" data-brick-group="core" id="open-account">
+            <div class="brick-family-head">
+              <div>
+                <span>OpenAccount</span>
+                <h2>开户入口</h2>
+              </div>
+              <b>1x1 / 1x2 / 2x1</b>
+            </div>
+            <div class="brick-preview-grid">
+              <article class="brick-card">
+                <header><span>筛选同行</span><b>2x1</b></header>
+                <div class="brick-canvas">
+                  <div class="open-toolbar-preview">
+                    <div><button class="active" type="button">All</button><button type="button">Live</button><button type="button">Demo</button></div>
+                    <button class="open-trigger" type="button">+ 开户</button>
+                    <menu>
+                      <button type="button">真实账号</button>
+                      <button type="button">模拟账号</button>
+                      <button type="button">绑定账号</button>
+                    </menu>
+                  </div>
+                </div>
+              </article>
+
+              <article class="brick-card">
+                <header><span>右侧面板</span><b>1x2</b></header>
+                <div class="brick-canvas">
+                  <div class="open-rail-preview">
+                    <strong>Create Trading Account</strong>
+                    <button class="primary" type="button">Live Account</button>
+                    <button type="button">Demo Account</button>
+                    <button type="button">Bind Account</button>
+                  </div>
+                </div>
+              </article>
+
+              <article class="brick-card">
+                <header><span>空状态三按钮</span><b>2x1</b></header>
+                <div class="brick-canvas">
+                  <div class="open-empty-preview">
+                    <button class="primary" type="button"><b>+</b><span>Live Account</span></button>
+                    <button type="button"><b>+</b><span>Demo Account</span></button>
+                    <button type="button"><b>⌁</b><span>Bind Account</span></button>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section class="brick-family" data-brick-group="core" id="referral-link">
+            <div class="brick-family-head">
+              <div>
+                <span>ReferralLink</span>
+                <h2>邀请链接</h2>
+              </div>
+              <b>1x1 / 2x1 / 3x1</b>
+            </div>
+            <div class="brick-preview-grid">
+              <article class="brick-card wide">
+                <header><span>链接优先</span><b>3x1</b></header>
+                <div class="brick-canvas compact">
+                  <div class="referral-link-preview">
+                    <label>Test registration link</label>
+                    <p>http://use-1.hcs555.com:38080/regist-real?inbitid=-123</p>
+                    <button type="button">Copy</button>
+                    <label>Invitation code</label>
+                    <p>1234567890-1234</p>
+                  </div>
+                </div>
+              </article>
+
+              <article class="brick-card">
+                <header><span>邀请控制台</span><b>2x1</b></header>
+                <div class="brick-canvas">
+                  <div class="referral-console-preview">
+                    <div><span>Click</span><b>271</b></div>
+                    <div><span>Refer No.</span><b>622</b></div>
+                    <div><span>Refer TA No.</span><b>78</b></div>
+                    <p>邀请码 1234567890-1234</p>
+                  </div>
+                </div>
+              </article>
+
+              <article class="brick-card">
+                <header><span>紧凑邀请</span><b>1x1</b></header>
+                <div class="brick-canvas">
+                  <div class="referral-compact-preview">
+                    <strong>Referral Link</strong>
+                    <span>555555690-123</span>
+                    <button type="button">复制链接</button>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section class="brick-family" data-brick-group="support" id="user-kyc-rail">
+            <div class="brick-family-head">
+              <div>
+                <span>UserKycRail</span>
+                <h2>用户 / KYC 侧栏</h2>
+              </div>
+              <b>1x1 / 1x2</b>
+            </div>
+            <div class="brick-preview-grid">
+              <article class="brick-card">
+                <header><span>用户钱包侧栏</span><b>1x2</b></header>
+                <div class="brick-canvas">
+                  <div class="user-rail-preview">
+                    <div class="avatar">JC</div>
+                    <strong>Jay Chew</strong>
+                    <p>Singapore · 2025-05-19 15:20:09</p>
+                    <hr />
+                    <span class="kyc-dot">Proved</span>
+                    <b>52 306.00</b>
+                    <div><span>🇬🇧 USD</span><span>🇦🇺 AUD</span><span>🇨🇦 CAD</span></div>
+                  </div>
+                </div>
+              </article>
+
+              <article class="brick-card">
+                <header><span>KYC 状态卡</span><b>1x1</b></header>
+                <div class="brick-canvas">
+                  <div class="kyc-card-preview">
+                    <span>KYC Info</span>
+                    <strong><i></i>Proved</strong>
+                    <small>2024-06-27</small>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section class="brick-family" data-brick-group="support" id="account-performance">
+            <div class="brick-family-head">
+              <div>
+                <span>AccountPerformance</span>
+                <h2>账号表现图表</h2>
+              </div>
+              <b>2x2 / 3x1</b>
+            </div>
+            <div class="brick-preview-grid">
+              <article class="brick-card wide">
+                <header><span>PnL 曲线</span><b>2x2</b></header>
+                <div class="brick-canvas">
+                  <div class="performance-preview">
+                    <aside>
+                      <span>Live 400009-HCHoldingsGroup</span>
+                      <strong>152,306.00</strong>
+                      <small>Balance</small>
+                      <p><span>Equity</span><b>378,283.99</b></p>
+                      <p><span>Credit</span><b>89,18.00</b></p>
+                    </aside>
+                    <div class="line-chart" aria-hidden="true">
+                      <svg viewBox="0 0 320 150">
+                        <path d="M12 128 C40 80, 68 70, 96 96 S150 116, 172 55 S230 20, 258 66 S292 82, 308 122" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section class="brick-family" data-brick-group="support" id="onboarding-progress">
+            <div class="brick-family-head">
+              <div>
+                <span>OnboardingProgress</span>
+                <h2>开户路径</h2>
+              </div>
+              <b>2x1 / 3x1</b>
+            </div>
+            <div class="brick-preview-grid">
+              <article class="brick-card wide">
+                <header><span>三步路径</span><b>3x1</b></header>
+                <div class="brick-canvas compact">
+                  <div class="onboarding-path-preview">
+                    <span>KYC Prove</span>
+                    <i></i>
+                    <span>Open first live account</span>
+                    <i></i>
+                    <span>First Deposit</span>
+                  </div>
+                </div>
+              </article>
+
+              <article class="brick-card">
+                <header><span>任务清单</span><b>2x1</b></header>
+                <div class="brick-canvas">
+                  <div class="onboarding-check-preview">
+                    <p><b>01</b><span>KYC completed</span></p>
+                    <p><b>02</b><span>Open Account</span></p>
+                    <p><b>03</b><span>Deposit Now</span></p>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section class="brick-family" data-brick-group="support" id="wallet-balance">
+            <div class="brick-family-head">
+              <div>
+                <span>WalletBalance</span>
+                <h2>钱包余额</h2>
+              </div>
+              <b>1x1 / 1x2 / 2x1</b>
+            </div>
+            <div class="brick-preview-grid">
+              <article class="brick-card">
+                <header><span>币种分栏</span><b>2x1</b></header>
+                <div class="brick-canvas">
+                  <div class="wallet-currency-preview">
+                    <strong>52 306.00</strong>
+                    <div><span>🇺🇸 USD<b>7621.04</b></span><span>🇦🇺 AUD<b>10.48</b></span><span>🇬🇧 GBP<b>90.21</b></span></div>
+                  </div>
+                </div>
+              </article>
+
+              <article class="brick-card">
+                <header><span>钱包操作条</span><b>2x1</b></header>
+                <div class="brick-canvas">
+                  <div class="wallet-actions-preview">
+                    <div><span>Wallet Balance</span><b>9,999.99 USD</b></div>
+                    <button type="button">Deposit</button>
+                    <button type="button">Withdraw</button>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section class="brick-family" data-brick-group="support" id="promotion-banner">
+            <div class="brick-family-head">
+              <div>
+                <span>PromotionBanner</span>
+                <h2>广告 / 活动</h2>
+              </div>
+              <b>2x1 / 3x1</b>
+            </div>
+            <div class="brick-preview-grid">
+              <article class="brick-card wide">
+                <header><span>活动横幅</span><b>3x1</b></header>
+                <div class="brick-canvas compact">
+                  <div class="promo-banner-preview">
+                    <span>Contest</span>
+                    <strong>五月盈利王挑战赛</strong>
+                    <p>奖池 9,600 美元 · 剩余 28 天</p>
+                    <a href="#promotion-banner">查看详情</a>
+                  </div>
+                </div>
+              </article>
+
+              <article class="brick-card">
+                <header><span>清爽广告位</span><b>2x1</b></header>
+                <div class="brick-canvas">
+                  <div class="ad-clean-preview">
+                    <i></i>
+                    <strong>Campaign Image</strong>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section class="brick-family" data-brick-group="table" id="wallet-list">
+            <div class="brick-family-head">
+              <div>
+                <span>WalletList</span>
+                <h2>钱包列表</h2>
+              </div>
+              <b>2x2 / 3x2</b>
+            </div>
+            <div class="brick-preview-grid">
+              <article class="brick-card wide">
+                <header><span>安静表格</span><b>3x2</b></header>
+                <div class="brick-canvas">
+                  <div class="wallet-table-preview">
+                    <div><span>Wallet</span><span>Currency</span><span>Balance</span><span>Operation</span></div>
+                    <p><span>🇺🇸 Wallet USD</span><span>USD</span><span>99,999.99</span><span><a>Deposit</a><a>Withdraw</a></span></p>
+                    <p><span>🇯🇵 Wallet JPY</span><span>JPY</span><span>0.00</span><span><a>Deposit</a><a>Withdraw</a></span></p>
+                    <p><span>🇦🇺 Wallet AUD</span><span>AUD</span><span>0.00</span><span><a>Deposit</a><a>Withdraw</a></span></p>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section class="brick-family" data-brick-group="table" id="create-account-form">
+            <div class="brick-family-head">
+              <div>
+                <span>CreateAccountForm</span>
+                <h2>创建账号表单</h2>
+              </div>
+              <b>1x2 / 2x2</b>
+            </div>
+            <div class="brick-preview-grid">
+              <article class="brick-card wide">
+                <header><span>右侧表单</span><b>1x2</b></header>
+                <div class="brick-canvas">
+                  <form class="create-account-preview">
+                    <strong>创建真实账号</strong>
+                    <div><label>交易平台</label><span>请选择</span></div>
+                    <div><label>账户名称</label><input value="10,000.00" aria-label="账户名称" /></div>
+                    <div><label>账户类型</label><span>请选择</span></div>
+                    <div><label>杠杆</label><span>1:300</span></div>
+                    <footer><button type="button">取消</button><button class="primary" type="button">确定</button></footer>
+                  </form>
+                </div>
+              </article>
+            </div>
+          </section>
+        </section>
+      </div>
+    </main>
+
+    <script src="./common-layout.js"></script>
+    <script src="./home-personalization.js"></script>
+    <script src="./home-module-preview.js"></script>
+  </body>
+</html>

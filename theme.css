@@ -1,0 +1,962 @@
+:root {
+  --bg: #f8fbff;
+  --page-bg: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  --surface-raised: #ffffff;
+  --surface-muted: #f3f6fb;
+  --surface-hover: #f8fbff;
+  --surface-selected: #eef4ff;
+  --input-bg: #ffffff;
+  --text-strong: #0f172a;
+  --text-soft: #475569;
+  --icon-muted: #94a3b8;
+  --overlay: rgba(15, 23, 42, 0.42);
+  --shadow-soft: 0 12px 28px rgba(15, 23, 42, 0.05);
+  --shadow-floating: 0 24px 70px rgba(15, 23, 42, 0.22);
+  --blue-faint: #eff6ff;
+  --success: #059669;
+  --success-soft: #ecfdf5;
+  --warning: #c2410c;
+  --warning-soft: #fff7ed;
+  --danger: #dc2626;
+  --danger-soft: #fff1f2;
+  --purple: #7c3aed;
+  --purple-soft: #f3e8ff;
+  --gold: #92400e;
+  --gold-soft: #fff7d6;
+  color-scheme: light;
+}
+
+:root,
+:root[data-tenant-theme="default"],
+body[data-tenant-theme="default"] {
+  --tenant-primaryColor: #2563eb;
+  --tenant-accentColor: #facc15;
+  --tenant-backgroundStyle:
+    radial-gradient(circle at 70% 8%, rgba(37, 99, 235, 0.055), transparent 28%),
+    linear-gradient(180deg, #ffffff 0%, #f6f9fd 100%);
+  --tenant-cardStyle: rgba(255, 255, 255, 0.98);
+  --tenant-cardRadius: 8px;
+  --tenant-cardShadow: 0 16px 36px rgba(15, 23, 42, 0.055);
+  --tenant-buttonStyle:
+    radial-gradient(circle at 92% 16%, rgba(255, 255, 255, 0.24), transparent 28%),
+    linear-gradient(135deg, #2563eb 0%, #1f4ed8 100%);
+  --tenant-fontDensity: 1;
+  --tenant-numberStyle: tabular;
+  --tenant-bannerStyle:
+    linear-gradient(110deg, rgba(17, 24, 39, 0.92), rgba(91, 47, 27, 0.92)),
+    repeating-linear-gradient(115deg, transparent 0 24px, rgba(255, 255, 255, 0.12) 25px 26px);
+  --tenant-primary-color: var(--tenant-primaryColor);
+  --tenant-accent-color: var(--tenant-accentColor);
+  --tenant-background-style: var(--tenant-backgroundStyle);
+  --tenant-card-style: var(--tenant-cardStyle);
+  --tenant-card-radius: var(--tenant-cardRadius);
+  --tenant-card-shadow: var(--tenant-cardShadow);
+  --tenant-button-style: var(--tenant-buttonStyle);
+  --tenant-font-density: var(--tenant-fontDensity);
+  --tenant-number-style: var(--tenant-numberStyle);
+  --tenant-banner-style: var(--tenant-bannerStyle);
+  --home-primary: var(--tenant-primary-color);
+  --home-primary-strong: #173f9d;
+  --home-primary-text: #17336d;
+  --home-primary-soft: #eff6ff;
+  --home-primary-faint: #e8f1ff;
+  --home-primary-border: #c7d9ff;
+  --home-primary-border-strong: #b7ccff;
+  --home-primary-surface:
+    radial-gradient(circle at 86% 12%, rgba(37, 99, 235, 0.14), transparent 34%),
+    linear-gradient(135deg, #eef5ff 0%, #dbeafe 100%);
+  --home-primary-contrast: #ffffff;
+  --home-accent: var(--tenant-accent-color);
+  --home-accent-contrast: #111827;
+  --home-bg: var(--tenant-background-style);
+  --home-shell-text: #111827;
+  --home-text-strong: #111827;
+  --home-text: #172033;
+  --home-text-soft: #475569;
+  --home-text-muted: #64748b;
+  --home-text-subtle: #334155;
+  --home-table-text: #5f6673;
+  --home-surface: #ffffff;
+  --home-surface-raised: #ffffff;
+  --home-surface-soft: #f8fbff;
+  --home-surface-muted: #fbfdff;
+  --home-card-bg: var(--tenant-card-style);
+  --home-card-border: #dce6f4;
+  --home-card-border-strong: #dfe7f2;
+  --home-card-radius: var(--tenant-card-radius);
+  --home-card-shadow: var(--tenant-card-shadow);
+  --home-border: #dce6f4;
+  --home-border-soft: #edf2f7;
+  --home-border-strong: #d9e3f1;
+  --home-divider: #edf2f7;
+  --home-radius-xs: calc(var(--home-card-radius) * 0.5);
+  --home-radius-sm: calc(var(--home-card-radius) * 0.75);
+  --home-radius-md: var(--home-card-radius);
+  --home-radius-pill: 99px;
+  --home-radius-round: 50%;
+  --home-button-bg: var(--tenant-button-style);
+  --home-button-border: var(--home-primary);
+  --home-button-text: var(--home-primary-contrast);
+  --home-button-secondary-bg: var(--home-surface-soft);
+  --home-button-secondary-text: var(--home-primary);
+  --home-button-icon-bg: rgba(255, 255, 255, 0.2);
+  --home-button-icon-muted-bg: var(--home-primary-faint);
+  --home-button-icon-muted-text: #1d4ed8;
+  --home-button-shadow: 0 14px 24px rgba(37, 99, 235, 0.2);
+  --home-button-shadow-soft: 0 10px 20px rgba(37, 99, 235, 0.18);
+  --home-button-hover-shadow: 0 14px 24px rgba(37, 99, 235, 0.22);
+  --home-button-subtle-shadow: 0 8px 16px rgba(37, 99, 235, 0.12);
+  --home-filter-shadow: 0 8px 15px rgba(37, 99, 235, 0.18);
+  --home-popover-shadow: 0 18px 36px rgba(15, 23, 42, 0.16);
+  --home-tooltip-bg: #111827;
+  --home-tooltip-text: #ffffff;
+  --home-tooltip-shadow: 0 16px 32px rgba(15, 23, 42, 0.18);
+  --home-progress-card-bg:
+    radial-gradient(circle at 88% 0%, rgba(37, 99, 235, 0.08), transparent 34%),
+    linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  --home-progress-border: #b8d4ff;
+  --home-progress-accent: linear-gradient(135deg, var(--home-primary), var(--home-accent));
+  --home-progress-track: #e6eefb;
+  --home-progress-step-border: #e1e8f3;
+  --home-progress-dot-border: #cbd5e1;
+  --home-banner-bg: var(--tenant-banner-style);
+  --home-banner-border: #7c3f18;
+  --home-banner-text: #ffffff;
+  --home-banner-muted: rgba(255, 255, 255, 0.8);
+  --home-banner-badge-bg: var(--home-accent);
+  --home-banner-badge-text: var(--home-accent-contrast);
+  --home-banner-status-bg: #ef4444;
+  --home-banner-status-text: #ffffff;
+  --home-banner-cta-bg: #ffffff;
+  --home-banner-cta-text: #c2410c;
+  --home-success: #059669;
+  --home-warning: #ea580c;
+  --home-danger: #dc2626;
+  --home-purple: #7c3aed;
+  --home-cyan: #0891b2;
+  --home-demo-bg: #64748b;
+  --home-icon-muted: #94a3b8;
+  --home-focus-ring: rgba(37, 99, 235, 0.22);
+  --home-table-bg: #ffffff;
+  --home-table-head-bg: #f8fbff;
+  --home-toast-bg: #0f172a;
+  --home-toast-text: #ffffff;
+  --home-toast-shadow: 0 16px 36px rgba(15, 23, 42, 0.18);
+  --home-number-font-family: inherit;
+  --home-number-feature: tabular-nums;
+  --home-number-weight: 950;
+  --home-number-letter-spacing: 0;
+  --home-font-density-scale: var(--tenant-font-density);
+  --home-panel-padding-y: calc(18px * var(--home-font-density-scale));
+  --home-panel-padding-x: calc(20px * var(--home-font-density-scale));
+  --home-section-gap: calc(24px * var(--home-font-density-scale));
+  --home-hero-text: var(--home-text-strong);
+  --home-hero-muted: #4b5563;
+  --home-overlay-card-bg: rgba(255, 255, 255, 0.86);
+  --home-glass-card-bg: rgba(255, 255, 255, 0.78);
+  --home-glass-border: rgba(148, 163, 184, 0.22);
+  --home-card-inset-shadow: inset 0 0 0 1px var(--home-card-border-strong);
+  --home-spotlight-shadow: 0 22px 48px rgba(37, 99, 235, 0.12);
+  --home-panel-bg: var(--home-card-bg);
+  --home-panel-border: var(--home-card-border);
+  --home-panel-shadow: var(--home-card-shadow);
+  --home-muted-panel-bg: var(--home-surface-muted);
+  --home-soft-panel-bg: var(--home-surface-soft);
+  --home-terminal-bg: #08111f;
+  --home-terminal-border: rgba(56, 189, 248, 0.28);
+  --home-terminal-text: #dff8ff;
+  --home-terminal-muted: rgba(223, 248, 255, 0.68);
+  --home-vip-hero-bg:
+    radial-gradient(circle at 86% 12%, rgba(250, 204, 21, 0.22), transparent 30%),
+    linear-gradient(135deg, #111827 0%, #3a260d 100%);
+  --home-vip-hero-border: rgba(250, 204, 21, 0.36);
+  --home-vip-hero-text: #fffaf0;
+  --home-vip-glass-bg: rgba(15, 23, 42, 0.32);
+  --home-gradient-hero-bg:
+    radial-gradient(circle at 78% 12%, rgba(255, 255, 255, 0.28), transparent 25%),
+    linear-gradient(135deg, #be123c, #2563eb);
+  --home-split-visual-bg: linear-gradient(135deg, var(--home-surface), var(--home-primary-soft));
+  --home-action-priority-bg: var(--home-primary-surface);
+  --home-icon-tile-bg: var(--home-primary-faint);
+  --home-promo-mark-bg: var(--home-accent);
+  --home-promo-mark-text: var(--home-accent-contrast);
+}
+
+:root[data-tenant-theme="blackGold"],
+body[data-tenant-theme="blackGold"] {
+  --tenant-primaryColor: #b7791f;
+  --tenant-accentColor: #facc15;
+  --tenant-backgroundStyle:
+    radial-gradient(circle at 78% 4%, rgba(217, 119, 6, 0.16), transparent 28%),
+    linear-gradient(180deg, #121826 0%, #f7f4ed 62%, #f9fafb 100%);
+  --tenant-cardStyle: rgba(255, 252, 245, 0.98);
+  --tenant-cardRadius: 8px;
+  --tenant-cardShadow: 0 18px 42px rgba(38, 28, 12, 0.14);
+  --tenant-buttonStyle: linear-gradient(135deg, #141821 0%, #b7791f 100%);
+  --tenant-fontDensity: 1.02;
+  --tenant-numberStyle: executive;
+  --tenant-bannerStyle:
+    linear-gradient(112deg, rgba(15, 23, 42, 0.96), rgba(120, 53, 15, 0.94)),
+    repeating-linear-gradient(115deg, transparent 0 24px, rgba(250, 204, 21, 0.14) 25px 26px);
+  --tenant-primary-color: var(--tenant-primaryColor);
+  --tenant-accent-color: var(--tenant-accentColor);
+  --tenant-background-style: var(--tenant-backgroundStyle);
+  --tenant-card-style: var(--tenant-cardStyle);
+  --tenant-card-radius: var(--tenant-cardRadius);
+  --tenant-card-shadow: var(--tenant-cardShadow);
+  --tenant-button-style: var(--tenant-buttonStyle);
+  --tenant-font-density: var(--tenant-fontDensity);
+  --tenant-number-style: var(--tenant-numberStyle);
+  --tenant-banner-style: var(--tenant-bannerStyle);
+  --home-primary-strong: #7c4a03;
+  --home-primary-text: #6b3f04;
+  --home-primary-soft: #fff7d6;
+  --home-primary-faint: #fff3c4;
+  --home-primary-border: #e0c283;
+  --home-primary-border-strong: #d6a34a;
+  --home-primary-surface: linear-gradient(135deg, #fff8e1 0%, #f4dfab 100%);
+  --home-button-icon-muted-text: #a16207;
+  --home-button-shadow: 0 16px 28px rgba(93, 65, 18, 0.22);
+  --home-button-hover-shadow: 0 18px 34px rgba(93, 65, 18, 0.26);
+  --home-filter-shadow: 0 8px 15px rgba(183, 121, 31, 0.18);
+  --home-banner-border: #facc15;
+  --home-banner-cta-text: #92400e;
+  --home-hero-text: #f8fafc;
+  --home-hero-muted: #e5e7eb;
+  --home-progress-border: #e0c283;
+  --home-progress-card-bg: linear-gradient(180deg, rgba(255, 252, 245, 0.98), #fff8ec);
+  --home-card-inset-shadow: inset 0 0 0 1px var(--home-primary-border);
+  --home-spotlight-shadow: 0 24px 54px rgba(93, 65, 18, 0.22);
+  --home-vip-hero-bg:
+    radial-gradient(circle at 82% 10%, rgba(250, 204, 21, 0.28), transparent 28%),
+    linear-gradient(135deg, #090b10 0%, #3a260d 58%, #7c4a03 100%);
+  --home-gradient-hero-bg:
+    radial-gradient(circle at 86% 12%, rgba(250, 204, 21, 0.24), transparent 28%),
+    linear-gradient(135deg, #111827 0%, #92400e 100%);
+  --home-split-visual-bg: linear-gradient(135deg, #fffaf0, #f8ecd0);
+  --home-action-priority-bg: linear-gradient(135deg, #fff8e1 0%, #f4dfab 100%);
+  --home-terminal-border: rgba(250, 204, 21, 0.28);
+  --home-vip-glass-bg: rgba(15, 23, 42, 0.4);
+}
+
+:root[data-tenant-theme="blueFinance"],
+body[data-tenant-theme="blueFinance"] {
+  --tenant-primaryColor: #1d4ed8;
+  --tenant-accentColor: #14b8a6;
+  --tenant-backgroundStyle:
+    radial-gradient(circle at 75% 8%, rgba(20, 184, 166, 0.12), transparent 30%),
+    linear-gradient(180deg, #f7fdff 0%, #eef9f8 100%);
+  --tenant-cardStyle: rgba(255, 255, 255, 0.98);
+  --tenant-cardRadius: 8px;
+  --tenant-cardShadow: 0 16px 36px rgba(15, 72, 118, 0.075);
+  --tenant-buttonStyle: linear-gradient(135deg, #0f766e 0%, #2563eb 100%);
+  --tenant-fontDensity: 1;
+  --tenant-numberStyle: financial;
+  --tenant-bannerStyle: linear-gradient(135deg, rgba(15, 118, 110, 0.94), rgba(30, 64, 175, 0.92));
+  --tenant-primary-color: var(--tenant-primaryColor);
+  --tenant-accent-color: var(--tenant-accentColor);
+  --tenant-background-style: var(--tenant-backgroundStyle);
+  --tenant-card-style: var(--tenant-cardStyle);
+  --tenant-card-radius: var(--tenant-cardRadius);
+  --tenant-card-shadow: var(--tenant-cardShadow);
+  --tenant-button-style: var(--tenant-buttonStyle);
+  --tenant-font-density: var(--tenant-fontDensity);
+  --tenant-number-style: var(--tenant-numberStyle);
+  --tenant-banner-style: var(--tenant-bannerStyle);
+  --home-primary-strong: #0f3ea8;
+  --home-primary-text: #0f2f75;
+  --home-primary-soft: #e6f6ff;
+  --home-primary-faint: #dff9f6;
+  --home-primary-border: #a7e8df;
+  --home-primary-border-strong: #73d9cc;
+  --home-primary-surface: linear-gradient(135deg, #eff6ff 0%, #ccfbf1 100%);
+  --home-button-icon-muted-text: #0f766e;
+  --home-button-shadow: 0 14px 24px rgba(20, 118, 110, 0.18);
+  --home-button-hover-shadow: 0 14px 26px rgba(20, 118, 110, 0.24);
+  --home-filter-shadow: 0 8px 15px rgba(20, 118, 110, 0.16);
+  --home-banner-border: #14b8a6;
+  --home-banner-cta-text: #0f766e;
+  --home-progress-border: #a7e8df;
+  --home-progress-card-bg: linear-gradient(180deg, #ffffff 0%, #f0fdfa 100%);
+  --home-gradient-hero-bg:
+    radial-gradient(circle at 78% 12%, rgba(20, 184, 166, 0.22), transparent 28%),
+    linear-gradient(135deg, #0f766e, #1d4ed8);
+  --home-split-visual-bg: linear-gradient(135deg, #ffffff 0%, #e6f6ff 100%);
+  --home-action-priority-bg: linear-gradient(135deg, #eff6ff 0%, #ccfbf1 100%);
+}
+
+:root[data-tenant-theme="darkTech"],
+body[data-tenant-theme="darkTech"] {
+  --tenant-primaryColor: #38bdf8;
+  --tenant-accentColor: #a78bfa;
+  --tenant-backgroundStyle:
+    radial-gradient(circle at 74% 8%, rgba(56, 189, 248, 0.18), transparent 30%),
+    linear-gradient(180deg, #07111f 0%, #0b1220 100%);
+  --tenant-cardStyle: rgba(15, 23, 42, 0.86);
+  --tenant-cardRadius: 8px;
+  --tenant-cardShadow: 0 20px 52px rgba(0, 0, 0, 0.34);
+  --tenant-buttonStyle: linear-gradient(135deg, #0284c7 0%, #7c3aed 100%);
+  --tenant-fontDensity: 0.98;
+  --tenant-numberStyle: terminal;
+  --tenant-bannerStyle:
+    radial-gradient(circle at 82% 16%, rgba(56, 189, 248, 0.26), transparent 24%),
+    linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(67, 56, 202, 0.92));
+  --tenant-primary-color: var(--tenant-primaryColor);
+  --tenant-accent-color: var(--tenant-accentColor);
+  --tenant-background-style: var(--tenant-backgroundStyle);
+  --tenant-card-style: var(--tenant-cardStyle);
+  --tenant-card-radius: var(--tenant-cardRadius);
+  --tenant-card-shadow: var(--tenant-cardShadow);
+  --tenant-button-style: var(--tenant-buttonStyle);
+  --tenant-font-density: var(--tenant-fontDensity);
+  --tenant-number-style: var(--tenant-numberStyle);
+  --tenant-banner-style: var(--tenant-bannerStyle);
+  --home-primary-strong: #0ea5e9;
+  --home-primary-text: #e0f2fe;
+  --home-primary-soft: rgba(56, 189, 248, 0.12);
+  --home-primary-faint: rgba(56, 189, 248, 0.16);
+  --home-primary-border: rgba(56, 189, 248, 0.34);
+  --home-primary-border-strong: rgba(56, 189, 248, 0.5);
+  --home-primary-surface: linear-gradient(135deg, rgba(14, 165, 233, 0.18), rgba(167, 139, 250, 0.14));
+  --home-primary-contrast: #06111f;
+  --home-accent-contrast: #0b1020;
+  --home-shell-text: #e5edf8;
+  --home-text-strong: #f8fbff;
+  --home-text: #e2e8f0;
+  --home-text-soft: #c4cfdd;
+  --home-text-muted: #94a3b8;
+  --home-text-subtle: #cbd5e1;
+  --home-table-text: #cbd5e1;
+  --home-surface: #111827;
+  --home-surface-raised: #151f2f;
+  --home-surface-soft: #172033;
+  --home-surface-muted: #1b2638;
+  --home-card-border: #253247;
+  --home-card-border-strong: #2f3d54;
+  --home-border: #253247;
+  --home-border-soft: #1e293b;
+  --home-border-strong: #31415a;
+  --home-divider: #253247;
+  --home-button-icon-bg: rgba(255, 255, 255, 0.16);
+  --home-button-icon-muted-bg: rgba(56, 189, 248, 0.16);
+  --home-button-icon-muted-text: #7dd3fc;
+  --home-button-shadow: 0 14px 28px rgba(56, 189, 248, 0.18);
+  --home-button-shadow-soft: 0 12px 24px rgba(56, 189, 248, 0.14);
+  --home-button-hover-shadow: 0 16px 32px rgba(56, 189, 248, 0.24);
+  --home-button-subtle-shadow: 0 8px 18px rgba(56, 189, 248, 0.12);
+  --home-filter-shadow: 0 8px 18px rgba(56, 189, 248, 0.18);
+  --home-popover-shadow: 0 22px 48px rgba(0, 0, 0, 0.42);
+  --home-tooltip-bg: #e0f2fe;
+  --home-tooltip-text: #07111f;
+  --home-progress-card-bg: linear-gradient(180deg, rgba(15, 23, 42, 0.88), rgba(17, 32, 51, 0.86));
+  --home-progress-border: rgba(56, 189, 248, 0.3);
+  --home-progress-track: rgba(148, 163, 184, 0.24);
+  --home-progress-step-border: #253247;
+  --home-progress-dot-border: #475569;
+  --home-banner-border: rgba(56, 189, 248, 0.36);
+  --home-banner-text: #f8fbff;
+  --home-banner-muted: rgba(226, 232, 240, 0.78);
+  --home-banner-badge-text: #07111f;
+  --home-banner-status-bg: #7c3aed;
+  --home-banner-cta-bg: #e0f2fe;
+  --home-banner-cta-text: #07111f;
+  --home-demo-bg: #475569;
+  --home-focus-ring: rgba(56, 189, 248, 0.26);
+  --home-table-bg: #111827;
+  --home-table-head-bg: #172033;
+  --home-toast-bg: #e0f2fe;
+  --home-toast-text: #07111f;
+  --home-number-font-family: "SFMono-Regular", ui-monospace, "Cascadia Code", "Roboto Mono", monospace;
+  --home-number-letter-spacing: 0;
+  --home-hero-text: #f8fbff;
+  --home-hero-muted: #cbd5e1;
+  --home-overlay-card-bg: rgba(15, 23, 42, 0.86);
+  --home-glass-card-bg: rgba(15, 23, 42, 0.74);
+  --home-glass-border: rgba(56, 189, 248, 0.22);
+  --home-card-inset-shadow: inset 0 0 0 1px var(--home-card-border-strong);
+  --home-spotlight-shadow: 0 26px 58px rgba(56, 189, 248, 0.22);
+  --home-terminal-bg: #050b14;
+  --home-terminal-border: rgba(56, 189, 248, 0.42);
+  --home-terminal-text: #e0faff;
+  --home-terminal-muted: rgba(224, 250, 255, 0.72);
+  --home-gradient-hero-bg:
+    radial-gradient(circle at 82% 14%, rgba(56, 189, 248, 0.26), transparent 28%),
+    linear-gradient(135deg, #0f172a, #312e81);
+  --home-split-visual-bg: linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(30, 41, 59, 0.92));
+  --home-action-priority-bg: linear-gradient(135deg, rgba(14, 165, 233, 0.18), rgba(167, 139, 250, 0.14));
+  --home-icon-tile-bg: rgba(56, 189, 248, 0.16);
+}
+
+:root[data-tenant-theme="minimalWhite"],
+body[data-tenant-theme="minimalWhite"] {
+  --tenant-primaryColor: #111827;
+  --tenant-accentColor: #64748b;
+  --tenant-backgroundStyle: linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+  --tenant-cardStyle: #ffffff;
+  --tenant-cardRadius: 4px;
+  --tenant-cardShadow: none;
+  --tenant-buttonStyle: linear-gradient(135deg, #111827 0%, #334155 100%);
+  --tenant-fontDensity: 0.96;
+  --tenant-numberStyle: quiet;
+  --tenant-bannerStyle: linear-gradient(135deg, #111827, #334155);
+  --tenant-primary-color: var(--tenant-primaryColor);
+  --tenant-accent-color: var(--tenant-accentColor);
+  --tenant-background-style: var(--tenant-backgroundStyle);
+  --tenant-card-style: var(--tenant-cardStyle);
+  --tenant-card-radius: var(--tenant-cardRadius);
+  --tenant-card-shadow: var(--tenant-cardShadow);
+  --tenant-button-style: var(--tenant-buttonStyle);
+  --tenant-font-density: var(--tenant-fontDensity);
+  --tenant-number-style: var(--tenant-numberStyle);
+  --tenant-banner-style: var(--tenant-bannerStyle);
+  --home-primary-strong: #020617;
+  --home-primary-text: #111827;
+  --home-primary-soft: #f8fafc;
+  --home-primary-faint: #f1f5f9;
+  --home-primary-border: #d1d5db;
+  --home-primary-border-strong: #cbd5e1;
+  --home-primary-surface: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  --home-accent-contrast: #ffffff;
+  --home-text-strong: #111827;
+  --home-text: #172033;
+  --home-text-soft: #475569;
+  --home-text-muted: #64748b;
+  --home-card-border: #e5e7eb;
+  --home-card-border-strong: #e5e7eb;
+  --home-border: #e5e7eb;
+  --home-border-soft: #f1f5f9;
+  --home-border-strong: #d1d5db;
+  --home-divider: #f1f5f9;
+  --home-button-icon-muted-text: #111827;
+  --home-button-shadow: none;
+  --home-button-shadow-soft: none;
+  --home-button-hover-shadow: none;
+  --home-button-subtle-shadow: none;
+  --home-filter-shadow: none;
+  --home-popover-shadow: 0 16px 30px rgba(15, 23, 42, 0.08);
+  --home-progress-card-bg: #ffffff;
+  --home-progress-border: #e5e7eb;
+  --home-banner-border: #334155;
+  --home-banner-badge-bg: #f8fafc;
+  --home-banner-badge-text: #111827;
+  --home-banner-status-bg: #475569;
+  --home-banner-cta-text: #111827;
+  --home-number-weight: 900;
+  --home-section-gap: 18px;
+  --home-card-inset-shadow: inset 0 0 0 1px var(--home-card-border-strong);
+  --home-spotlight-shadow: none;
+  --home-gradient-hero-bg: linear-gradient(135deg, #111827, #334155);
+  --home-split-visual-bg: #ffffff;
+  --home-action-priority-bg: #f8fafc;
+  --home-icon-tile-bg: #f1f5f9;
+}
+
+body[data-layout-page="client-home"],
+body[data-home-preview="content-only"] {
+  color-scheme: light;
+}
+
+body[data-layout-page="client-home"][data-tenant-theme="darkTech"],
+body[data-home-preview="content-only"][data-tenant-theme="darkTech"] {
+  color-scheme: dark;
+}
+
+:root[data-theme="dark"] {
+  --blue: #6ea8ff;
+  --blue-dark: #8ab6ff;
+  --blue-soft: rgba(96, 165, 250, 0.16);
+  --border: #253247;
+  --border-light: #1e293b;
+  --text: #e5edf8;
+  --muted: #9aa8bd;
+  --sidebar: #0b1220;
+  --surface: #111827;
+  --surface-soft: #172033;
+  --bg: #0a1020;
+  --page-bg:
+    radial-gradient(circle at 58% 0%, rgba(96, 165, 250, 0.12), transparent 30%),
+    linear-gradient(180deg, #0a1020 0%, #0d1424 100%);
+  --surface-raised: #151f2f;
+  --surface-muted: #1b2638;
+  --surface-hover: #202d42;
+  --surface-selected: rgba(96, 165, 250, 0.18);
+  --input-bg: #101827;
+  --text-strong: #f8fbff;
+  --text-soft: #c4cfdd;
+  --icon-muted: #8ea0b8;
+  --overlay: rgba(2, 6, 23, 0.68);
+  --shadow: 0 18px 44px rgba(0, 0, 0, 0.36);
+  --shadow-soft: 0 14px 32px rgba(0, 0, 0, 0.24);
+  --shadow-floating: 0 28px 76px rgba(0, 0, 0, 0.48);
+  --blue-faint: rgba(96, 165, 250, 0.14);
+  --success: #34d399;
+  --success-soft: rgba(52, 211, 153, 0.14);
+  --warning: #fb923c;
+  --warning-soft: rgba(251, 146, 60, 0.15);
+  --danger: #f87171;
+  --danger-soft: rgba(248, 113, 113, 0.15);
+  --purple: #c4b5fd;
+  --purple-soft: rgba(167, 139, 250, 0.15);
+  --gold: #facc15;
+  --gold-soft: rgba(250, 204, 21, 0.16);
+  color-scheme: dark;
+}
+
+:root[data-theme="dark"] body {
+  background: var(--page-bg);
+  color: var(--text);
+}
+
+.theme-toggle {
+  position: relative;
+}
+
+.theme-toggle .theme-icon {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.theme-toggle .theme-icon-sun {
+  position: absolute;
+  opacity: 0;
+  transform: scale(0.72) rotate(-16deg);
+}
+
+:root[data-theme="dark"] .theme-toggle .theme-icon-moon {
+  opacity: 0;
+  transform: scale(0.72) rotate(16deg);
+}
+
+:root[data-theme="dark"] .theme-toggle .theme-icon-sun {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+}
+
+.standalone-theme-toggle,
+.theme-toggle:not(.icon-btn) {
+  width: 38px;
+  height: 38px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+.standalone-theme-toggle svg,
+.theme-toggle:not(.icon-btn) svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+:root[data-theme="dark"] :is(.sidebar, .profile, .logout) {
+  background: var(--sidebar);
+}
+
+:root[data-theme="dark"] :is(.topbar, .tabbar, .common-tabbar, .portal-menu) {
+  background: rgba(15, 23, 42, 0.9);
+  border-color: var(--border-light);
+}
+
+:root[data-theme="dark"] :is(.portal-switch, .language, .search, .tab, .tab-arrow, .toolbar-btn, .icon-btn) {
+  background: var(--input-bg);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .toolbar-btn {
+  background: transparent;
+}
+
+:root[data-theme="dark"] :is(.search, .search span, .search kbd, .brand-subtitle, .profile-email, .nav h2) {
+  color: var(--muted);
+}
+
+:root[data-theme="dark"] :is(.nav a, .portal-switch, .portal-option, .logout, .brand-title) {
+  color: var(--text);
+}
+
+:root[data-theme="dark"] :is(.nav a:hover, .active-menu, .common-tabbar .active-tab, .portal-option:hover, .portal-option.active) {
+  background: var(--surface-selected);
+  color: var(--blue) !important;
+}
+
+:root[data-theme="dark"] .nav-icon,
+:root[data-theme="dark"] .nav .nav-icon {
+  color: var(--blue);
+}
+
+:root[data-theme="dark"] :is(.page, .client-home-page, .personalization-page) {
+  background: var(--page-bg);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] :is(
+  .content-shell,
+  .client-shell,
+  .ai-intake-shell,
+  .preview-workspace-shell
+) {
+  color: var(--text);
+}
+
+:root[data-theme="dark"] :is(
+  .page-card,
+  .balance-overview,
+  .account-progress-card,
+  .promo-banner,
+  .quick-panel,
+  .refer-card,
+  .accounts-panel,
+  .ai-prompt-card,
+  .ai-intelligence-panel,
+  .ai-model-status-card,
+  .module-studio-panel,
+  .preview-stage-panel,
+  .studio-section,
+  .preview-canvas,
+  .ai-feature-slot,
+  .empty-state,
+  .section-card
+) {
+  background: var(--surface-raised);
+  border-color: var(--border);
+  color: var(--text);
+  box-shadow: var(--shadow-soft);
+}
+
+:root[data-theme="dark"] :is(.page-card:hover, .choice-card.selected, .choice-card:has(input:checked)) {
+  background: var(--surface-hover);
+  border-color: rgba(110, 168, 255, 0.62);
+}
+
+:root[data-theme="dark"] :is(
+  h1,
+  h2,
+  h3,
+  h4,
+  .heading h1,
+  .client-welcome h1,
+  .overview-head h2,
+  .panel-title h2,
+  .balance-metric strong,
+  .balance-metric.primary strong,
+  .stat-card strong,
+  .preview-stats strong,
+  .summary-card dd,
+  .stat-value,
+  .toolbar-stats strong,
+  .metric-strip strong,
+  .card-title h3,
+  .requirement-list strong,
+  .time-list strong,
+  .account-name
+) {
+  color: var(--text-strong);
+}
+
+:root[data-theme="dark"] :is(
+  p,
+  small,
+  .heading p,
+  .client-welcome p,
+  .overview-head p,
+  .balance-metric small,
+  .balance-metric span,
+  .panel-title p,
+  .modal-header p,
+  .card-title small,
+  .card-body p,
+  .section-title p,
+  .requirement-list p,
+  .rules-list,
+  .time-list li,
+  .stat-label,
+  .stat-note,
+  .toolbar-stats span,
+  .intro,
+  .page-card p
+) {
+  color: var(--muted);
+}
+
+:root[data-theme="dark"] :is(
+  button,
+  input,
+  select,
+  textarea,
+  .choice-card,
+  .pill,
+  .currency,
+  .lever,
+  .fund-action,
+  .welcome-actions button,
+  .overview-info,
+  .secondary-action,
+  .card-action,
+  .review-action,
+  .back-link,
+  .copy-btn,
+  .preview-stats span,
+  .icon-square,
+  .mini-select
+) {
+  background-color: var(--input-bg);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] :is(input, select, textarea)::placeholder {
+  color: var(--icon-muted);
+}
+
+:root[data-theme="dark"] :is(.primary-action, .primary-cta, .card-action.primary, .fund-action.deposit, .toolbar-left .primary-action) {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #07111f;
+}
+
+:root[data-theme="dark"] :is(.primary-action:hover, .primary-cta:hover, .card-action.primary:hover) {
+  background: var(--blue-dark);
+  border-color: var(--blue-dark);
+}
+
+:root[data-theme="dark"] :is(table, .account-table) {
+  color: var(--text);
+}
+
+:root[data-theme="dark"] :is(th, td, .account-table th, .account-table td) {
+  border-color: var(--border-light);
+}
+
+:root[data-theme="dark"] :is(thead, .account-table th) {
+  background: var(--surface-muted);
+  color: var(--text-soft);
+}
+
+:root[data-theme="dark"] :is(tbody tr:hover, .account-table tbody tr:hover) {
+  background: var(--surface-hover);
+}
+
+:root[data-theme="dark"] :is(
+  .balance-metric,
+  .stat-card,
+  .metric-strip span,
+  .account,
+  .progress-task,
+  .toolbar-stats span,
+  .wallet-card,
+  .record-card,
+  .reward-card,
+  .quick-item,
+  .account-row,
+  .card-cover,
+  .card-meta,
+  .size-list li
+) {
+  background: var(--surface-muted);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] :is(.balance-metric.primary, .rule-card.is-new, .reward-card.secondary, .reward-card.wide) {
+  background:
+    radial-gradient(circle at 88% 12%, rgba(110, 168, 255, 0.16), transparent 34%),
+    var(--surface-muted);
+  border-color: rgba(110, 168, 255, 0.42);
+}
+
+:root[data-theme="dark"] :is(.progress-track, .progress-task.active, .fund-action.withdraw .fund-icon) {
+  background: var(--surface-hover);
+  border-color: rgba(110, 168, 255, 0.38);
+}
+
+:root[data-theme="dark"] .progress-top h2 span {
+  color: var(--blue);
+}
+
+:root[data-theme="dark"] .edit-status {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+:root[data-theme="dark"] .edit-status.editing {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+
+:root[data-theme="dark"] .edit-status.saved {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+:root[data-theme="dark"] :is(.modal-backdrop, .material-modal-backdrop, .drawer-backdrop) {
+  background: var(--overlay);
+}
+
+:root[data-theme="dark"] :is(.wide-modal, .simple-modal, .link-detail-modal, .action-menu-panel, .toast) {
+  background: var(--surface-raised);
+  border-color: var(--border);
+  color: var(--text);
+  box-shadow: var(--shadow-floating);
+}
+
+:root[data-theme="dark"] :is(.modal-header, .modal-footer, .package-builder-form .modal-footer, .material-modal .modal-header, .material-modal .modal-footer) {
+  border-color: var(--border-light);
+}
+
+:root[data-theme="dark"] :is(.section-kicker, .card-kicker, .badge.blue, .chip.blue, .pill.blue, .status-pill.blue, .account-icon.blue) {
+  background: var(--blue-soft);
+  color: #bfdbfe;
+}
+
+:root[data-theme="dark"] :is(.badge.green, .chip.green, .pill.green, .status-pill.green, .success, .number.positive) {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+:root[data-theme="dark"] :is(.badge.orange, .chip.orange, .pill.orange, .status-pill.orange) {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+:root[data-theme="dark"] :is(.chip.red, .pill.red, .status-pill.red, .card-action.danger, .number.negative) {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+:root[data-theme="dark"] :is(.badge.purple, .chip.purple, .pill.purple, .status-pill.purple, .account-icon.violet) {
+  background: var(--purple-soft);
+  color: var(--purple);
+}
+
+:root[data-theme="dark"] :is(.pill.award, .rank-badge.gold, .reward-rank) {
+  background: var(--gold-soft);
+  color: var(--gold);
+}
+
+:root[data-theme="dark"] :is(.switch span, .toggle, .toggle-track) {
+  background: #334155;
+}
+
+:root[data-theme="dark"] :is(.switch input:checked + span, .switch.is-on span, .toggle.is-on, .toggle-track.is-on) {
+  background: var(--blue);
+}
+
+:root[data-theme="dark"] :is(.empty-state, .upload-box, .file-drop, .drop-zone) {
+  background: rgba(15, 23, 42, 0.38);
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+:root[data-theme="dark"] :is(.summary-divider, .divider) {
+  background: var(--border-light);
+}
+
+:root[data-theme="dark"] :is(.hero, .share-band, .hero-countdown) {
+  background: #08111f;
+}
+
+:root[data-theme="dark"] .callout {
+  background: rgba(251, 146, 60, 0.12);
+  border-color: rgba(251, 146, 60, 0.48);
+}
+
+:root[data-theme="dark"] .reward-card {
+  background: rgba(250, 204, 21, 0.14);
+  border-color: rgba(250, 204, 21, 0.5);
+}
+
+:root[data-theme="dark"] .theme-toggle:focus-visible,
+:root[data-theme="dark"] :is(button, a, input, select, textarea):focus-visible {
+  outline: 3px solid rgba(110, 168, 255, 0.35);
+  outline-offset: 2px;
+}
+
+body[data-layout-page="client-home"] .client-home-page,
+body[data-home-preview="content-only"] .client-home-page {
+  background: var(--home-bg);
+  color: var(--home-text);
+}
+
+body[data-layout-page="client-home"] .client-shell,
+body[data-home-preview="content-only"] .client-shell {
+  color: var(--home-shell-text);
+}
+
+body[data-layout-page="client-home"] :is(
+  .balance-overview,
+  .account-progress-card,
+  .quick-panel,
+  .refer-card,
+  .accounts-panel,
+  .trade-account-card,
+  .ai-welcome-feature,
+  .ai-balance-feature,
+  .ai-wallet-feature,
+  .ai-action-feature,
+  .ai-open-feature,
+  .ai-onboarding-feature,
+  .ai-quick-feature,
+  .ai-referral-feature,
+  .ai-accounts-feature,
+  .ai-market-feature,
+  .ai-risk-feature,
+  .ai-copytrading-feature
+),
+body[data-home-preview="content-only"] :is(
+  .balance-overview,
+  .account-progress-card,
+  .quick-panel,
+  .refer-card,
+  .accounts-panel,
+  .trade-account-card,
+  .ai-welcome-feature,
+  .ai-balance-feature,
+  .ai-wallet-feature,
+  .ai-action-feature,
+  .ai-open-feature,
+  .ai-onboarding-feature,
+  .ai-quick-feature,
+  .ai-referral-feature,
+  .ai-accounts-feature,
+  .ai-market-feature,
+  .ai-risk-feature,
+  .ai-copytrading-feature
+) {
+  border-color: var(--home-card-border);
+  border-radius: var(--home-card-radius);
+  background: var(--home-card-bg);
+  color: var(--home-text);
+  box-shadow: var(--home-card-shadow);
+}
+
+body[data-layout-page="client-home"] :is(.client-welcome h1, h2, .account-number, .account-meta b, .account-table td strong),
+body[data-home-preview="content-only"] :is(.client-welcome h1, h2, .account-number, .account-meta b, .account-table td strong) {
+  color: var(--home-text-strong);
+}
+
+body[data-layout-page="client-home"] :is(.client-welcome p, .balance-metric span, .account-platform),
+body[data-home-preview="content-only"] :is(.client-welcome p, .balance-metric span, .account-platform) {
+  color: var(--home-text-muted);
+}
+
+body[data-layout-page="client-home"] :is(.fund-action.deposit, .progress-cta, .account-entry-trigger, .table-actions :first-child),
+body[data-home-preview="content-only"] :is(.fund-action.deposit, .progress-cta, .account-entry-trigger, .table-actions :first-child) {
+  border-color: var(--home-button-border);
+  background: var(--home-button-bg);
+  color: var(--home-button-text);
+  box-shadow: var(--home-button-shadow);
+}
+
+body[data-layout-page="client-home"] :is(.promo-banner, .ai-promo-feature, .ai-ad-carousel-feature),
+body[data-home-preview="content-only"] :is(.promo-banner, .ai-promo-feature, .ai-ad-carousel-feature) {
+  border-color: var(--home-banner-border);
+  background: var(--home-banner-bg);
+  color: var(--home-banner-text);
+}

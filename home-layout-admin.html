@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="./theme.js"></script>
+    <title>ForexCRM - 首页 AI 生成</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./theme.css?v=tenant-home-4" />
+    <link rel="stylesheet" href="./client-home.css?v=tenant-home-4" />
+    <link rel="stylesheet" href="./home-personalization.css?v=tenant-home-4" />
+  </head>
+  <body data-layout-page="home-layout-admin">
+    <main class="app" data-layout-main>
+      <div class="page personalization-page">
+        <section class="ai-intake-shell ai-chat-intake" data-ai-intake-page>
+          <div class="ai-chat-center">
+            <header class="ai-chat-hero">
+              <span>ForexCRM AI</span>
+              <h1>想把首页调整成什么样？</h1>
+            </header>
+
+            <section class="ai-chat-composer" aria-label="AI 首页生成输入">
+              <label class="visually-hidden" for="homeAiPrompt">描述首页目标</label>
+              <textarea
+                id="homeAiPrompt"
+                data-ai-prompt
+                rows="6"
+                placeholder="描述客户类型、首屏重点、模块顺序或品牌感觉..."
+              >帮我做成高净值客户风格，黑金色，首屏突出资产、入金和广告轮播图，交易账号列表放下方，整体更大气。</textarea>
+
+              <div class="ai-chat-toolbar">
+                <span class="ai-chat-status" data-config-status>等待输入</span>
+                <div class="ai-chat-actions">
+                  <button class="ai-tool-button" type="button" data-reset-config aria-label="恢复默认首页" title="恢复默认首页">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.7" /><path d="M4 4v6h6" /></svg>
+                  </button>
+                  <button class="ai-tool-button text" type="button" data-model-config-open>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" /><path d="M4 12h2" /><path d="M18 12h2" /><path d="m6.3 6.3 1.4 1.4" /><path d="m16.3 16.3 1.4 1.4" /><path d="M12 4v2" /><path d="M12 18v2" /><path d="m17.7 6.3-1.4 1.4" /><path d="m7.7 16.3-1.4 1.4" /></svg>
+                    <span>模型</span>
+                  </button>
+                  <button class="ai-send-button" type="button" data-generate-config aria-label="生成预览" title="生成预览">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5" /><path d="m5 12 7-7 7 7" /></svg>
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <section class="ai-chat-suggestions" aria-label="建议选择">
+              <button type="button" data-suggestion-prompt="高净值 VIP 黑金风格，首屏突出总资产、入金和广告轮播图，交易账号列表放在下方，整体更克制高级。">高净值客户</button>
+              <button type="button" data-suggestion-prompt="新客户开户引导首页，突出开户进度、KYC、首次入金和真实账号、模拟账号、绑定账号三个动作。">新客开户</button>
+              <button type="button" data-suggestion-prompt="活动增长首页，首屏突出交易大赛、奖池、入金转化和快速操作，整体轻快清晰。">活动增长</button>
+              <button type="button" data-suggestion-prompt="专业交易客户首页，突出交易账号、MT5、持仓状态、账户余额和常用操作，信息密度更高。">专业交易</button>
+            </section>
+          </div>
+        </section>
+      </div>
+
+      <div class="client-toast" data-admin-toast hidden></div>
+    </main>
+
+    <script src="./common-layout.js"></script>
+    <script src="./home-personalization.js"></script>
+    <script src="./home-layout-admin.js"></script>
+  </body>
+</html>

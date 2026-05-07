@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="./theme.js"></script>
+    <title>ForexCRM - 首页预览编排</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./theme.css?v=tenant-home-4" />
+    <link rel="stylesheet" href="./client-home.css?v=tenant-home-4" />
+    <link rel="stylesheet" href="./home-personalization.css?v=tenant-home-4" />
+  </head>
+  <body data-layout-page="home-layout-preview">
+    <main class="app" data-layout-main>
+      <div class="page personalization-page">
+        <section class="preview-workspace-shell preview-simple-shell" data-preview-page>
+          <header class="preview-workspace-hero">
+            <div>
+              <span class="section-kicker">PREVIEW</span>
+              <h1>首页预览</h1>
+              <p>确认方案方向和首屏效果，满意后发布到用户端首页。</p>
+            </div>
+            <div class="preview-workspace-actions">
+              <a href="./home-layout-admin.html">返回输入</a>
+              <button type="button" data-model-config-open>模型配置</button>
+              <button type="button" data-regenerate-preview>重新生成</button>
+              <button class="primary" type="button" data-publish-config>发布到首页</button>
+            </div>
+          </header>
+
+          <section class="preview-workspace-grid">
+            <aside class="module-studio-panel preview-brief-panel">
+              <div class="studio-section studio-summary">
+                <div class="panel-head">
+                  <div>
+                    <span class="section-kicker">SUMMARY</span>
+                    <h2 data-summary-name>首页方案</h2>
+                  </div>
+                  <span class="status-pill" data-config-status>草稿预览</span>
+                </div>
+                <p data-ai-summary>等待生成。</p>
+                <dl>
+                  <div><dt>布局</dt><dd data-summary-layout>--</dd></div>
+                  <div><dt>主题</dt><dd data-summary-theme>--</dd></div>
+                  <div><dt>首屏</dt><dd data-summary-hero>--</dd></div>
+                </dl>
+              </div>
+
+              <div class="studio-section">
+                <div class="studio-section-head">
+                  <span class="section-kicker">MODEL</span>
+                  <h2>当前模型</h2>
+                </div>
+                <div class="ai-model-status-card compact" data-model-config-summary></div>
+              </div>
+
+              <div class="studio-section">
+                <div class="studio-section-head">
+                  <span class="section-kicker">CALLS</span>
+                  <h2>调用记录</h2>
+                  <a class="model-call-link" href="./home-model-calls.html">全部</a>
+                </div>
+                <div class="model-call-history" data-model-call-history></div>
+              </div>
+            </aside>
+
+            <section class="preview-stage-panel">
+              <div class="preview-stage-head">
+                <div>
+                  <span class="section-kicker">CLIENT HOME</span>
+                  <h2>用户端首页预览</h2>
+                </div>
+                <div class="preview-stage-tools" aria-label="预览尺寸">
+                  <div class="preview-size-control" role="group" aria-label="选择预览尺寸">
+                    <button type="button" data-preview-size="mobile" title="手机 390x844">手机</button>
+                    <button type="button" data-preview-size="tablet" title="平板 768x1024">平板</button>
+                    <button type="button" data-preview-size="web" title="Web 1440x900">Web</button>
+                    <button type="button" data-preview-size="large" title="大屏 1920x1080">大屏</button>
+                  </div>
+                  <span class="preview-size-meta" data-preview-size-meta>1440x900</span>
+                  <button class="preview-fullscreen-button" type="button" data-preview-fullscreen>全屏预览</button>
+                </div>
+              </div>
+              <div class="preview-canvas" data-preview-canvas>
+                <iframe class="home-preview" data-home-preview title="用户端首页预览" src="./client-home.html?preview=1"></iframe>
+              </div>
+            </section>
+          </section>
+        </section>
+      </div>
+
+      <div class="client-toast" data-admin-toast hidden></div>
+    </main>
+
+    <script src="./common-layout.js"></script>
+    <script src="./home-personalization.js"></script>
+    <script src="./home-layout-admin.js"></script>
+  </body>
+</html>
