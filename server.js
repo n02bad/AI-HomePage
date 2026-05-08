@@ -790,30 +790,78 @@ function homepageBrickReference() {
     rules: [
       "先按业务积木选模块，再用 sections/layout/moduleStyles/moduleSettings 组合，不直接生成 HTML/CSS。",
       "输出可以带 generationMode=brick-v2、brickPlan 和 brickTrace，方便前端解释 AI 如何搭积木。",
-      "TradingAccounts 可以拆成 Live List 和 Demo List；用户要求两个列表或真实/模拟分开时必须用 separated + list。",
+      "尺寸语义必须稳定：3x1/3x2 表示 12 栅格整行，2x1/2x2 表示 8 栅格主栏，1x1/1x2 表示 4 栅格侧栏；不要发明 8x2、6*2 等新尺寸。",
+      "优先使用舒服的行配方：3x 独占整行；2x + 1x 组成 8+4；2x + 2x 组成 6+6；2x2 + 1x2 组成等高 8+4。",
+      "禁止不舒服组合：3x2 大模块和任何模块同行；2x2 旁边只配 1x2，不能配 1x1；列表/表格模块不能使用 1x 尺寸；8 个快捷入口不能使用 1x 尺寸。",
+      "TradingAccounts 可以拆成真实账号模块和模拟账号模块；用户要求真实账号卡片、模拟账号列表时必须用 separated + realViewMode=card + demoViewMode=list，且不能显示 Live/Demo tab。",
+      "用户要求两个列表或真实/模拟都用列表时，使用 separated + viewMode=list + realViewMode=list + demoViewMode=list。",
       "用户要求模拟账号在真实账号上面时，默认展示顺序必须是 Demo List 在上、Live List 在下。",
       "活动增长、交易大赛、奖池、广告轮播首屏核心这类需求优先按 growth 处理，不能被钱包/资产词误判为 asset。",
-      "用户要求广告轮播首屏核心或单独长模块时，adCarousel 必须是首个 hero/full-width 模块，不能与快捷入口并排挤在一行。",
+      "用户明确要求广告轮播独占整栏、单独长模块或首屏大横幅时，adCarousel 必须是首个业务 hero/full-width 模块；如果有 welcome_header，则 welcome_header 只作为轻量首行，adCarousel 紧随其后。",
       "用户要求推广模块单独处理时，使用 ReferralLink/referral_link 单独成块，不要并进广告轮播或赛事看板。",
-      "用户要求列表形式、不是卡片时，tradingAccounts.viewMode 必须是 list，不能用 card 或 switchable 作为主结果。",
+      "用户要求列表形式、不是卡片时，tradingAccounts.viewMode 必须是 list；但如果同时明确要求真实账号卡片，真实账号必须保持 realViewMode=card。",
       "用户要求快捷入口两行一行四个时，quickActions.count 必须是 8。",
+      "用户要求欢迎模块、欢迎区或 welcome 时，保留轻量 welcome_header 首行；它不算业务焦点，不能替代广告、资产或账号模块。",
+      "用户要求淡金色、浅金色、轻金色、香槟金、金色调或 gold 时，themePreset 必须优先使用 lightGold；只有明确黑金/VIP/高净值时才使用 blackGold。",
+      "活动增长首页如果同时要求欢迎模块独占第一栏、广告轮播首屏核心或独占整栏，推荐顺序是 welcome_header 第一整行、adCarousel 第二整行、quickActions 8 个入口、tradingAccounts 真实卡片 + 模拟列表。",
+      "用户只要求创建真实交易账号按钮时，不要新增独立 create_account_form 或右侧开户大面板；按钮应放在真实账号卡片分区标题右侧。",
       "用户要求不要绑定账号入口时，openAccount.bind 必须是 false。",
       "用户要求钱包列表时使用 walletList / wallet_list 积木，并优先渲染为小卡片组，不要只用 WalletBalance 伪装。",
       "正式用户端首页不能露出积木尺寸、名称或选择理由；这些信息只能放在数据结构和调试属性里。",
       "积木编排必须自动填充可用栅格，避免空白 section、空 slots、不可渲染模块和孤立小积木造成的大面积留白。",
       "桌面端一行可以放两个业务积木；同一行的两个积木必须合计 12 栅格并保持等高，不能出现 8 栅格内容旁边空 4 栅格的版面。",
+      "不要默认让每个模块都独占一整栏；只有当管理员明确说独占、整栏、长模块、首屏大横幅或该模块本身是 3x 大列表时，才让它单独成行。",
     ],
+    layoutGrammar: {
+      sizeMap: {
+        "3x1": "12 栅格整行，适合欢迎、广告轮播、横向资产指标、长链接控制台。",
+        "3x2": "12 栅格整行且高度更高，适合账号列表、钱包列表、大型表格。",
+        "2x1": "8 栅格主栏短模块，适合快捷矩阵、活动看板、紧凑资产。",
+        "2x2": "8 栅格主栏高模块，适合账号卡片、表现图表、工作台。",
+        "1x1": "4 栅格短侧栏，适合资金操作、钱包摘要、状态小卡。",
+        "1x2": "4 栅格高侧栏，适合开户面板、KYC 侧栏、创建账户表单。",
+      },
+      rowPatterns: [
+        "3x1 或 3x2 独占一整行。",
+        "2x1 + 1x1 组成 8+4 短行。",
+        "2x2 + 1x2 组成 8+4 高行。",
+        "2x1 + 2x1 允许组成 6+6 双主栏。",
+      ],
+      moduleSizing: [
+        "TradingAccounts: separated、任一列表视图、真实卡片+模拟列表时必须 size=3x2 zone=full。",
+        "TradingAccounts: 只有 combined card 且不含模拟列表时才可 size=2x2 zone=main，并且旁边只能配 1x2 侧栏。",
+        "QuickActions: count=8 必须 size=2x1 或 3x1；不能放 1x1/1x2。",
+        "AdCarousel: 首屏核心或独占整栏时必须 size=3x1 zone=hero/full。",
+        "WalletList 和长表格必须 size=3x2 zone=full。",
+      ],
+      recipes: [
+        "活动增长: welcome_header 3x1, adCarousel 3x1, quickActions 2x1 + promo/referral 1x1, tradingAccounts 3x2。",
+        "资产工作台: assetSummary 2x1 + fundActions 1x1, quickActions 2x1 + userKycRail 1x1, tradingAccounts 3x2。",
+        "专业交易: tradingAccounts 2x2 + accountPerformance/userKycRail 1x2, quickActions 2x1 + walletBalance 1x1。",
+      ],
+      forbidden: [
+        "不要输出 2x2 + 1x1。",
+        "不要输出 3x2 + 任何同行模块。",
+        "不要把 account_list、wallet_list、表格类模块放进 1x 尺寸。",
+        "不要把 adCarousel 和 tradingAccounts 放在同一行。",
+        "不要连续输出 3 个以上 3x 大模块，除非管理员明确要求每个模块独占整栏。",
+      ],
+    },
     bricks: [
       { id: "assetOverview.vipHero", mapsTo: "asset_summary/balanceTotal", use: "高净值资产首屏、总资产、资金信任" },
+      { id: "assetOverview.compactMetrics", mapsTo: "asset_summary/balanceTotal", use: "紧凑资产指标条、低高度资产信息" },
       { id: "fundActions.priorityDock", mapsTo: "fund_actions/fundActions", use: "入金、出金独立操作 Dock" },
       { id: "quickActions.actionDock", mapsTo: "quick_actions/quickActions", use: "专业交易快捷入口" },
+      { id: "quickActions.priorityMatrix", mapsTo: "quick_actions/quickActions", use: "8 个快捷入口、两行四个、活动转化矩阵" },
       { id: "adCarousel.heroCampaign", mapsTo: "ad_carousel/adCarousel", use: "首页广告轮播、活动主视觉" },
+      { id: "promoBanner.scoreboard", mapsTo: "promo_banner/promoHighlight", use: "赛事活动看板、奖池、倒计时、活动 CTA" },
       { id: "referralLink.growthConsole", mapsTo: "referral_link/referralLink", use: "IB/渠道开户链接、邀请码、转化统计" },
       { id: "onboardingProgress.checklist", mapsTo: "onboarding_progress/onboardingProgress", use: "KYC、开户、首次入金任务" },
       { id: "openAccount.sidePanel", mapsTo: "open_account_panel/openAccountActions", use: "开真实、开模拟、绑定账号右侧面板" },
       { id: "userKycRail.profileWallet", mapsTo: "user_kyc_rail/userKycRail", use: "用户、KYC、当地时间、钱包摘要" },
       { id: "accountPerformance.proChart", mapsTo: "account_performance/accountPerformance", use: "账号余额、权益、PnL 图表" },
       { id: "tradingAccounts.separatedList", mapsTo: "account_list/tradingAccounts", use: "真实/模拟账号分区列表" },
+      { id: "tradingAccounts.cardProof", mapsTo: "account_list/tradingAccounts", use: "紧凑真实账号卡片、活动页账号证明" },
       { id: "walletList.currencyTable", mapsTo: "wallet_list/walletList", use: "多币种钱包表格" },
       { id: "createAccountForm.realAccount", mapsTo: "create_account_form/createAccountForm", use: "真实账户创建表单" },
     ],
@@ -833,10 +881,14 @@ function buildMiniMaxPrompt(payload) {
     "首页必须按响应式 auto layout 思路编排：首屏、主内容、侧栏和整行模块要自然填满栅格，移动端能降级单列。",
     "禁止空 section、空 slots、禁用模块占位、孤立小积木独占大行，不能出现东缺一块西缺一块的空白区块。",
     "桌面端允许一行两个积木；同行两个积木必须配满 12 栅格并等高，禁止 8/12 内容右侧留空。",
+    "必须遵守 brickReference.layoutGrammar：3x=整行、2x=主栏、1x=侧栏；只能使用 3x 独占、2x+1x、2x+2x 这些稳定组合。",
+    "账号、钱包列表、表格、8 个快捷入口、首屏轮播属于高风险模块，必须按 layoutGrammar.moduleSizing 选择 size 和 zone。",
+    "如果布局美观度和模块数量冲突，优先保证行配方完整、同高、少空白，再减少辅助模块。",
     "brickPlan、brickTrace、brickName、brickReason 只供系统调试，不是用户端页面可见内容。",
   ].join("\n");
 
   const contract = {
+    brickReference: homepageBrickReference(),
     requiredFields: [
       "schemaVersion",
       "blueprintVersion",
@@ -858,7 +910,7 @@ function buildMiniMaxPrompt(payload) {
     ],
     enums: {
       layoutPreset: ["standardDashboard", "conversionFirst", "assetFirst", "tradingPro", "vipService"],
-      themePreset: ["default", "blackGold", "blueFinance", "darkTech", "minimalWhite"],
+      themePreset: ["default", "blackGold", "lightGold", "blueFinance", "darkTech", "minimalWhite"],
       personalizationStrength: ["subtle", "medium", "strong"],
       density: ["compact", "balanced", "spacious"],
       heroFocus: ["asset_summary", "ad_carousel", "promo_banner", "fund_actions", "quick_actions", "open_account_panel", "onboarding_progress", "account_list", "referral_link", "user_kyc_rail", "account_performance", "wallet_list", "create_account_form", "wallet_balance", "risk_notice", "copytrading_summary"],
@@ -910,9 +962,21 @@ function buildMiniMaxPrompt(payload) {
       "不要返回 layout；前端会根据 brickPlan 和 sections 自动映射到积木布局。",
       "按 auto layout 组织 sections：hero/main/rail/full 要能被 12 栅格紧凑填充，小积木必须和相关业务积木成组出现。",
       "一行两个积木时优先使用 8+4 或 6+6，同行高度必须一致；如果没有合适搭档，模块必须自动占满整行。",
+      "不要把所有模块默认做成独占整栏；没有明确独占/整栏/长模块/首屏大横幅要求时，允许 AI 把两个相关模块组成一栏来优化首屏节奏。",
+      "size 必须遵守布局语法：3x1/3x2 只能独占整行；2x1/2x2 是主栏；1x1/1x2 是侧栏；不要返回 8x2、6*2 或其他非白名单尺寸。",
+      "禁止 2x2+1x1、3x2+任意模块、表格/list 用 1x、8 个快捷入口用 1x、广告轮播和账号列表同行。",
+      "优先选择稳定行配方：2x1+1x1、2x2+1x2、2x1+2x1、3x 独占。",
       "禁止返回空 section、空 slots、不可渲染 slot 或明显会留下大面积空白的单模块区域。",
-      "交易账号如需真实/模拟分开，moduleSettings.tradingAccounts.grouping 必须为 separated 且 viewMode 为 list。",
-      "列表需求优先使用 tradingAccounts.viewMode=list，不要使用卡片作为主结果。",
+      "交易账号如需真实卡片、模拟列表，moduleSettings.tradingAccounts.grouping 必须为 separated，viewMode 为 card，realViewMode 为 card，demoViewMode 为 list，且不要出现账号 tab 切换。",
+      "真实卡片+模拟列表、真实/模拟分区、任一账号列表视图时，TradingAccounts 的 brickPlan size 必须是 3x2 且 zone=full。",
+      "只有纯账号卡片证明且不含模拟列表时，TradingAccounts 才允许 size=2x2 zone=main，且旁边必须配 1x2 侧栏。",
+      "交易账号如需真实/模拟都用列表，moduleSettings.tradingAccounts.grouping 必须为 separated 且 viewMode/realViewMode/demoViewMode 均为 list。",
+      "列表需求优先使用 tradingAccounts.viewMode=list；但如果管理员明确要求真实账号卡片，不能把真实账号渲染成列表。",
+      "quickActions.count=8 时，QuickActions 必须使用 size=2x1 或 3x1，不得使用 1x1/1x2。",
+      "用户要求欢迎模块、欢迎区或 welcome 时，保留轻量 welcome_header 首行；welcome 只是入口和上下文，不应替代业务 heroFocus。",
+      "用户要求淡金色、浅金色、轻金色、香槟金、金色调或 gold 时，themePreset 必须使用 lightGold，并用扁平、轻量、低阴影样式表达；只有明确黑金/VIP/高净值才使用 blackGold。",
+      "活动增长首页如果同时要求欢迎模块独占第一栏、广告轮播首屏核心或独占整栏，brickPlan 第一业务积木必须是 adCarousel.heroCampaign 且 zone=hero；sections 第一项只放 adCarousel，第二项放 quickActions，账号项放 tradingAccounts；欢迎首行由前端自动补齐。",
+      "用户只要求创建真实交易账号按钮时，不要返回 create_account_form/open_account_panel 作为独立模块；创建按钮由真实账号分区承接。",
       "不要绑定账号入口时，moduleSettings.openAccount.bind 必须为 false。",
       "入金/出金出现时，emphasis.deposit 使用 high，且 assets.showFundActions 为 true。",
       "aiSummary 不超过 80 个中文字符。",
@@ -954,7 +1018,7 @@ function buildMiniMaxPrompt(payload) {
         wallet: { enabled: true, placement: "standalone", showFundActions: false },
         assets: { enabled: true, showFundActions: true },
         referral: { enabled: true },
-        tradingAccounts: { enabled: true, realEnabled: true, demoEnabled: true, grouping: "combined", viewMode: "switchable" },
+        tradingAccounts: { enabled: true, realEnabled: true, demoEnabled: true, grouping: "combined", viewMode: "switchable", realViewMode: "card", demoViewMode: "list" },
         openAccount: { enabled: true, real: true, demo: true, bind: true, placement: "insideTradingAccounts" },
       },
       emphasis: { deposit: "high", openAccount: "medium", promo: "medium", accounts: "medium" },
@@ -997,12 +1061,25 @@ function buildPrompt(payload, config = {}) {
     "必须返回 generationMode=\"brick-v2\"、blueprintVersion=5、brickPlan 和 brickTrace。",
     "首页布局必须自适应 auto layout：桌面按 12 栅格紧凑填充，移动端降级单列；不要依赖空白占位、固定大高度或孤立小模块撑出空区块。",
     "桌面端允许一行两个积木，推荐 8+4 或 6+6；同一行的两个积木必须等高，不能留下 8/12 内容旁边空 4/12 的区域。",
+    "不要默认让所有模块独占一栏；除非管理员明确要求独占、整栏、长模块、首屏大横幅，或模块本身是大型列表/表格，否则应允许两个相关模块组成一栏。",
+    "必须遵守首页布局语法：3x1/3x2 是 12 栅格整行，2x1/2x2 是 8 栅格主栏，1x1/1x2 是 4 栅格侧栏；不要发明 8x2、6*2 等非白名单尺寸。",
+    "只使用稳定行配方：3x 独占整行、2x1+1x1、2x2+1x2、2x1+2x1；禁止 2x2+1x1、3x2+任何同行模块。",
+    "列表/表格/钱包列表/账号双列表不能使用 1x；8 个快捷入口不能使用 1x；广告轮播和交易账号列表不能同行。",
+    "如果布局美观度和模块数量冲突，优先保证同一行完整、等高、少空白，再减少辅助模块。",
     "sections、layout 和 brickPlan 只能包含可渲染且启用的业务模块；禁止空 section、空 slots、东缺一块西缺一块的断裂拼版。",
     "brickPlan、brickTrace、brickName、brickReason 只用于系统调试和数据属性，不能作为用户端可见 UI 文案。",
-    "如果管理员要求交易账号分成两个列表、真实和模拟分开、Live/Demo 分开，必须设置 moduleSettings.tradingAccounts.grouping = \"separated\" 且 viewMode = \"list\"。",
+    "如果管理员要求真实账号用卡片、模拟账号用列表，必须设置 moduleSettings.tradingAccounts.grouping = \"separated\"、viewMode = \"card\"、realViewMode = \"card\"、demoViewMode = \"list\"，前端会渲染成两个独立账号模块且不显示 tab。",
+    "真实账号卡片+模拟账号列表、真实/模拟分区、任一账号列表视图时，TradingAccounts 的 brickPlan size 必须是 3x2 且 zone=full；只有纯 combined card 账号证明才允许 size=2x2 zone=main。",
+    "如果管理员要求交易账号分成两个列表、真实和模拟都列表、Live/Demo 都列表，必须设置 moduleSettings.tradingAccounts.grouping = \"separated\" 且 viewMode/realViewMode/demoViewMode 都为 \"list\"。",
     "如果管理员要求模拟账号列表在真实账号列表上面，必须在 aiSummary 或 layout reason 中保留 Demo 在上、Live 在下的排序意图，前端会按该顺序渲染。",
-    "如果管理员要求列表形式、不是卡片，禁止返回交易账号卡片主视图。",
-    "如果管理员要求活动增长、交易大赛、奖池、广告轮播首屏核心，必须把 adCarousel 作为第一个 full-width hero 模块，heroFocus 使用 ad_carousel，不能用欢迎卡、资产卡或快捷入口抢首屏。",
+    "如果管理员要求列表形式、不是卡片，禁止返回交易账号卡片主视图；但管理员明确要求真实账号卡片时，以真实账号卡片优先。",
+    "如果管理员要求 8 个快捷入口或两行四个，quickActions.count 必须是 8，QuickActions 的 brickPlan size 必须是 2x1 或 3x1，不能使用 1x。",
+    "如果管理员要求活动增长、交易大赛、奖池，并明确要求广告轮播独占整栏、单独长模块或首屏大横幅，必须把 adCarousel 作为第一个业务 full-width hero 模块；如果有 welcome_header，adCarousel 紧跟在 welcome_header 后面，heroFocus 使用 ad_carousel。",
+    "如果管理员要求欢迎模块、欢迎区或 welcome，保留轻量 welcome_header 首行；welcome 只提供用户上下文和个性化入口，不改变业务 heroFocus。",
+    "如果管理员要求淡金色、浅金色、轻金色、香槟金、金色调或 gold，themePreset 必须使用 lightGold，并通过 density/moduleStyles 做扁平、轻量、低阴影表达；只有明确黑金/VIP/高净值才使用 blackGold。",
+    "如果管理员要求欢迎模块独占第一栏，layout 中必须包含 welcome_header 作为第一个 12 栅格轻量整行；它不能改变 heroFocus，heroFocus 仍应指向广告轮播等业务核心。",
+    "如果管理员要求活动增长、交易大赛、奖池，并明确要求广告轮播首屏核心、独占整栏、单独长模块或首屏大横幅，必须把 adCarousel 放在 welcome_header 之后的第一个业务 full-width hero 模块，heroFocus 使用 ad_carousel，不能用欢迎卡、资产卡、快捷入口或开户面板抢首屏。",
+    "如果管理员只要求创建真实交易账号按钮，不要返回 create_account_form 或 open_account_panel 独立模块；创建按钮应该由 tradingAccounts 真实账号分区承接。",
     "如果管理员要求推广模块单独处理，必须保留 referralLink/referral_link 独立 section；赛事活动看板 promoHighlight 不能替代推广链接模块。",
     "如果管理员要求钱包列表小卡片，必须使用 walletList/wallet_list，wallet.placement = \"standalone\"。",
     "如果管理员要求不要绑定账号入口，必须设置 moduleSettings.openAccount.bind = false。",
@@ -1234,11 +1311,19 @@ function mockHomepageConfig(payload, providerConfig) {
   const text = String(payload.prompt || "").toLowerCase();
   const isVip = /vip|高净值|黑金|大气/.test(text);
   const isGrowth = /活动|比赛|增长|转化|奖池/.test(text);
-  const isTrader = /交易|mt4|mt5|持仓|订单|专业/.test(text);
+  const isTrader = !isGrowth && /交易工作台|专业交易|mt4|mt5|持仓|订单|专业/.test(text);
   const wantsClear = /轻快|清晰|清爽|明亮|浅色|轻量/.test(text);
+  const wantsGold = /淡金|浅金|轻金|香槟金|金色|金色调|gold/.test(text);
   const wantsWalletList = /钱包列表|多币种钱包/.test(text);
   const wantsSeparatedAccounts = /真实账号|模拟账号|两个列表|分开|live|demo/.test(text);
+  const wantsWelcome = /欢迎|welcome/.test(text);
+  const wantsRealAccountCards = /真实(?:交易)?账(?:号|户)(?:列表)?[\s\S]{0,32}卡片|卡片[\s\S]{0,32}真实(?:交易)?账(?:号|户)/.test(String(payload.prompt || ""));
+  const wantsDemoAccountList = /模拟(?:交易)?账(?:号|户)(?:列表)?|demo\s*(account\s*)?list/i.test(String(payload.prompt || ""));
+  const wantsMixedAccountPresentation = wantsRealAccountCards && wantsDemoAccountList;
   const growthLayout = [
+    wantsWelcome
+      ? { id: "welcome", component: "welcome_header", slot: "hero", priority: 5, props: {}, brickId: "system.welcomeHeader", brickName: "欢迎头部", brickFamily: "WelcomeHeader", brickSize: "3x1", brickZone: "hero", brickReason: "欢迎模块按提示词保留为轻量首行。" }
+      : null,
     { id: "ad-carousel", component: "ad_carousel", slot: "hero", priority: 10, props: {}, brickId: "adCarousel.heroCampaign", brickName: "首屏广告轮播", brickFamily: "PromotionBanner", brickSize: "3x1", brickZone: "hero", brickReason: "活动增长首页把交易大赛和奖池作为首屏长模块。" },
     { id: "quick-actions", component: "quick_actions", slot: "main", priority: 100, props: {}, brickId: "quickActions.priorityMatrix", brickName: "转化快捷矩阵", brickFamily: "QuickActions", brickSize: "2x1", brickZone: "main", brickReason: "保留 8 个快捷入口承接参与、入金和账号操作。" },
     { id: "promo-scoreboard", component: "promo_banner", slot: "main", priority: 110, props: {}, brickId: "promoBanner.scoreboard", brickName: "赛事活动看板", brickFamily: "PromotionBanner", brickSize: "2x1", brickZone: "main", brickReason: "把奖池、倒计时和活动 CTA 从轮播里拆成独立活动看板。" },
@@ -1255,7 +1340,7 @@ function mockHomepageConfig(payload, providerConfig) {
     generationMode: "brick-v2",
     name: isVip ? "AI 黑金资产首页" : isGrowth ? "AI 活动增长首页" : isTrader ? "AI 专业交易首页" : "AI 平衡工作台",
     layoutPreset: isVip ? "vipService" : isGrowth ? "conversionFirst" : isTrader ? "tradingPro" : "standardDashboard",
-    themePreset: isVip ? "blackGold" : isTrader ? "default" : isGrowth && !wantsClear ? "darkTech" : "blueFinance",
+    themePreset: isVip ? "blackGold" : wantsGold ? "lightGold" : isTrader ? "default" : isGrowth && !wantsClear ? "darkTech" : "blueFinance",
     density: isTrader ? "compact" : isVip ? "spacious" : "balanced",
     personalizationStrength: isVip || isGrowth ? "strong" : "medium",
     heroFocus: isGrowth ? "ad_carousel" : isTrader ? "account_list" : "asset_summary",
@@ -1278,7 +1363,7 @@ function mockHomepageConfig(payload, providerConfig) {
       openAccountActions: "horizontal",
       onboardingProgress: isGrowth ? "checklist" : "path",
       promoHighlight: isGrowth ? "scoreboard" : "clean",
-      adCarousel: isVip || isGrowth ? "immersive" : "clean",
+      adCarousel: wantsGold ? "clean" : isVip || isGrowth ? "immersive" : "clean",
       quickActions: isTrader ? "toolbar" : "compact-grid",
       referralLink: isGrowth ? "link-first" : "compact",
       tradingAccounts: isTrader ? "calm-table" : "dense-cards",
@@ -1286,15 +1371,17 @@ function mockHomepageConfig(payload, providerConfig) {
     moduleSettings: {
       adCarousel: { enabled: true },
       quickActions: { enabled: true, count: isTrader ? 6 : 8, display: isTrader ? "iconOnly" : "iconText" },
-      wallet: { enabled: true, placement: isGrowth && !wantsWalletList ? "mergedWithAssets" : "standalone", showFundActions: isVip },
-      assets: { enabled: true, showFundActions: true },
+      wallet: { enabled: !(isGrowth && wantsGold), placement: isGrowth && !wantsWalletList ? "mergedWithAssets" : "standalone", showFundActions: isVip },
+      assets: { enabled: !(isGrowth && wantsGold), showFundActions: !(isGrowth && wantsGold) },
       referral: { enabled: true, showClicks: true, showRegistrations: true, showTradingAccounts: true, showPromoLink: true, showInviteCode: true, showQrCode: true },
       tradingAccounts: {
         enabled: true,
         realEnabled: true,
         demoEnabled: true,
-        grouping: isTrader || wantsSeparatedAccounts ? "separated" : "combined",
-        viewMode: isTrader || wantsSeparatedAccounts ? "list" : "switchable",
+        grouping: isTrader || wantsSeparatedAccounts || wantsMixedAccountPresentation ? "separated" : "combined",
+        viewMode: wantsMixedAccountPresentation ? "card" : isTrader || wantsSeparatedAccounts ? "list" : "switchable",
+        realViewMode: wantsMixedAccountPresentation ? "card" : isTrader || wantsSeparatedAccounts ? "list" : "card",
+        demoViewMode: wantsMixedAccountPresentation ? "list" : isTrader || wantsSeparatedAccounts ? "list" : "card",
       },
       openAccount: { enabled: true, real: true, demo: true, bind: true, placement: "insideTradingAccounts" },
     },
@@ -1305,7 +1392,7 @@ function mockHomepageConfig(payload, providerConfig) {
       accounts: isTrader ? "high" : "medium",
     },
     aiSummary: isGrowth
-      ? `已通过 ${providerConfig.name} / ${providerConfig.model} 生成活动增长首页：广告轮播首屏长模块，推广独立，Demo 列表在 Live 列表上方。`
+      ? `已通过 ${providerConfig.name} / ${providerConfig.model} 生成活动增长首页：广告轮播首屏长模块，真实账号卡片，模拟账号列表。`
       : `已通过 ${providerConfig.name} / ${providerConfig.model} 生成首页蓝图。`,
   };
 }

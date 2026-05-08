@@ -239,6 +239,94 @@ body[data-tenant-theme="blackGold"] {
   --home-vip-glass-bg: rgba(15, 23, 42, 0.4);
 }
 
+:root[data-tenant-theme="lightGold"],
+body[data-tenant-theme="lightGold"] {
+  --tenant-primaryColor: #b7791f;
+  --tenant-accentColor: #f5c451;
+  --tenant-backgroundStyle: linear-gradient(180deg, #fffdf8 0%, #f8fafc 100%);
+  --tenant-cardStyle: #fffefb;
+  --tenant-cardRadius: 8px;
+  --tenant-cardShadow: 0 8px 22px rgba(93, 65, 18, 0.06);
+  --tenant-buttonStyle: #b7791f;
+  --tenant-fontDensity: 1;
+  --tenant-numberStyle: tabular;
+  --tenant-bannerStyle: linear-gradient(135deg, #fff4cf 0%, #f6d98d 100%);
+  --tenant-primary-color: var(--tenant-primaryColor);
+  --tenant-accent-color: var(--tenant-accentColor);
+  --tenant-background-style: var(--tenant-backgroundStyle);
+  --tenant-card-style: var(--tenant-cardStyle);
+  --tenant-card-radius: var(--tenant-cardRadius);
+  --tenant-card-shadow: var(--tenant-cardShadow);
+  --tenant-button-style: var(--tenant-buttonStyle);
+  --tenant-font-density: var(--tenant-fontDensity);
+  --tenant-number-style: var(--tenant-numberStyle);
+  --tenant-banner-style: var(--tenant-bannerStyle);
+  --home-primary-strong: #7c4a03;
+  --home-primary-text: #6b3f04;
+  --home-primary-soft: #fff7d6;
+  --home-primary-faint: #fff9e8;
+  --home-primary-border: #ead7a6;
+  --home-primary-border-strong: #d9b665;
+  --home-primary-surface: #fff8e6;
+  --home-primary-contrast: #ffffff;
+  --home-accent-contrast: #422006;
+  --home-shell-text: #111827;
+  --home-text-strong: #111827;
+  --home-text: #1f2937;
+  --home-text-soft: #475569;
+  --home-text-muted: #64748b;
+  --home-card-bg: #fffefb;
+  --home-card-border: #eadfca;
+  --home-card-border-strong: #e3cf9b;
+  --home-border: #eadfca;
+  --home-border-soft: #f4ead4;
+  --home-border-strong: #e3cf9b;
+  --home-divider: #f2e8d4;
+  --home-surface: #ffffff;
+  --home-surface-soft: #fffaf0;
+  --home-surface-muted: #fffdf7;
+  --home-button-border: #b7791f;
+  --home-button-secondary-bg: #fffaf0;
+  --home-button-secondary-text: #7c4a03;
+  --home-button-icon-bg: rgba(255, 255, 255, 0.22);
+  --home-button-icon-muted-bg: #fff3c4;
+  --home-button-icon-muted-text: #a16207;
+  --home-button-shadow: none;
+  --home-button-shadow-soft: none;
+  --home-button-hover-shadow: none;
+  --home-button-subtle-shadow: none;
+  --home-filter-shadow: none;
+  --home-popover-shadow: 0 16px 30px rgba(93, 65, 18, 0.1);
+  --home-progress-card-bg: #fffefb;
+  --home-progress-border: #ead7a6;
+  --home-progress-track: #f4ead4;
+  --home-progress-step-border: #eadfca;
+  --home-progress-dot-border: #d9b665;
+  --home-banner-bg: var(--tenant-banner-style);
+  --home-banner-border: #d9b665;
+  --home-banner-text: #321c02;
+  --home-banner-muted: #704c10;
+  --home-banner-badge-bg: #ffffff;
+  --home-banner-badge-text: #7c4a03;
+  --home-banner-status-bg: #b7791f;
+  --home-banner-status-text: #ffffff;
+  --home-banner-cta-bg: #ffffff;
+  --home-banner-cta-text: #7c4a03;
+  --home-hero-text: #111827;
+  --home-hero-muted: #64748b;
+  --home-glass-card-bg: #fffefb;
+  --home-glass-border: rgba(217, 182, 101, 0.38);
+  --home-card-inset-shadow: inset 0 0 0 1px var(--home-card-border-strong);
+  --home-spotlight-shadow: none;
+  --home-vip-hero-bg: linear-gradient(135deg, #fff4cf 0%, #f6d98d 100%);
+  --home-gradient-hero-bg: linear-gradient(135deg, #fff4cf 0%, #f6d98d 100%);
+  --home-split-visual-bg: #fffaf0;
+  --home-action-priority-bg: #fff8e6;
+  --home-icon-tile-bg: #fff3c4;
+  --home-promo-mark-bg: #b7791f;
+  --home-promo-mark-text: #ffffff;
+}
+
 :root[data-tenant-theme="blueFinance"],
 body[data-tenant-theme="blueFinance"] {
   --tenant-primaryColor: #1d4ed8;

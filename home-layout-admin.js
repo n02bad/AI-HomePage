@@ -104,6 +104,7 @@
   const els = {
     intakePage: document.querySelector("[data-ai-intake-page]"),
     previewPage: document.querySelector("[data-preview-page]"),
+    composer: document.querySelector(".ai-chat-composer"),
     prompt: document.querySelector("[data-ai-prompt]"),
     generate: document.querySelector("[data-generate-config]"),
     random: document.querySelector("[data-random-config]"),
@@ -135,6 +136,7 @@
     modelConfigOpen: [...document.querySelectorAll("[data-model-config-open]")],
     modelConfigSummary: [...document.querySelectorAll("[data-model-config-summary]")],
     modelCallHistory: document.querySelector("[data-model-call-history]"),
+    suggestionButtons: [...document.querySelectorAll("[data-suggestion-prompt]")],
     json: document.querySelector("[data-config-json]"),
     toast: document.querySelector("[data-admin-toast]"),
   };
@@ -1006,21 +1008,53 @@
   }
 
   function setAiBusy(isBusy, label = "生成预览") {
+    const busy = Boolean(isBusy);
     const buttons = [els.generate, els.regenerateIntelligence, els.regenerate].filter(Boolean);
     buttons.forEach((button) => {
-      button.disabled = Boolean(isBusy);
-      button.classList.toggle("is-loading", Boolean(isBusy));
+      button.disabled = busy;
+      button.classList.toggle("is-loading", busy);
     });
+
+    els.modelConfigOpen.forEach((button) => {
+      button.disabled = busy;
+    });
+    els.suggestionButtons.forEach((button) => {
+      button.disabled = busy;
+    });
+    if (els.reset) els.reset.disabled = busy;
+    if (els.prompt) els.prompt.readOnly = busy;
+    if (els.intakePage) els.intakePage.classList.toggle("is-generating", busy);
+    if (els.composer) {
+      els.composer.classList.toggle("is-generating", busy);
+      els.composer.setAttribute("aria-busy", busy ? "true" : "false");
+      if (busy) els.composer.dataset.loadingLabel = label;
+      else delete els.composer.dataset.loadingLabel;
+    }
+    if (els.status) {
+      els.status.classList.toggle("is-loading", busy);
+      els.status.setAttribute("aria-live", "polite");
+      if (busy) {
+        els.status.dataset.previousLabel = els.status.textContent.trim();
+        els.status.dataset.pendingLabel = label;
+        updateStatus(label, false);
+      } else if (els.status.dataset.pendingLabel) {
+        if (els.status.textContent.trim() === els.status.dataset.pendingLabel) {
+          updateStatus(els.status.dataset.previousLabel || "等待输入", false);
+        }
+        delete els.status.dataset.previousLabel;
+        delete els.status.dataset.pendingLabel;
+      }
+    }
 
     if (els.generate) {
       if (els.generate.classList.contains("ai-send-button")) {
-        els.generate.setAttribute("aria-label", isBusy ? label : "生成预览");
-        els.generate.title = isBusy ? label : "生成预览";
+        els.generate.setAttribute("aria-label", busy ? label : "生成预览");
+        els.generate.title = busy ? label : "生成预览";
         return;
       }
 
       if (!els.generate.dataset.defaultLabel) els.generate.dataset.defaultLabel = els.generate.textContent.trim();
-      els.generate.textContent = isBusy ? label : els.generate.dataset.defaultLabel;
+      els.generate.textContent = busy ? label : els.generate.dataset.defaultLabel;
     }
   }
 
@@ -1369,7 +1403,7 @@
       { id: "classic", label: "标准工作台", prompt: "标准工作台首页，资产模块、快捷入口、广告、交易账号、邀请链接按常规顺序展示，视觉强度中等。" },
       { id: "asset", label: "资产优先", prompt: "资产优先首页，首屏突出总资产、钱包余额、入金出金和账户安全感，整体专业清晰。" },
       { id: "vip", label: "高净值黑金", prompt: "高净值 VIP 黑金风格，首屏突出资产、入金和广告轮播图，交易账号列表放下方，整体更大气。" },
-      { id: "growth", label: "活动增长", prompt: "活动增长首页，突出交易大赛、奖池、入金转化和快速操作，把广告轮播做成首屏。" },
+      { id: "growth", label: "活动增长", prompt: "活动增长首页，首屏突出交易大赛；欢迎模块独占第一栏但要轻量，广告轮播做成首屏核心并独占一整栏，快捷入口保留 8 个，整体扁平化、轻快清晰，色调淡金色。真实交易账号列表用卡片形式，并在真实账号分区提供创建真实交易账号按钮；模拟账号列表用列表形式。不要把开户做成右侧大面板。" },
       { id: "trader", label: "专业交易", prompt: "专业交易客户首页，突出交易账号、持仓订单、MT5 和账户状态，信息密度更高。" },
       { id: "newbie", label: "新客开户", prompt: "新客户开户引导，突出开户进度、KYC、首次入金和开真实账号、开模拟账号、绑定账号。" },
     ];
@@ -1629,11 +1663,13 @@
   els.generate?.addEventListener("click", async () => {
     savePrompt();
     setAiBusy(true, "正在生成...");
+    let shouldResetBusy = true;
     try {
       const config = await generateConfigWithFallback(promptValue(), { variant: interpretationRound });
       generatePreview(config);
+      shouldResetBusy = false;
     } finally {
-      setAiBusy(false);
+      if (shouldResetBusy) setAiBusy(false);
     }
   });
 

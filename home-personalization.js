@@ -32,6 +32,7 @@
   const THEMES = {
     default: "默认蓝白",
     blackGold: "黑金高净值",
+    lightGold: "浅金扁平",
     blueFinance: "蓝色金融",
     darkTech: "暗色科技",
     minimalWhite: "极简白",
@@ -68,6 +69,18 @@
       fontDensity: 1.02,
       numberStyle: "executive",
       bannerStyle: "black-gold-campaign",
+    },
+    lightGold: {
+      primaryColor: "#b7791f",
+      accentColor: "#f5c451",
+      backgroundStyle: "light-gold-air",
+      cardStyle: "flat-warm-white",
+      cardRadius: "8px",
+      cardShadow: "low",
+      buttonStyle: "soft-gold",
+      fontDensity: 1,
+      numberStyle: "tabular",
+      bannerStyle: "light-gold-campaign",
     },
     blueFinance: {
       primaryColor: "#1d4ed8",
@@ -551,6 +564,8 @@
               demoEnabled: { type: "boolean" },
               grouping: { enum: ["combined", "separated"] },
               viewMode: { enum: ["switchable", "card", "list"] },
+              realViewMode: { enum: ["card", "list"] },
+              demoViewMode: { enum: ["card", "list"] },
             },
           },
           openAccount: {
@@ -843,6 +858,8 @@
       demoEnabled: true,
       grouping: "combined",
       viewMode: "switchable",
+      realViewMode: "card",
+      demoViewMode: "list",
     },
     openAccount: {
       enabled: true,
@@ -988,10 +1005,10 @@
       id: "campaign-growth",
       name: "活动增长首页",
       layout: "conversionFirst",
-      themePreset: "darkTech",
+      themePreset: "lightGold",
       personalizationStrength: "strong",
       density: "balanced",
-      heroFocus: "promoHighlight",
+      heroFocus: "adCarousel",
       tags: ["活动", "比赛", "大赛", "营销", "增长", "转化", "奖池", "入金", "广告", "banner", "轮播"],
       sections: [
         { id: "campaign-hero", type: "hero", title: "活动转化", variant: "campaign", slots: ["adCarousel", "fundActions", "quickActions"] },
@@ -1022,7 +1039,7 @@
         referral: { showClicks: true, showRegistrations: true, showTradingAccounts: true },
         tradingAccounts: { grouping: "combined", viewMode: "card" },
       },
-      summary: "适合活动运营：把广告轮播、入金和快捷操作变成首屏转化带，同时保留账户和开户路径。",
+      summary: "适合活动运营：浅金扁平视觉，广告轮播独占首屏核心，保留 8 个快捷入口和账号转化路径。",
     },
     {
       id: "onboarding-path",
@@ -1479,7 +1496,7 @@
     growth: {
       label: "活动增长转化流",
       layoutPreset: "conversionFirst",
-      themePreset: "darkTech",
+      themePreset: "lightGold",
       density: "balanced",
       strength: "strong",
       bricks: ["adCarousel.heroCampaign", "quickActions.priorityMatrix", "promoBanner.scoreboard", "fundActions.priorityDock", "tradingAccounts.cardProof", "referralLink.growthConsole"],
@@ -1619,6 +1636,19 @@
       next = addBrickId(next, "tradingAccounts.separatedList");
     }
 
+    if (includesAny(text, ["首屏核心", "独占", "整栏", "一整栏", "首屏大横幅"]) && includesAny(text, ["广告", "轮播", "banner", "交易大赛", "大赛"])) {
+      if (!includesAny(text, ["推广链接", "邀请链接", "开户链接", "注册链接", "邀请码", "referral"])) {
+        next = removeBrickFamily(next, ["ReferralLink"]);
+      }
+      if (!includesAny(text, ["活动看板", "赛事看板", "单独看板"])) {
+        next = removeBrickFamily(next, ["PromotionBanner"]);
+        next = addBrickId(next, "adCarousel.heroCampaign", "front");
+      }
+      if (!includesAny(text, ["资金dock", "资金操作", "入金出金独立", "入金出金模块"])) {
+        next = removeBrickFamily(next, ["FundActions"]);
+      }
+    }
+
     if (includesAny(String(prompt || ""), ["不要广告模块", "不要广告", "不需要广告", "隐藏广告", "弱化广告", "不要轮播", "不需要轮播"])) {
       next = removeBrickFamily(next, ["PromotionBanner"]);
     }
@@ -1663,7 +1693,9 @@
       }
     }
     if (!selected.some((brick) => brick.family === "TradingAccounts")) selected.push(brickById("tradingAccounts.separatedList"));
-    if (!selected.some((brick) => brick.family === "FundActions")) selected.splice(1, 0, brickById("fundActions.priorityDock"));
+    if (!selected.some((brick) => brick.family === "FundActions") && !isCampaignCorePrompt(prompt, intent)) {
+      selected.splice(1, 0, brickById("fundActions.priorityDock"));
+    }
 
     return selected.filter(Boolean).slice(0, 11);
   }
@@ -1671,12 +1703,14 @@
   function isCampaignCorePrompt(prompt, intent) {
     if (intent !== "growth") return false;
     const text = positiveIntentText(prompt);
-    return includesAny(text, ["活动增长", "交易大赛", "大赛", "奖池", "首屏突出", "首屏核心", "广告首屏", "轮播首屏", "banner首屏", "单独一个长模块"]);
+    return includesAny(text, ["首屏核心", "独占", "整栏", "一整栏", "单独一个长模块", "长模块", "首屏大横幅", "广告首屏", "轮播首屏", "banner首屏"]);
   }
 
   function themePresetForPrompt(strategy, prompt, intent) {
     const text = positiveIntentText(prompt);
     if (includesAny(text, ["极简白", "极简", "白色", "minimal"])) return "minimalWhite";
+    if (includesAny(text, ["黑金", "高净值", "vip", "尊贵", "机构", "大客户"])) return "blackGold";
+    if (includesAny(text, ["淡金", "浅金", "轻金", "香槟金", "金色", "金色调", "gold"])) return "lightGold";
     if (intent === "growth" && includesAny(text, ["轻快", "清晰", "清爽", "明亮", "浅色", "轻量"])) return "blueFinance";
     return strategy.themePreset;
   }
@@ -1715,6 +1749,118 @@
     return 0;
   }
 
+  function accountListNeedsFullRow(moduleSettings) {
+    const settings = moduleSettings?.tradingAccounts || DEFAULT_MODULE_SETTINGS.tradingAccounts;
+    return settings.grouping === "separated" || settings.viewMode === "list";
+  }
+
+  function layoutBlockWithBrick(block, brickId, slot, reason) {
+    const brick = brickById(brickId);
+    if (!brick) return { ...block, slot: slot || block.slot };
+
+    return {
+      ...block,
+      slot: slot || brick.defaultZone || block.slot,
+      brickId: brick.id,
+      brickName: brick.name,
+      brickFamily: brick.family,
+      brickSize: brick.size,
+      brickZone: brick.defaultZone || slot || block.brickZone,
+      brickReason: reason || block.brickReason || brick.reason,
+    };
+  }
+
+  function brickPlanItemWithBrick(item, brickId, zone, reason) {
+    const brick = brickById(brickId);
+    if (!brick) return { ...item, zone: zone || item.zone };
+
+    return {
+      ...item,
+      brickId: brick.id,
+      brickName: brick.name,
+      family: brick.family,
+      feature: brick.feature,
+      component: brick.component,
+      size: brick.size,
+      zone: zone || brick.defaultZone || item.zone,
+      reason: reason || item.reason || brick.reason,
+    };
+  }
+
+  function enforceLayoutBlockGeometry(block, moduleSettings) {
+    const component = block.component;
+    const size = String(block.brickSize || "").toLowerCase();
+    const quickCount = Number(moduleSettings?.quickActions?.count || 0);
+
+    if (component === "account_list") {
+      if (accountListNeedsFullRow(moduleSettings)) {
+        return layoutBlockWithBrick(block, "tradingAccounts.separatedList", "full", "账号分区或列表视图强制整行，避免表格压缩和侧栏留白。");
+      }
+
+      if (/^1x/.test(size) || block.slot === "rail") {
+        return layoutBlockWithBrick(block, "tradingAccounts.cardProof", "main", "账号卡片至少使用主栏高模块，避免挤入窄侧栏。");
+      }
+    }
+
+    if (component === "wallet_list") {
+      return layoutBlockWithBrick(block, "walletList.currencyTable", "full", "钱包列表属于表格型内容，强制整行展示。");
+    }
+
+    if (component === "quick_actions" && quickCount >= 8 && (/^1x/.test(size) || block.slot === "rail")) {
+      return layoutBlockWithBrick(block, "quickActions.priorityMatrix", "main", "8 个快捷入口使用主栏矩阵，避免侧栏拥挤。");
+    }
+
+    if (component === "ad_carousel" && (/^1x/.test(size) || block.slot === "rail")) {
+      return layoutBlockWithBrick(block, "adCarousel.heroCampaign", "hero", "广告轮播至少使用主视觉宽度，避免侧栏裁切。");
+    }
+
+    if (component === "account_performance" && /^1x/.test(size)) {
+      return layoutBlockWithBrick(block, "accountPerformance.proChart", "main", "账号表现图表需要主栏宽度承载趋势信息。");
+    }
+
+    return block;
+  }
+
+  function enforceHomepageLayoutSafety(layout, moduleSettings) {
+    return layout.map((block) => enforceLayoutBlockGeometry(block, moduleSettings));
+  }
+
+  function enforceBrickPlanSafety(plan, moduleSettings) {
+    const quickCount = Number(moduleSettings?.quickActions?.count || 0);
+
+    return plan.map((item) => {
+      const size = String(item.size || "").toLowerCase();
+
+      if (item.component === "account_list") {
+        if (accountListNeedsFullRow(moduleSettings)) {
+          return brickPlanItemWithBrick(item, "tradingAccounts.separatedList", "full", "账号分区或列表视图强制整行，避免表格压缩和侧栏留白。");
+        }
+
+        if (/^1x/.test(size) || item.zone === "rail") {
+          return brickPlanItemWithBrick(item, "tradingAccounts.cardProof", "main", "账号卡片至少使用主栏高模块，避免挤入窄侧栏。");
+        }
+      }
+
+      if (item.component === "wallet_list") {
+        return brickPlanItemWithBrick(item, "walletList.currencyTable", "full", "钱包列表属于表格型内容，强制整行展示。");
+      }
+
+      if (item.component === "quick_actions" && quickCount >= 8 && (/^1x/.test(size) || item.zone === "rail")) {
+        return brickPlanItemWithBrick(item, "quickActions.priorityMatrix", "main", "8 个快捷入口使用主栏矩阵，避免侧栏拥挤。");
+      }
+
+      if (item.component === "ad_carousel" && (/^1x/.test(size) || item.zone === "rail")) {
+        return brickPlanItemWithBrick(item, "adCarousel.heroCampaign", "hero", "广告轮播至少使用主视觉宽度，避免侧栏裁切。");
+      }
+
+      if (item.component === "account_performance" && /^1x/.test(size)) {
+        return brickPlanItemWithBrick(item, "accountPerformance.proChart", "main", "账号表现图表需要主栏宽度承载趋势信息。");
+      }
+
+      return item;
+    });
+  }
+
   function layoutSpanForBlock(block, heroBlockCount = 0) {
     if (block.component === "welcome_header") return 12;
 
@@ -1731,7 +1877,8 @@
   }
 
   function isHomepageFullRowBlock(block) {
-    return ["welcome_header", "account_list"].includes(block.component);
+    if (block.component === "welcome_header") return true;
+    return block.component === "account_list" && /^3x/i.test(String(block.brickSize || ""));
   }
 
   function isHomepageCompactBlock(block) {
@@ -1870,7 +2017,9 @@
     let modules = clone(DEFAULT_CONFIG.modules);
     let moduleStyles = syncLegacyModuleStyles(modules);
     let moduleSettings = clone(DEFAULT_MODULE_SETTINGS);
-    const welcomeLayout = campaignCore
+    const promptText = positiveIntentText(prompt);
+    const shouldIncludeWelcome = !campaignCore || includesAny(promptText, ["欢迎模块", "欢迎头部", "欢迎区", "welcome"]);
+    const welcomeLayout = !shouldIncludeWelcome
       ? []
       : [
           {
@@ -1914,6 +2063,37 @@
       }
       moduleSettings = mergeSettingsObject(moduleSettings, brick.settings);
     });
+
+    if (wantsRealAccountCards(prompt) && wantsDemoAccountList(prompt)) {
+      modules.TradingAccounts = { variant: "separatedList" };
+      moduleStyles.tradingAccounts = "dense-cards";
+      moduleSettings = mergeSettingsObject(moduleSettings, {
+        tradingAccounts: {
+          enabled: true,
+          realEnabled: true,
+          demoEnabled: true,
+          grouping: "separated",
+          viewMode: "card",
+          realViewMode: "card",
+          demoViewMode: "list",
+        },
+        openAccount: { enabled: true, real: true, demo: true, placement: "insideTradingAccounts" },
+      });
+    }
+
+    if (campaignCore && intent === "growth") {
+      moduleSettings = mergeSettingsObject(moduleSettings, {
+        adCarousel: { enabled: true },
+        quickActions: { enabled: true, count: 8, display: "iconText" },
+        assets: { enabled: false, showFundActions: false, showAccountBreakdown: false, showWalletBreakdown: false },
+        wallet: { enabled: false, placement: "mergedWithAssets", showFundActions: false },
+      });
+      moduleStyles = {
+        ...moduleStyles,
+        adCarousel: "clean",
+        quickActions: "matrix",
+      };
+    }
 
     const selectedFamilies = new Set(bricks.map((brick) => brick.family));
     if (!selectedFamilies.has("PromotionBanner")) moduleSettings.adCarousel.enabled = false;
@@ -2332,6 +2512,7 @@
     const wallet = source.wallet && typeof source.wallet === "object" ? source.wallet : {};
     const assets = source.assets && typeof source.assets === "object" ? source.assets : {};
     const adCarousel = source.adCarousel && typeof source.adCarousel === "object" ? source.adCarousel : {};
+    const tradingAccountViewMode = oneOf(tradingAccounts.viewMode, ["switchable", "card", "list"], defaults.tradingAccounts.viewMode);
 
     const normalized = {
       adCarousel: {
@@ -2367,7 +2548,9 @@
         realEnabled: boolValue(tradingAccounts.realEnabled, defaults.tradingAccounts.realEnabled),
         demoEnabled: boolValue(tradingAccounts.demoEnabled, defaults.tradingAccounts.demoEnabled),
         grouping: oneOf(tradingAccounts.grouping, ["combined", "separated"], defaults.tradingAccounts.grouping),
-        viewMode: oneOf(tradingAccounts.viewMode, ["switchable", "card", "list"], defaults.tradingAccounts.viewMode),
+        viewMode: tradingAccountViewMode,
+        realViewMode: oneOf(tradingAccounts.realViewMode, ["card", "list"], tradingAccountViewMode === "list" ? "list" : "card"),
+        demoViewMode: oneOf(tradingAccounts.demoViewMode, ["card", "list"], tradingAccountViewMode === "card" ? "card" : "list"),
       },
       openAccount: {
         enabled: boolValue(openAccount.enabled, defaults.openAccount.enabled),
@@ -2633,7 +2816,7 @@
     const emphasis = source.emphasis && typeof source.emphasis === "object" ? source.emphasis : {};
     const moduleSettings = normalizeModuleSettings(source.moduleSettings);
     const legacySections = !source.sections && source.moduleOrder ? sectionsFromLegacyOrder(source.moduleOrder) : null;
-    const sourceBrickPlan = normalizeBrickPlan(source.brickPlan);
+    const sourceBrickPlan = enforceBrickPlanSafety(normalizeBrickPlan(source.brickPlan), moduleSettings);
     const brickSections =
       !source.sections && !legacySections && sourceBrickPlan.length
         ? sectionsFromBrickPlan(sourceBrickPlan, { label: cleanMetaText(source.name, "AI 积木编排", 28) })
@@ -2651,9 +2834,10 @@
       Number(source.blueprintVersion) >= 5 ||
       sourceBrickPlan.length > 0 ||
       normalizedLayout.layout.some((block) => block.brickId);
-    const layout = shouldHydrateBricks
+    const hydratedLayout = shouldHydrateBricks
       ? applyBrickMetadataToLayout(normalizedLayout.layout, sourceBrickPlan, modules)
       : normalizedLayout.layout;
+    const layout = enforceHomepageLayoutSafety(hydratedLayout, moduleSettings);
     const brickPlan = sourceBrickPlan.length ? sourceBrickPlan : shouldHydrateBricks ? brickPlanFromLayout(layout) : [];
 
     return {
@@ -2769,6 +2953,7 @@
 
     if (includesAny(lower + text, ["活动", "增长", "营销", "比赛", "大赛", "转化"])) setTheme("darkTech");
     if (includesAny(lower + text, ["科技", "蓝", "清爽", "国际", "global", "金融"])) setTheme("blueFinance");
+    if (includesAny(lower + text, ["淡金", "浅金", "轻金", "香槟金", "金色", "金色调", "gold"])) setTheme("lightGold");
     if (includesAny(lower + text, ["高净值", "vip", "黑金", "尊贵", "机构"])) setTheme("blackGold");
     if (includesAny(lower + text, ["极简", "白色", "极简白", "minimal"])) setTheme("minimalWhite");
 
@@ -2821,11 +3006,29 @@
     return normalizeConfig(config);
   }
 
+  function wantsRealAccountCards(text) {
+    const source = String(text || "");
+    return /真实(?:交易)?账(?:号|户)(?:列表)?[\s\S]{0,32}卡片/.test(source) || /卡片[\s\S]{0,32}真实(?:交易)?账(?:号|户)/.test(source);
+  }
+
+  function wantsDemoAccountList(text) {
+    const source = String(text || "");
+    return /模拟(?:交易)?账(?:号|户)(?:列表)?/.test(source) || /demo\s*(account\s*)?list/i.test(source);
+  }
+
   function applySmartIntentToConfig(baseConfig, prompt) {
     const config = normalizeConfig(baseConfig);
     const text = String(prompt || "");
     const signal = text.toLowerCase() + text;
     const positiveSignal = positiveIntentText(text);
+    const realCardsRequested = wantsRealAccountCards(text);
+    const demoListRequested = wantsDemoAccountList(text);
+    const goldToneRequested = includesAny(positiveSignal, ["淡金", "浅金", "轻金", "香槟金", "金色", "金色调", "gold"]);
+
+    if (goldToneRequested && !includesAny(positiveSignal, ["黑金", "高净值", "vip", "尊贵", "机构", "大客户"])) {
+      config.themePreset = "lightGold";
+      config.theme = "lightGold";
+    }
 
     if (includesAny(positiveSignal, ["高净值", "vip", "黑金", "尊贵", "机构", "大客户"])) {
       mergeModuleVariants(config, {
@@ -2977,6 +3180,25 @@
     }
 
     if (
+      realCardsRequested &&
+      demoListRequested
+    ) {
+      mergeModuleVariants(config, { TradingAccounts: "separatedList" });
+      mergeModuleStyles(config, { tradingAccounts: "dense-cards" });
+      mergeModuleSettings(config, {
+        tradingAccounts: {
+          enabled: true,
+          realEnabled: true,
+          demoEnabled: true,
+          grouping: "separated",
+          viewMode: "card",
+          realViewMode: "card",
+          demoViewMode: "list",
+        },
+      });
+      moveSlot(config, "tradingAccounts", "end");
+      config.emphasis.accounts = "high";
+    } else if (
       includesAny(signal, [
         "两个列表",
         "两个账号列表",
@@ -3000,7 +3222,7 @@
       config.emphasis.accounts = "high";
     }
 
-    if (includesAny(signal, ["都是列表", "列表形式", "表格形式", "不要卡片", "不是卡片", "非卡片"])) {
+    if (!realCardsRequested && includesAny(signal, ["都是列表", "列表形式", "表格形式", "不要卡片", "不是卡片", "非卡片"])) {
       mergeModuleStyles(config, { tradingAccounts: "calm-table" });
       mergeModuleSettings(config, { tradingAccounts: { viewMode: "list" } });
     }
@@ -3028,8 +3250,10 @@
     }
 
     if (includesAny(signal, ["淡色", "浅色", "扁平化", "扁平", "简洁白"])) {
-      config.themePreset = "minimalWhite";
-      config.theme = "minimalWhite";
+      if (!goldToneRequested) {
+        config.themePreset = "minimalWhite";
+        config.theme = "minimalWhite";
+      }
       config.density = config.density === "compact" ? "balanced" : config.density;
       mergeModuleStyles(config, {
         balanceTotal: "quiet-card",
@@ -3607,6 +3831,55 @@
     const feature = wrapFeature(doc, "account_list", "ai-accounts-feature", config);
     const safeProps = sanitizeComponentProps("account_list", props, []);
     const accountSettings = config.moduleSettings.tradingAccounts;
+    const isSeparated = accountSettings.grouping === "separated" && accountSettings.realEnabled && accountSettings.demoEnabled;
+    const realViewMode = accountSettings.realViewMode || (accountSettings.viewMode === "list" ? "list" : "card");
+    const demoViewMode = accountSettings.demoViewMode || (accountSettings.viewMode === "card" ? "card" : "list");
+
+    if (isSeparated) {
+      feature.id = "accounts";
+      feature.classList.add("is-split-accounts");
+      feature.dataset.accountPresentation = realViewMode === "card" && demoViewMode === "list" ? "real-cards-demo-list" : "separated";
+      feature.innerHTML = `
+        <div class="ai-accounts-command split">
+          <div>
+            <span>${escapeHtml(t(safeProps.eyebrowKey))}</span>
+            <strong>${escapeHtml(t(safeProps.titleKey))}</strong>
+          </div>
+        </div>
+        <div class="accounts-split-view" data-accounts-split-view>
+          <section class="account-split-module account-split-module-real" data-account-section="real" data-account-view="${escapeHtml(realViewMode)}">
+            <header>
+              <div>
+                <span class="section-kicker">真实账号</span>
+                <strong>真实交易账号列表</strong>
+              </div>
+              <div class="account-section-tools">
+                <b data-real-account-count>0</b>
+                <button class="account-create-button" data-home-action="openAccount" data-account-entry-kind="real" type="button">
+                  <span>${icon("user")}</span>
+                  创建真实交易账号
+                </button>
+              </div>
+            </header>
+            <div class="real-account-card-grid" data-real-account-cards></div>
+          </section>
+          <section class="account-split-module account-split-module-demo" data-account-section="demo" data-account-view="${escapeHtml(demoViewMode)}">
+            <header>
+              <div>
+                <span class="section-kicker">模拟账号</span>
+                <strong>模拟交易账号列表</strong>
+              </div>
+              <b data-demo-account-count>0</b>
+            </header>
+            <div data-demo-account-list></div>
+          </section>
+        </div>
+        <div class="accounts-card-view" data-accounts-card-view hidden></div>
+        <div class="accounts-list-view" data-accounts-list-view hidden></div>
+      `;
+      return feature;
+    }
+
     const filterButtons = [
       accountSettings.realEnabled && accountSettings.demoEnabled ? '<button class="active" data-account-filter="all" type="button">全部</button>' : "",
       accountSettings.realEnabled ? '<button data-account-filter="real" type="button">真实</button>' : "",
@@ -3977,6 +4250,8 @@
     body.dataset.homeAccountDemo = normalized.moduleSettings.tradingAccounts.demoEnabled ? "true" : "false";
     body.dataset.homeAccountGrouping = normalized.moduleSettings.tradingAccounts.grouping;
     body.dataset.homeAccountView = normalized.moduleSettings.tradingAccounts.viewMode;
+    body.dataset.homeAccountRealView = normalized.moduleSettings.tradingAccounts.realViewMode;
+    body.dataset.homeAccountDemoView = normalized.moduleSettings.tradingAccounts.demoViewMode;
     body.dataset.homeOpenAccountReal = normalized.moduleSettings.openAccount.real ? "true" : "false";
     body.dataset.homeOpenAccountDemo = normalized.moduleSettings.openAccount.demo ? "true" : "false";
     body.dataset.homeOpenAccountBind = normalized.moduleSettings.openAccount.bind ? "true" : "false";
@@ -4114,7 +4389,11 @@
     choices.push(settings.adCarousel.enabled ? "保留广告曝光" : "隐藏广告轮播");
     choices.push(settings.referral.enabled ? "保留邀请转化" : "隐藏邀请模块");
     choices.push(
-      settings.tradingAccounts.grouping === "separated" && settings.tradingAccounts.viewMode === "list"
+      settings.tradingAccounts.grouping === "separated" &&
+        settings.tradingAccounts.realViewMode === "card" &&
+        settings.tradingAccounts.demoViewMode === "list"
+        ? "真实账号卡片展示，模拟账号列表展示"
+        : settings.tradingAccounts.grouping === "separated" && settings.tradingAccounts.viewMode === "list"
         ? "真实/模拟账号分成两个列表"
         : settings.tradingAccounts.viewMode === "list"
         ? "交易账号固定列表"

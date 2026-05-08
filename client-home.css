@@ -769,6 +769,116 @@
   gap: 14px;
 }
 
+.accounts-split-view {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+.account-split-module {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  overflow: hidden;
+  padding: 16px;
+  border: 1px solid var(--home-card-border-strong);
+  border-radius: var(--home-radius-md);
+  background: var(--home-surface);
+}
+
+.account-split-module > header {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.account-split-module > header > div:first-child {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.account-split-module > [data-real-account-list],
+.account-split-module > [data-demo-account-list] {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.account-split-module > header strong {
+  color: var(--home-text-strong);
+  font-size: 17px;
+  font-weight: 950;
+  line-height: 1.15;
+}
+
+.account-split-module header b[data-real-account-count],
+.account-split-module header b[data-demo-account-count] {
+  min-width: 28px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--home-radius-sm);
+  background: var(--home-primary-soft);
+  color: var(--home-primary);
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.account-section-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.account-create-button {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid var(--home-button-border);
+  border-radius: var(--home-radius-sm);
+  background: var(--home-button-bg);
+  color: var(--home-button-text);
+  font-size: 13px;
+  font-weight: 950;
+  box-shadow: var(--home-button-shadow-soft);
+}
+
+.account-create-button span {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--home-radius-sm);
+  background: var(--home-button-icon-bg);
+}
+
+.real-account-card-grid {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
+  gap: 12px;
+}
+
+.account-empty-state {
+  min-height: 72px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--home-border-strong);
+  border-radius: var(--home-radius-md);
+  color: var(--home-text-muted);
+  font-size: 13px;
+  font-weight: 900;
+}
+
 .trade-account-card {
   min-width: 0;
   min-height: 254px;
@@ -1114,7 +1224,10 @@ button.account-entry-action {
 }
 
 .account-table-scroll {
-  overflow: auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .account-table {
@@ -1198,7 +1311,8 @@ button.account-entry-action {
 .view-toggle svg,
 .account-menu svg,
 .account-entry-trigger svg,
-.account-entry-action svg {
+.account-entry-action svg,
+.account-create-button svg {
   width: 18px;
   height: 18px;
   fill: none;
@@ -1228,6 +1342,7 @@ button.account-entry-action {
 .promo-banner > a,
 .account-entry-trigger,
 .account-entry-action,
+.account-create-button,
 .table-actions a,
 .table-actions button {
   transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
@@ -1247,13 +1362,18 @@ button.account-entry-action {
   .client-welcome,
   .welcome-actions,
   .accounts-head,
-  .accounts-title-row {
+  .accounts-title-row,
+  .account-split-module > header {
     align-items: flex-start;
     flex-direction: column;
   }
 
   .welcome-actions {
     white-space: normal;
+  }
+
+  .account-section-tools {
+    justify-content: flex-start;
   }
 
   .account-toolbar {

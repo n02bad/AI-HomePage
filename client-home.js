@@ -35,13 +35,25 @@ function readBooleanDataset(name, fallback = true) {
 }
 
 function homeAccountSettings() {
+  const configuredView = ["card", "list", "switchable"].includes(document.body?.dataset?.homeAccountView)
+    ? document.body.dataset.homeAccountView
+    : "switchable";
+
   return {
     realEnabled: readBooleanDataset("homeAccountReal", true),
     demoEnabled: readBooleanDataset("homeAccountDemo", true),
     grouping: document.body?.dataset?.homeAccountGrouping === "separated" ? "separated" : "combined",
-    viewMode: ["card", "list", "switchable"].includes(document.body?.dataset?.homeAccountView)
-      ? document.body.dataset.homeAccountView
-      : "switchable",
+    viewMode: configuredView,
+    realViewMode: ["card", "list"].includes(document.body?.dataset?.homeAccountRealView)
+      ? document.body.dataset.homeAccountRealView
+      : configuredView === "list"
+      ? "list"
+      : "card",
+    demoViewMode: ["card", "list"].includes(document.body?.dataset?.homeAccountDemoView)
+      ? document.body.dataset.homeAccountDemoView
+      : configuredView === "card"
+      ? "card"
+      : "list",
     openEnabled: readBooleanDataset("homeOpenAccountEnabled", true),
     openReal: readBooleanDataset("homeOpenAccountReal", true),
     openDemo: readBooleanDataset("homeOpenAccountDemo", true),
@@ -71,6 +83,11 @@ function collectElements() {
   els = {
     cardView: document.querySelector("[data-accounts-card-view]"),
     listView: document.querySelector("[data-accounts-list-view]"),
+    splitView: document.querySelector("[data-accounts-split-view]"),
+    realAccountCards: document.querySelector("[data-real-account-cards]"),
+    demoAccountList: document.querySelector("[data-demo-account-list]"),
+    realAccountCount: document.querySelector("[data-real-account-count]"),
+    demoAccountCount: document.querySelector("[data-demo-account-count]"),
     accountOpenMenu: document.querySelector("[data-account-open-menu]"),
     filterButtons: [...document.querySelectorAll("[data-account-filter]")],
     viewButtons: [...document.querySelectorAll("[data-view-mode]")],
@@ -105,6 +122,50 @@ function visibleAccounts() {
 
   if (activeFilter === "all") return allowed;
   return allowed.filter((account) => account.kind === activeFilter);
+}
+
+function shouldRenderSplitAccounts(settings = homeAccountSettings()) {
+  return settings.grouping === "separated" && settings.realEnabled && settings.demoEnabled;
+}
+
+function ensureSplitAccountShell() {
+  if (els.splitView || !els.cardView) return;
+
+  const splitView = document.createElement("div");
+  splitView.className = "accounts-split-view";
+  splitView.dataset.accountsSplitView = "";
+  splitView.hidden = true;
+  splitView.innerHTML = `
+    <section class="account-split-module account-split-module-real" data-account-section="real">
+      <header>
+        <div>
+          <span class="section-kicker">真实账号</span>
+          <strong>真实交易账号列表</strong>
+        </div>
+        <div class="account-section-tools">
+          <b data-real-account-count>0</b>
+          <button class="account-create-button" data-home-action="openAccount" data-account-entry-kind="real" type="button">
+            <span>${icon("plus")}</span>
+            创建真实交易账号
+          </button>
+        </div>
+      </header>
+      <div class="real-account-card-grid" data-real-account-cards></div>
+    </section>
+    <section class="account-split-module account-split-module-demo" data-account-section="demo">
+      <header>
+        <div>
+          <span class="section-kicker">模拟账号</span>
+          <strong>模拟交易账号列表</strong>
+        </div>
+        <b data-demo-account-count>0</b>
+      </header>
+      <div data-demo-account-list></div>
+    </section>
+  `;
+
+  els.cardView.insertAdjacentElement("beforebegin", splitView);
+  collectElements();
 }
 
 function toUsd(amount, currency = "USD") {
@@ -298,7 +359,6 @@ function renderAccountRows(items) {
 }
 
 function renderAccountTable(items, title = "") {
-  const rows = renderAccountRows(items);
   const titleMarkup = title
     ? `
       <header>
@@ -311,26 +371,33 @@ function renderAccountTable(items, title = "") {
   return `
     <section class="account-list-group">
       ${titleMarkup}
-      <div class="account-table-scroll">
-        <table class="account-table">
-          <thead>
-            <tr>
-              <th>分类</th>
-              <th>账号</th>
-              <th>用途</th>
-              <th>平台</th>
-              <th>服务器</th>
-              <th>余额</th>
-              <th>账号类型</th>
-              <th>信用额</th>
-              <th>杠杆</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>
+      ${renderAccountTableContent(items)}
     </section>
+  `;
+}
+
+function renderAccountTableContent(items) {
+  const rows = renderAccountRows(items);
+  return `
+    <div class="account-table-scroll">
+      <table class="account-table">
+        <thead>
+          <tr>
+            <th>分类</th>
+            <th>账号</th>
+            <th>用途</th>
+            <th>平台</th>
+            <th>服务器</th>
+            <th>余额</th>
+            <th>账号类型</th>
+            <th>信用额</th>
+            <th>杠杆</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
   `;
 }
 
@@ -355,6 +422,40 @@ function renderList(items) {
   `;
 }
 
+function renderSplitAccounts() {
+  ensureSplitAccountShell();
+  if (!els.splitView) return;
+
+  const settings = homeAccountSettings();
+  const realItems = accounts.filter((account) => account.kind === "real");
+  const demoItems = accounts.filter((account) => account.kind === "demo");
+  const realSection = els.splitView.querySelector('[data-account-section="real"]');
+  const demoSection = els.splitView.querySelector('[data-account-section="demo"]');
+
+  realSection?.setAttribute("data-account-view", settings.realViewMode);
+  demoSection?.setAttribute("data-account-view", settings.demoViewMode);
+
+  if (els.realAccountCount) els.realAccountCount.textContent = String(realItems.length);
+  if (els.demoAccountCount) els.demoAccountCount.textContent = String(demoItems.length);
+
+  if (els.realAccountCards) {
+    els.realAccountCards.innerHTML = realItems.length
+      ? settings.realViewMode === "list"
+        ? renderAccountTableContent(realItems)
+        : realItems.map(renderAccountCard).join("")
+      : '<div class="account-empty-state">暂无真实交易账号</div>';
+    els.realAccountCards.classList.toggle("real-account-card-grid", settings.realViewMode === "card");
+  }
+
+  if (els.demoAccountList) {
+    els.demoAccountList.innerHTML = demoItems.length
+      ? settings.demoViewMode === "card"
+        ? `<div class="real-account-card-grid">${demoItems.map(renderAccountCard).join("")}</div>`
+        : renderAccountTableContent(demoItems)
+      : '<div class="account-empty-state">暂无模拟交易账号</div>';
+  }
+}
+
 function bindAccountEntry() {
   document.querySelectorAll("[data-account-entry-trigger]").forEach((button) => {
     if (button.dataset.boundAccountEntryTrigger) return;
@@ -371,6 +472,16 @@ function bindAccountEntry() {
 function renderAccounts() {
   syncConfiguredState();
   const items = visibleAccounts();
+  const settings = homeAccountSettings();
+  const useSplitAccounts = shouldRenderSplitAccounts(settings);
+
+  document.querySelectorAll(".account-filter").forEach((filter) => {
+    filter.hidden = useSplitAccounts;
+  });
+  document.querySelectorAll(".view-toggle").forEach((toggle) => {
+    toggle.hidden = useSplitAccounts;
+  });
+
   els.filterButtons.forEach((button) => {
     button.classList.toggle("active", button.dataset.accountFilter === activeFilter);
   });
@@ -378,18 +489,28 @@ function renderAccounts() {
     button.classList.toggle("active", button.dataset.viewMode === activeView);
   });
   renderAccountEntryMenu();
-  renderCards(items);
-  renderList(items);
+  if (useSplitAccounts) {
+    renderSplitAccounts();
+  } else {
+    if (els.splitView) els.splitView.hidden = true;
+    renderCards(items);
+    renderList(items);
+  }
   bindAccountEntry();
 
+  if (els.splitView) {
+    els.splitView.hidden = !useSplitAccounts;
+    els.splitView.style.display = useSplitAccounts ? "" : "none";
+  }
+
   if (els.cardView) {
-    els.cardView.hidden = activeView !== "card";
-    els.cardView.style.display = activeView === "card" ? "" : "none";
+    els.cardView.hidden = useSplitAccounts || activeView !== "card";
+    els.cardView.style.display = !useSplitAccounts && activeView === "card" ? "" : "none";
   }
 
   if (els.listView) {
-    els.listView.hidden = activeView !== "list";
-    els.listView.style.display = activeView === "list" ? "" : "none";
+    els.listView.hidden = useSplitAccounts || activeView !== "list";
+    els.listView.style.display = !useSplitAccounts && activeView === "list" ? "" : "none";
   }
 }
 

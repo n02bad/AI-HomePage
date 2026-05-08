@@ -731,7 +731,7 @@ body[data-home-layout="traderConsole"] .ai-section-rail .ai-quick-feature {
   align-content: end;
   gap: 10px;
   min-height: inherit;
-  padding: 24px;
+  padding: 24px 96px 72px;
   opacity: 0;
   pointer-events: none;
   transform: scale(1.02);
@@ -802,12 +802,7 @@ body[data-home-layout="traderConsole"] .ai-section-rail .ai-quick-feature {
 
 .ai-ad-controls {
   position: absolute;
-  left: 18px;
-  right: 18px;
-  bottom: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  inset: 0;
   pointer-events: none;
 }
 
@@ -816,6 +811,8 @@ body[data-home-layout="traderConsole"] .ai-section-rail .ai-quick-feature {
 }
 
 .ai-ad-controls > button {
+  position: absolute;
+  top: 50%;
   width: 34px;
   height: 34px;
   display: grid;
@@ -826,15 +823,28 @@ body[data-home-layout="traderConsole"] .ai-section-rail .ai-quick-feature {
   color: var(--home-banner-text);
   font-size: 22px;
   font-weight: 900;
+  transform: translateY(-50%);
+}
+
+.ai-ad-controls > button:first-child {
+  left: 18px;
+}
+
+.ai-ad-controls > button:last-child {
+  right: 18px;
 }
 
 .ai-ad-dots {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
   display: inline-flex;
   gap: 7px;
   padding: 8px;
   border-radius: var(--home-radius-pill);
   background: var(--home-overlay-card-bg);
   pointer-events: auto;
+  transform: translateX(-50%);
 }
 
 .ai-ad-dots button {
@@ -1268,6 +1278,24 @@ body[data-home-layout="traderConsole"] .ai-section-rail .ai-quick-feature {
 .ai-accounts-feature {
   min-height: 520px;
   padding: 18px;
+}
+
+.ai-accounts-feature.is-split-accounts {
+  display: grid;
+  gap: 14px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.ai-accounts-feature.is-split-accounts .ai-accounts-command {
+  margin-bottom: 0;
+  padding: 0 2px;
+}
+
+.ai-accounts-feature.is-split-accounts .account-split-module {
+  box-shadow: var(--home-card-shadow);
 }
 
 .ai-accounts-command {
@@ -1945,8 +1973,10 @@ body[data-layout-page="home-layout-admin"] .personalization-page {
 }
 
 .ai-chat-composer {
+  position: relative;
   display: grid;
   gap: 12px;
+  overflow: hidden;
   padding: 14px;
   border: 1px solid rgba(37, 99, 235, 0.18);
   border-radius: 8px;
@@ -1954,6 +1984,34 @@ body[data-layout-page="home-layout-admin"] .personalization-page {
     linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 251, 255, 0.94)),
     #ffffff;
   box-shadow: 0 18px 48px rgba(37, 99, 235, 0.12);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.ai-chat-composer::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  left: -44%;
+  width: 44%;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, #2563eb, #14b8a6, transparent);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ai-chat-composer.is-generating {
+  border-color: rgba(37, 99, 235, 0.46);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(239, 246, 255, 0.96)),
+    #ffffff;
+  box-shadow: 0 22px 58px rgba(37, 99, 235, 0.18), 0 0 0 4px rgba(37, 99, 235, 0.08);
+}
+
+.ai-chat-composer.is-generating::before {
+  opacity: 1;
+  animation: ai-loading-bar 1.2s ease-in-out infinite;
 }
 
 .ai-chat-composer textarea {
@@ -1987,6 +2045,35 @@ body[data-layout-page="home-layout-admin"] .personalization-page {
   color: #6b7280;
   font-size: 12px;
   font-weight: 760;
+  transition: color 0.18s ease, background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.ai-chat-status.is-loading {
+  min-height: 28px;
+  max-width: min(320px, 52vw);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  padding: 0 10px;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  border-radius: 999px;
+  background: rgba(239, 246, 255, 0.92);
+  color: #1d4ed8;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.12);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-chat-status.is-loading::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+  border: 2px solid rgba(37, 99, 235, 0.24);
+  border-top-color: #2563eb;
+  border-radius: 999px;
+  animation: ai-loading-spin 0.76s linear infinite;
 }
 
 .ai-chat-actions {
@@ -2010,6 +2097,13 @@ body[data-layout-page="home-layout-admin"] .personalization-page {
   background: #ffffff;
   color: #111827;
   font-weight: 800;
+}
+
+.ai-tool-button:disabled,
+.ai-send-button:disabled,
+.ai-chat-suggestions button:disabled {
+  cursor: wait;
+  opacity: 0.66;
 }
 
 .ai-tool-button:hover {
@@ -2037,9 +2131,12 @@ body[data-layout-page="home-layout-admin"] .personalization-page {
 }
 
 .ai-send-button {
+  position: relative;
+  overflow: hidden;
   border-color: #1d4ed8;
   background: linear-gradient(135deg, #2563eb, #0f766e);
   color: #ffffff;
+  transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
 }
 
 .ai-send-button:hover {
@@ -2048,7 +2145,52 @@ body[data-layout-page="home-layout-admin"] .personalization-page {
 
 .ai-send-button.is-loading {
   cursor: wait;
-  opacity: 0.72;
+  border-color: #2563eb;
+  background: linear-gradient(135deg, #2563eb, #0f766e);
+  opacity: 1;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.16), 0 12px 26px rgba(37, 99, 235, 0.2);
+}
+
+.ai-send-button.is-loading svg {
+  opacity: 0;
+  transform: scale(0.72);
+}
+
+.ai-send-button.is-loading::before {
+  content: "";
+  position: absolute;
+  width: 17px;
+  height: 17px;
+  border: 2px solid rgba(255, 255, 255, 0.46);
+  border-top-color: #ffffff;
+  border-radius: 999px;
+  animation: ai-loading-spin 0.76s linear infinite;
+}
+
+@keyframes ai-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ai-loading-bar {
+  0% {
+    left: -44%;
+  }
+  50% {
+    left: 34%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-chat-composer.is-generating::before,
+  .ai-chat-status.is-loading::before,
+  .ai-send-button.is-loading::before {
+    animation: none;
+  }
 }
 
 .ai-chat-suggestions {
@@ -4347,6 +4489,10 @@ body[data-home-layout="conversionFirst"] .ai-blueprint-layout-conversionFirst .a
   min-height: 300px;
 }
 
+body[data-home-layout="conversionFirst"] .ai-blueprint-layout-conversionFirst .ai-welcome-feature.ai-home-block-hero {
+  min-height: 96px;
+}
+
 body[data-home-layout="tradingPro"] .ai-blueprint-layout-tradingPro {
   gap: 12px;
 }
@@ -4884,6 +5030,13 @@ body[data-layout-page="client-home"] .ai-accounts-feature {
   padding: 14px;
 }
 
+body[data-layout-page="client-home"] .ai-accounts-feature.is-split-accounts {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 body[data-layout-page="client-home"] .ai-accounts-feature .accounts-card-view {
   grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
   gap: 10px;
@@ -4895,7 +5048,7 @@ body[data-layout-page="client-home"] .ai-accounts-feature .trade-account-card {
 }
 
 body[data-layout-page="client-home"] .ai-ad-slide {
-  padding: 18px;
+  padding: 18px 72px 64px;
 }
 
 body[data-layout-page="client-home"] .ai-ad-slide strong {

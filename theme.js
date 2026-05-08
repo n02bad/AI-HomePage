@@ -27,6 +27,18 @@
       numberStyle: "executive",
       bannerStyle: "black-gold-campaign",
     },
+    lightGold: {
+      primaryColor: "#b7791f",
+      accentColor: "#f5c451",
+      backgroundStyle: "light-gold-air",
+      cardStyle: "flat-warm-white",
+      cardRadius: "8px",
+      cardShadow: "low",
+      buttonStyle: "soft-gold",
+      fontDensity: 1,
+      numberStyle: "tabular",
+      bannerStyle: "light-gold-campaign",
+    },
     blueFinance: {
       primaryColor: "#1d4ed8",
       accentColor: "#14b8a6",
