@@ -2,12 +2,44 @@
 
 这份拆解把参考图和当前项目里的首页方案合并成一套可供 AI 组装的首页积木库。目标不是复制某一张首页，而是让 AI 在生成新首页时能够明确选择模块、尺寸、位置、业务优先级和后续样式变体。
 
+## AI 生成使用规则
+
+这份文档不仅是模块说明，也是 AI 生成首页配置时的约束依据。AI 在生成首页时必须遵守以下规则：
+
+- AI 不允许发明新的业务功能、业务入口或后端不存在的数据能力，例如不存在的交易功能、支付功能、账户能力、KYC 能力。
+- AI 可以基于现有业务模块发明新的组件、新的样式变体、新的组合方式和新的尺寸规格，但必须说明它依托的父模块、参考组件、业务用途和回退方案。
+- 正式首页配置中的业务模块 ID 必须来自本文档，或先作为候选模块进入审核；但组件级别、样式级别、尺寸级别可以开放扩展。
+- 当用户明确指定模块顺序、展示形式、禁止项时，用户本次需求优先级高于通用预设。
+- 模块的业务能力和样式变体必须分开表达，不能通过 CSS 隐藏来伪装成配置变化。
+- 首页结构必须通过配置表达，例如 `sections`、`slots`、`moduleStyles`、`moduleSettings`，不能让 AI 直接生成正式首页 HTML/CSS/JS。
+- 如果需求无法由现有业务模块表达，应先补充业务模块能力或配置字段，再生成首页配置；如果只是视觉、组件形态、排版尺寸不够，可以生成候选组件、候选样式或候选尺寸，不需要新增业务功能。
+
+推荐输出结构：
+
+```js
+{
+  layout: "flatListDashboard | classicStack | traderConsole | partnerGrowth | executiveHero",
+  theme: "lightFlat | classic | aurum | ocean | energy",
+  density: "compact | balanced | spacious",
+  personalizationStrength: "subtle | medium | strong",
+  sections: [
+    { id: "topCampaign", type: "hero", title: "Campaign Banner", slots: ["PromotionBanner"] }
+  ],
+  moduleStyles: {},
+  moduleSettings: {},
+  sizeTokens: {},
+  componentCandidates: [],
+  styleCandidates: [],
+  sizeCandidates: []
+}
+```
+
 ## 拆解原则
 
 - 共用外壳不进入积木库：顶部导航、左侧菜单、消息/语言/头像、一级页签属于公共布局，由 `common-layout.js` 和页面外壳控制。
 - 首页内容才进入积木库：资产、钱包、快捷入口、广告、邀请、交易账号、开户、KYC/用户信息、图表等才是 AI 可以拼装的模块。
-- 模块要有尺寸，不只要有样式：每个模块都需要标注适合 `1x1`、`1x2`、`2x1`、`2x2`、`3x1` 等规格，方便拼版。
-- 样式和业务能力分开：同一个模块先定义“能做什么”，下一步再扩展“长什么样”。
+- 模块要有尺寸，不只要有样式：每个模块都需要标注推荐尺寸，方便拼版；推荐尺寸不是限制，AI 可以提出新的尺寸规格，例如 `4x1`、`4x2`、`4x3`、`5x1`，但必须说明适用场景、响应式降级和回退尺寸。
+- 样式、尺寸和业务能力分开：业务能力定义“能做什么”，样式变体定义“长什么样”，尺寸规格定义“占多少空间”。AI 可以发明新的样式和尺寸，但不能发明新的业务能力。
 - 开户入口和交易账号属于同一业务路径：默认应靠近账号筛选、账号列表或右侧开户操作区，不应藏在页面很深的位置。
 
 ## 积木尺寸定义
@@ -20,6 +52,9 @@
 | `2x2` | 主内容重点模块 | 资产驾驶舱、交易账号工作台、图表 + 账号概览 |
 | `3x1` | 整行横幅 | 广告轮播、快捷工具条、完整邀请条 |
 | `3x2` | 大面积内容区 | 交易账号长表格、Live/Demo/Wallet 分组列表 |
+| `4x1` | 超宽横幅 / 宽屏首屏 | 大轮播、整行账户指标条、品牌化 Campaign Hero |
+| `4x2` | 宽屏主内容区 | 双列表组合、资产总览 + 快捷入口组合、交易账号 + 钱包并列组合 |
+| `4x3` | 宽屏工作台 | 专业交易工作台、多表格组合、完整账户管理区 |
 
 当前项目里 `hero/main/rail` 可以继续保留，后续可把它映射到这套尺寸：
 
@@ -28,22 +63,62 @@
 - `rail` 约等于 `1x1` 或 `1x2`
 - `full` 约等于 `3x1` 或 `3x2`
 
+### 尺寸扩展规则
+
+尺寸规格可以开放扩展。AI 可以提出新的尺寸，例如 `4x1`、`4x2`、`4x3`，用于更宽、更有设计感的首页结构。
+
+尺寸扩展必须遵守：
+
+- 不能因为新尺寸而发明新的业务功能。
+- 必须说明新尺寸适合哪个业务模块或组合模式。
+- 必须提供桌面端和移动端响应式规则。
+- 必须提供回退尺寸，例如 `4x2` 在窄屏下回退到 `3x2` 或单列。
+- 如果新尺寸还没有被渲染器支持，必须进入 `sizeCandidates`，不能直接作为正式配置发布。
+
+示例：
+
+```js
+{
+  id: "wideCampaignHero",
+  size: "4x1",
+  parentModule: "PromotionBanner",
+  purpose: "用于宽屏顶部轮播图，让淡色首页有更强首屏识别度",
+  responsiveRules: ["1440px 下 4 列通栏", "1024px 下回退 3x1", "390px 下单列展示"],
+  fallbackSize: "3x1",
+  status: "candidate"
+}
+```
+
 ## 模块总览
 
-| 模块 ID | 中文名称 | 核心职责 | 推荐尺寸 | 当前项目状态 |
-| --- | --- | --- | --- | --- |
-| `AssetOverview` | 资产总览 | 展示总资产、钱包资产、交易账号资产、入金/出金入口 | `2x1`, `2x2`, `3x1` | 已有一等模块和变体 |
-| `WalletBalance` | 钱包余额 | 展示钱包总额、币种拆分、入金/出金 | `1x1`, `1x2`, `2x1` | 已有一等模块和变体 |
-| `QuickActions` | 快捷入口 | 放置 Deposit、Withdrawal、Internal Transfer、Wallet Flow、Order、Position 等操作 | `2x1`, `3x1`, `1x1` | 已有一等模块和变体 |
-| `PromotionBanner` | 广告/活动 | 放置活动图、轮播、权益 Banner、交易大赛 | `2x1`, `3x1` | 已有一等模块和变体 |
-| `ReferralLink` | 邀请链接 | 推广链接、邀请码、二维码、点击/注册/交易账号统计 | `2x1`, `3x1`, `1x1` | 已能渲染，需升为一等模块 |
-| `TradingAccounts` | 交易账号 | Live/Demo 合并或分组、卡片/列表、详情、分页、创建入口 | `2x2`, `3x2` | 已能渲染，需升为一等模块 |
-| `OpenAccount` | 开户入口 | 开真实账号、开模拟账号、绑定账号、创建表单入口 | `1x1`, `1x2`, `2x1` | 已是配置能力，需独立模块化 |
-| `OnboardingProgress` | 开户路径 | KYC、首个真实账号、首次入金等步骤引导 | `2x1`, `3x1` | 已能渲染，需升为一等模块 |
-| `UserKycRail` | 用户/KYC 侧栏 | 头像、名称、所在地、时间、KYC 状态、钱包摘要 | `1x2` | 参考图中明显，项目未一等模块化 |
-| `AccountPerformance` | 账号表现图表 | 当前账号余额、权益、信用、杠杆、PnL 曲线 | `2x2` | 参考图中明显，项目未模块化 |
-| `WalletList` | 钱包列表 | 多币种钱包表格、余额、Deposit/Withdraw 操作 | `3x2`, `2x2` | 参考图中明显，项目未模块化 |
-| `CreateAccountForm` | 创建账号表单 | 真实账号创建表单、平台、名称、类型、杠杆、校验 | `1x2`, `2x2` | 参考图中明显，项目未模块化 |
+| 模块 ID | 中文名称 | 核心职责 | 推荐尺寸 | 尺寸扩展建议 | 当前项目状态 |
+| --- | --- | --- | --- | --- | --- |
+| `AssetOverview` | 资产总览 | 展示总资产、钱包资产、交易账号资产、入金/出金入口 | `2x1`, `2x2`, `3x1` | 可扩展 `4x1` 作为宽屏账户指标条，`4x2` 作为资产驾驶舱 | 已有一等模块和变体 |
+| `WalletBalance` | 钱包余额 | 展示钱包总额、币种拆分、入金/出金 | `1x1`, `1x2`, `2x1` | 可扩展 `4x1` 作为多币种横向钱包条 | 已有一等模块和变体 |
+| `QuickActions` | 快捷入口 | 放置 Deposit、Withdrawal、Internal Transfer、Wallet Flow、Order、Position 等操作 | `2x1`, `3x1`, `1x1` | 可扩展 `4x1` 做 2 行 4 列或 1 行 8 列宽屏操作区 | 已有一等模块和变体 |
+| `PromotionBanner` | 广告/活动 | 放置活动图、轮播、权益 Banner、交易大赛 | `2x1`, `3x1` | 可扩展 `4x1` 做顶部通栏轮播，`4x2` 做大 Campaign Hero | 已有一等模块和变体；需要明确支持顶部轮播图 |
+| `ReferralLink` | 邀请链接 | 推广链接、邀请码、二维码、点击/注册/交易账号统计 | `2x1`, `3x1`, `1x1` | 可扩展 `4x1` 做渠道增长横幅 | 已能渲染，需升为一等模块 |
+| `TradingAccounts` | 交易账号 | Live/Demo 合并或分组、卡片/列表、详情、分页、创建入口 | `2x2`, `3x2` | 可扩展 `4x2` 做宽表格，`4x3` 做完整账号工作台 | 已能渲染，需升为一等模块；需要支持真实/模拟拆分为上下两个独立列表 |
+| `OpenAccount` | 开户入口 | 开真实账号、开模拟账号、绑定账号、创建表单入口 | `1x1`, `1x2`, `2x1` | 可扩展 `4x1` 做开户路径 CTA 条 | 已是配置能力，需独立模块化 |
+| `OnboardingProgress` | 开户路径 | KYC、首个真实账号、首次入金等步骤引导 | `2x1`, `3x1` | 可扩展 `4x1` 做完整新手任务路径 | 已能渲染，需升为一等模块 |
+| `UserKycRail` | 用户/KYC 侧栏 | 头像、名称、所在地、时间、KYC 状态、钱包摘要 | `1x2` | 可扩展 `2x1` 做横向用户状态条 | 参考图中明显，项目未一等模块化 |
+| `AccountPerformance` | 账号表现图表 | 当前账号余额、权益、信用、杠杆、PnL 曲线 | `2x2` | 可扩展 `4x2` 做宽屏图表工作台 | 参考图中明显，项目未模块化 |
+| `WalletList` | 钱包列表 | 多币种钱包表格、余额、Deposit/Withdraw 操作；可独立于资产总览展示 | `3x2`, `2x2` | 可扩展 `4x2` 做宽表格钱包列表 | 参考图中明显，项目未模块化；需要升为一等模块 |
+| `CreateAccountForm` | 创建账号表单 | 真实账号创建表单、平台、名称、类型、杠杆、校验 | `1x2`, `2x2` | 可扩展 `4x2` 做完整开户表单页片段 | 参考图中明显，项目未模块化 |
+
+## 可发明与不可发明边界
+
+为了避免首页生成过于死板，同时保证业务安全，AI 的发挥边界如下：
+
+| 类型 | 是否允许 AI 发明 | 说明 |
+| --- | --- | --- |
+| 新业务功能 | 不允许 | 不能发明系统不存在的交易、支付、KYC、账户、钱包、代理功能 |
+| 新业务模块 | 谨慎允许 | 只能作为候选模块，进入审核后才能成为正式模块 |
+| 新组件 | 允许 | 可以基于现有组件生成新的内部组件或候选组件 |
+| 新样式变体 | 允许 | 可以扩展 `moduleStyles`，但必须有父模块和回退样式 |
+| 新组合模式 | 允许 | 可以扩展 `sections` 或 layout preset，必须保留业务主路径 |
+| 新尺寸规格 | 允许 | 可以提出 `4x1`、`4x2`、`4x3` 等，但必须有响应式和回退规则 |
+| 新数据字段 | 不可直接依赖 | 只能进入 `dataRequirements`，不能作为正式渲染依赖 |
 
 ## 参考图拆解
 
@@ -135,6 +210,9 @@
 - 总资产 / 钱包余额 / TA 余额 / 信用额。
 - KYC 信息可作为附属指标，也可拆到 `UserKycRail`。
 - 入金、出金可内嵌，也可拆到 `FundActions`。
+- 必须支持控制是否展示钱包余额：`showWalletBalance: true | false`。
+- 必须支持控制是否展示交易账户余额：`showTradingAccountBalance: true | false`。
+- 当需求明确要求“账户余额总览不展示钱包余额、交易账户余额”时，必须只展示账户总览指标，不得把钱包或交易账户余额拆分塞进总览。
 
 推荐规格：
 
@@ -172,6 +250,9 @@
 - Deposit、Withdrawal、Internal Transfer、Wallet Flow。
 - Order History、Open Positions、Pending Order、TA Flow。
 - Open Account、Bind Account 可作为高优先级动作插入。
+- 必须支持固定网格配置：`columns`、`rows`、`count`。
+- 当需求明确要求“两行四列”时，桌面端必须渲染为 `columns: 4`、`rows: 2`、`count: 8`，不能做成横向滚动或单行工具条。
+- `Bind Account` 必须受配置控制，不能默认出现。
 
 推荐规格：
 
@@ -190,6 +271,9 @@
 - 广告图、活动 Banner、交易大赛、权益活动。
 - 关闭后需要自动回收空间。
 - 可作为首屏主视觉，也可作为中段辅助模块。
+- 必须支持轮播：`carousel: true | false`。
+- 必须支持顶部放置：`placement: "top"`。
+- 当需求明确要求“首页顶部轮播图”时，必须放在首屏顶部，不得被放到中段或右侧 rail。
 
 推荐规格：
 
@@ -229,6 +313,14 @@
 - 卡片、列表、长表格。
 - 账号详情、更多操作、分页。
 - 开户入口应靠近筛选区域或空状态区域。
+- 必须支持 `grouping: "combined | separated"`。
+- 必须支持 `viewMode: "card | list | table"`。
+- 必须支持 `tabMode: true | false`。
+- 必须支持 `pagination: true | false` 和 `pageSize`。
+- 当需求明确要求“真实账号和模拟账号上下两个列表”时，必须使用 `grouping: "separated"`，并渲染为 `RealTradingAccounts` 和 `DemoTradingAccounts` 两个独立 section。
+- 当需求明确要求“模拟账号列表在真实账号列表上面”时，默认 All 状态必须先渲染 `DemoTradingAccounts`，再渲染 `RealTradingAccounts`。
+- 当需求明确禁止 Tab 时，不允许用 Tab 或 CSS 隐藏 Tab 来实现。
+- 当需求明确禁止卡片时，不允许使用账号卡片样式，必须使用列表或表格行。
 
 推荐规格：
 
@@ -247,6 +339,9 @@
 - 开模拟账号。
 - 绑定账号。
 - 可触发右侧表单、弹层或页面跳转。
+- 必须支持 `real: true | false`、`demo: true | false`、`bind: true | false`。
+- 当需求明确不要绑定账户入口时，必须设置 `bind: false`，页面中不能出现 Bind Account。
+- 开真实账号入口应靠近真实账号列表，开模拟账号入口应靠近模拟账号列表。
 
 推荐规格：
 
@@ -319,6 +414,8 @@
 - 多币种钱包。
 - 币种、余额、Deposit、Withdraw。
 - 总计。
+- 必须支持独立展示，不依赖 `WalletBalance` 或 `AssetOverview`。
+- 钱包列表可以展示各钱包余额，但如果 `AssetOverview.showWalletBalance` 为 `false`，不得把钱包余额同步展示到账户总览中。
 
 推荐规格：
 
@@ -349,6 +446,82 @@
 
 - 右侧操作面板、抽屉表单、内嵌卡片表单。
 
+## 常见强约束需求映射
+
+当用户提出明确首页结构时，AI 需要把自然语言映射为配置字段，而不是只做样式调整。
+
+### 淡色扁平化 + 顶部轮播 + 分离账号列表
+
+适用需求：淡色扁平化界面、首页顶部轮播图、账户余额总览、2 行 4 列快捷入口、真实/模拟账号上下两个列表、模拟列表在真实列表上面、单独钱包小卡片列表、单独推广模块。
+
+  推荐配置：
+
+```js
+{
+  layout: "flatListDashboard",
+  theme: "lightFlat",
+  density: "balanced",
+  personalizationStrength: "strong",
+  sections: [
+    { id: "topCampaign", type: "hero", title: "Campaign Banner", slots: ["PromotionBanner"] },
+    { id: "accountOverview", type: "summary", title: "Account Overview", slots: ["AssetOverview"] },
+    { id: "quickAccess", type: "actions", title: "Quick Actions", slots: ["QuickActions"] },
+    { id: "realAccounts", type: "list", title: "Real Trading Accounts", slots: ["RealTradingAccounts"] },
+    { id: "demoAccounts", type: "list", title: "Demo Trading Accounts", slots: ["DemoTradingAccounts"] },
+    { id: "walletList", type: "list", title: "Wallet List", slots: ["WalletList"] }
+  ],
+  sizeTokens: {
+    PromotionBanner: "4x1",
+    AssetOverview: "4x1",
+    QuickActions: "4x1",
+    RealTradingAccounts: "4x2",
+    DemoTradingAccounts: "4x2",
+    WalletList: "4x2"
+  },
+  moduleStyles: {
+    PromotionBanner: "classic-banner",
+    AssetOverview: "metric-strip",
+    QuickActions: "icon-grid",
+    RealTradingAccounts: "calm-table",
+    DemoTradingAccounts: "calm-table",
+    WalletList: "calm-table"
+  },
+  moduleSettings: {
+    PromotionBanner: { enabled: true, carousel: true, placement: "top" },
+    AssetOverview: { enabled: true, showWalletBalance: false, showTradingAccountBalance: false, showFundActions: false },
+    QuickActions: { enabled: true, count: 8, columns: 4, rows: 2, display: "iconText" },
+    TradingAccounts: { grouping: "separated", viewMode: "list", tabMode: false, cardMode: false, pagination: true, pageSize: 5 },
+    RealTradingAccounts: { enabled: true, viewMode: "list", pagination: true, pageSize: 5, showOpenAccount: true, showBindAccount: false },
+    DemoTradingAccounts: { enabled: true, viewMode: "list", pagination: true, pageSize: 5, showOpenAccount: true, showBindAccount: false },
+    WalletList: { enabled: true, viewMode: "list" },
+    OpenAccount: { real: true, demo: true, bind: false, placement: "insideTradingAccounts" }
+  },
+  sizeCandidates: [
+    {
+      id: "wideFlatListSection",
+      size: "4x2",
+      parentModule: "TradingAccounts",
+      purpose: "用于真实账号、模拟账号和钱包列表的宽屏表格区域",
+      responsiveRules: ["1440px 下通栏展示", "1024px 下回退 3x2", "390px 下单列表格卡片化但仍保持列表语义"],
+      fallbackSize: "3x2",
+      status: "candidate"
+    }
+  ]
+}
+```
+
+禁止项：
+
+- 不要把真实账号和模拟账号做成 Tab。
+- 不要把真实账号和模拟账号混在一个列表里。
+- 不要在用户明确要求“模拟在上”时仍然先展示真实账号列表。
+- 活动增长、交易大赛、奖池、广告轮播首屏核心这类需求，必须让 `adCarousel` 成为首个整行长模块，不能与快捷入口并排。
+- 推广链接/开户链接/邀请码/二维码属于 `ReferralLink`，需要单独成块；不能只用赛事活动看板或轮播代替。
+- 钱包列表应使用 `WalletList` 并渲染为多币种小卡片组；`WalletBalance` 只能作为余额摘要。
+- 不要使用账号卡片。
+- 不要出现 Bind Account。
+- 不要在账户总览里展示钱包余额或交易账户余额。
+
 ## 和当前项目的关系
 
 当前项目已经有这些基础：
@@ -360,7 +533,7 @@
 
 下一步建议不是重写整个首页，而是做两件事：
 
-1. 把 `ReferralLink`、`TradingAccounts`、`OpenAccount`、`OnboardingProgress`、`UserKycRail`、`AccountPerformance`、`WalletList`、`CreateAccountForm` 也升成一等模块。
+1. 把 `ReferralLink`、`TradingAccounts`、`RealTradingAccounts`、`DemoTradingAccounts`、`OpenAccount`、`OnboardingProgress`、`UserKycRail`、`AccountPerformance`、`WalletList`、`CreateAccountForm` 也升成一等模块。
 2. 给每个模块补 3 到 5 个清晰样式，而不是一次性做很多相似皮肤。
 
 组件库页面已经补齐 `client-home.html` 的细颗粒组件拆解，包括 `WelcomeHeader`、`BalanceMetric`、`FundAction`、`ProgressTask`、`QuickActionTile`、`PromoBadge`、`ReferralField`、`AccountToolbar`、`ViewToggle` 等，这些组件可以作为大模块的内部积木继续扩展。
@@ -368,10 +541,11 @@
 AI 组件生成链路：
 
 1. 管理员在 `home-module-preview.html` 输入组件需求、模块归属和尺寸。
-2. 服务端调用大模型生成组件定义，包含 `html`、`css`、`layoutHints` 和 `dataRequirements`。
+2. 服务端调用大模型生成组件或样式候选定义，包含 `html`、`css`、`layoutHints`、`sizeHints`、`responsiveRules`、`fallbackSize` 和 `dataRequirements`。
 3. 生成结果保存到 `home-component-library.json`，同时写入浏览器缓存便于即时预览。
 4. AI 可以读取已保存组件，生成 `home-component-compositions.json` 里的首页组合建议。
 5. 首页生成器再根据组合建议生成草稿配置，进入 `home-layout-preview.html` 做最终预览和美化确认。
+6. 如果生成结果包含新的尺寸、样式或组件，需要先以候选状态展示；确认可用后，再沉淀为正式 `moduleStyles`、`sizeTokens` 或组件库成员。
 
 ## 下一步样式优先级
 

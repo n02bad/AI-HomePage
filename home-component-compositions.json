@@ -116,6 +116,108 @@
       "polishInstructions": "首屏不要堆太多资产数字，优先把开户步骤、开户动作和表单连起来。",
       "createdAt": "2026-05-07T00:00:00.000Z",
       "updatedAt": "2026-05-07T00:00:00.000Z"
+    },
+    {
+      "id": "mowlkigr",
+      "name": "专业交易工作台",
+      "summary": "以资产与身份信息为起点，通过资金动作条快速触达出入金，嵌入账号表现图表与开户面板形成专业分析入口，下方展示完整交易账号列表，底部广告轮播承接活动转化。",
+      "layout": [
+        {
+          "componentId": "asset-overview-vip-hero",
+          "size": "2x2",
+          "zone": "main",
+          "reason": "作为高净值客户首页核心，突出总资产与钱包，确立专业资产视角。"
+        },
+        {
+          "componentId": "user-kyc-rail-profile-wallet",
+          "size": "1x2",
+          "zone": "main",
+          "reason": "提供身份、KYC与钱包摘要，与资产概览并列形成全局身份画像。"
+        },
+        {
+          "componentId": "quick-actions-action-dock",
+          "size": "3x1",
+          "zone": "main",
+          "reason": "聚合订单、持仓、转账等交易与资金动作，作为清晰的操作入口。"
+        },
+        {
+          "componentId": "account-performance-pro-chart",
+          "size": "2x2",
+          "zone": "main",
+          "reason": "展示余额、权益、信用与PnL曲线，满足专业交易客户分析需求。"
+        },
+        {
+          "componentId": "open-account-side-panel",
+          "size": "1x2",
+          "zone": "main",
+          "reason": "提供真实/模拟/绑定账户的转化入口，与账号表现并列强化开户引导。"
+        },
+        {
+          "componentId": "trading-accounts-separated-list",
+          "size": "3x2",
+          "zone": "main",
+          "reason": "分区展示真实与模拟账户，直接衔接开户与交易管理。"
+        },
+        {
+          "componentId": "ad-carousel-hero-campaign",
+          "size": "3x1",
+          "zone": "main",
+          "reason": "承接活动、权益与开户链接，形成持续性转化闭环。"
+        }
+      ],
+      "themeAdvice": "采用深色金融级主题，主色调黑金，背景炭黑，数据卡片使用半透明玻璃质感，金色高亮用于关键资产数值；图表采用霓彩折线，强调专业与科技感。",
+      "polishInstructions": "确保所有卡片圆角一致（8px），行间距12px，列间距16px；资产总览添加悬浮微动效；工具条按钮高对比度，悬停时金色描边；开户面板增加步骤引导指示器；账号列表隔行浅色区分；轮播图保证4:1宽高比，切换平滑。",
+      "sourcePrompt": "用已保存组件组合一个专业首页。",
+      "createdAt": "2026-05-08T07:32:12.795Z",
+      "updatedAt": "2026-05-08T07:32:12.795Z"
+    },
+    {
+      "id": "professional-trader-dashboard-mowlltek",
+      "name": "Professional Trader Dashboard",
+      "summary": "A focused homepage for professional traders, featuring asset overview, quick trading actions, performance chart, account lists, and easy account opening sidebar.",
+      "layout": [
+        {
+          "componentId": "quick-actions-action-dock",
+          "size": "3x1",
+          "zone": "main",
+          "reason": "Provides rapid access to orders, positions, transfers and funding actions, essential for active traders."
+        },
+        {
+          "componentId": "asset-overview-vip-hero",
+          "size": "2x2",
+          "zone": "main",
+          "reason": "Displays total assets, wallet balances, and key funding actions in a prominent hero section."
+        },
+        {
+          "componentId": "account-performance-pro-chart",
+          "size": "2x2",
+          "zone": "main",
+          "reason": "Shows balance, equity, margin, and PnL curves critical for performance tracking."
+        },
+        {
+          "componentId": "user-kyc-rail-profile-wallet",
+          "size": "1x2",
+          "zone": "main",
+          "reason": "Provides user identity, KYC status, and wallet summary at a glance."
+        },
+        {
+          "componentId": "open-account-side-panel",
+          "size": "1x2",
+          "zone": "main",
+          "reason": "Offers entry points to open real, demo, or bind accounts, ensuring a clear onboarding path."
+        },
+        {
+          "componentId": "trading-accounts-separated-list",
+          "size": "3x2",
+          "zone": "main",
+          "reason": "Lists live and demo trading accounts separately for easy management and switch."
+        }
+      ],
+      "themeAdvice": "Use a dark professional theme with high-contrast data visualization (e.g., dark blue or charcoal background, gold accents for VIP assets). Avoid bright colors; keep focus on numbers and charts.",
+      "polishInstructions": "Ensure consistent grid alignment with 8px gutters. Apply subtle card shadows and rounded corners. Use monospaced fonts for financial figures. The header dock should be sticky. Animate chart transitions smoothly.",
+      "sourcePrompt": "用已保存组件组合一个专业首页。",
+      "createdAt": "2026-05-08T07:33:13.628Z",
+      "updatedAt": "2026-05-08T07:33:13.628Z"
     }
   ]
 }

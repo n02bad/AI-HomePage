@@ -250,8 +250,8 @@ function renderCards(items) {
   if (settings.grouping === "separated" && settings.realEnabled && settings.demoEnabled) {
     els.cardView.classList.add("is-grouped");
     const groups = [
-      { kind: "real", label: "真实账号", items: items.filter((account) => account.kind === "real") },
       { kind: "demo", label: "模拟账号", items: items.filter((account) => account.kind === "demo") },
+      { kind: "real", label: "真实账号", items: items.filter((account) => account.kind === "real") },
     ].filter((group) => group.items.length);
 
     els.cardView.innerHTML = groups
@@ -341,8 +341,8 @@ function renderList(items) {
   if (settings.grouping === "separated" && settings.realEnabled && settings.demoEnabled && activeFilter === "all") {
     els.listView.classList.add("is-grouped");
     const groups = [
-      { kind: "real", label: "真实交易账号列表", items: items.filter((account) => account.kind === "real") },
       { kind: "demo", label: "模拟账号列表", items: items.filter((account) => account.kind === "demo") },
+      { kind: "real", label: "真实交易账号列表", items: items.filter((account) => account.kind === "real") },
     ].filter((group) => group.items.length);
 
     els.listView.innerHTML = groups.map((group) => renderAccountTable(group.items, group.label)).join("");
@@ -442,6 +442,7 @@ function homeActionMessage(action, element) {
     positions: "持仓入口已保留在首页",
     kyc: "KYC 入口已保留在首页",
     promo: "活动入口已保留在首页",
+    referral: "推广链接入口已保留在首页",
   }[action] || "该入口已保留在首页";
 }
 

@@ -18,9 +18,10 @@
             <div>
               <span class="brick-kicker">Homepage Bricks</span>
               <h1>首页积木组件库</h1>
-              <p>12 个首页模块 · 细颗粒组件 · AI 生成并保存新积木</p>
+              <p>12 个首页模块 · 细颗粒组件 · 与首页云生成共用大模型</p>
             </div>
             <div class="brick-head-actions">
+              <button type="button" data-model-config-open>模型配置</button>
               <a href="./home-layout-preview.html">首页预览</a>
               <a class="primary" href="./home-layout-admin.html">AI 生成</a>
             </div>
@@ -48,7 +49,8 @@
             <div class="brick-ai-copy">
               <span class="brick-kicker">AI Component Studio</span>
               <h2>用 AI 增加新的模块组件</h2>
-              <p>输入组件需求后，AI 会生成安全的组件定义，保存到系统组件库。保存后的组件可以参与首页积木组合，并生成首页草稿进入预览页。</p>
+              <p>输入组件需求后，系统会复用首页云生成的大模型配置，直接生成安全的组件定义并保存到组件库。保存后的组件可以参与首页积木组合，并生成首页草稿进入预览页。</p>
+              <div class="ai-model-status-card compact" data-component-model-summary></div>
             </div>
             <div class="brick-ai-panel">
               <label for="aiComponentPrompt">组件需求</label>

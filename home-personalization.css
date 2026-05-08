@@ -4,11 +4,35 @@
 }
 
 .client-shell.is-blueprint-home {
+  width: min(100%, 1320px);
+  max-width: 1320px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  margin: 0 auto;
+}
+
+.ai-home-row {
+  width: 100%;
+  min-width: 0;
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
-  align-items: start;
-  grid-auto-flow: dense;
-  gap: 12px;
+  align-items: stretch;
+  gap: 14px;
+}
+
+.ai-home-row[data-row-kind="paired"] {
+  min-height: var(--home-row-min-height, 220px);
+}
+
+.ai-home-row[data-row-kind="single"] .ai-home-block {
+  --home-span: 12;
+}
+
+.ai-home-row .ai-home-block {
+  align-self: stretch;
+  height: 100%;
+  margin-bottom: 0;
 }
 
 .dashboard-customize-link {
@@ -146,28 +170,18 @@ body[data-home-emphasis-accounts="high"] .accounts-panel {
   line-height: 1.4;
 }
 
-.ai-home-block-hero {
-  grid-column: 1 / -1;
-}
-
-.client-shell.is-blueprint-home .ai-home-block-hero.ai-home-block-polished {
-  grid-column: span var(--home-span, 6);
-}
-
-.client-shell.is-blueprint-home .ai-home-block-polished .ai-brick-meta {
-  margin-bottom: 8px;
-}
-
+.ai-home-block-hero,
+.client-shell.is-blueprint-home .ai-home-block-hero.ai-home-block-polished,
 .ai-home-block-full {
-  grid-column: 1 / -1;
+  grid-column: span var(--home-span, 12);
 }
 
 .ai-home-block-main {
-  grid-column: span 8;
+  grid-column: span var(--home-span, 8);
 }
 
 .ai-home-block-rail {
-  grid-column: span 4;
+  grid-column: span var(--home-span, 4);
 }
 
 .ai-feature-slot > * {
@@ -1083,9 +1097,46 @@ body[data-home-layout="traderConsole"] .ai-section-rail .ai-quick-feature {
 }
 
 .ai-wallet-table,
+.ai-wallet-card-list,
 .ai-create-form {
   display: grid;
   gap: 8px;
+}
+
+.ai-wallet-card-list {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ai-wallet-card-list article {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+  padding: 12px;
+  border: 1px solid var(--home-glass-border);
+  border-radius: var(--home-radius-sm);
+  background: var(--home-soft-panel-bg);
+}
+
+.ai-wallet-card-list article > span {
+  color: var(--home-primary);
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0;
+}
+
+.ai-wallet-card-list strong {
+  min-width: 0;
+  color: var(--home-text-strong);
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 950;
+  line-height: 1.08;
+}
+
+.ai-wallet-card-list small {
+  color: var(--home-text-muted);
+  font-size: 12px;
+  font-weight: 850;
 }
 
 .ai-wallet-table div {
@@ -1101,6 +1152,7 @@ body[data-home-layout="traderConsole"] .ai-section-rail .ai-quick-feature {
 }
 
 .ai-wallet-table a,
+.ai-wallet-card-list a,
 .ai-create-form button {
   min-height: 32px;
   display: inline-flex;
@@ -1127,6 +1179,11 @@ body[data-home-layout="traderConsole"] .ai-section-rail .ai-quick-feature {
 }
 
 @media (max-width: 760px) {
+  .ai-quick-feature[data-module-style="compact-grid"] .ai-shortcut-matrix,
+  .ai-wallet-card-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .ai-wallet-table div {
     grid-template-columns: 1fr 1fr;
   }
@@ -3632,27 +3689,31 @@ body[data-home-preview="content-only"] .app {
 
 body[data-home-preview="content-only"] .client-home-page {
   min-height: 100vh;
-  padding: 0;
+  padding-top: 24px;
+  padding-bottom: 72px;
 }
 
 body[data-home-preview="content-only"] .client-shell {
-  width: 100%;
-  max-width: none;
-  margin: 0;
+  width: min(100%, 1320px);
+  max-width: 1320px;
+  margin: 0 auto;
 }
 
 body[data-home-preview="content-only"] .client-shell.is-blueprint-home {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 12px;
+  display: flex;
+  gap: 22px;
 }
 
-body[data-home-preview="content-only"] .ai-home-block-hero,
+body[data-home-preview="content-only"] .ai-home-block-hero {
+  grid-column: span var(--home-span, 12);
+}
+
 body[data-home-preview="content-only"] .ai-home-block-main {
-  grid-column: 1 / -1;
+  grid-column: span var(--home-span, 8);
 }
 
 body[data-home-preview="content-only"] .ai-home-block-rail {
-  grid-column: span 3;
+  grid-column: span var(--home-span, 4);
 }
 
 .ai-balance-feature[data-module-style="metric-strip"] {
@@ -3870,7 +3931,7 @@ body:not([data-home-layout="tradingPro"]) .ai-balance-feature[data-module-style=
 }
 
 .ai-quick-feature[data-module-style="compact-grid"] .ai-shortcut-matrix {
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 142px), 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .ai-referral-feature[data-module-style="link-first"] .ai-referral-line.wide {
@@ -4531,7 +4592,6 @@ body[data-home-layout="vipService"] .ai-component-asset_summary[data-module-vari
   .ai-home-block,
   .ai-home-block-main,
   .ai-home-block-rail {
-    grid-column: 1 / -1;
     width: 100%;
     max-width: 100%;
   }
@@ -4544,6 +4604,14 @@ body[data-home-layout="vipService"] .ai-component-asset_summary[data-module-vari
 @media (max-width: 720px) {
   .client-shell.is-blueprint-home {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .client-shell.is-blueprint-home .ai-home-block,
+  .client-shell.is-blueprint-home .ai-home-block-hero,
+  .client-shell.is-blueprint-home .ai-home-block-full,
+  .client-shell.is-blueprint-home .ai-home-block-main,
+  .client-shell.is-blueprint-home .ai-home-block-rail {
+    grid-column: 1 / -1;
   }
 
   body[data-home-preview="content-only"] .client-home-page {
@@ -4741,19 +4809,21 @@ body[data-home-layout="vipService"] .ai-component-asset_summary[data-module-vari
 }
 
 body[data-layout-page="client-home"] .client-home-page {
-  padding: 0;
+  padding-top: 24px;
+  padding-bottom: 72px;
 }
 
 body[data-layout-page="client-home"] .client-shell.is-blueprint-home {
-  align-items: stretch;
-  gap: 12px;
-  width: 100%;
-  max-width: none;
-  margin: 0;
+  width: min(100%, 1320px);
+  max-width: 1320px;
+  display: flex;
+  gap: 22px;
+  margin: 0 auto;
 }
 
 body[data-layout-page="client-home"] .client-shell.is-blueprint-home .ai-home-block {
   align-self: stretch;
+  height: 100%;
 }
 
 body[data-layout-page="client-home"] .client-shell.is-blueprint-home :is(
@@ -4774,6 +4844,7 @@ body[data-layout-page="client-home"] .client-shell.is-blueprint-home :is(
   .ai-accounts-feature
 ) {
   height: 100%;
+  margin-bottom: 0;
 }
 
 body[data-layout-page="client-home"] .ai-home-block-polished :is(
@@ -4833,14 +4904,21 @@ body[data-layout-page="client-home"] .ai-ad-slide strong {
 }
 
 body[data-layout-page="client-home"] .ai-brick-meta {
-  margin-bottom: 8px;
-  padding: 6px 8px;
+  display: none !important;
 }
 
 @media (max-width: 860px) {
+  .client-shell.is-blueprint-home .ai-home-row,
+  body[data-home-preview="content-only"] .client-shell.is-blueprint-home .ai-home-row,
+  body[data-layout-page="client-home"] .client-shell.is-blueprint-home .ai-home-row {
+    grid-template-columns: 1fr;
+  }
+
+  .client-shell.is-blueprint-home .ai-home-row .ai-home-block,
   body[data-layout-page="client-home"] .client-shell.is-blueprint-home .ai-home-block-hero.ai-home-block-polished,
   body[data-layout-page="client-home"] .client-shell.is-blueprint-home .ai-home-block-main,
   body[data-layout-page="client-home"] .client-shell.is-blueprint-home .ai-home-block-rail {
     grid-column: 1 / -1;
+    min-height: 0;
   }
 }

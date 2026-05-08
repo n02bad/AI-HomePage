@@ -146,7 +146,7 @@
 
   const COMPONENT_WHITELIST = Object.keys(COMPONENTS);
   const MAX_HOME_MODULES = COMPONENT_WHITELIST.length;
-  const MAX_QUICK_ACTIONS = 6;
+  const MAX_QUICK_ACTIONS = 8;
   const MAX_I18N_KEY_LENGTH = 72;
   const MAX_VALIDATION_ERRORS = 12;
 
@@ -618,6 +618,8 @@
         { id: "transfer", href: "#accounts", icon: "transfer", labelKey: "home.action.transfer" },
         { id: "orders", href: "#accounts", icon: "history", labelKey: "home.action.orders" },
         { id: "positions", href: "#accounts", icon: "positions", labelKey: "home.action.positions" },
+        { id: "contest", href: "#promo", icon: "trophy", labelKey: "home.action.contest" },
+        { id: "referral", href: "#referral", icon: "copy", labelKey: "home.action.referral" },
       ],
     },
     open_account_panel: {
@@ -713,6 +715,7 @@
     "home.action.orders": "订单历史",
     "home.action.positions": "持仓记录",
     "home.action.contest": "交易大赛",
+    "home.action.referral": "推广链接",
     "home.action.realAccount": "真实账号",
     "home.action.demoAccount": "模拟账号",
     "home.action.bindAccount": "绑定账号",
@@ -728,8 +731,8 @@
     "home.promo.title": "五月盈利王挑战赛",
     "home.promo.meta": "奖池 9,600 美元 / 剩余 28 天 / 共 3 项活动",
     "home.promo.cta": "查看详情",
-    "home.referral.eyebrow": "Referral",
-    "home.referral.title": "邀请增长控制台",
+    "home.referral.eyebrow": "Promotion",
+    "home.referral.title": "推广链接控制台",
     "home.referral.summary": "注册链接、邀请码和渠道转化数据集中展示。",
     "home.accounts.eyebrow": "账号",
     "home.accounts.title": "交易账号工作台",
@@ -1545,8 +1548,8 @@
     if (includesAny(text, ["新手", "新客", "开户", "注册", "kyc", "首次", "开户表单", "创建账户"])) return "onboarding";
     if (includesAny(text, ["交易工作台", "专业交易", "mt4", "mt5", "持仓", "订单", "账号首屏", "账户首屏", "pnl", "图表", "表现"])) return "trader";
     if (includesAny(text, ["高净值", "vip", "黑金", "尊贵", "机构", "大客户"])) return "vip";
+    if (includesAny(text, ["活动", "比赛", "大赛", "奖池", "营销", "增长", "转化", "推广", "广告", "轮播", "banner"])) return "growth";
     if (includesAny(text, ["钱包列表", "资产优先", "资产", "钱包", "余额", "资金安全", "资金优先"])) return "asset";
-    if (includesAny(text, ["活动", "比赛", "大赛", "奖池", "营销", "增长", "转化", "广告", "轮播", "banner"])) return "growth";
 
     return "standard";
   }
@@ -1583,6 +1586,14 @@
 
     if (includesAny(text, ["广告", "轮播", "banner", "焦点图", "广告图", "广告位"])) {
       next = addBrickId(next, "adCarousel.heroCampaign", "front");
+    }
+
+    if (includesAny(text, ["交易大赛", "大赛", "奖池", "活动看板", "比赛看板"])) {
+      next = addBrickId(next, "promoBanner.scoreboard");
+    }
+
+    if (includesAny(text, ["推广模块", "推广链接", "邀请链接", "开户链接", "注册链接", "邀请码", "referral"])) {
+      next = addBrickId(next, "referralLink.growthConsole");
     }
 
     if (includesAny(text, ["钱包列表", "多币种钱包", "wallet list"])) {
@@ -1632,7 +1643,7 @@
     return [first].concat(rest.slice(offset), rest.slice(0, offset));
   }
 
-  function uniqueBricksForLayout(ids) {
+  function uniqueBricksForLayout(ids, intent = "standard", prompt = "") {
     const seenComponents = new Set();
     const selected = [];
 
@@ -1643,15 +1654,41 @@
       selected.push(brick);
     });
 
-    if (!selected.some((brick) => brick.family === "AssetOverview")) selected.unshift(brickById("assetOverview.compactMetrics"));
+    if (!selected.some((brick) => brick.family === "AssetOverview") && !isCampaignCorePrompt(prompt, intent)) {
+      const fallbackAsset = brickById("assetOverview.compactMetrics");
+      if (["growth", "partner"].includes(intent)) {
+        selected.splice(Math.min(selected.length, 3), 0, fallbackAsset);
+      } else {
+        selected.unshift(fallbackAsset);
+      }
+    }
     if (!selected.some((brick) => brick.family === "TradingAccounts")) selected.push(brickById("tradingAccounts.separatedList"));
     if (!selected.some((brick) => brick.family === "FundActions")) selected.splice(1, 0, brickById("fundActions.priorityDock"));
 
     return selected.filter(Boolean).slice(0, 11);
   }
 
+  function isCampaignCorePrompt(prompt, intent) {
+    if (intent !== "growth") return false;
+    const text = positiveIntentText(prompt);
+    return includesAny(text, ["活动增长", "交易大赛", "大赛", "奖池", "首屏突出", "首屏核心", "广告首屏", "轮播首屏", "banner首屏", "单独一个长模块"]);
+  }
+
+  function themePresetForPrompt(strategy, prompt, intent) {
+    const text = positiveIntentText(prompt);
+    if (includesAny(text, ["极简白", "极简", "白色", "minimal"])) return "minimalWhite";
+    if (intent === "growth" && includesAny(text, ["轻快", "清晰", "清爽", "明亮", "浅色", "轻量"])) return "blueFinance";
+    return strategy.themePreset;
+  }
+
   function brickZoneFor(brick, index, prompt) {
     const text = positiveIntentText(prompt);
+    const campaignCore = isCampaignCorePrompt(prompt, inferBrickIntent(prompt));
+    if (campaignCore) {
+      if (brick.feature === "adCarousel") return "hero";
+      if (brick.feature === "referralLink") return "full";
+      if (brick.family === "AssetOverview") return "main";
+    }
     if (includesAny(text, ["交易账号放下方", "账号放下方", "列表放下方"]) && brick.family === "TradingAccounts") return "full";
     if (includesAny(text, ["广告首屏", "轮播首屏", "banner首屏"]) && brick.feature === "adCarousel") return "hero";
     if (index === 0) return "hero";
@@ -1668,6 +1705,118 @@
   function priorityForBrick(zone, index) {
     const base = zone === "hero" ? 20 : zone === "rail" ? 80 : zone === "full" ? 180 : 100;
     return base + index * 10;
+  }
+
+  function spanFromBrickSize(size) {
+    const normalized = String(size || "").trim().toLowerCase();
+    if (/^3x[12]$/.test(normalized)) return 12;
+    if (/^2x[12]$/.test(normalized)) return 8;
+    if (/^1x[12]$/.test(normalized)) return 4;
+    return 0;
+  }
+
+  function layoutSpanForBlock(block, heroBlockCount = 0) {
+    if (block.component === "welcome_header") return 12;
+
+    const sizeSpan = spanFromBrickSize(block.brickSize);
+    if (block.slot === "full") return 12;
+    if (block.slot === "rail") return Math.min(sizeSpan || 4, 4);
+    if (block.slot === "main") return sizeSpan || 8;
+    if (block.slot === "hero") {
+      if (heroBlockCount > 1 && sizeSpan && sizeSpan < 12) return sizeSpan;
+      return sizeSpan || 12;
+    }
+
+    return LAYOUT_SLOT_SPANS[block.slot] || 12;
+  }
+
+  function isHomepageFullRowBlock(block) {
+    return ["welcome_header", "account_list"].includes(block.component);
+  }
+
+  function isHomepageCompactBlock(block) {
+    return ["fund_actions", "wallet_balance", "open_account_panel", "user_kyc_rail", "create_account_form", "market_insight", "risk_notice", "copytrading_summary"].includes(block.component);
+  }
+
+  function canPairHomepageBlocks(first, second, heroBlockCount = 0) {
+    if (!first || !second) return false;
+    if (isHomepageFullRowBlock(first) || isHomepageFullRowBlock(second)) return false;
+    if (first.component === second.component) return false;
+    if (layoutSpanForBlock(first, heroBlockCount) >= 12 || layoutSpanForBlock(second, heroBlockCount) >= 12) return false;
+    return true;
+  }
+
+  function pairedHomepageSpans(first, second, heroBlockCount = 0) {
+    const firstIsRail = first.slot === "rail" || isHomepageCompactBlock(first);
+    const secondIsRail = second.slot === "rail" || isHomepageCompactBlock(second);
+    const firstBase = layoutSpanForBlock(first, heroBlockCount);
+    const secondBase = layoutSpanForBlock(second, heroBlockCount);
+
+    if (firstIsRail && !secondIsRail) return [4, 8];
+    if (!firstIsRail && secondIsRail) return [8, 4];
+    if (firstBase === 4 && secondBase !== 4) return [4, 8];
+    if (firstBase !== 4 && secondBase === 4) return [8, 4];
+    return [6, 6];
+  }
+
+  function rowMinHeightForBlocks(blocks) {
+    const components = new Set(blocks.map((block) => block.component));
+    const sizes = new Set(blocks.map((block) => String(block.brickSize || "").toLowerCase()));
+
+    if (components.has("ad_carousel")) return 260;
+    if (components.has("wallet_list") || components.has("account_performance")) return 240;
+    if ([...sizes].some((size) => size.endsWith("2"))) return 220;
+    if (components.has("asset_summary")) return 210;
+    return 180;
+  }
+
+  function buildHomepageRows(blocks, heroBlockCount = 0) {
+    const rows = [];
+    let pending = null;
+
+    function addRow(items) {
+      const rowBlocks = items.map((item) => item.block);
+      rows.push({
+        id: `home-row-${rows.length + 1}`,
+        items,
+        minHeight: rowMinHeightForBlocks(rowBlocks),
+      });
+    }
+
+    function flushPending() {
+      if (!pending) return;
+      addRow([{ block: pending, span: 12 }]);
+      pending = null;
+    }
+
+    blocks.forEach((block) => {
+      if (isHomepageFullRowBlock(block)) {
+        flushPending();
+        addRow([{ block, span: 12 }]);
+        return;
+      }
+
+      if (!pending) {
+        pending = block;
+        return;
+      }
+
+      if (canPairHomepageBlocks(pending, block, heroBlockCount)) {
+        const [firstSpan, secondSpan] = pairedHomepageSpans(pending, block, heroBlockCount);
+        addRow([
+          { block: pending, span: firstSpan },
+          { block, span: secondSpan },
+        ]);
+        pending = null;
+        return;
+      }
+
+      flushPending();
+      pending = block;
+    });
+
+    flushPending();
+    return rows;
   }
 
   function sectionsFromBrickPlan(plan, strategy) {
@@ -1696,7 +1845,7 @@
     const intent = inferBrickIntent(prompt);
     const strategy = BRICK_STRATEGIES[intent] || BRICK_STRATEGIES.standard;
     const ids = rotateBrickIds(applyPromptBrickOverrides(strategy.bricks, prompt), variant);
-    const bricks = uniqueBricksForLayout(ids);
+    const bricks = uniqueBricksForLayout(ids, intent, prompt);
     const plan = bricks.map((brick, index) => {
       const zone = brickZoneFor(brick, index, prompt);
       return {
@@ -1717,24 +1866,28 @@
   function buildBrickDrivenConfig(prompt, variant = 0, sourceConfig = null) {
     const { intent, strategy, bricks, plan } = buildBrickPlan(prompt, variant);
     const profile = promptProfile(prompt);
+    const campaignCore = isCampaignCorePrompt(prompt, intent);
     let modules = clone(DEFAULT_CONFIG.modules);
     let moduleStyles = syncLegacyModuleStyles(modules);
     let moduleSettings = clone(DEFAULT_MODULE_SETTINGS);
-    const layout = [
-      {
-        id: "welcome",
-        component: "welcome_header",
-        slot: "hero",
-        priority: 10,
-        props: clone(COMPONENT_PROPS_SCHEMA.welcome_header),
-        brickId: "system.welcomeHeader",
-        brickName: "欢迎头部",
-        brickFamily: "WelcomeHeader",
-        brickSize: "3x1",
-        brickZone: "hero",
-        brickReason: "公共欢迎区保留为首页入口和个性化管理入口。",
-      },
-    ].concat(
+    const welcomeLayout = campaignCore
+      ? []
+      : [
+          {
+            id: "welcome",
+            component: "welcome_header",
+            slot: "hero",
+            priority: 10,
+            props: clone(COMPONENT_PROPS_SCHEMA.welcome_header),
+            brickId: "system.welcomeHeader",
+            brickName: "欢迎头部",
+            brickFamily: "WelcomeHeader",
+            brickSize: "3x1",
+            brickZone: "hero",
+            brickReason: "公共欢迎区保留为首页入口和个性化管理入口。",
+          },
+        ];
+    const layout = welcomeLayout.concat(
       plan.map((item, index) => {
         return {
           id: cleanMetaText(item.brickId.replace(/\./g, "-"), `brick-${index + 1}`, 32),
@@ -1775,7 +1928,7 @@
       ...moduleStyles,
     };
 
-    const themePreset = sourceConfig?.themePreset || sourceConfig?.theme ? normalizeThemeId(sourceConfig.themePreset || sourceConfig.theme) : strategy.themePreset;
+    const themePreset = sourceConfig?.themePreset || sourceConfig?.theme ? normalizeThemeId(sourceConfig.themePreset || sourceConfig.theme) : themePresetForPrompt(strategy, prompt, intent);
 
     const heroBlock = layout.find((block) => block.slot === "hero" && block.component !== "welcome_header") || layout[0];
     const score = Math.min(98, 72 + plan.length * 2 + (strategy.strength === "strong" ? 8 : 4));
@@ -1874,7 +2027,7 @@
       normalized.push({
         id,
         href: safeHref(action.href, "#"),
-        icon: ["user", "deposit", "withdraw", "transfer", "history", "positions", "trophy", "chart"].includes(action.icon) ? action.icon : "chart",
+        icon: ["user", "deposit", "withdraw", "transfer", "history", "positions", "trophy", "copy", "chart"].includes(action.icon) ? action.icon : "chart",
         labelKey: i18nKey(action.labelKey, fallbackActions[normalized.length]?.labelKey || "home.action.deposit"),
       });
     });
@@ -3286,6 +3439,7 @@
   function renderPromoHighlight(doc, config, props = {}) {
     const feature = wrapFeature(doc, "promo_banner", "ai-promo-feature", config);
     const safeProps = sanitizeComponentProps("promo_banner", props, []);
+    feature.id = "promo";
     feature.innerHTML = `
       <div class="ai-promo-mark">${actionIcon("trophy")}</div>
       <div class="ai-promo-copy">
@@ -3300,34 +3454,83 @@
 
   function renderAdCarousel(doc, config) {
     const feature = wrapFeature(doc, "adCarousel", "ai-ad-carousel-feature", config);
+    const isCampaign = config.layoutPreset === "conversionFirst" || moduleVariant(config, "adCarousel") === "gradientHero";
+    const slides = isCampaign
+      ? [
+          {
+            badge: "Contest",
+            title: "五月盈利王挑战赛",
+            copy: "奖池 $9,600，真实账户与模拟账户均可参与。",
+            href: "#promo",
+            action: "promo",
+            cta: "查看详情",
+          },
+          {
+            badge: "Prize Pool",
+            title: "交易大赛奖池加码",
+            copy: "按净入金、交易量和收益率拆分奖励，活动入口首屏直达。",
+            href: "#fund-actions",
+            action: "deposit",
+            cta: "立即入金",
+          },
+          {
+            badge: "Promotion",
+            title: "推广链接同步投放",
+            copy: "开户链接、邀请码和二维码单独成模块，便于运营追踪。",
+            href: "#referral",
+            action: "referral",
+            cta: "查看推广",
+          },
+        ]
+      : [
+          {
+            badge: "Featured",
+            title: "Black Gold VIP Trading Month",
+            copy: "高净值客户专属点差权益、入金礼包和一对一账户服务。",
+            href: "#fund-actions",
+            action: "deposit",
+            cta: "立即入金",
+          },
+          {
+            badge: "Contest",
+            title: "5月盈利王挑战赛",
+            copy: "奖池 $9,600，真实账户与模拟账户均可参与活动曝光。",
+            href: "#promo",
+            action: "promo",
+            cta: "查看活动",
+          },
+          {
+            badge: "New Account",
+            title: "开通 MT5 Live 账户",
+            copy: "开户链接、KYC、首次入金入口集中呈现，减少客户流失。",
+            href: "#accounts",
+            action: "openAccount",
+            cta: "去开户",
+          },
+        ];
+
     feature.innerHTML = `
       <div class="ai-ad-carousel" data-ad-carousel>
         <div class="ai-ad-slides">
-          <article class="ai-ad-slide active" data-ad-slide>
-            <span>Featured</span>
-            <strong>Black Gold VIP Trading Month</strong>
-            <p>高净值客户专属点差权益、入金礼包和一对一账户服务。</p>
-            <a href="#fund-actions" data-home-action="deposit">立即入金</a>
-          </article>
-          <article class="ai-ad-slide" data-ad-slide>
-            <span>Contest</span>
-            <strong>5月盈利王挑战赛</strong>
-            <p>奖池 $9,600，真实账户与模拟账户均可参与活动曝光。</p>
-            <a href="#promo" data-home-action="promo">查看活动</a>
-          </article>
-          <article class="ai-ad-slide" data-ad-slide>
-            <span>New Account</span>
-            <strong>开通 MT5 Live 账户</strong>
-            <p>开户链接、KYC、首次入金入口集中呈现，减少客户流失。</p>
-            <a href="#accounts" data-home-action="openAccount">去开户</a>
-          </article>
+          ${slides
+            .map(
+              (slide, index) => `
+                <article class="ai-ad-slide${index === 0 ? " active" : ""}" data-ad-slide>
+                  <span>${escapeHtml(slide.badge)}</span>
+                  <strong>${escapeHtml(slide.title)}</strong>
+                  <p>${escapeHtml(slide.copy)}</p>
+                  <a href="${escapeHtml(slide.href)}" data-home-action="${escapeHtml(slide.action)}">${escapeHtml(slide.cta)}</a>
+                </article>
+              `,
+            )
+            .join("")}
         </div>
         <div class="ai-ad-controls">
           <button type="button" data-ad-prev aria-label="上一张广告">‹</button>
           <div class="ai-ad-dots" aria-label="广告轮播分页">
-            <button class="active" type="button" data-ad-dot="0" aria-label="广告 1"></button>
-            <button type="button" data-ad-dot="1" aria-label="广告 2"></button>
-            <button type="button" data-ad-dot="2" aria-label="广告 3"></button>
+            ${slides
+              .map((slide, index) => `<button class="${index === 0 ? "active" : ""}" type="button" data-ad-dot="${index}" aria-label="广告 ${index + 1}"></button>`)
+              .join("")}
           </div>
           <button type="button" data-ad-next aria-label="下一张广告">›</button>
         </div>
@@ -3390,12 +3593,13 @@
 
     feature.innerHTML = `
       <div class="ai-feature-title">
-        <span>Referral Console</span>
-        <strong>邀请控制台</strong>
+        <span>${escapeHtml(t("home.referral.eyebrow"))}</span>
+        <strong>${escapeHtml(t("home.referral.title"))}</strong>
       </div>
       ${stats ? `<div class="ai-referral-stats">${stats}</div>` : ""}
       <div class="ai-referral-core">${core}</div>
     `;
+    feature.id = "referral";
     return feature;
   }
 
@@ -3508,22 +3712,22 @@
         <strong>${escapeHtml(t(safeProps.titleKey))}</strong>
       </div>
       <p>${escapeHtml(t(safeProps.summaryKey))}</p>
-      <div class="ai-wallet-table" role="table" aria-label="${escapeHtml(t(safeProps.titleKey))}">
-        <div role="row"><span>Currency</span><span>Balance</span><span>Available</span><span>Action</span></div>
+      <div class="ai-wallet-card-list" role="list" aria-label="${escapeHtml(t(safeProps.titleKey))}">
         ${rows
           .map(
             (row) => `
-              <div role="row">
-                <b>${escapeHtml(row[0])}</b>
-                <span>${escapeHtml(row[1])}</span>
-                <span>${escapeHtml(row[2])}</span>
+              <article role="listitem">
+                <span>${escapeHtml(row[0])}</span>
+                <strong>${escapeHtml(row[1])}</strong>
+                <small>Available ${escapeHtml(row[2])}</small>
                 <a href="#fund-actions" data-home-action="deposit">${escapeHtml(t("home.action.deposit"))}</a>
-              </div>
+              </article>
             `,
           )
           .join("")}
       </div>
     `;
+    feature.id = "wallets";
     return feature;
   }
 
@@ -3703,7 +3907,7 @@
     const renderableBlocks = config.layout.filter((block) => COMPONENT_MAP[block.component] && componentEnabled(block.component, config));
     const heroBlocks = renderableBlocks.filter((block) => block.slot === "hero" && block.component !== "welcome_header");
 
-    shell.querySelectorAll(".client-welcome, [data-home-module], [data-layout-section], [data-home-feature]").forEach((node) => node.remove());
+    shell.querySelectorAll(".client-welcome, [data-home-row], [data-home-module], [data-layout-section], [data-home-feature]").forEach((node) => node.remove());
     shell.classList.add("is-blueprint-home");
     shell.className = shell.className
       .split(/\s+/)
@@ -3711,35 +3915,38 @@
       .concat(`ai-blueprint-layout-${config.layoutPreset}`)
       .join(" ");
 
-    renderableBlocks.forEach((block) => {
-      const renderComponent = COMPONENT_MAP[block.component];
+    buildHomepageRows(renderableBlocks, heroBlocks.length).forEach((row) => {
+      const rowNode = doc.createElement("div");
+      rowNode.className = "ai-home-row";
+      rowNode.dataset.homeRow = row.id;
+      rowNode.dataset.rowItems = String(row.items.length);
+      rowNode.dataset.rowKind = row.items.length > 1 ? "paired" : "single";
+      rowNode.style.setProperty("--home-row-min-height", `${row.minHeight}px`);
 
-      const node = renderComponent(doc, config, block.props);
-      node.classList.add("ai-home-block", `ai-home-block-${block.slot}`, `ai-component-${block.component}`);
-      node.dataset.homeComponent = block.component;
-      if (block.brickId) node.dataset.homeBrick = block.brickId;
-      if (block.brickName) node.dataset.homeBrickName = block.brickName;
-      if (block.brickReason) node.dataset.homeBrickReason = block.brickReason;
-      node.dataset.homeSlot = block.slot;
-      if (block.slot === "hero" && heroBlocks.length > 1) {
-        node.classList.add("ai-home-block-polished");
-        const heroSpan = ["asset_summary", "account_list", "account_performance"].includes(block.component) ? 8 : 4;
-        node.style.setProperty("--home-span", String(heroSpan));
-      } else {
-        node.style.setProperty("--home-span", String(LAYOUT_SLOT_SPANS[block.slot] || 12));
-      }
-      node.style.order = String(block.priority);
-      if (block.brickName || block.brickId) {
-        const badge = doc.createElement("div");
-        badge.className = "ai-brick-meta";
-        badge.innerHTML = `
-          <span>${escapeHtml(block.brickSize || block.slot)}</span>
-          <strong>${escapeHtml(block.brickName || block.brickId)}</strong>
-          ${block.brickReason ? `<small>${escapeHtml(block.brickReason)}</small>` : ""}
-        `;
-        node.prepend(badge);
-      }
-      shell.appendChild(node);
+      row.items.forEach((item) => {
+        const block = item.block;
+        const renderComponent = COMPONENT_MAP[block.component];
+        const isWelcomeBlock = block.component === "welcome_header";
+
+        const node = renderComponent(doc, config, block.props);
+        node.classList.add("ai-home-block", `ai-home-block-${block.slot}`, `ai-component-${block.component}`);
+        node.dataset.homeComponent = block.component;
+        if (block.brickId) node.dataset.homeBrick = block.brickId;
+        if (block.brickName) node.dataset.homeBrickName = block.brickName;
+        if (block.brickReason) node.dataset.homeBrickReason = block.brickReason;
+        node.dataset.homeSlot = block.slot;
+        node.dataset.homeSpan = String(item.span);
+        if (!isWelcomeBlock && row.items.length > 1) {
+          node.classList.add("ai-home-block-polished");
+        } else {
+          node.classList.remove("ai-home-block-polished");
+        }
+        node.style.setProperty("--home-span", String(item.span || 12));
+        node.style.order = String(block.priority);
+        rowNode.appendChild(node);
+      });
+
+      shell.appendChild(rowNode);
     });
   }
 

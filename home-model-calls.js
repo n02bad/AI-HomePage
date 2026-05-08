@@ -101,6 +101,8 @@
   function actionLabel(action) {
     if (action === "connectivity-test") return "连通性测试";
     if (action === "homepage-generate") return "首页生成";
+    if (action === "component-generate") return "组件生成";
+    if (action === "component-compose") return "组件编排";
     return "模型调用";
   }
 
@@ -112,14 +114,14 @@
 
   function compactHistorySummary(message) {
     return String(message || "")
-      .replace(/\s*·\s*(?:\/api\/home-ai\/complete|\/api\/home-ai\/test|https?:\/\/\S+)\s*$/i, "")
+      .replace(/\s*·\s*(?:\/api\/home-ai\/complete|\/api\/home-ai\/test|\/api\/home-components\/generate|\/api\/home-components\/compose|https?:\/\/\S+)\s*$/i, "")
       .replace(/\s*·\s*(模型返回片段：|处理建议：)[\s\S]*$/i, "")
       .replace(/\s{2,}/g, " ")
       .trim();
   }
 
   function parseMarkedHistoryMessage(message) {
-    const source = String(message || "").replace(/\s*·\s*(?:\/api\/home-ai\/complete|\/api\/home-ai\/test|https?:\/\/\S+)\s*$/i, "");
+    const source = String(message || "").replace(/\s*·\s*(?:\/api\/home-ai\/complete|\/api\/home-ai\/test|\/api\/home-components\/generate|\/api\/home-components\/compose|https?:\/\/\S+)\s*$/i, "");
     const markerMap = [
       { key: "detail", marker: "模型返回片段：" },
       { key: "advice", marker: "处理建议：" },

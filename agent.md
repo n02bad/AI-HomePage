@@ -17,10 +17,11 @@ AI 的作用不是直接生成页面代码，而是根据租户描述、品牌�
 3. Module Style 差异：同一个业务模块可以有不同展示形态，而不是永远复用同一种卡片。
 4. Business Focus 差异：首页重点可以偏入金转化、资产展示、专业交易、代理增长或新客开户。
 
-禁止只通过更换标题、颜色、文案、间距或模块顺序来伪装成个性化首页。AI 首页个性化的重点是在受控组件、布局预设、主题 token、模块变体之间做组合，并且必须让不同租户首页产生肉眼可见的差异。
+禁止只通过更换标题、颜色、文案、间距或模块顺序来伪装成个性化首页。AI 首页个性化的重点是在利用基础组件、基础积木块来延伸布局，通过组件、积分快的个性化设计(不改变功能只改变样式布局)、布局预设、主题 token、模块变体之间做组合，并且必须让不同租户首页产生肉眼可见的差异。
 
 ## 关键边界
 
+- 欢迎模块永远在在最上方且欢迎模块可以展示也可以不展示
 - 左侧导航、顶部搜索、页签栏属于系统共用布局，不属于首页配置范围。
 - 当前原型只保留 `client-home.html`、`home-layout-admin.html`、`home-layout-preview.html` 这条首页与 AI 个性化链路；不要重新引入独立开户、入金、订单、CRM、IB、推广等页面入口。
 - 本项目只调整首页内容区域，也就是 `client-home.html` 内 `data-home-shell` 承载的内容。
@@ -35,6 +36,9 @@ AI 的作用不是直接生成页面代码，而是根据租户描述、品牌�
 - 首页 AI 生成通过本地 `server.js` 的 `/api/home-ai/complete` 后端代理调用 OpenAI、Claude、MiniMax、Kimi、DeepSeek；不要在前端直连外部模型接口，生产环境密钥应走环境变量。
 - 组件库 AI 生成通过本地 `server.js` 的 `/api/home-components/*` 接口完成。AI 只能生成受控组件定义和组合建议，不能直接改正式首页代码。
 - 大模型不是首页搭建器的单点依赖。首页配置模型、模块白名单、mock 链路和发布流程必须先独立跑通；某个 provider 调不通时，不要阻塞首页编辑、预览和发布主流程。
+- AI 生成首页必须采用自适应 auto layout 思路：桌面优先用 12 栅格紧凑填充，移动端降级单列，不能用空白占位、固定大高度或孤立小模块制造“东缺一块西缺一块”的页面。
+- 积木块的尺寸、名称、选择理由只能作为配置数据、调用记录或 DOM `data-*` 调试属性存在，不能作为用户端首页或 iframe 预览里的可见 UI。
+- 禁止生成系统功能以外的内容
 
 ## 当前文件职责
 
@@ -67,7 +71,9 @@ AI 的作用不是直接生成页面代码，而是根据租户描述、品牌�
 ## DeepSeek 调用判断
 
 - DeepSeek V4 当前预设走 OpenAI 兼容 `POST /chat/completions`，Base URL 使用 `https://api.deepseek.com`。
-- 最新 V4 模型 ID 是 `deepseek-v4-pro` 和 `deepseek-v4-flash`；默认优先用 `deepseek-v4-pro`，需要速度时切到 `deepseek-v4-flash`。
+- 最新 V4 模型 ID 是 `deepseek-v4-pro` 和 `deepseek-v4-flash`；首页/组件生成默认优先用 `deepseek-v4-flash` 保证稳定，复杂方案可手动切到 `deepseek-v4-pro`。
+- DeepSeek V4 默认 thinking mode 是开启的；本项目只需要受控 JSON 首页蓝图，所以代理层必须发送 `thinking: { "type": "disabled" }`，避免长推理导致超时或 JSON 输出被推理过程拖慢。
+- 如果手动选择 `deepseek-v4-pro`，代理层应在 Pro 超时或返回不可解析 JSON 时自动用 `deepseek-v4-flash` 重试；不要让一次 Pro 慢调用阻塞首页编辑、预览和发布。
 - 环境变量优先使用 `DEEPSEEK_API_KEY`，可用 `DEEPSEEK_MODEL` 覆盖默认模型。
 - 旧的 `deepseek-chat`、`deepseek-reasoner` 不作为本项目预设入口，避免继续依赖即将废弃的兼容模型名。
 
@@ -185,19 +191,28 @@ AI 生成首页时必须把 `home-module-bricks.md` 当成模块参考，而不�
 | 用户说法 | 应命中积木 | 必须落到配置 |
 | --- | --- | --- |
 | 轮播图、广告图、banner | `PromotionBanner` / `adCarousel` | `moduleSettings.adCarousel.enabled = true`，并把 `adCarousel` 放入 `sections` |
+| 活动增长、交易大赛、奖池、广告轮播首屏核心 | `adCarousel.heroCampaign` + `promoBanner.scoreboard` | `heroFocus = "ad_carousel"`，`adCarousel` 必须是首个 full-width hero，不能被欢迎卡、资产卡或快捷入口抢首屏 |
 | 账户余额总览、资产概览 | `AssetOverview` | `assets.enabled = true`；如果用户不要钱包余额细分，钱包不要在资产总览里强展示 |
 | 快捷入口两行、一行几个 | `QuickActions` | `quickActions.enabled = true`，`quickActions.count` 按数量设置，优先用矩阵/工具条样式 |
 | 真实账号列表和模拟账号列表分开 | `TradingAccounts` 拆成 Live List + Demo List 两个列表区域 | `tradingAccounts.realEnabled = true`、`demoEnabled = true`、`grouping = "separated"`、`viewMode = "list"` |
+| 模拟账号列表在真实账号列表上面 | `TradingAccounts` 分组列表 | 默认 All 状态下按 Demo List、Live List 顺序渲染 |
 | 都是列表形式，不是卡片 | `TradingAccounts` | `tradingAccounts.viewMode = "list"`，`moduleStyles.tradingAccounts = "calm-table"` 或 `workbench` |
-| 钱包列表、多币种钱包 | `WalletList` / `WalletBalance` | 当前正式首页用 `wallet.enabled = true`、`wallet.placement = "standalone"` 表达；后续独立 `WalletList` 渲染前不能假装已有完整表格 |
+| 钱包列表、多币种钱包、小卡片 | `WalletList` / `WalletBalance` | 使用 `walletList` / `wallet_list` 独立模块，正式首页以小卡片组展示多币种余额 |
+| 推广模块、推广链接单独处理 | `ReferralLink` | 保留 `referralLink` 独立 section，不要把推广链接并进活动轮播或赛事看板 |
 | 开户入口，不要绑定入口 | `OpenAccount` | `openAccount.enabled = true`，按需求设置 `real/demo/bind`；明确“不要绑定”时 `bind = false` |
 
 关键约束：
 
 - 用户明确要求“两个列表”“真实列表 + 模拟列表”“Live/Demo 分开”时，绝不能只用一个筛选器列表替代，必须在默认全部状态下渲染两个独立列表区块。
+- 用户明确要求“模拟账号列表在真实账号列表上面”时，默认 All 状态必须先展示 Demo List，再展示 Live List。
 - 用户明确要求“列表形式，不是卡片”时，不能返回 `viewMode: "card"` 或 `switchable` 作为主结果。
-- 用户要求“钱包列表”时，不能把钱包余额小卡当成完整钱包列表；如果当前渲染白名单还没有 `WalletList`，要用 `WalletBalance` 作为临时承接，并在 `aiSummary` 说明后续可升级为钱包表格积木。
+- 用户要求“活动增长 / 交易大赛 / 奖池 / 广告轮播首屏核心”时，活动意图优先级高于钱包/资产词，首屏第一块必须是广告轮播长模块，第一张要直接讲交易大赛和奖池。
+- 用户要求“钱包列表”时，不能把钱包余额摘要当成完整钱包列表；正式首页已有 `WalletList` 时必须用小卡片组承接。
+- 用户要求“推广模块单独处理”时，`ReferralLink` 必须单独渲染，不能只靠 `PromoBanner` 或 `adCarousel` 代替。
 - 积木组合可以参考已保存 AI 组件，但正式首页仍必须通过白名单模块渲染；未进入白名单的数据结构只能作为布局和样式参考。
+- `sections` 不能有空数组，`layout` 不能包含禁用或不可渲染模块；如果某个功能关闭，生成器和标准化层必须把对应 slot 移除，而不是留一个空白模块。
+- 小尺寸积木（`1x1`、`1x2`）不能孤立占据整行，必须和资产、资金、开户、KYC、快捷入口等相关积木成组排布；`3x1`、`3x2` 才适合整行视觉或长列表。
+- 预览页和正式首页都不能展示 `brickName`、`brickSize`、`brickReason` 等积木说明条；管理员要看这些信息时，应在方案摘要、调用记录或 DOM 调试属性里查看。
 
 ## brick-v2 积木方案
 
@@ -266,7 +281,7 @@ AI 生成首页时必须把 `home-module-bricks.md` 当成模块参考，而不�
 
 - `home-personalization.js` 只能根据 `layout[].component` 调用 `COMPONENT_MAP` 白名单组件。
 - 渲染出的首页模块必须带 `data-home-brick`、`data-home-brick-name`、`data-home-brick-reason`，便于调试和验收。
-- 用户端首页可以展示轻量积木标识条，显示积木尺寸、名称和选择理由；这能让管理员确认方案不是固定模板。
+- 用户端首页和 iframe 预览不能展示可见的积木标识条；积木尺寸、名称和选择理由只能保留在数据结构、调用记录和 DOM `data-*` 属性中。
 - 未进入白名单的 AI 生成组件不能直接注入正式首页，只能先存在 `home-component-library.json`，再作为组合建议参与后续白名单扩展。
 
 本地积木引擎必须覆盖这些策略：
@@ -397,6 +412,8 @@ AI 生成首页时必须把 `home-module-bricks.md` 当成模块参考，而不�
 - 选择 `strong` 个性化强度后，页面不能只出现颜色、文案或顺序变化，必须能看到首屏结构和核心模块形态变化。
 - 在 1440px 预览下，高净值黑金、活动增长、专业交易、新客开户、代理增长等预设应能一眼区分。
 - 390px 和 1440px 宽度不应出现首页工作区横向溢出。
+- 1440px 预览下不应出现可见的 `ai-brick-meta`、积木尺寸标签、积木名称或选择理由条。
+- 1440px 预览下首页模块应按 auto layout 紧凑填充，不应出现空 section、空 slot、孤立小卡独占整行或明显的无内容大空白。
 - 不要因为预览页隐藏 iframe 内共用壳，而影响真实 `client-home.html` 的共用导航。
 
 ## 禁止事项

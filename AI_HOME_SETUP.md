@@ -53,13 +53,13 @@ export MINIMAX_BASE_URL="https://api.minimaxi.com/v1"
 export MINIMAX_MODEL="MiniMax-M2.7"
 export MOONSHOT_API_KEY="..."
 export DEEPSEEK_API_KEY="..."
-export DEEPSEEK_MODEL="deepseek-v4-pro"
+export DEEPSEEK_MODEL="deepseek-v4-flash"
 npm start
 ```
 
 页面里的「大模型配置」可以选择 OpenAI、Claude、MiniMax、Kimi、DeepSeek，以及模型 ID、Base URL、接口路径和调用方式。
 MiniMax CN 站点的 OpenAI 兼容 Base URL 是 `https://api.minimaxi.com/v1`，不是 `https://api.minimaxi.cn/v1`；国际账号可改为 `https://api.minimax.io/v1`。如果表单里误填 `.cn`，前后端都会按 CN 官方 API Host 自动纠正到 `.com`。
-DeepSeek V4 使用 OpenAI 兼容接口，Base URL 是 `https://api.deepseek.com`，当前预设包含 `deepseek-v4-pro` 和 `deepseek-v4-flash`。
+DeepSeek V4 使用 OpenAI 兼容接口，Base URL 是 `https://api.deepseek.com`，当前预设包含 `deepseek-v4-flash` 和 `deepseek-v4-pro`。首页/组件生成默认使用 `deepseek-v4-flash`；如果手动选择 `deepseek-v4-pro`，代理会关闭 thinking mode，并在 Pro 超时或返回不可解析 JSON 时自动降级重试 Flash。
 
 ## 开发自测
 

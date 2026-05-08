@@ -49,6 +49,7 @@
 }
 
 .brick-head-actions a,
+.brick-head-actions button,
 .brick-filter-bar button {
   min-height: 38px;
   display: inline-flex;
@@ -61,8 +62,10 @@
   font-weight: 800;
 }
 
-.brick-head-actions a {
+.brick-head-actions a,
+.brick-head-actions button {
   padding: 0 16px;
+  cursor: pointer;
 }
 
 .brick-head-actions a.primary,
@@ -123,6 +126,56 @@
   color: #dc2626;
 }
 
+.ai-model-status-card {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.ai-model-status-card div {
+  min-width: 0;
+}
+
+.ai-model-status-card span {
+  display: block;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.ai-model-status-card strong {
+  display: block;
+  margin-top: 4px;
+  color: #0f172a;
+  font-size: 18px;
+  letter-spacing: 0;
+}
+
+.ai-model-status-card small,
+.ai-model-status-card p {
+  display: block;
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.ai-model-status-card button {
+  width: fit-content;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid #2563eb;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #fff;
+  font-weight: 850;
+  cursor: pointer;
+}
+
 .brick-ai-panel {
   display: grid;
   gap: 10px;
@@ -169,8 +222,7 @@
   flex-wrap: wrap;
 }
 
-.brick-ai-actions button,
-.brick-generated-card button {
+.brick-ai-actions button {
   min-height: 38px;
   border: 1px solid #dbe3ef;
   border-radius: 8px;
@@ -350,9 +402,18 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 10px;
-  padding: 0 14px;
+  padding: 8px 14px;
   border-bottom: 1px solid #edf2f7;
+}
+
+.brick-card-tools {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-left: auto;
 }
 
 .brick-card > header span {
@@ -368,6 +429,24 @@
   color: #1d4ed8;
   text-align: center;
   font-size: 12px;
+}
+
+.brick-ai-inline-generate {
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid #2563eb;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.brick-ai-inline-generate:disabled {
+  opacity: 0.58;
+  cursor: wait;
 }
 
 .brick-canvas {
@@ -1419,6 +1498,234 @@
   padding: 0 16px;
 }
 
+.ai-model-modal[hidden] {
+  display: none;
+}
+
+.ai-model-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.ai-model-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(8px);
+}
+
+.ai-model-dialog {
+  position: relative;
+  width: min(920px, 100%);
+  max-height: min(820px, calc(100vh - 48px));
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+}
+
+.ai-model-dialog header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.ai-model-dialog h2 {
+  margin: 6px 0 6px;
+  color: #0f172a;
+  font-size: 22px;
+  letter-spacing: 0;
+}
+
+.ai-model-dialog header p {
+  margin: 0;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.ai-model-close {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.ai-model-provider-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ai-model-provider-grid button {
+  min-height: 96px;
+  padding: 12px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #f8fbff;
+  color: #172033;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ai-model-provider-grid button.active {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.ai-model-provider-grid span,
+.ai-model-provider-grid strong,
+.ai-model-provider-grid small {
+  display: block;
+}
+
+.ai-model-provider-grid span {
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.ai-model-provider-grid strong {
+  margin-top: 6px;
+  color: #0f172a;
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.ai-model-provider-grid small {
+  margin-top: 7px;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.ai-model-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.ai-model-form label {
+  display: grid;
+  gap: 6px;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.ai-model-form input,
+.ai-model-form select {
+  width: 100%;
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #fff;
+  color: #172033;
+  outline: 0;
+}
+
+.ai-model-config-note {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.ai-model-config-note b {
+  color: #0f172a;
+}
+
+.ai-model-config-note p,
+.ai-model-config-note small {
+  display: block;
+  margin: 6px 0 0;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.ai-model-config-note dl {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.ai-model-config-note dl div {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.ai-model-config-note dt,
+.ai-model-config-note dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.ai-model-config-note dt {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.ai-model-config-note dd {
+  margin-top: 5px;
+  color: #172033;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.ai-model-config-note dd[data-tone="loading"] {
+  color: #1d4ed8;
+}
+
+.ai-model-config-note dd[data-tone="success"] {
+  color: #047857;
+}
+
+.ai-model-config-note dd[data-tone="error"] {
+  color: #dc2626;
+}
+
+.ai-model-dialog footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.ai-model-dialog footer button {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #fff;
+  color: #334155;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.ai-model-dialog footer .primary {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #fff;
+}
+
 @media (max-width: 1240px) {
   .brick-card.wide {
     grid-column: span 1;
@@ -1433,7 +1740,10 @@
   }
 
   .brick-ai-workbench,
-  .brick-composition-card > div {
+  .brick-composition-card > div,
+  .ai-model-provider-grid,
+  .ai-model-form,
+  .ai-model-config-note dl {
     grid-template-columns: 1fr;
   }
 

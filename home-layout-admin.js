@@ -81,13 +81,13 @@
       provider: "deepseek",
       name: "DeepSeek",
       badge: "OpenAI Compatible",
-      model: "deepseek-v4-pro",
-      models: ["deepseek-v4-pro", "deepseek-v4-flash"],
+      model: "deepseek-v4-flash",
+      models: ["deepseek-v4-flash", "deepseek-v4-pro"],
       baseUrl: DEEPSEEK_BASE_URL,
       endpoint: "/chat/completions",
       apiMode: "openai-chat",
       apiKeyLabel: "DEEPSEEK_API_KEY",
-      note: "DeepSeek V4 最新官方 API 模型。V4-Pro 适合复杂方案推理，V4-Flash 适合更快生成；Base URL 保持 https://api.deepseek.com。",
+      note: "DeepSeek V4 官方 API 模型。首页生成默认用 V4-Flash 提升稳定性；V4-Pro 仍可手动选择，代理会关闭 thinking 并在超时后降级到 Flash。",
     },
   };
 
@@ -1084,7 +1084,7 @@
     }
 
     if (/timed out|timeout|超时/i.test(source)) {
-      return "处理建议：模型连通正常，但首页蓝图生成超过代理等待时间；已自动回退本地方案。可以切到 deepseek-v4-flash，或使用更短的结构化 prompt。";
+      return "处理建议：模型连通正常，但首页蓝图生成超过代理等待时间；DeepSeek Pro 会先自动降级到 Flash 重试，仍失败时再回退本地方案。可以保留 V4-Flash 默认模型，或使用更短的结构化 prompt。";
     }
 
     return "";
@@ -1204,25 +1204,27 @@
     }
 
     const payload = await requestAiProxy(config, "complete", {
-        prompt,
-        variant: options.variant || 0,
-        modelConfig: aiRequestModelConfig(),
-        context: aiRequestContext(),
-      });
+      prompt,
+      variant: options.variant || 0,
+      modelConfig: aiRequestModelConfig(),
+      context: aiRequestContext(),
+    });
+    const usedProvider = providerPreset(payload.provider || config.provider);
+    const usedModel = payload.model || config.model;
 
     const aiConfig = {
       generationMode: "brick-v2",
       ...(payload.config || {}),
       aiSummary:
         payload.config?.aiSummary ||
-        `已通过 ${aiGenerationLabel(config)} 生成首页蓝图，并完成前端安全标准化。`,
+        `已通过 ${usedProvider.name} / ${usedModel} 生成首页蓝图，并完成前端安全标准化。`,
     };
     const normalizedConfig = home.normalizeConfig(aiConfig);
 
     return {
       config: normalizedConfig,
       usedModel: true,
-      label: aiGenerationLabel(config),
+      label: `${usedProvider.name} / ${usedModel}`,
       mock: Boolean(payload.mock),
       callRecord: payload.callRecord || null,
     };
@@ -1239,9 +1241,9 @@
         id: result.callRecord?.id,
         action: "homepage-generate",
         serverCallId: result.callRecord?.id,
-        providerId: requestConfig.provider,
-        provider: result.usedModel ? provider.name : "本地规则",
-        model: result.usedModel ? requestConfig.model : "promptToConfig",
+        providerId: result.callRecord?.providerId || requestConfig.provider,
+        provider: result.usedModel ? result.callRecord?.provider || provider.name : "本地规则",
+        model: result.usedModel ? result.callRecord?.model || requestConfig.model : "promptToConfig",
         callMode: requestConfig.callMode,
         apiMode: requestConfig.apiMode,
         baseUrl: requestConfig.baseUrl,
@@ -1269,7 +1271,7 @@
         serverCallId: error.proxyPayload?.callRecord?.id,
         providerId: requestConfig.provider,
         provider: provider.name,
-        model: requestConfig.model,
+        model: error.proxyPayload?.callRecord?.model || requestConfig.model,
         callMode: requestConfig.callMode,
         apiMode: requestConfig.apiMode,
         baseUrl: requestConfig.baseUrl,
