@@ -214,6 +214,28 @@ AI 生成首页时必须把 `home-module-bricks.md` 当成模块参考，而不�
 - 小尺寸积木（`1x1`、`1x2`）不能孤立占据整行，必须和资产、资金、开户、KYC、快捷入口等相关积木成组排布；`3x1`、`3x2` 才适合整行视觉或长列表。
 - 预览页和正式首页都不能展示 `brickName`、`brickSize`、`brickReason` 等积木说明条；管理员要看这些信息时，应在方案摘要、调用记录或 DOM 调试属性里查看。
 
+## 页面治理契约
+
+AI 生成首页不能只靠 prompt 自觉遵守结构。每个结果都要先经过 `pageIntent` 对应的治理契约，再进入预览和发布。治理契约在 `home-personalization.js` 的 `PAGE_GOVERNANCE_CONTRACTS` 与 `evaluatePageGovernance()` 中执行，服务端 prompt 与 mock/enforce 流程在 `server.js` 同步一份同名约束。
+
+治理契约至少检查五件事：
+
+1. 页面主目标是否清楚：首屏必须出现该意图的核心模块。
+2. 主操作是否重复过度：入金、开户、报名等 CTA 不能因为多个积木相关而满屏重复。
+3. 操作区是否早于账号区：快捷入口、资金动作、开户动作应在长表格和账号列表之前。
+4. 低优先级模块是否克制：和当前目标弱相关的模块不能挤进首屏主线。
+5. 模块数量是否可控：优先做清晰分层，不把所有可用模块堆到一屏。
+
+预览页左侧会展示 `页面质检` 分数。低于 90 分时，不要只改文案，应回到 `sections`、`moduleStyles`、`moduleSettings` 和 `brickPlan` 调整结构。
+
+入金转化页是当前最严格的契约：
+
+- 首屏必须用 `promoBanner.depositLadder` / `PromotionBanner.variant=depositLadder` 展示 `$500`、`$2,000`、`$10,000` 三档奖励和最高赠金 `$300`。
+- 首屏组合必须是 `promoHighlight + walletBalance + fundActions + openAccountActions`，再由下一层承接 `quickActions`。
+- 主入金 CTA 只保留在资金操作区；快捷入口不能再重复入金或开真实账号，应放 `transfer`、`orders`、`positions`、`contactService` 等二级处理任务。
+- 出金、钱包列表、资产总览、复杂图表、推广和独立创建账号表单都属于弱化项，不应抢首屏。
+- 账号区可以展示交易账号、余额、信用额、杠杆和轻量趋势，但要放在操作区之后。
+
 ## brick-v2 积木方案
 
 首页生成从现在开始按 `brick-v2` 处理：先选业务积木，再生成首页蓝图，最后由白名单渲染器输出用户端首页。大模型只负责选择和排序，不直接生成正式首页 HTML/CSS/JS。

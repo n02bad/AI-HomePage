@@ -1405,6 +1405,7 @@ function buildMiniMaxPrompt(payload) {
       "不要绑定账号入口时，moduleSettings.openAccount.bind 必须为 false。",
       "入金/出金出现时，emphasis.deposit 使用 high，且 assets.showFundActions 为 true。",
       "入金转化页必须返回 PromotionBanner.variant=depositLadder、moduleStyles.promoHighlight=deposit-ladder、quickActions.actions=[transfer,orders,positions,contactService]、openAccount.bind=false、openAccount.demo=false；入金和开真实账号已经由首屏资金操作区承接，不要在快捷入口重复。",
+      "活动增长页必须让 quickActions.actions 包含 eventSignup；专业交易页必须让 quickActions.actions 包含 switchAccount，并优先承接 orders、positions、downloadMt5。",
       "只有明确出现刚注册、新用户、新客、未完成实名、没有完成实名、KYC 待完成、待 KYC、未实名时，moduleSettings.userKycRail.kycStatus 才能为 pending；仅提到 KYC 状态、KYC 侧栏、认证状态时必须保持 verified。",
       "quickActions.actions 只能使用这些 id：openAccount、openReal、deposit、withdraw、transfer、orders、positions、contest、eventSignup、referral、inviteFriends、viewCommission、downloadMaterial、contactService、downloadMt5、switchAccount、kyc、risk；不要发明 switchAccount 以外的 switch 类 id，也不要返回 kycStatus。",
       "IB/代理/渠道增长首页的 quickActions.actions 必须按提示返回具体入口 id，例如 inviteFriends、eventSignup、viewCommission、downloadMaterial、deposit、openReal、contactService。",
@@ -2170,7 +2171,18 @@ function mockHomepageConfig(payload, providerConfig) {
     },
     moduleSettings: {
       adCarousel: { enabled: ["growth", "partner", "brand", "vip", "deposit", "retention"].includes(intent) },
-      quickActions: { enabled: !isAsset && intent !== "risk", count: intent === "deposit" ? 4 : isTrader || intent === "mobile" ? 6 : 8, display: isTrader || intent === "mobile" ? "iconOnly" : "iconText", actions: intent === "deposit" ? ["transfer", "orders", "positions", "contactService"] : [] },
+      quickActions: {
+        enabled: !isAsset && intent !== "risk",
+        count: intent === "deposit" ? 4 : isTrader || intent === "mobile" ? 6 : 8,
+        display: isTrader || intent === "mobile" ? "iconOnly" : "iconText",
+        actions: intent === "deposit"
+          ? ["transfer", "orders", "positions", "contactService"]
+          : isGrowth
+          ? ["eventSignup", "deposit", "contest", "contactService"]
+          : isTrader
+          ? ["switchAccount", "positions", "orders", "downloadMt5", "risk", "deposit"]
+          : [],
+      },
       wallet: { enabled: intent === "deposit" ? true : !(isGrowth && wantsGold), placement: intent === "deposit" ? "standalone" : isGrowth && !wantsWalletList ? "mergedWithAssets" : "standalone", showFundActions: false },
       assets: { enabled: intent === "deposit" ? false : !(isGrowth && wantsGold), showFundActions: intent === "deposit" ? true : !(isGrowth && wantsGold), showAvailable: isAsset, showMargin: isAsset, showRiskLevel: isAsset, wallets: isAsset ? ["USD", "EUR", "USDT"] : [] },
       referral: { enabled: isPartner, showClicks: true, showRegistrations: true, showTradingAccounts: true, showPromoLink: true, showInviteCode: true, showQrCode: true },
@@ -2377,6 +2389,24 @@ function clonePlain(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function homepageQuickActionId(action) {
+  return typeof action === "string" ? action : action?.id;
+}
+
+function prioritizeHomepageQuickActions(settings, priorityIds, options = {}) {
+  const quickActions = ensureObject(settings.quickActions);
+  const currentIds = Array.isArray(quickActions.actions) ? quickActions.actions.map(homepageQuickActionId).filter(Boolean) : [];
+  const actions = [...new Set(priorityIds.concat(currentIds))].slice(0, 8);
+
+  settings.quickActions = {
+    ...quickActions,
+    enabled: true,
+    count: Math.max(Number(quickActions.count || 0), options.count || actions.length),
+    display: options.display || quickActions.display || "iconText",
+    actions,
+  };
+}
+
 function depositGovernedBrickPlan() {
   return [
     { brickId: "promoBanner.depositLadder", brickName: "入金奖励阶梯", family: "PromotionBanner", feature: "promoHighlight", component: "promo_banner", size: "2x2", zone: "hero", reason: "首屏左侧突出 $500/$2,000/$10,000 三档奖励和最高赠金 $300。" },
@@ -2563,6 +2593,14 @@ function enforceHomepagePromptIntent(payload, config) {
     next.aiSummary = "已按入金转化契约重排：首屏奖励阶梯、钱包余额、唯一主入金入口和开真实账号。";
   }
 
+  if (intent === "growth") {
+    prioritizeHomepageQuickActions(settings, ["eventSignup", "deposit", "contest", "contactService"], { count: 4, display: "iconText" });
+  }
+
+  if (intent === "trader") {
+    prioritizeHomepageQuickActions(settings, ["switchAccount", "positions", "orders", "downloadMt5", "risk", "deposit"], { count: 6, display: "iconOnly" });
+  }
+
   const wantsPendingKyc = textHasAny(text, ["刚注册", "新用户", "新客", "未完成实名", "没有完成实名", "还没有完成实名", "待完成", "待 kyc", "kyc 待", "kyc未", "未实名"]);
   const mentionsKycOnly = textHasAny(text, ["kyc 状态", "kyc状态", "安全状态", "认证状态", "kyc"]) && !wantsPendingKyc;
   if (wantsPendingKyc) settings.userKycRail.kycStatus = "pending";
@@ -2604,6 +2642,8 @@ function enforceHomepagePromptIntent(payload, config) {
     ["开户链接", "openAccount"],
     ["邀请好友", "inviteFriends"],
     ["活动报名", "eventSignup"],
+    ["报名入口", "eventSignup"],
+    ["报名", "eventSignup"],
     ["查看返佣", "viewCommission"],
     ["返佣", "viewCommission"],
     ["下载素材", "downloadMaterial"],
@@ -2616,6 +2656,8 @@ function enforceHomepagePromptIntent(payload, config) {
     ["kyc", "kyc"],
     ["下载 mt5", "downloadMt5"],
     ["mt5", "downloadMt5"],
+    ["订单", "orders"],
+    ["持仓", "positions"],
     ["风险", "risk"],
   ].forEach(([keyword, actionId]) => {
     if (text.includes(keyword) && !requestedActions.includes(actionId)) requestedActions.push(actionId);

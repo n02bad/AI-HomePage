@@ -2438,9 +2438,9 @@
 
     next.pageIntent = normalizePageIntent(source.pageIntent || next.pageIntent, intent);
 
-    if (intent === "deposit") {
-      next.name = includesAny(String(next.name || ""), ["入金", "奖励"]) ? next.name : "入金奖励阶梯首页";
-      next.layoutPreset = "conversionFirst";
+	    if (intent === "deposit") {
+	      next.name = includesAny(String(next.name || ""), ["入金", "奖励"]) ? next.name : "入金奖励阶梯首页";
+	      next.layoutPreset = "conversionFirst";
       next.designGenome = "depositLadder";
       next.pageStory = "depositConversion";
       next.heroFocus = "promo_banner";
@@ -2485,10 +2485,17 @@
         applyBrickMetadataToLayout(normalizeHomepageLayout(layoutFromSections(next.sections), next.sections).layout, next.brickPlan, next.modules),
         next.moduleSettings,
       );
-      next.emphasis = { ...next.emphasis, deposit: "high", openAccount: "high", promo: "high", accounts: "medium" };
-      next.aiSummary = "已按入金转化契约重排：首屏奖励阶梯、钱包余额、唯一主入金入口和开真实账号。";
+	      next.emphasis = { ...next.emphasis, deposit: "high", openAccount: "high", promo: "high", accounts: "medium" };
+	      next.aiSummary = "已按入金转化契约重排：首屏奖励阶梯、钱包余额、唯一主入金入口和开真实账号。";
+	    }
+
+    if (intent === "growth") {
+      next.moduleSettings = prioritizeQuickActions(next.moduleSettings, ["eventSignup", "deposit", "contest", "contactService"], { count: 4, display: "iconText" });
     }
 
+    if (intent === "trader") {
+      next.moduleSettings = prioritizeQuickActions(next.moduleSettings, ["switchAccount", "positions", "orders", "downloadMt5", "risk", "deposit"], { count: 6, display: "iconOnly" });
+    }
     if (hasStandaloneFundActions(next)) {
       next.moduleSettings.wallet.showFundActions = false;
     }
@@ -2576,6 +2583,27 @@
     });
 
     return next;
+  }
+
+  function quickActionId(action) {
+    return typeof action === "string" ? action : action?.id;
+  }
+
+  function prioritizeQuickActions(settings, priorityIds, options = {}) {
+    const quickActions = settings?.quickActions && typeof settings.quickActions === "object" ? settings.quickActions : {};
+    const currentIds = Array.isArray(quickActions.actions) ? quickActions.actions.map(quickActionId).filter(Boolean) : [];
+    const actions = [...new Set(priorityIds.concat(currentIds))].slice(0, MAX_QUICK_ACTIONS);
+
+    return normalizeModuleSettings(
+      mergeSettingsObject(settings, {
+        quickActions: {
+          enabled: true,
+          count: Math.max(Number(quickActions.count || 0), options.count || actions.length),
+          display: options.display || quickActions.display || "iconText",
+          actions,
+        },
+      }),
+    );
   }
 
   function addBrickId(ids, id, mode = "append") {
