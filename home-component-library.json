@@ -28,7 +28,7 @@
       ],
       "sourcePrompt": "",
       "createdAt": "2026-05-08T09:18:13.977Z",
-      "updatedAt": "2026-05-08T09:33:25.954Z"
+      "updatedAt": "2026-05-09T03:44:17.720Z"
     },
     {
       "id": "fund-actions-priority-dock",
@@ -54,7 +54,7 @@
       ],
       "sourcePrompt": "",
       "createdAt": "2026-05-08T09:18:13.977Z",
-      "updatedAt": "2026-05-08T09:33:25.954Z"
+      "updatedAt": "2026-05-09T03:44:17.720Z"
     },
     {
       "id": "quick-actions-action-dock",
@@ -80,7 +80,7 @@
       ],
       "sourcePrompt": "",
       "createdAt": "2026-05-08T09:18:13.977Z",
-      "updatedAt": "2026-05-08T09:33:25.954Z"
+      "updatedAt": "2026-05-09T03:44:17.720Z"
     },
     {
       "id": "ad-carousel-hero-campaign",
@@ -107,7 +107,36 @@
       ],
       "sourcePrompt": "",
       "createdAt": "2026-05-08T09:18:13.977Z",
-      "updatedAt": "2026-05-08T09:33:25.954Z"
+      "updatedAt": "2026-05-09T03:44:17.720Z"
+    },
+    {
+      "id": "promo-banner-deposit-ladder",
+      "type": "system",
+      "name": "入金奖励阶梯",
+      "family": "PromotionBanner",
+      "size": "2x2",
+      "description": "入金转化首页首屏积木，展示 $500/$2,000/$10,000 三档奖励和最高赠金 $300。",
+      "tags": [
+        "deposit",
+        "bonus",
+        "ladder",
+        "conversion"
+      ],
+      "html": "<section class=\"brick-deposit-ladder\"><header><span>Deposit Bonus</span><strong>入金奖励阶梯</strong><p>$500 / $2,000 / $10,000 三档入金，最高赠金 $300。</p></header><div><article><small>Starter</small><b>$500</b><span>赠金 $30</span></article><article><small>Growth</small><b>$2,000</b><span>赠金 $100</span></article><article><small>Prime</small><b>$10,000</b><span>赠金 $300</span></article></div></section>",
+      "css": ".brick-deposit-ladder{min-height:220px;display:grid;grid-template-columns:minmax(160px,.8fr) minmax(220px,1.2fr);gap:14px;padding:18px;border:1px solid #bfdbfe;border-radius:8px;background:#fff;color:#172033}.brick-deposit-ladder header{display:grid;align-content:center;gap:8px}.brick-deposit-ladder span,.brick-deposit-ladder small{color:#2563eb;font-size:12px;font-weight:900}.brick-deposit-ladder strong{font-size:28px;font-weight:950}.brick-deposit-ladder p{margin:0;color:#64748b;font-size:13px}.brick-deposit-ladder div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.brick-deposit-ladder article{display:grid;gap:7px;padding:14px;border:1px solid #dbe3ef;border-radius:8px;background:#eff6ff}.brick-deposit-ladder b{font-size:22px;font-weight:950}@media(max-width:720px){.brick-deposit-ladder,.brick-deposit-ladder div{grid-template-columns:1fr}}",
+      "layoutHints": [
+        "hero",
+        "2x2",
+        "入金转化首屏主价值"
+      ],
+      "dataRequirements": [
+        "depositTiers",
+        "bonusAmount",
+        "depositUrl"
+      ],
+      "sourcePrompt": "入金转化首页，首屏突出 $500/$2,000/$10,000 三档入金奖励、最高赠金 $300。",
+      "createdAt": "2026-05-09T00:00:00.000Z",
+      "updatedAt": "2026-05-09T00:00:00.000Z"
     },
     {
       "id": "referral-link-growth-console",
@@ -136,7 +165,7 @@
       ],
       "sourcePrompt": "",
       "createdAt": "2026-05-08T09:18:13.977Z",
-      "updatedAt": "2026-05-08T09:33:25.954Z"
+      "updatedAt": "2026-05-09T03:44:17.720Z"
     },
     {
       "id": "onboarding-progress-checklist",
@@ -164,7 +193,7 @@
       ],
       "sourcePrompt": "",
       "createdAt": "2026-05-08T09:18:13.977Z",
-      "updatedAt": "2026-05-08T09:33:25.954Z"
+      "updatedAt": "2026-05-09T03:44:17.720Z"
     },
     {
       "id": "open-account-side-panel",
@@ -190,7 +219,7 @@
       ],
       "sourcePrompt": "",
       "createdAt": "2026-05-08T09:18:13.977Z",
-      "updatedAt": "2026-05-08T09:33:25.954Z"
+      "updatedAt": "2026-05-09T03:44:17.720Z"
     },
     {
       "id": "user-kyc-rail-profile-wallet",
@@ -218,7 +247,7 @@
       ],
       "sourcePrompt": "",
       "createdAt": "2026-05-08T09:18:13.977Z",
-      "updatedAt": "2026-05-08T09:33:25.954Z"
+      "updatedAt": "2026-05-09T03:44:17.720Z"
     },
     {
       "id": "account-performance-pro-chart",
@@ -247,7 +276,7 @@
       ],
       "sourcePrompt": "",
       "createdAt": "2026-05-08T09:18:13.977Z",
-      "updatedAt": "2026-05-08T09:33:25.954Z"
+      "updatedAt": "2026-05-09T03:44:17.720Z"
     },
     {
       "id": "trading-accounts-separated-list",
@@ -275,34 +304,37 @@
       ],
       "sourcePrompt": "",
       "createdAt": "2026-05-08T09:18:13.977Z",
-      "updatedAt": "2026-05-08T09:33:25.954Z"
+      "updatedAt": "2026-05-09T03:44:17.720Z"
     },
     {
       "id": "wallet-list-currency-table",
       "type": "ai-generated",
-      "name": "多币种钱包列表",
+      "name": "多币种钱包卡片组",
       "family": "WalletList",
       "size": "3x2",
-      "description": "USD、EUR、USDT 等钱包余额和资金动作列表。",
+      "description": "多币种钱包卡片，仅包含钱包货币、对应国家/币种圆形图标和钱包余额。",
       "tags": [
         "wallet",
         "currency",
         "table",
         "asset"
       ],
-      "html": "<section class=\"brick-wallet-list\"><span>Wallets</span><strong>Multi-currency balances</strong><p>Currency rows with available balance and deposit action.</p></section>",
-      "css": ".brick-wallet-list{min-height:200px;display:grid;gap:10px;padding:18px;border:1px solid #dbe3ef;border-radius:8px;background:#fff}.brick-wallet-list span{color:#2563eb;font-size:12px;font-weight:900}.brick-wallet-list strong{font-size:24px}.brick-wallet-list p{margin:0;color:#64748b}",
+      "html": "<section class=\"brick-wallet-list\"><header><span>Wallet List</span><strong>多币种钱包</strong></header><div class=\"wallets\"><article><span><i>🇺🇸</i><b>USD</b></span><strong>99,999.99</strong></article><article><span><i>🇦🇺</i><b>AUD</b></span><strong>10.48</strong></article><article><span><i>₮</i><b>USDT</b></span><strong>6,280.00</strong></article></div></section>",
+      "css": ".brick-wallet-list{min-height:220px;display:grid;gap:14px;padding:18px;border:1px solid #dbe3ef;border-radius:8px;background:#fff;color:#172033;font-family:Inter,system-ui,sans-serif}.brick-wallet-list *{box-sizing:border-box}.brick-wallet-list header{display:flex;align-items:center;justify-content:space-between;gap:10px}.brick-wallet-list header span{color:#64748b;font-size:12px;font-weight:850}.brick-wallet-list header strong{color:#111827;font-size:22px;font-weight:950}.brick-wallet-list .wallets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.brick-wallet-list article{display:grid;gap:12px;padding:14px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fbff}.brick-wallet-list article span{display:flex;align-items:center;gap:9px;min-width:0}.brick-wallet-list article i{width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #dbe3ef;border-radius:999px;background:#fff;color:#172033;font-size:15px;font-style:normal;font-weight:950}.brick-wallet-list article b{color:#172033;font-size:15px;font-weight:950}.brick-wallet-list article strong{color:#111827;font-size:24px;font-weight:950;font-variant-numeric:tabular-nums;letter-spacing:0}@media(max-width:720px){.brick-wallet-list .wallets{grid-template-columns:1fr}}",
       "layoutHints": [
         "full",
-        "3x2"
+        "3x2",
+        "仅展示币种和余额"
       ],
       "dataRequirements": [
         "walletRows",
-        "fundingActions"
+        "currency",
+        "balance",
+        "currencyIcon"
       ],
-      "sourcePrompt": "",
+      "sourcePrompt": "钱包列表，做一个多币种卡片；每张卡只包含钱包货币、对应国家或币种圆形图标、钱包余额。",
       "createdAt": "2026-05-08T09:18:13.977Z",
-      "updatedAt": "2026-05-08T09:33:25.954Z"
+      "updatedAt": "2026-05-09T03:44:17.720Z"
     },
     {
       "id": "create-account-real-form",
@@ -329,7 +361,188 @@
       ],
       "sourcePrompt": "",
       "createdAt": "2026-05-08T09:18:13.977Z",
-      "updatedAt": "2026-05-08T09:33:25.954Z"
+      "updatedAt": "2026-05-09T03:44:17.720Z"
+    },
+    {
+      "id": "walletlist-mox0bx0w",
+      "type": "ai-generated",
+      "name": "多币种钱包卡片组",
+      "family": "WalletList",
+      "size": "3x2",
+      "description": "多币种钱包卡片，仅包含钱包货币、对应国家/币种圆形图标和钱包余额。",
+      "tags": [
+        "wallet",
+        "balance",
+        "multi-currency",
+        "table"
+      ],
+      "html": "<section class=\"wallet-list-container\"><header><span>Wallet List</span><strong>多币种钱包</strong></header><div class=\"wallets\"><article><span><i>🇺🇸</i><b>USD</b></span><strong>99,999.99</strong></article><article><span><i>🇦🇺</i><b>AUD</b></span><strong>10.48</strong></article><article><span><i>₮</i><b>USDT</b></span><strong>6,280.00</strong></article></div></section>",
+      "css": ".wallet-list-container{min-height:220px;display:grid;gap:14px;padding:18px;border:1px solid #dbe3ef;border-radius:8px;background:#fff;color:#172033;font-family:Inter,system-ui,sans-serif}.wallet-list-container *{box-sizing:border-box}.wallet-list-container header{display:flex;align-items:center;justify-content:space-between;gap:10px}.wallet-list-container header span{color:#64748b;font-size:12px;font-weight:850}.wallet-list-container header strong{color:#111827;font-size:22px;font-weight:950}.wallet-list-container .wallets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.wallet-list-container article{display:grid;gap:12px;padding:14px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fbff}.wallet-list-container article span{display:flex;align-items:center;gap:9px;min-width:0}.wallet-list-container article i{width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #dbe3ef;border-radius:999px;background:#fff;color:#172033;font-size:15px;font-style:normal;font-weight:950}.wallet-list-container article b{color:#172033;font-size:15px;font-weight:950}.wallet-list-container article strong{color:#111827;font-size:24px;font-weight:950;font-variant-numeric:tabular-nums;letter-spacing:0}@media(max-width:720px){.wallet-list-container .wallets{grid-template-columns:1fr}}",
+      "layoutHints": [
+        "3x2",
+        "仅展示币种和余额"
+      ],
+      "dataRequirements": [
+        "walletRows",
+        "currency",
+        "balance",
+        "currencyIcon"
+      ],
+      "sourcePrompt": "钱包列表，做一个多币种卡片；每张卡只包含钱包货币、对应国家或币种圆形图标、钱包余额。",
+      "createdAt": "2026-05-08T14:25:26.000Z",
+      "updatedAt": "2026-05-09T03:44:17.720Z"
+    },
+    {
+      "id": "walletlist-mox0vhpd",
+      "type": "ai-generated",
+      "name": "多币种钱包卡片",
+      "family": "WalletList",
+      "size": "3x2",
+      "description": "多币种钱包卡片，仅包含钱包货币、对应国家/币种圆形图标和钱包余额。",
+      "tags": [
+        "钱包",
+        "余额",
+        "多币种"
+      ],
+      "html": "<section class=\"wallet-card-group\"><header><span>Wallet List</span><strong>多币种钱包</strong></header><div class=\"wallets\"><article><span><i>🇺🇸</i><b>USD</b></span><strong>99,999.99</strong></article><article><span><i>🇦🇺</i><b>AUD</b></span><strong>10.48</strong></article><article><span><i>₮</i><b>USDT</b></span><strong>6,280.00</strong></article></div></section>",
+      "css": ".wallet-card-group{min-height:220px;display:grid;gap:14px;padding:18px;border:1px solid #dbe3ef;border-radius:8px;background:#fff;color:#172033;font-family:Inter,system-ui,sans-serif}.wallet-card-group *{box-sizing:border-box}.wallet-card-group header{display:flex;align-items:center;justify-content:space-between;gap:10px}.wallet-card-group header span{color:#64748b;font-size:12px;font-weight:850}.wallet-card-group header strong{color:#111827;font-size:22px;font-weight:950}.wallet-card-group .wallets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.wallet-card-group article{display:grid;gap:12px;padding:14px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fbff}.wallet-card-group article span{display:flex;align-items:center;gap:9px;min-width:0}.wallet-card-group article i{width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #dbe3ef;border-radius:999px;background:#fff;color:#172033;font-size:15px;font-style:normal;font-weight:950}.wallet-card-group article b{color:#172033;font-size:15px;font-weight:950}.wallet-card-group article strong{color:#111827;font-size:24px;font-weight:950;font-variant-numeric:tabular-nums;letter-spacing:0}@media(max-width:720px){.wallet-card-group .wallets{grid-template-columns:1fr}}",
+      "layoutHints": [
+        "3x2",
+        "仅展示币种和余额"
+      ],
+      "dataRequirements": [
+        "walletRows",
+        "currency",
+        "balance",
+        "currencyIcon"
+      ],
+      "sourcePrompt": "钱包列表，做一个多币种卡片；每张卡只包含钱包货币、对应国家或币种圆形图标、钱包余额。",
+      "createdAt": "2026-05-08T14:40:39.266Z",
+      "updatedAt": "2026-05-09T03:44:17.720Z"
+    },
+    {
+      "id": "walletlist-moxsk0ak",
+      "type": "ai-generated",
+      "name": "多币种钱包卡片组",
+      "family": "WalletList",
+      "size": "2x2",
+      "description": "多币种钱包卡片，仅包含钱包货币、对应国家/币种圆形图标和钱包余额。",
+      "tags": [
+        "WalletList",
+        "2x2",
+        "AI",
+        "business"
+      ],
+      "html": "<section class=\"walletlist-moxsk0ak\"><header><span>Wallet List</span><strong>多币种钱包</strong></header><div class=\"wallets\"><article><span><i>🇺🇸</i><b>USD</b></span><strong>99,999.99</strong></article><article><span><i>🇦🇺</i><b>AUD</b></span><strong>10.48</strong></article><article><span><i>₮</i><b>USDT</b></span><strong>6,280.00</strong></article></div></section>",
+      "css": ".walletlist-moxsk0ak{min-height:220px;display:grid;gap:14px;padding:18px;border:1px solid #dbe3ef;border-radius:8px;background:#fff;color:#172033;font-family:Inter,system-ui,sans-serif}.walletlist-moxsk0ak *{box-sizing:border-box}.walletlist-moxsk0ak header{display:flex;align-items:center;justify-content:space-between;gap:10px}.walletlist-moxsk0ak header span{color:#64748b;font-size:12px;font-weight:850}.walletlist-moxsk0ak header strong{color:#111827;font-size:22px;font-weight:950}.walletlist-moxsk0ak .wallets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.walletlist-moxsk0ak article{display:grid;gap:12px;padding:14px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fbff}.walletlist-moxsk0ak article span{display:flex;align-items:center;gap:9px;min-width:0}.walletlist-moxsk0ak article i{width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #dbe3ef;border-radius:999px;background:#fff;color:#172033;font-size:15px;font-style:normal;font-weight:950}.walletlist-moxsk0ak article b{color:#172033;font-size:15px;font-weight:950}.walletlist-moxsk0ak article strong{color:#111827;font-size:24px;font-weight:950;font-variant-numeric:tabular-nums;letter-spacing:0}@media(max-width:720px){.walletlist-moxsk0ak .wallets{grid-template-columns:1fr}}",
+      "layoutHints": [
+        "2x2",
+        "可直接参与首页 hero/main/rail/full 编排",
+        "多币种钱包列表或卡片组",
+        "仅展示币种和余额"
+      ],
+      "dataRequirements": [
+        "walletRows",
+        "currency",
+        "balance",
+        "currencyIcon"
+      ],
+      "sourcePrompt": "钱包列表，做一个多币种卡片；每张卡只包含钱包货币、对应国家或币种圆形图标、钱包余额。",
+      "createdAt": "2026-05-09T03:35:32.732Z",
+      "updatedAt": "2026-05-09T03:44:17.720Z"
+    },
+    {
+      "id": "walletlist-moxslfk6",
+      "type": "ai-generated",
+      "name": "多币种钱包卡片组",
+      "family": "WalletList",
+      "size": "2x2",
+      "description": "多币种钱包卡片，仅包含钱包货币、对应国家/币种圆形图标和钱包余额。",
+      "tags": [
+        "WalletList",
+        "2x2",
+        "AI",
+        "business"
+      ],
+      "html": "<section class=\"walletlist-moxslfk6\"><header><span>Wallet List</span><strong>多币种钱包</strong></header><div class=\"wallets\"><article><span><i>🇺🇸</i><b>USD</b></span><strong>99,999.99</strong></article><article><span><i>🇦🇺</i><b>AUD</b></span><strong>10.48</strong></article><article><span><i>₮</i><b>USDT</b></span><strong>6,280.00</strong></article></div></section>",
+      "css": ".walletlist-moxslfk6{min-height:220px;display:grid;gap:14px;padding:18px;border:1px solid #dbe3ef;border-radius:8px;background:#fff;color:#172033;font-family:Inter,system-ui,sans-serif}.walletlist-moxslfk6 *{box-sizing:border-box}.walletlist-moxslfk6 header{display:flex;align-items:center;justify-content:space-between;gap:10px}.walletlist-moxslfk6 header span{color:#64748b;font-size:12px;font-weight:850}.walletlist-moxslfk6 header strong{color:#111827;font-size:22px;font-weight:950}.walletlist-moxslfk6 .wallets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.walletlist-moxslfk6 article{display:grid;gap:12px;padding:14px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fbff}.walletlist-moxslfk6 article span{display:flex;align-items:center;gap:9px;min-width:0}.walletlist-moxslfk6 article i{width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #dbe3ef;border-radius:999px;background:#fff;color:#172033;font-size:15px;font-style:normal;font-weight:950}.walletlist-moxslfk6 article b{color:#172033;font-size:15px;font-weight:950}.walletlist-moxslfk6 article strong{color:#111827;font-size:24px;font-weight:950;font-variant-numeric:tabular-nums;letter-spacing:0}@media(max-width:720px){.walletlist-moxslfk6 .wallets{grid-template-columns:1fr}}",
+      "layoutHints": [
+        "2x2",
+        "可直接参与首页 hero/main/rail/full 编排",
+        "多币种钱包列表或卡片组",
+        "仅展示币种和余额"
+      ],
+      "dataRequirements": [
+        "walletRows",
+        "currency",
+        "balance",
+        "currencyIcon"
+      ],
+      "sourcePrompt": "钱包列表，做一个多币种卡片；每张卡只包含钱包货币、对应国家或币种圆形图标、钱包余额。",
+      "createdAt": "2026-05-09T03:36:39.174Z",
+      "updatedAt": "2026-05-09T03:44:17.720Z"
+    },
+    {
+      "id": "walletlist-moxsm42j",
+      "type": "ai-generated",
+      "name": "多币种钱包卡片组",
+      "family": "WalletList",
+      "size": "2x2",
+      "description": "多币种钱包卡片，仅包含钱包货币、对应国家/币种圆形图标和钱包余额。",
+      "tags": [
+        "WalletList",
+        "2x2",
+        "AI",
+        "business"
+      ],
+      "html": "<section class=\"walletlist-moxsm42j\"><header><span>Wallet List</span><strong>多币种钱包</strong></header><div class=\"wallets\"><article><span><i>🇺🇸</i><b>USD</b></span><strong>99,999.99</strong></article><article><span><i>🇦🇺</i><b>AUD</b></span><strong>10.48</strong></article><article><span><i>₮</i><b>USDT</b></span><strong>6,280.00</strong></article></div></section>",
+      "css": ".walletlist-moxsm42j{min-height:220px;display:grid;gap:14px;padding:18px;border:1px solid #dbe3ef;border-radius:8px;background:#fff;color:#172033;font-family:Inter,system-ui,sans-serif}.walletlist-moxsm42j *{box-sizing:border-box}.walletlist-moxsm42j header{display:flex;align-items:center;justify-content:space-between;gap:10px}.walletlist-moxsm42j header span{color:#64748b;font-size:12px;font-weight:850}.walletlist-moxsm42j header strong{color:#111827;font-size:22px;font-weight:950}.walletlist-moxsm42j .wallets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.walletlist-moxsm42j article{display:grid;gap:12px;padding:14px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fbff}.walletlist-moxsm42j article span{display:flex;align-items:center;gap:9px;min-width:0}.walletlist-moxsm42j article i{width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #dbe3ef;border-radius:999px;background:#fff;color:#172033;font-size:15px;font-style:normal;font-weight:950}.walletlist-moxsm42j article b{color:#172033;font-size:15px;font-weight:950}.walletlist-moxsm42j article strong{color:#111827;font-size:24px;font-weight:950;font-variant-numeric:tabular-nums;letter-spacing:0}@media(max-width:720px){.walletlist-moxsm42j .wallets{grid-template-columns:1fr}}",
+      "layoutHints": [
+        "2x2",
+        "可直接参与首页 hero/main/rail/full 编排",
+        "多币种钱包列表或卡片组",
+        "仅展示币种和余额"
+      ],
+      "dataRequirements": [
+        "walletRows",
+        "currency",
+        "balance",
+        "currencyIcon"
+      ],
+      "sourcePrompt": "钱包列表，做一个多币种卡片；每张卡只包含钱包货币、对应国家或币种圆形图标、钱包余额。",
+      "createdAt": "2026-05-09T03:37:10.939Z",
+      "updatedAt": "2026-05-09T03:44:17.720Z"
+    },
+    {
+      "id": "walletlist-moxsv9di",
+      "type": "ai-generated",
+      "name": "多币种钱包卡片组",
+      "family": "WalletList",
+      "size": "2x1",
+      "description": "以卡片或表格展示多币种钱包、余额、可用资金和出入金动作。 通过 DeepSeek / deepseek-v4-flash 生成。",
+      "tags": [
+        "WalletList",
+        "2x1",
+        "AI",
+        "business"
+      ],
+      "html": "<section class=\"walletlist-moxsv9di\"><header><span>Wallet List</span><strong>多币种钱包</strong></header><div class=\"wallets\"><article><b>USD Wallet</b><strong>99,999.99</strong><span>Available 92,100.00</span><button class=\"primary\" type=\"button\">Deposit</button></article><article><b>AUD Wallet</b><strong>10.48</strong><span>Available 10.48</span><button type=\"button\">Withdraw</button></article><article><b>USDT Wallet</b><strong>6,280.00</strong><span>TRC20</span><button type=\"button\">Transfer</button></article></div></section>",
+      "css": "\n    .walletlist-moxsv9di{min-height:168px;display:grid;gap:14px;padding:18px;border:1px solid #dbe3ef;border-radius:8px;background:#fff;color:#172033;font-family:Inter,system-ui,sans-serif}\n    .walletlist-moxsv9di *{box-sizing:border-box}\n    .walletlist-moxsv9di span,.walletlist-moxsv9di small{color:#64748b;font-size:12px;font-weight:850}\n    .walletlist-moxsv9di strong{color:#111827;font-weight:950;letter-spacing:0}\n    .walletlist-moxsv9di button,.walletlist-moxsv9di a{min-height:34px;display:inline-flex;align-items:center;justify-content:center;padding:0 11px;border:1px solid #dbe3ef;border-radius:8px;background:#f8fbff;color:#172033;font-size:12px;font-weight:900;text-decoration:none}\n    .walletlist-moxsv9di .primary{border-color:#2563eb;background:#2563eb;color:#fff}\n  .walletlist-moxsv9di header{display:flex;align-items:center;justify-content:space-between;gap:10px}.walletlist-moxsv9di .wallets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.walletlist-moxsv9di article{display:grid;gap:7px;padding:12px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fbff}.walletlist-moxsv9di article strong{font-size:20px}.walletlist-moxsv9di button{width:100%}@media(max-width:720px){.walletlist-moxsv9di .wallets{grid-template-columns:1fr}}",
+      "layoutHints": [
+        "2x1",
+        "可直接参与首页 hero/main/rail/full 编排",
+        "多币种钱包列表或卡片组"
+      ],
+      "dataRequirements": [
+        "walletRows",
+        "currency",
+        "balance",
+        "availableBalance",
+        "fundingActions"
+      ],
+      "sourcePrompt": "钱包列表，做一个多币种卡片。只显示钱包货币，还有钱包余额，其他的内容不要需要。然后货币旁边增加货币对应的国家过期的icon要圆形的。",
+      "createdAt": "2026-05-09T03:44:17.719Z",
+      "updatedAt": "2026-05-09T03:44:17.720Z"
     }
   ]
 }

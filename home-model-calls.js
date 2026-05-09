@@ -174,10 +174,15 @@
       record.status,
       statusLabel(record),
       actionLabel(record.action),
-      record.prompt,
-      record.message,
-      endpointLabel(record),
-      record.source,
+	      record.prompt,
+	      record.message,
+	      record.configSnapshot?.intent,
+	      record.configSnapshot?.strategy,
+	      record.configSnapshot?.layoutPreset,
+	      record.configSnapshot?.themePreset,
+	      ...(Array.isArray(record.configSnapshot?.brickIds) ? record.configSnapshot.brickIds : []),
+	      endpointLabel(record),
+	      record.source,
     ]
       .filter(Boolean)
       .join(" ")
@@ -263,7 +268,7 @@
     return `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value || "--")}</dd></div>`;
   }
 
-  function renderDetail(record) {
+	  function renderDetail(record) {
     if (!els.detail) return;
 
     if (!record) {
@@ -271,10 +276,20 @@
       return;
     }
 
-    const display = displayRecord(record);
-    const safeRecord = redactRecord(record);
+	    const display = displayRecord(record);
+	    const safeRecord = redactRecord(record);
+	    const snapshot = record.configSnapshot || {};
+	    const structureRows = [
+	      ["首页名称", snapshot.name],
+	      ["意图", snapshot.intent],
+	      ["布局", snapshot.layoutPreset],
+	      ["主题", snapshot.themePreset],
+	      ["策略", snapshot.strategy],
+	      ["积木", Array.isArray(snapshot.brickIds) ? snapshot.brickIds.join(" → ") : ""],
+	      ["分区", Array.isArray(snapshot.sections) ? snapshot.sections.join(" / ") : ""],
+	    ].filter(([, value]) => value);
 
-    els.detail.innerHTML = `
+	    els.detail.innerHTML = `
       <header>
         <span class="section-kicker">${escapeHtml(actionLabel(record.action).toUpperCase())}</span>
         <h2>${escapeHtml(record.provider || "本地规则")} / ${escapeHtml(record.model || "--")}</h2>
@@ -295,11 +310,18 @@
         <h3>提示词</h3>
         <p>${escapeHtml(record.prompt || "--")}</p>
       </section>
-      <section>
-        <h3>结果摘要</h3>
-        <p>${escapeHtml(display.summary)}</p>
-      </section>
-      ${
+	      <section>
+	        <h3>结果摘要</h3>
+	        <p>${escapeHtml(display.summary)}</p>
+	      </section>
+	      ${
+	        structureRows.length
+	          ? `<section><h3>首页结构</h3><dl class="model-call-detail-grid">${structureRows
+	              .map(([label, value]) => detailRow(label, value))
+	              .join("")}</dl></section>`
+	          : ""
+	      }
+	      ${
         display.advice
           ? `<section class="model-call-warning"><h3>处理建议</h3><p>${escapeHtml(display.advice)}</p></section>`
           : ""

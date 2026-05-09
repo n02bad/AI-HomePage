@@ -5,6 +5,36 @@ const path = require("path");
 const { URL } = require("url");
 
 const ROOT_DIR = __dirname;
+
+function loadLocalEnvFile(filename) {
+  const envPath = path.join(ROOT_DIR, filename);
+  if (!fs.existsSync(envPath)) return;
+
+  const lines = fs.readFileSync(envPath, "utf8").split(/\r?\n/);
+  lines.forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) return;
+
+    const separatorIndex = trimmed.indexOf("=");
+    if (separatorIndex <= 0) return;
+
+    const key = trimmed.slice(0, separatorIndex).trim();
+    let value = trimmed.slice(separatorIndex + 1).trim();
+    if (!/^[A-Z_][A-Z0-9_]*$/.test(key) || process.env[key]) return;
+
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    process.env[key] = value;
+  });
+}
+
+loadLocalEnvFile(".env");
+loadLocalEnvFile(".env.local");
+
 const PORT = Number(process.env.PORT || 5174);
 const MAX_BODY_BYTES = 1_200_000;
 const COMPONENT_LIBRARY_FILE = path.join(ROOT_DIR, "home-component-library.json");
@@ -139,6 +169,335 @@ const COMPONENT_FAMILIES = [
 ];
 
 const COMPONENT_SIZES = ["1x1", "1x2", "2x1", "2x2", "3x1", "3x2"];
+
+const HOMEPAGE_INTENT_PRESETS = {
+  standard: {
+    label: "标准工作台",
+    layoutPreset: "accountOpsConsole",
+    themePreset: "default",
+    density: "balanced",
+    heroFocus: "asset_summary",
+    primaryGoal: "保留资产、资金、快捷操作和交易账号的平衡首页。",
+    mustHave: ["balanceTotal", "fundActions", "quickActions", "tradingAccounts"],
+    avoid: [],
+  },
+  asset: {
+    label: "资产管理",
+    layoutPreset: "accountOpsConsole",
+    themePreset: "blueFinance",
+    density: "balanced",
+    heroFocus: "asset_summary",
+    primaryGoal: "突出总资产、多币种钱包、资金状态和账号表现。",
+    mustHave: ["balanceTotal", "fundActions", "walletList", "accountPerformance", "riskNotice", "tradingAccounts"],
+    avoid: ["adCarousel", "promoHighlight", "referralLink", "quickActions", "openAccountActions", "createAccountForm"],
+  },
+  growth: {
+    label: "活动增长",
+    layoutPreset: "magazineCampaign",
+    themePreset: "darkTech",
+    density: "balanced",
+    heroFocus: "ad_carousel",
+    primaryGoal: "用活动主视觉、快捷参与和转化入口推动报名、入金和交易。",
+    mustHave: ["adCarousel", "quickActions", "promoHighlight", "tradingAccounts"],
+    avoid: ["walletList", "createAccountForm"],
+  },
+  trader: {
+    label: "专业交易",
+    layoutPreset: "tradingCommand",
+    themePreset: "default",
+    density: "compact",
+    heroFocus: "account_list",
+    primaryGoal: "让高频交易入口、账号列表、持仓和表现数据成为首要路径。",
+    mustHave: ["quickActions", "accountPerformance", "tradingAccounts", "userKycRail"],
+    avoid: ["adCarousel", "promoHighlight", "referralLink", "createAccountForm"],
+  },
+  onboarding: {
+    label: "新客开户",
+    layoutPreset: "onboardingJourney",
+    themePreset: "blueFinance",
+    density: "compact",
+    heroFocus: "onboarding_progress",
+    primaryGoal: "引导新客完成 KYC、开户、创建账户和首次入金。",
+    mustHave: ["onboardingProgress", "openAccountActions", "createAccountForm", "fundActions", "quickActions", "tradingAccounts"],
+    avoid: ["referralLink", "adCarousel"],
+  },
+  deposit: {
+    label: "入金转化",
+    layoutPreset: "onboardingJourney",
+    themePreset: "blueFinance",
+    density: "balanced",
+    heroFocus: "fund_actions",
+    primaryGoal: "把钱包余额、入金路径、优惠提示和开户后下一步放到前面。",
+    mustHave: ["fundActions", "walletBalance", "quickActions", "openAccountActions", "promoHighlight", "tradingAccounts"],
+    avoid: ["referralLink"],
+  },
+  partner: {
+    label: "IB 代理",
+    layoutPreset: "magazineCampaign",
+    themePreset: "blueFinance",
+    density: "balanced",
+    heroFocus: "referral_link",
+    primaryGoal: "优先展示开户链接、邀请码、二维码和渠道转化动作。",
+    mustHave: ["referralLink", "adCarousel", "quickActions", "openAccountActions", "promoHighlight", "tradingAccounts"],
+    avoid: ["walletList", "createAccountForm"],
+  },
+  vip: {
+    label: "VIP 高净值",
+    layoutPreset: "privateWealthDesk",
+    themePreset: "blackGold",
+    density: "spacious",
+    heroFocus: "asset_summary",
+    primaryGoal: "建立高净值客户的资金信任、尊贵权益和服务触达。",
+    mustHave: ["balanceTotal", "fundActions", "adCarousel", "walletBalance", "openAccountActions", "tradingAccounts"],
+    avoid: ["createAccountForm"],
+  },
+  insight: {
+    label: "数据洞察",
+    layoutPreset: "tradingCommand",
+    themePreset: "blueFinance",
+    density: "compact",
+    heroFocus: "account_performance",
+    primaryGoal: "把账户表现、账户健康、资金流向和风险结论组织成每日检查流。",
+    mustHave: ["accountPerformance", "marketInsight", "balanceTotal", "riskNotice", "fundActions", "tradingAccounts"],
+    avoid: ["adCarousel", "referralLink", "createAccountForm"],
+  },
+  risk: {
+    label: "风险保护",
+    layoutPreset: "tradingCommand",
+    themePreset: "blueFinance",
+    density: "compact",
+    heroFocus: "risk_notice",
+    primaryGoal: "优先呈现保证金、杠杆、权益波动和账号风险排查。",
+    mustHave: ["accountPerformance", "riskNotice", "marketInsight", "balanceTotal", "userKycRail", "tradingAccounts"],
+    avoid: ["adCarousel", "promoHighlight", "referralLink", "createAccountForm"],
+  },
+  retention: {
+    label: "留存唤醒",
+    layoutPreset: "onboardingJourney",
+    themePreset: "minimalWhite",
+    density: "balanced",
+    heroFocus: "quick_actions",
+    primaryGoal: "用账户状态、回流任务、轻权益和快捷入金唤醒沉睡客户。",
+    mustHave: ["balanceTotal", "fundActions", "quickActions", "promoHighlight", "marketInsight", "tradingAccounts"],
+    avoid: ["referralLink", "createAccountForm"],
+  },
+  mobile: {
+    label: "移动优先",
+    layoutPreset: "accountOpsConsole",
+    themePreset: "blueFinance",
+    density: "compact",
+    heroFocus: "asset_summary",
+    primaryGoal: "压缩首屏高度，让移动端以单列、短入口和紧凑账号卡片完成核心操作。",
+    mustHave: ["balanceTotal", "fundActions", "quickActions", "walletBalance", "tradingAccounts"],
+    avoid: ["adCarousel", "promoHighlight", "referralLink", "createAccountForm"],
+  },
+  brand: {
+    label: "白标品牌",
+    layoutPreset: "magazineCampaign",
+    themePreset: "minimalWhite",
+    density: "spacious",
+    heroFocus: "ad_carousel",
+    primaryGoal: "用品牌主视觉、资金可信度、客户经理服务和开户转化建立成熟券商感。",
+    mustHave: ["adCarousel", "balanceTotal", "fundActions", "openAccountActions", "promoHighlight", "tradingAccounts"],
+    avoid: ["referralLink", "createAccountForm"],
+  },
+};
+
+const HOMEPAGE_GOVERNANCE_CONTRACTS = {
+  standard: {
+    label: "标准工作台契约",
+    primaryGoal: "保留资产、资金、快捷入口和交易账号的平衡工作台。",
+    primaryAction: "deposit",
+    secondaryAction: "openAccount",
+    firstScreenSlots: ["balanceTotal", "fundActions"],
+    operationSlots: ["quickActions"],
+    accountSlots: ["tradingAccounts"],
+    weakSlots: ["adCarousel", "referralLink"],
+    maxPrimaryActionSurfaces: 2,
+  },
+  asset: {
+    label: "资产管理契约",
+    primaryGoal: "先让客户看清资产、钱包、可用资金和账户风险。",
+    primaryAction: "deposit",
+    secondaryAction: "withdraw",
+    firstScreenSlots: ["balanceTotal", "fundActions"],
+    operationSlots: ["walletList", "accountPerformance", "riskNotice"],
+    accountSlots: ["tradingAccounts"],
+    weakSlots: ["adCarousel", "referralLink", "openAccountActions"],
+    maxPrimaryActionSurfaces: 2,
+  },
+  deposit: {
+    label: "入金转化契约",
+    primaryGoal: "推动客户理解入金奖励并完成一次入金。",
+    primaryAction: "deposit",
+    secondaryAction: "openReal",
+    firstScreenSlots: ["promoHighlight", "walletBalance", "fundActions", "openAccountActions"],
+    operationSlots: ["quickActions"],
+    accountSlots: ["accountPerformance", "tradingAccounts"],
+    weakSlots: ["withdraw", "walletList", "adCarousel", "referralLink", "createAccountForm", "balanceTotal"],
+    maxPrimaryActionSurfaces: 1,
+    forcedQuickActions: ["transfer", "orders", "positions", "contactService"],
+  },
+  onboarding: {
+    label: "开户激活契约",
+    primaryGoal: "引导客户完成 KYC、开真实账号和首次入金。",
+    primaryAction: "openAccount",
+    secondaryAction: "deposit",
+    firstScreenSlots: ["onboardingProgress", "openAccountActions"],
+    operationSlots: ["createAccountForm", "fundActions", "quickActions"],
+    accountSlots: ["tradingAccounts"],
+    weakSlots: ["referralLink", "adCarousel"],
+    maxPrimaryActionSurfaces: 3,
+  },
+  growth: {
+    label: "活动增长契约",
+    primaryGoal: "用活动主视觉和快捷参与路径推动报名、入金或交易。",
+    primaryAction: "eventSignup",
+    secondaryAction: "deposit",
+    firstScreenSlots: ["adCarousel"],
+    operationSlots: ["quickActions", "promoHighlight", "fundActions"],
+    accountSlots: ["tradingAccounts"],
+    weakSlots: ["walletList", "createAccountForm"],
+    maxPrimaryActionSurfaces: 2,
+  },
+  trader: {
+    label: "交易效率契约",
+    primaryGoal: "让交易员更快处理账号、持仓、订单和资金动作。",
+    primaryAction: "switchAccount",
+    secondaryAction: "deposit",
+    firstScreenSlots: ["quickActions", "accountPerformance"],
+    operationSlots: ["userKycRail", "balanceTotal", "riskNotice"],
+    accountSlots: ["tradingAccounts"],
+    weakSlots: ["adCarousel", "promoHighlight", "referralLink", "createAccountForm"],
+    maxPrimaryActionSurfaces: 2,
+  },
+};
+
+const HOMEPAGE_INTENT_SIGNALS = {
+  standard: {
+    positive: ["标准", "默认", "平衡", "首页", "工作台", "常规"],
+    negative: [],
+  },
+  asset: {
+    positive: ["资产管理", "总资产", "多币种", "钱包列表", "资产配置", "可用资金", "保证金占用", "风险等级", "账户资产", "账号资产", "资产优先"],
+    negative: [/不要.{0,8}(资产|钱包)/i],
+  },
+  growth: {
+    positive: ["活动", "比赛", "大赛", "奖池", "营销", "增长", "转化", "推广", "广告", "轮播", "banner", "报名"],
+    negative: [/不要.{0,8}(广告|活动|轮播|banner)/i],
+  },
+  trader: {
+    positive: ["交易工作台", "专业交易", "高频交易", "mt4", "mt5", "持仓", "订单", "pnl", "交易员", "终端"],
+    negative: [/不要.{0,8}(交易工具|持仓|订单)/i],
+  },
+  onboarding: {
+    positive: ["新手", "新客", "刚注册", "开户注册", "开户", "注册", "kyc", "首次", "开户表单", "创建账户", "未实名"],
+    negative: [/不要.{0,8}(开户|注册|kyc|表单)/i],
+  },
+  deposit: {
+    positive: ["入金转化", "入金", "首存", "充值", "首次入金", "完成首次入金", "deposit", "资金动作"],
+    negative: [/不要.{0,8}(入金|充值|资金)/i],
+  },
+  partner: {
+    positive: ["ib", "代理", "渠道", "邀请", "裂变", "开户链接", "注册链接", "邀请码", "返佣", "二维码"],
+    negative: [/不要.{0,8}(代理|渠道|邀请|返佣)/i],
+  },
+  vip: {
+    positive: ["高净值", "vip", "黑金", "尊贵", "机构", "大客户", "专属", "权益"],
+    negative: [/不要.{0,8}(vip|黑金|权益)/i],
+  },
+  insight: {
+    positive: ["数据洞察", "洞察首页", "账户健康", "健康度", "资金流向", "交易习惯", "分析首页", "报表", "收益分析"],
+    negative: [/不要.{0,8}(洞察|分析|报表)/i],
+  },
+  risk: {
+    positive: ["风险提醒", "风控", "保证金状态", "持仓提醒", "资金保护", "风险保护", "杠杆", "爆仓", "预警"],
+    negative: [/不要.{0,8}(风险|风控|保证金|杠杆|预警)/i],
+  },
+  retention: {
+    positive: ["留存", "召回", "沉睡", "唤醒", "回流", "重新开始交易", "流失"],
+    negative: [/不要.{0,8}(召回|唤醒|回流)/i],
+  },
+  mobile: {
+    positive: ["移动端", "手机", "单列", "少滚动", "移动优先", "mobile", "app"],
+    negative: [/不要.{0,8}(移动端|手机|单列|app)/i],
+  },
+  brand: {
+    positive: ["白标", "品牌可信", "品牌露出", "成熟券商", "品牌", "客户经理服务", "可信", "官网感"],
+    negative: [/不要.{0,8}(品牌|白标|官网感)/i],
+  },
+};
+
+const HOMEPAGE_INTENT_SECTIONS = {
+  standard: [
+    { id: "standard-hero", type: "hero", title: "工作台", slots: ["balanceTotal", "fundActions"] },
+    { id: "standard-actions", type: "split", title: "常用操作", slots: ["quickActions"] },
+    { id: "standard-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
+  ],
+  asset: [
+    { id: "asset-overview", type: "hero", title: "资产总览", slots: ["balanceTotal", "fundActions"] },
+    { id: "asset-wallets", type: "full", title: "多币种钱包", slots: ["walletList"] },
+    { id: "asset-performance", type: "split", title: "账户表现", slots: ["accountPerformance", "riskNotice"] },
+    { id: "asset-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
+  ],
+  growth: [
+    { id: "growth-hero", type: "hero", title: "活动首屏", slots: ["adCarousel"] },
+    { id: "growth-actions", type: "split", title: "转化路径", slots: ["quickActions", "promoHighlight", "fundActions"] },
+    { id: "growth-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
+  ],
+  trader: [
+    { id: "trader-tools", type: "hero", title: "交易工具", slots: ["quickActions"] },
+    { id: "trader-performance", type: "split", title: "表现与状态", slots: ["accountPerformance", "userKycRail", "balanceTotal"] },
+    { id: "trader-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
+  ],
+  onboarding: [
+    { id: "onboarding-hero", type: "hero", title: "开户路径", slots: ["onboardingProgress", "openAccountActions"] },
+    { id: "onboarding-next", type: "split", title: "下一步", slots: ["createAccountForm", "fundActions", "quickActions"] },
+    { id: "onboarding-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
+  ],
+  deposit: [
+    { id: "deposit-hero", type: "hero", title: "入金奖励", slots: ["promoHighlight", "walletBalance", "fundActions", "openAccountActions"] },
+    { id: "deposit-actions", type: "split", title: "快捷入口", slots: ["quickActions"] },
+    { id: "deposit-accounts", type: "full", title: "账号与趋势", slots: ["accountPerformance", "tradingAccounts"] },
+  ],
+  partner: [
+    { id: "partner-hero", type: "hero", title: "代理增长", slots: ["referralLink"] },
+    { id: "partner-tools", type: "split", title: "渠道工具", slots: ["adCarousel", "quickActions", "openAccountActions", "promoHighlight"] },
+    { id: "partner-accounts", type: "full", title: "转化账号", slots: ["tradingAccounts"] },
+  ],
+  vip: [
+    { id: "vip-hero", type: "hero", title: "VIP 资产", slots: ["balanceTotal", "fundActions"] },
+    { id: "vip-service", type: "split", title: "权益与服务", slots: ["adCarousel", "walletBalance", "openAccountActions"] },
+    { id: "vip-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
+  ],
+  insight: [
+    { id: "insight-hero", type: "hero", title: "账户表现", slots: ["accountPerformance", "marketInsight"] },
+    { id: "insight-health", type: "split", title: "健康检查", slots: ["balanceTotal", "riskNotice", "fundActions"] },
+    { id: "insight-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
+  ],
+  risk: [
+    { id: "risk-hero", type: "hero", title: "风险状态", slots: ["accountPerformance", "riskNotice"] },
+    { id: "risk-context", type: "split", title: "账户上下文", slots: ["marketInsight", "balanceTotal", "userKycRail"] },
+    { id: "risk-accounts", type: "full", title: "账号排查", slots: ["tradingAccounts"] },
+  ],
+  retention: [
+    { id: "retention-hero", type: "hero", title: "账户唤醒", slots: ["balanceTotal", "fundActions"] },
+    { id: "retention-tasks", type: "split", title: "回流任务", slots: ["quickActions", "promoHighlight", "marketInsight"] },
+    { id: "retention-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
+  ],
+  mobile: [
+    { id: "mobile-hero", type: "hero", title: "移动首屏", slots: ["balanceTotal", "fundActions"] },
+    { id: "mobile-actions", type: "full", title: "快捷操作", slots: ["quickActions", "walletBalance"] },
+    { id: "mobile-accounts", type: "full", title: "账号卡片", slots: ["tradingAccounts"] },
+  ],
+  brand: [
+    { id: "brand-hero", type: "hero", title: "品牌首屏", slots: ["adCarousel"] },
+    { id: "brand-trust", type: "split", title: "信任与转化", slots: ["balanceTotal", "fundActions", "openAccountActions", "promoHighlight"] },
+    { id: "brand-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
+  ],
+};
+
+const HOMEPAGE_FORCE_INTENTS = new Set(["growth", "partner", "deposit", "onboarding", "vip", "insight", "risk", "retention", "mobile", "brand"]);
 
 const GENERATED_COMPONENT_JSON_SCHEMA = {
   type: "object",
@@ -466,6 +825,24 @@ function safeRecordText(value, limit = 1200) {
   return String(value || "").replace(/\s+/g, " ").trim().slice(0, limit);
 }
 
+function homepageRecordSnapshot(config) {
+  const source = config && typeof config === "object" ? config : {};
+  const brickPlan = Array.isArray(source.brickPlan) ? source.brickPlan : [];
+  const sections = Array.isArray(source.sections) ? source.sections : [];
+  const trace = source.brickTrace && typeof source.brickTrace === "object" ? source.brickTrace : {};
+
+  return {
+    name: safeRecordText(source.name, 80),
+    layoutPreset: safeRecordText(source.layoutPreset, 40),
+    themePreset: safeRecordText(source.themePreset || source.theme, 40),
+    density: safeRecordText(source.density, 24),
+    intent: safeRecordText(trace.intent, 40),
+    strategy: safeRecordText(trace.strategy || source.compositionStrategy, 120),
+    brickIds: brickPlan.map((item) => safeRecordText(item?.brickId || item?.feature, 80)).filter(Boolean).slice(0, 12),
+    sections: sections.map((section) => `${safeRecordText(section?.type, 24)}:${Array.isArray(section?.slots) ? section.slots.join("+") : ""}`).slice(0, 12),
+  };
+}
+
 function callHistoryConfig(payload) {
   try {
     return normalizeProviderConfig(payload?.modelConfig || {});
@@ -695,8 +1072,8 @@ function componentFamilySpec(family) {
     },
     WalletList: {
       purpose: "多币种钱包列表或卡片组",
-      requiredUi: ["USD/AUD/JPY/USDT 钱包", "余额", "可用余额", "Deposit/Withdraw"],
-      forbidden: ["Primary Action", "只有 WalletList 标题"],
+      requiredUi: ["USD/AUD/JPY/USDT 钱包", "货币旁边的国家/币种圆形图标", "钱包余额"],
+      forbidden: ["Primary Action", "Deposit/Withdraw/Transfer 按钮", "Available/可用余额", "TRC20 链路信息", "只有 WalletList 标题"],
     },
     CreateAccountForm: {
       purpose: "创建交易账号表单",
@@ -795,7 +1172,7 @@ function homepageBrickReference() {
       "禁止不舒服组合：3x2 大模块和任何模块同行；2x2 旁边只配 1x2，不能配 1x1；列表/表格模块不能使用 1x 尺寸；8 个快捷入口不能使用 1x 尺寸。",
       "TradingAccounts 可以拆成真实账号模块和模拟账号模块；用户要求真实账号卡片、模拟账号列表时必须用 separated + realViewMode=card + demoViewMode=list，且不能显示 Live/Demo tab。",
       "用户要求两个列表或真实/模拟都用列表时，使用 separated + viewMode=list + realViewMode=list + demoViewMode=list。",
-      "用户要求模拟账号在真实账号上面时，默认展示顺序必须是 Demo List 在上、Live List 在下。",
+      "用户要求模拟账号在真实账号上面、Demo 在 Live 上面时，必须设置 tradingAccounts.demoFirst=true，前端会把 Demo 分区排在 Live 分区上方。",
       "活动增长、交易大赛、奖池、广告轮播首屏核心这类需求优先按 growth 处理，不能被钱包/资产词误判为 asset。",
       "用户明确要求广告轮播独占整栏、单独长模块或首屏大横幅时，adCarousel 必须是首个业务 hero/full-width 模块；如果有 welcome_header，则 welcome_header 只作为轻量首行，adCarousel 紧随其后。",
       "用户要求推广模块单独处理时，使用 ReferralLink/referral_link 单独成块，不要并进广告轮播或赛事看板。",
@@ -807,10 +1184,19 @@ function homepageBrickReference() {
       "用户只要求创建真实交易账号按钮时，不要新增独立 create_account_form 或右侧开户大面板；按钮应放在真实账号卡片分区标题右侧。",
       "用户要求不要绑定账号入口时，openAccount.bind 必须是 false。",
       "用户要求钱包列表时使用 walletList / wallet_list 积木，并优先渲染为小卡片组，不要只用 WalletBalance 伪装。",
+      "资产管理、总资产、多币种钱包列表、账户表现图表这类需求优先按 asset 处理，不能因为出现交易账号列表、图表或专业二字误判为 trader。",
+      "资产管理首页默认不要塞广告轮播、推广链接、开户清单或第二组快捷矩阵；除非用户明确要求广告、推广或快捷入口，否则只保留总资产、入金出金、多币种钱包、账户表现、风险提示和交易账号列表。",
+      "用户要求未完成实名、刚注册、新用户待 KYC、KYC 待完成时，必须设置 userKycRail.kycStatus=pending，并保留 onboardingProgress 或 userKycRail 可见。",
+      "用户要求具体快捷入口名称时，必须把入口 id 写入 quickActions.actions；可用 id 包含 openAccount、openReal、deposit、withdraw、transfer、orders、positions、contest、eventSignup、referral、inviteFriends、viewCommission、downloadMaterial、contactService、downloadMt5、risk。",
+      "用户要求多币种钱包时必须设置 assets.wallets 并保留 walletList；只有明确要求可用资金、风险等级或保证金占用时才设置 showAvailable/showRiskLevel/showMargin。",
       "正式用户端首页不能露出积木尺寸、名称或选择理由；这些信息只能放在数据结构和调试属性里。",
       "积木编排必须自动填充可用栅格，避免空白 section、空 slots、不可渲染模块和孤立小积木造成的大面积留白。",
       "桌面端一行可以放两个业务积木；同一行的两个积木必须合计 12 栅格并保持等高，不能出现 8 栅格内容旁边空 4 栅格的版面。",
       "不要默认让每个模块都独占一整栏；只有当管理员明确说独占、整栏、长模块、首屏大横幅或该模块本身是 3x 大列表时，才让它单独成行。",
+      "先遵守 pageIntent.governance：一个页面只能有一个主目标，一个主操作，一个次操作；相同动作不要因为多个积木都相关而反复放大。",
+      "入金转化页必须使用 promoBanner.depositLadder 承接 $500/$2,000/$10,000 三档奖励和最高赠金 $300；首屏组合为 promoHighlight + walletBalance + fundActions + openAccountActions。",
+      "入金转化页的出金只能作为弱入口，不要与入金并列反复出现；QuickActions 命名为快捷入口，且必须早于账号区。",
+      "入金转化页不要再把资产总览、钱包列表、资金 Dock、快捷入口都重复做成大按钮区域；复杂图表只允许放到账号区做轻量趋势。",
     ],
     layoutGrammar: {
       sizeMap: {
@@ -836,7 +1222,7 @@ function homepageBrickReference() {
       ],
       recipes: [
         "活动增长: welcome_header 3x1, adCarousel 3x1, quickActions 2x1 + promo/referral 1x1, tradingAccounts 3x2。",
-        "资产工作台: assetSummary 2x1 + fundActions 1x1, quickActions 2x1 + userKycRail 1x1, tradingAccounts 3x2。",
+        "资产工作台: assetSummary 2x2 + fundActions 1x1, walletList 3x2, accountPerformance 2x2 + riskNotice 1x2, tradingAccounts 3x2。",
         "专业交易: tradingAccounts 2x2 + accountPerformance/userKycRail 1x2, quickActions 2x1 + walletBalance 1x1。",
       ],
       forbidden: [
@@ -848,22 +1234,35 @@ function homepageBrickReference() {
       ],
     },
     bricks: [
+      { id: "assetOverview.assetCommand", mapsTo: "asset_summary/balanceTotal", use: "资产管理首页、总资产、可用资金、保证金和风险等级" },
       { id: "assetOverview.vipHero", mapsTo: "asset_summary/balanceTotal", use: "高净值资产首屏、总资产、资金信任" },
       { id: "assetOverview.compactMetrics", mapsTo: "asset_summary/balanceTotal", use: "紧凑资产指标条、低高度资产信息" },
+      { id: "assetOverview.tickerStrip", mapsTo: "asset_summary/balanceTotal", use: "账户运营控制台、横向资产 ticker 指标" },
+      { id: "assetOverview.wealthPlate", mapsTo: "asset_summary/balanceTotal", use: "私行服务台、高净值资产桌牌" },
+      { id: "assetOverview.riskRadar", mapsTo: "asset_summary/balanceTotal", use: "风险雷达、保证金和账户健康" },
       { id: "fundActions.priorityDock", mapsTo: "fund_actions/fundActions", use: "入金、出金独立操作 Dock" },
       { id: "quickActions.actionDock", mapsTo: "quick_actions/quickActions", use: "专业交易快捷入口" },
       { id: "quickActions.priorityMatrix", mapsTo: "quick_actions/quickActions", use: "8 个快捷入口、两行四个、活动转化矩阵" },
+      { id: "quickActions.commandBar", mapsTo: "quick_actions/quickActions", use: "交易指挥中心命令栏、高频操作" },
+      { id: "quickActions.taskRail", mapsTo: "quick_actions/quickActions", use: "新客旅程、留存任务、下一步按钮组" },
       { id: "adCarousel.heroCampaign", mapsTo: "ad_carousel/adCarousel", use: "首页广告轮播、活动主视觉" },
+      { id: "adCarousel.editorialCover", mapsTo: "ad_carousel/adCarousel", use: "杂志封面型活动首页、专题 Campaign" },
       { id: "promoBanner.scoreboard", mapsTo: "promo_banner/promoHighlight", use: "赛事活动看板、奖池、倒计时、活动 CTA" },
+      { id: "promoBanner.depositLadder", mapsTo: "promo_banner/promoHighlight", use: "入金转化页、$500/$2,000/$10,000 三档奖励、最高赠金 $300" },
       { id: "referralLink.growthConsole", mapsTo: "referral_link/referralLink", use: "IB/渠道开户链接、邀请码、转化统计" },
       { id: "onboardingProgress.checklist", mapsTo: "onboarding_progress/onboardingProgress", use: "KYC、开户、首次入金任务" },
+      { id: "onboardingProgress.timeline", mapsTo: "onboarding_progress/onboardingProgress", use: "新客旅程时间线、下一步路径" },
       { id: "openAccount.sidePanel", mapsTo: "open_account_panel/openAccountActions", use: "开真实、开模拟、绑定账号右侧面板" },
+      { id: "openAccount.conversionPanel", mapsTo: "open_account_panel/openAccountActions", use: "开户转化面板、首存路径" },
       { id: "userKycRail.profileWallet", mapsTo: "user_kyc_rail/userKycRail", use: "用户、KYC、当地时间、钱包摘要" },
       { id: "accountPerformance.proChart", mapsTo: "account_performance/accountPerformance", use: "账号余额、权益、PnL 图表" },
+      { id: "accountPerformance.sparklineBoard", mapsTo: "account_performance/accountPerformance", use: "交易指挥中心、多趋势 Sparkline 看板" },
       { id: "tradingAccounts.separatedList", mapsTo: "account_list/tradingAccounts", use: "真实/模拟账号分区列表" },
       { id: "tradingAccounts.cardProof", mapsTo: "account_list/tradingAccounts", use: "紧凑真实账号卡片、活动页账号证明" },
       { id: "walletList.currencyTable", mapsTo: "wallet_list/walletList", use: "多币种钱包表格" },
+      { id: "walletList.tiles", mapsTo: "wallet_list/walletList", use: "钱包磁贴组、多币种运营控制台" },
       { id: "createAccountForm.realAccount", mapsTo: "create_account_form/createAccountForm", use: "真实账户创建表单" },
+      { id: "riskNotice.marginGuard", mapsTo: "risk_notice/riskNotice", use: "保证金、杠杆、风险等级提示" },
     ],
   };
 }
@@ -871,6 +1270,7 @@ function homepageBrickReference() {
 function buildMiniMaxPrompt(payload) {
   const prompt = String(payload.prompt || "").trim();
   const variant = Number(payload.variant || 0);
+  const intentProfile = buildHomepageIntentProfile(prompt);
   const system = [
     "你是 ForexCRM 首页蓝图生成器。",
     "只输出一个能被 JSON.parse 解析的紧凑 JSON object。",
@@ -884,15 +1284,31 @@ function buildMiniMaxPrompt(payload) {
     "必须遵守 brickReference.layoutGrammar：3x=整行、2x=主栏、1x=侧栏；只能使用 3x 独占、2x+1x、2x+2x 这些稳定组合。",
     "账号、钱包列表、表格、8 个快捷入口、首屏轮播属于高风险模块，必须按 layoutGrammar.moduleSizing 选择 size 和 zone。",
     "如果布局美观度和模块数量冲突，优先保证行配方完整、同高、少空白，再减少辅助模块。",
+    "必须先遵守服务端提供的 pageIntent。",
+    "pageIntent.primaryIntent 决定首页主目标。",
+    "secondaryIntents 只能作为辅助模块，不能抢首屏。",
+    "pageIntent.mustHave 必须尽量出现在 sections 或由同类模块承接。",
+    "pageIntent.avoid 没有明确需求时不要出现。",
+    "pageIntent.governance 是页面生成契约：先判断主目标、主操作、次操作、首屏槽位、弱化模块，再选择积木。",
+    "所有页面都必须做 CTA 去重：主操作不要在资产卡、钱包卡、资金 Dock、快捷入口里同时放大；必要时只保留一个主 CTA 和一个轻量快捷入口。",
+    "入金转化页必须把 promoBanner.depositLadder、walletBalance、fundActions、openAccountActions 放进首屏；quickActions 必须紧跟首屏并命名为快捷入口；tradingAccounts/accountPerformance 下移承接。",
+    "入金转化页必须弱化出金、复杂图表、钱包长列表和资产总览；禁止把入金/出金按钮铺满半屏。",
+    "模型返回必须包含 pageIntent；如果 pageIntent 与管理员需求有冲突，仍以服务端识别结果为准。",
+    "必须先选择 designGenome 和 pageStory，再选择积木：magazineCampaign=活动专题封面，tradingCommand=交易指挥中心，onboardingJourney=新客旅程，privateWealthDesk=私行服务台，accountOpsConsole=账户运营控制台。",
+    "组件形态不能都用普通卡片；必须通过 modules/moduleStyles/componentMorphs 体现至少 3 个不同模块形态。",
     "brickPlan、brickTrace、brickName、brickReason 只供系统调试，不是用户端页面可见内容。",
   ].join("\n");
 
   const contract = {
+    pageIntent: intentProfile,
     brickReference: homepageBrickReference(),
     requiredFields: [
       "schemaVersion",
       "blueprintVersion",
       "generationMode",
+      "pageIntent",
+      "designGenome",
+      "pageStory",
       "name",
       "layoutPreset",
       "themePreset",
@@ -904,12 +1320,13 @@ function buildMiniMaxPrompt(payload) {
       "sections",
       "modules",
       "moduleStyles",
+      "componentMorphs",
       "moduleSettings",
       "emphasis",
       "aiSummary",
     ],
     enums: {
-      layoutPreset: ["standardDashboard", "conversionFirst", "assetFirst", "tradingPro", "vipService"],
+      layoutPreset: ["standardDashboard", "conversionFirst", "assetFirst", "tradingPro", "vipService", "magazineCampaign", "tradingCommand", "onboardingJourney", "privateWealthDesk", "accountOpsConsole"],
       themePreset: ["default", "blackGold", "lightGold", "blueFinance", "darkTech", "minimalWhite"],
       personalizationStrength: ["subtle", "medium", "strong"],
       density: ["compact", "balanced", "spacious"],
@@ -930,29 +1347,36 @@ function buildMiniMaxPrompt(payload) {
         "accountPerformance",
         "walletList",
         "createAccountForm",
+        "marketInsight",
+        "riskNotice",
       ],
       moduleVariants: {
-        AssetOverview: ["standard", "vipHero", "compactTable", "darkTerminal"],
+        AssetOverview: ["standard", "vipHero", "compactTable", "darkTerminal", "tickerStrip", "wealthPlate", "riskRadar"],
         WalletBalance: ["standard", "splitCurrency", "compact", "premiumCard"],
         FundActions: ["dock", "splitButtons", "compactRow"],
-        QuickActions: ["gridCards", "actionDock", "priorityButtons", "minimalIcons"],
-        PromotionBanner: ["imageBanner", "gradientHero", "blackGoldVip", "splitVisual"],
+        QuickActions: ["gridCards", "actionDock", "priorityButtons", "minimalIcons", "commandBar", "taskRail"],
+        PromotionBanner: ["imageBanner", "gradientHero", "blackGoldVip", "splitVisual", "editorialCover", "depositLadder"],
         ReferralLink: ["console", "linkFirst", "compact"],
-        TradingAccounts: ["workbench", "separatedList", "denseCards", "calmTable"],
-        OpenAccount: ["sidePanel", "inlineActions", "softCard"],
-        OnboardingProgress: ["path", "checklist", "compact"],
+        TradingAccounts: ["workbench", "separatedList", "denseCards", "calmTable", "accountWall", "opsTable"],
+        OpenAccount: ["sidePanel", "inlineActions", "softCard", "conversionPanel"],
+        OnboardingProgress: ["path", "checklist", "compact", "journeyTimeline"],
         UserKycRail: ["profileWallet", "kycChecklist", "compactStatus"],
-        AccountPerformance: ["proChart", "terminalChart", "cleanSnapshot"],
-        WalletList: ["currencyTable", "compactRows", "actionTable"],
+        AccountPerformance: ["proChart", "terminalChart", "cleanSnapshot", "sparklineBoard"],
+        WalletList: ["currencyTable", "compactRows", "actionTable", "walletTiles"],
         CreateAccountForm: ["realAccountForm", "compactForm", "guidedForm"],
       },
       moduleStyles: {
-        balanceTotal: ["command", "metric-strip", "quiet-card"],
+        balanceTotal: ["command", "metric-strip", "quiet-card", "ticker-strip", "wealth-plate", "risk-radar"],
         fundActions: ["dock", "split-buttons", "compact-row"],
-        adCarousel: ["immersive", "clean", "compact"],
-        quickActions: ["matrix", "toolbar", "compact-grid"],
+        openAccountActions: ["stacked", "horizontal", "soft-card", "conversion-panel"],
+        onboardingProgress: ["path", "checklist", "compact", "journey-timeline"],
+        promoHighlight: ["banner", "clean", "scoreboard", "deposit-ladder"],
+        adCarousel: ["immersive", "clean", "compact", "editorial-cover"],
+        quickActions: ["matrix", "toolbar", "compact-grid", "command-bar", "task-rail"],
         referralLink: ["console", "link-first", "compact"],
-        tradingAccounts: ["workbench", "dense-cards", "calm-table"],
+        tradingAccounts: ["workbench", "dense-cards", "calm-table", "account-wall", "ops-table"],
+        accountPerformance: ["pro-chart", "terminal-chart", "sparkline-board"],
+        walletList: ["currency-table", "wallet-tiles"],
       },
       emphasis: ["low", "medium", "high"],
     },
@@ -968,6 +1392,7 @@ function buildMiniMaxPrompt(payload) {
       "优先选择稳定行配方：2x1+1x1、2x2+1x2、2x1+2x1、3x 独占。",
       "禁止返回空 section、空 slots、不可渲染 slot 或明显会留下大面积空白的单模块区域。",
       "交易账号如需真实卡片、模拟列表，moduleSettings.tradingAccounts.grouping 必须为 separated，viewMode 为 card，realViewMode 为 card，demoViewMode 为 list，且不要出现账号 tab 切换。",
+      "如果管理员要求 Demo 在 Live 上面、模拟账号在真实账号上面，moduleSettings.tradingAccounts.demoFirst 必须为 true。",
       "真实卡片+模拟列表、真实/模拟分区、任一账号列表视图时，TradingAccounts 的 brickPlan size 必须是 3x2 且 zone=full。",
       "只有纯账号卡片证明且不含模拟列表时，TradingAccounts 才允许 size=2x2 zone=main，且旁边必须配 1x2 侧栏。",
       "交易账号如需真实/模拟都用列表，moduleSettings.tradingAccounts.grouping 必须为 separated 且 viewMode/realViewMode/demoViewMode 均为 list。",
@@ -975,18 +1400,29 @@ function buildMiniMaxPrompt(payload) {
       "quickActions.count=8 时，QuickActions 必须使用 size=2x1 或 3x1，不得使用 1x1/1x2。",
       "用户要求欢迎模块、欢迎区或 welcome 时，保留轻量 welcome_header 首行；welcome 只是入口和上下文，不应替代业务 heroFocus。",
       "用户要求淡金色、浅金色、轻金色、香槟金、金色调或 gold 时，themePreset 必须使用 lightGold，并用扁平、轻量、低阴影样式表达；只有明确黑金/VIP/高净值才使用 blackGold。",
-      "活动增长首页如果同时要求欢迎模块独占第一栏、广告轮播首屏核心或独占整栏，brickPlan 第一业务积木必须是 adCarousel.heroCampaign 且 zone=hero；sections 第一项只放 adCarousel，第二项放 quickActions，账号项放 tradingAccounts；欢迎首行由前端自动补齐。",
+      "活动增长首页如果同时要求欢迎模块独占第一栏、广告轮播首屏核心或独占整栏，brickPlan 第一业务积木优先使用 adCarousel.editorialCover 且 zone=hero；sections 第一项只放 adCarousel，第二项放 quickActions，账号项放 tradingAccounts；欢迎首行由前端自动补齐。",
       "用户只要求创建真实交易账号按钮时，不要返回 create_account_form/open_account_panel 作为独立模块；创建按钮由真实账号分区承接。",
       "不要绑定账号入口时，moduleSettings.openAccount.bind 必须为 false。",
       "入金/出金出现时，emphasis.deposit 使用 high，且 assets.showFundActions 为 true。",
+      "入金转化页必须返回 PromotionBanner.variant=depositLadder、moduleStyles.promoHighlight=deposit-ladder、quickActions.actions=[transfer,orders,positions,contactService]、openAccount.bind=false、openAccount.demo=false；入金和开真实账号已经由首屏资金操作区承接，不要在快捷入口重复。",
+      "只有明确出现刚注册、新用户、新客、未完成实名、没有完成实名、KYC 待完成、待 KYC、未实名时，moduleSettings.userKycRail.kycStatus 才能为 pending；仅提到 KYC 状态、KYC 侧栏、认证状态时必须保持 verified。",
+      "quickActions.actions 只能使用这些 id：openAccount、openReal、deposit、withdraw、transfer、orders、positions、contest、eventSignup、referral、inviteFriends、viewCommission、downloadMaterial、contactService、downloadMt5、switchAccount、kyc、risk；不要发明 switchAccount 以外的 switch 类 id，也不要返回 kycStatus。",
+      "IB/代理/渠道增长首页的 quickActions.actions 必须按提示返回具体入口 id，例如 inviteFriends、eventSignup、viewCommission、downloadMaterial、deposit、openReal、contactService。",
+      "多币种钱包需求必须返回 assets.wallets 并把 walletList 放进 sections；风险等级、保证金占用、可用资金只在用户明确要求时开启对应字段。",
+      "资产管理首页必须使用 designGenome=accountOpsConsole、layoutPreset=accountOpsConsole、themePreset=blueFinance；sections 推荐为 balanceTotal+fundActions、walletList、accountPerformance+riskNotice、tradingAccounts；没有明确广告/推广/快捷入口时 adCarousel、referral、quickActions 都不要出现。",
+      `必须按 pageIntent.primaryIntent=${intentProfile.primaryIntent} 生成首屏；pageIntent.mustHave 至少出现为可见模块或明确承接路径；pageIntent.avoid 中的模块不得出现在 sections、brickPlan 或启用的 moduleSettings 中。`,
+      `secondaryIntents=${intentProfile.secondaryIntents.join(",") || "无"} 只能做辅助，不允许改变 layoutPreset=${intentProfile.layoutPreset}、heroFocus=${intentProfile.heroFocus} 或首屏主模块。`,
       "aiSummary 不超过 80 个中文字符。",
     ],
     outputShape: {
       schemaVersion: 4,
       blueprintVersion: 5,
       generationMode: "brick-v2",
+      pageIntent: intentProfile,
+      designGenome: "accountOpsConsole",
+      pageStory: "opsClarity",
       name: "不超过28字",
-      layoutPreset: "standardDashboard",
+      layoutPreset: "accountOpsConsole",
       themePreset: "default",
       personalizationStrength: "medium",
       density: "balanced",
@@ -1014,12 +1450,14 @@ function buildMiniMaxPrompt(payload) {
       },
       moduleSettings: {
         adCarousel: { enabled: true },
-        quickActions: { enabled: true, count: 7, display: "iconText" },
+        quickActions: { enabled: true, count: 7, display: "iconText", actions: ["openAccount", "deposit", "withdraw", "transfer", "orders", "positions", "contest"] },
         wallet: { enabled: true, placement: "standalone", showFundActions: false },
-        assets: { enabled: true, showFundActions: true },
+        assets: { enabled: true, showFundActions: true, showAvailable: false, showMargin: false, showRiskLevel: false, wallets: [] },
         referral: { enabled: true },
-        tradingAccounts: { enabled: true, realEnabled: true, demoEnabled: true, grouping: "combined", viewMode: "switchable", realViewMode: "card", demoViewMode: "list" },
+        tradingAccounts: { enabled: true, realEnabled: true, demoEnabled: true, grouping: "combined", viewMode: "switchable", realViewMode: "card", demoViewMode: "list", demoFirst: false },
         openAccount: { enabled: true, real: true, demo: true, bind: true, placement: "insideTradingAccounts" },
+        userKycRail: { kycStatus: "verified" },
+        riskNotice: { enabled: true },
       },
       emphasis: { deposit: "high", openAccount: "medium", promo: "medium", accounts: "medium" },
       aiSummary: "一句话说明方案",
@@ -1028,6 +1466,14 @@ function buildMiniMaxPrompt(payload) {
 
   const user = [
     `生成轮次: ${Number.isFinite(variant) ? variant : 0}`,
+    "",
+    "服务端意图识别 pageIntent:",
+    compactJson(intentProfile),
+    "",
+    "强制规则:",
+    `优先遵守 pageIntent.primaryIntent=${intentProfile.primaryIntent}。`,
+    `secondaryIntents=${intentProfile.secondaryIntents.join(",") || "无"} 只能做辅助，不允许抢首屏或改变 heroFocus=${intentProfile.heroFocus}。`,
+    `mustHave=${intentProfile.mustHave.join(",")} 必须可见或被明确业务路径承接；avoid=${intentProfile.avoid.join(",") || "无"} 禁止出现在启用模块、sections 或 brickPlan。`,
     "",
     "管理员需求:",
     prompt || "生成一个适合默认客户的平衡首页。",
@@ -1048,6 +1494,7 @@ function buildPrompt(payload, config = {}) {
   const prompt = String(payload.prompt || "").trim();
   const variant = Number(payload.variant || 0);
   const now = new Date().toISOString();
+  const intentProfile = buildHomepageIntentProfile(prompt);
 
   const system = [
     "你是 ForexCRM 的首页蓝图生成器。",
@@ -1066,14 +1513,28 @@ function buildPrompt(payload, config = {}) {
     "只使用稳定行配方：3x 独占整行、2x1+1x1、2x2+1x2、2x1+2x1；禁止 2x2+1x1、3x2+任何同行模块。",
     "列表/表格/钱包列表/账号双列表不能使用 1x；8 个快捷入口不能使用 1x；广告轮播和交易账号列表不能同行。",
     "如果布局美观度和模块数量冲突，优先保证同一行完整、等高、少空白，再减少辅助模块。",
+    "必须先遵守服务端提供的 pageIntent。",
+    "pageIntent.primaryIntent 决定首页主目标。",
+    "secondaryIntents 只能作为辅助模块，不能抢首屏。",
+    "pageIntent.mustHave 必须尽量出现在 sections 或由同类模块承接。",
+    "pageIntent.avoid 没有明确需求时不要出现。",
+    "pageIntent.governance 是页面生成契约：先判断主目标、主操作、次操作、首屏槽位、弱化模块，再选择积木。",
+    "所有页面都必须做 CTA 去重：主操作不要在资产卡、钱包卡、资金 Dock、快捷入口里同时放大；必要时只保留一个主 CTA 和一个轻量快捷入口。",
+    "入金转化页必须把 promoBanner.depositLadder、walletBalance、fundActions、openAccountActions 放进首屏；quickActions 必须紧跟首屏并命名为快捷入口；tradingAccounts/accountPerformance 下移承接。",
+    "入金转化页必须弱化出金、复杂图表、钱包长列表和资产总览；禁止把入金/出金按钮铺满半屏。",
+    "模型返回必须包含 pageIntent；如果 pageIntent 与管理员需求有冲突，仍以服务端识别结果为准。",
+    "必须先选择 designGenome 和 pageStory，再选择积木：magazineCampaign=活动专题封面，tradingCommand=交易指挥中心，onboardingJourney=新客旅程，privateWealthDesk=私行服务台，accountOpsConsole=账户运营控制台。",
+    "组件形态不能都用普通卡片；必须通过 modules/moduleStyles/componentMorphs 体现至少 3 个不同模块形态。",
     "sections、layout 和 brickPlan 只能包含可渲染且启用的业务模块；禁止空 section、空 slots、东缺一块西缺一块的断裂拼版。",
     "brickPlan、brickTrace、brickName、brickReason 只用于系统调试和数据属性，不能作为用户端可见 UI 文案。",
     "如果管理员要求真实账号用卡片、模拟账号用列表，必须设置 moduleSettings.tradingAccounts.grouping = \"separated\"、viewMode = \"card\"、realViewMode = \"card\"、demoViewMode = \"list\"，前端会渲染成两个独立账号模块且不显示 tab。",
     "真实账号卡片+模拟账号列表、真实/模拟分区、任一账号列表视图时，TradingAccounts 的 brickPlan size 必须是 3x2 且 zone=full；只有纯 combined card 账号证明才允许 size=2x2 zone=main。",
     "如果管理员要求交易账号分成两个列表、真实和模拟都列表、Live/Demo 都列表，必须设置 moduleSettings.tradingAccounts.grouping = \"separated\" 且 viewMode/realViewMode/demoViewMode 都为 \"list\"。",
     "如果管理员要求模拟账号列表在真实账号列表上面，必须在 aiSummary 或 layout reason 中保留 Demo 在上、Live 在下的排序意图，前端会按该顺序渲染。",
-    "如果管理员要求列表形式、不是卡片，禁止返回交易账号卡片主视图；但管理员明确要求真实账号卡片时，以真实账号卡片优先。",
+    "如果管理员要求 Demo 在 Live 上面、模拟账号在真实账号上面，必须设置 moduleSettings.tradingAccounts.demoFirst = true。",
+    "如果管理员要求列表形式、建议用列表、真实账号列表、模拟账号列表、不是卡片，必须返回交易账号列表主视图；但管理员明确要求真实账号卡片时，以真实账号卡片优先。",
     "如果管理员要求 8 个快捷入口或两行四个，quickActions.count 必须是 8，QuickActions 的 brickPlan size 必须是 2x1 或 3x1，不能使用 1x。",
+    "如果管理员给出快捷入口名称，必须返回 moduleSettings.quickActions.actions，使用入口 id 而不是泛化默认入口；可用 id 包含 openAccount、openReal、deposit、withdraw、transfer、orders、positions、contest、eventSignup、referral、inviteFriends、viewCommission、downloadMaterial、contactService、downloadMt5、switchAccount、kyc、risk；不要发明 kycStatus。",
     "如果管理员要求活动增长、交易大赛、奖池，并明确要求广告轮播独占整栏、单独长模块或首屏大横幅，必须把 adCarousel 作为第一个业务 full-width hero 模块；如果有 welcome_header，adCarousel 紧跟在 welcome_header 后面，heroFocus 使用 ad_carousel。",
     "如果管理员要求欢迎模块、欢迎区或 welcome，保留轻量 welcome_header 首行；welcome 只提供用户上下文和个性化入口，不改变业务 heroFocus。",
     "如果管理员要求淡金色、浅金色、轻金色、香槟金、金色调或 gold，themePreset 必须使用 lightGold，并通过 density/moduleStyles 做扁平、轻量、低阴影表达；只有明确黑金/VIP/高净值才使用 blackGold。",
@@ -1082,14 +1543,25 @@ function buildPrompt(payload, config = {}) {
     "如果管理员只要求创建真实交易账号按钮，不要返回 create_account_form 或 open_account_panel 独立模块；创建按钮应该由 tradingAccounts 真实账号分区承接。",
     "如果管理员要求推广模块单独处理，必须保留 referralLink/referral_link 独立 section；赛事活动看板 promoHighlight 不能替代推广链接模块。",
     "如果管理员要求钱包列表小卡片，必须使用 walletList/wallet_list，wallet.placement = \"standalone\"。",
+    "如果管理员要求多币种钱包，必须设置 moduleSettings.assets.wallets 并把 walletList 放进 sections；只有明确要求风险等级、保证金占用或可用资金时，才开启 showRiskLevel、showMargin、showAvailable。",
+    "资产管理、总资产、多币种钱包列表、账户表现图表需求必须按 accountOpsConsole + blueFinance 处理，推荐 sections 为 balanceTotal+fundActions、walletList、accountPerformance+riskNotice、tradingAccounts；没有明确广告/推广/快捷入口时不要返回 adCarousel、referralLink、quickActions。",
+    "只有管理员明确描述刚注册、新用户、新客、未实名、没有完成 KYC、待 KYC 时，才设置 moduleSettings.userKycRail.kycStatus = \"pending\"；仅要求 KYC 状态、KYC 侧栏或认证状态时保持 \"verified\"。",
     "如果管理员要求不要绑定账号入口，必须设置 moduleSettings.openAccount.bind = false。",
     "优先使用传入 schema、默认配置、模块变体和模块样式中的白名单值。",
-    "返回字段建议包括 schemaVersion、blueprintVersion、generationMode、name、layoutPreset、themePreset、density、heroFocus、sections、layout、modules、moduleStyles、moduleSettings、brickPlan、brickTrace、emphasis、aiSummary。",
+    "返回字段建议包括 schemaVersion、blueprintVersion、generationMode、pageIntent、designGenome、pageStory、name、layoutPreset、themePreset、density、heroFocus、sections、layout、modules、moduleStyles、componentMorphs、moduleSettings、brickPlan、brickTrace、emphasis、aiSummary。",
   ].join("\n");
 
   const user = [
     `当前时间: ${now}`,
     `生成轮次: ${Number.isFinite(variant) ? variant : 0}`,
+    "",
+    "服务端意图识别 pageIntent:",
+    compactJson(intentProfile),
+    "",
+    "强制规则:",
+    `优先遵守 pageIntent.primaryIntent=${intentProfile.primaryIntent}。`,
+    `secondaryIntents=${intentProfile.secondaryIntents.join(",") || "无"} 只能作为辅助，不允许抢首屏或改变 heroFocus=${intentProfile.heroFocus}。`,
+    `mustHave=${intentProfile.mustHave.join(",")} 必须可见或被明确业务路径承接；avoid=${intentProfile.avoid.join(",") || "无"} 禁止出现在启用模块、sections 或 brickPlan。`,
     "",
     "管理员需求:",
     prompt || "生成一个适合默认客户的平衡首页。",
@@ -1307,94 +1779,875 @@ function enrichProviderError(error, config, target, extra = {}) {
   return enriched;
 }
 
+function dominantPromptText(prompt) {
+  const source = String(prompt || "").trim();
+  const matches = [...source.matchAll(/(?:生成方向|独立生成目标|当前目标|目标场景|首页目标|管理员需求)\s*[:：]\s*([^。；;\n]+)/g)];
+  if (matches.length) return matches[matches.length - 1][1];
+  return source;
+}
+
+function normalizeKeywordText(text) {
+  return String(text || "").toLowerCase();
+}
+
+function promptSignalLabel(signal) {
+  if (signal instanceof RegExp) return signal.source;
+  return String(signal || "");
+}
+
+function promptSignalWeight(signal) {
+  if (signal instanceof RegExp) return 14;
+  const value = String(signal || "");
+  return Math.max(2, Math.min(12, value.length));
+}
+
+function promptSignalMatches(text, signal) {
+  if (signal instanceof RegExp) {
+    signal.lastIndex = 0;
+    return signal.test(text);
+  }
+  const needle = String(signal || "").toLowerCase();
+  return Boolean(needle && text.includes(needle));
+}
+
+function scorePromptIntent(text, positive = [], negative = []) {
+  const matchedSignals = [];
+  let score = 0;
+
+  positive.forEach((signal) => {
+    if (!promptSignalMatches(text, signal)) return;
+    matchedSignals.push(promptSignalLabel(signal));
+    score += promptSignalWeight(signal);
+  });
+
+  negative.forEach((signal) => {
+    if (promptSignalMatches(text, signal)) score -= promptSignalWeight(signal);
+  });
+
+  return {
+    score: Math.max(0, score),
+    matchedSignals: [...new Set(matchedSignals)].slice(0, 12),
+  };
+}
+
+function homepageGovernanceContract(intent) {
+  return HOMEPAGE_GOVERNANCE_CONTRACTS[intent] || HOMEPAGE_GOVERNANCE_CONTRACTS.standard;
+}
+
+function buildHomepageIntentProfile(prompt) {
+  const source = dominantPromptText(prompt);
+  const text = normalizeKeywordText(source);
+  const ranked = Object.keys(HOMEPAGE_INTENT_PRESETS)
+    .map((intent) => {
+      const signals = HOMEPAGE_INTENT_SIGNALS[intent] || {};
+      return {
+        intent,
+        ...scorePromptIntent(text, signals.positive, signals.negative),
+      };
+    })
+    .sort((a, b) => b.score - a.score);
+
+  const fallback = !ranked.length || ranked[0].score <= 0;
+  const primaryIntent = fallback ? "standard" : ranked[0].intent;
+  const topScore = fallback ? 0 : ranked[0].score;
+  const secondaryIntents = ranked
+    .filter((item) => item.intent !== primaryIntent && item.score > 0)
+    .slice(0, 3)
+    .map((item) => item.intent);
+  const preset = HOMEPAGE_INTENT_PRESETS[primaryIntent] || HOMEPAGE_INTENT_PRESETS.standard;
+  const confidence = fallback ? "fallback" : Math.max(0.45, Math.min(0.96, Number((0.52 + Number(topScore || 0) / 80).toFixed(2))));
+
+  return {
+    primaryIntent,
+    secondaryIntents,
+    confidence,
+    score: topScore,
+    label: preset.label,
+    layoutPreset: preset.layoutPreset,
+    themePreset: preset.themePreset,
+    density: preset.density,
+    heroFocus: preset.heroFocus,
+    primaryGoal: preset.primaryGoal,
+    mustHave: [...new Set(preset.mustHave || [])],
+    avoid: [...new Set(preset.avoid || [])],
+    governance: homepageGovernanceContract(primaryIntent),
+    matchedSignals: fallback ? [] : ranked[0].matchedSignals,
+  };
+}
+
+function homepageIntentFromPrompt(prompt) {
+  return buildHomepageIntentProfile(prompt).primaryIntent;
+}
+
+function homepageDesignForIntent(intent) {
+  return {
+    growth: { designGenome: "magazineCampaign", pageStory: "campaignLaunch", layoutPreset: "magazineCampaign" },
+    partner: { designGenome: "magazineCampaign", pageStory: "campaignLaunch", layoutPreset: "magazineCampaign" },
+    brand: { designGenome: "magazineCampaign", pageStory: "campaignLaunch", layoutPreset: "magazineCampaign" },
+    trader: { designGenome: "tradingCommand", pageStory: "tradingEfficiency", layoutPreset: "tradingCommand" },
+    insight: { designGenome: "tradingCommand", pageStory: "tradingEfficiency", layoutPreset: "tradingCommand" },
+    risk: { designGenome: "tradingCommand", pageStory: "tradingEfficiency", layoutPreset: "tradingCommand" },
+    onboarding: { designGenome: "onboardingJourney", pageStory: "accountActivation", layoutPreset: "onboardingJourney" },
+    deposit: { designGenome: "depositLadder", pageStory: "depositConversion", layoutPreset: "conversionFirst" },
+    retention: { designGenome: "onboardingJourney", pageStory: "accountActivation", layoutPreset: "onboardingJourney" },
+    vip: { designGenome: "privateWealthDesk", pageStory: "wealthService", layoutPreset: "privateWealthDesk" },
+    asset: { designGenome: "accountOpsConsole", pageStory: "opsClarity", layoutPreset: "accountOpsConsole" },
+    mobile: { designGenome: "accountOpsConsole", pageStory: "opsClarity", layoutPreset: "accountOpsConsole" },
+    standard: { designGenome: "accountOpsConsole", pageStory: "opsClarity", layoutPreset: "accountOpsConsole" },
+  }[intent] || { designGenome: "accountOpsConsole", pageStory: "opsClarity", layoutPreset: "accountOpsConsole" };
+}
+
+function mockSectionsForIntent(intent, plan, wantsWelcome = false, wantsWalletList = false) {
+  const slots = new Set(plan.map((item) => item.feature).filter(Boolean));
+  const has = (feature) => slots.has(feature);
+
+  const sectionMap = {
+    vip: [
+      { id: "vip-hero", type: "hero", title: "VIP 资产", slots: ["balanceTotal", "fundActions"] },
+      { id: "vip-service", type: "split", title: "权益与服务", slots: ["adCarousel", "walletBalance", "openAccountActions"] },
+      { id: "vip-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
+    ],
+    trader: [
+      { id: "trader-tools", type: "hero", title: "交易工具", slots: ["quickActions"] },
+      { id: "trader-performance", type: "split", title: "表现与状态", slots: ["accountPerformance", "userKycRail", "balanceTotal"] },
+      { id: "trader-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
+    ],
+    insight: [
+      { id: "insight-hero", type: "hero", title: "账户表现", slots: ["accountPerformance", "marketInsight"] },
+      { id: "insight-health", type: "split", title: "健康检查", slots: ["balanceTotal", "riskNotice", "fundActions"] },
+      { id: "insight-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
+    ],
+    deposit: [
+      { id: "deposit-hero", type: "hero", title: "入金奖励", slots: ["promoHighlight", "walletBalance", "fundActions", "openAccountActions"] },
+      { id: "deposit-actions", type: "split", title: "快捷入口", slots: ["quickActions"] },
+      { id: "deposit-accounts", type: "full", title: "账号与趋势", slots: ["accountPerformance", "tradingAccounts"] },
+    ],
+    risk: [
+      { id: "risk-hero", type: "hero", title: "风险状态", slots: ["accountPerformance", "riskNotice"] },
+      { id: "risk-context", type: "split", title: "账户上下文", slots: ["marketInsight", "balanceTotal", "userKycRail"] },
+      { id: "risk-accounts", type: "full", title: "账号排查", slots: ["tradingAccounts"] },
+    ],
+    onboarding: [
+      { id: "onboarding-hero", type: "hero", title: "开户路径", slots: ["onboardingProgress", "openAccountActions"] },
+      { id: "onboarding-next", type: "split", title: "下一步", slots: ["createAccountForm", "fundActions", "quickActions"] },
+      { id: "onboarding-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
+    ],
+    growth: [
+      ...(wantsWelcome ? [{ id: "growth-welcome", type: "hero", title: "欢迎", slots: ["balanceTotal"] }] : []),
+      { id: "growth-hero", type: "hero", title: "活动首屏", slots: ["adCarousel"] },
+      { id: "growth-actions", type: "split", title: "转化路径", slots: ["quickActions", "promoHighlight", "fundActions"] },
+      ...(wantsWalletList ? [{ id: "growth-wallets", type: "full", title: "钱包列表", slots: ["walletList"] }] : []),
+      { id: "growth-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts", "referralLink"] },
+    ],
+    partner: [
+      { id: "partner-hero", type: "hero", title: "代理增长", slots: ["referralLink"] },
+      { id: "partner-tools", type: "split", title: "渠道工具", slots: ["adCarousel", "quickActions", "openAccountActions", "promoHighlight"] },
+      { id: "partner-accounts", type: "full", title: "转化账号", slots: ["tradingAccounts"] },
+    ],
+    retention: [
+      { id: "retention-hero", type: "hero", title: "账户唤醒", slots: ["balanceTotal", "fundActions"] },
+      { id: "retention-tasks", type: "split", title: "回流任务", slots: ["quickActions", "promoHighlight", "marketInsight"] },
+      { id: "retention-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
+    ],
+    mobile: [
+      { id: "mobile-hero", type: "hero", title: "移动首屏", slots: ["balanceTotal", "fundActions"] },
+      { id: "mobile-actions", type: "full", title: "快捷操作", slots: ["quickActions", "walletBalance"] },
+      { id: "mobile-accounts", type: "full", title: "账号卡片", slots: ["tradingAccounts"] },
+    ],
+    brand: [
+      { id: "brand-hero", type: "hero", title: "品牌首屏", slots: ["adCarousel"] },
+      { id: "brand-trust", type: "split", title: "信任与转化", slots: ["balanceTotal", "fundActions", "openAccountActions", "promoHighlight"] },
+      { id: "brand-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
+    ],
+    standard: [
+      { id: "standard-hero", type: "hero", title: "工作台", slots: ["balanceTotal", "fundActions"] },
+      { id: "standard-actions", type: "split", title: "常用操作", slots: ["quickActions"] },
+      { id: "standard-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
+    ],
+  };
+
+  return (sectionMap[intent] || sectionMap.standard)
+    .map((section) => ({
+      ...section,
+      slots: section.slots.filter(has),
+    }))
+    .filter((section) => section.slots.length);
+}
+
 function mockHomepageConfig(payload, providerConfig) {
-  const text = String(payload.prompt || "").toLowerCase();
-  const isVip = /vip|高净值|黑金|大气/.test(text);
-  const isGrowth = /活动|比赛|增长|转化|奖池/.test(text);
-  const isTrader = !isGrowth && /交易工作台|专业交易|mt4|mt5|持仓|订单|专业/.test(text);
+  const rawPrompt = String(payload.prompt || "");
+  const text = rawPrompt.toLowerCase() + rawPrompt;
+  const intentProfile = buildHomepageIntentProfile(rawPrompt);
+  const intent = intentProfile.primaryIntent;
+  const isVip = intent === "vip";
+  const isGrowth = intent === "growth";
+  const isAsset = intent === "asset";
+  const isTrader = intent === "trader";
+  const isPartner = intent === "partner";
+  const isOnboarding = intent === "onboarding";
   const wantsClear = /轻快|清晰|清爽|明亮|浅色|轻量/.test(text);
   const wantsGold = /淡金|浅金|轻金|香槟金|金色|金色调|gold/.test(text);
   const wantsWalletList = /钱包列表|多币种钱包/.test(text);
   const wantsSeparatedAccounts = /真实账号|模拟账号|两个列表|分开|live|demo/.test(text);
+  const wantsAccountList = /交易账号列表|交易账户列表|账号列表|账户列表|account list/.test(text);
   const wantsWelcome = /欢迎|welcome/.test(text);
   const wantsRealAccountCards = /真实(?:交易)?账(?:号|户)(?:列表)?[\s\S]{0,32}卡片|卡片[\s\S]{0,32}真实(?:交易)?账(?:号|户)/.test(String(payload.prompt || ""));
   const wantsDemoAccountList = /模拟(?:交易)?账(?:号|户)(?:列表)?|demo\s*(account\s*)?list/i.test(String(payload.prompt || ""));
   const wantsMixedAccountPresentation = wantsRealAccountCards && wantsDemoAccountList;
-  const growthLayout = [
-    wantsWelcome
-      ? { id: "welcome", component: "welcome_header", slot: "hero", priority: 5, props: {}, brickId: "system.welcomeHeader", brickName: "欢迎头部", brickFamily: "WelcomeHeader", brickSize: "3x1", brickZone: "hero", brickReason: "欢迎模块按提示词保留为轻量首行。" }
-      : null,
-    { id: "ad-carousel", component: "ad_carousel", slot: "hero", priority: 10, props: {}, brickId: "adCarousel.heroCampaign", brickName: "首屏广告轮播", brickFamily: "PromotionBanner", brickSize: "3x1", brickZone: "hero", brickReason: "活动增长首页把交易大赛和奖池作为首屏长模块。" },
-    { id: "quick-actions", component: "quick_actions", slot: "main", priority: 100, props: {}, brickId: "quickActions.priorityMatrix", brickName: "转化快捷矩阵", brickFamily: "QuickActions", brickSize: "2x1", brickZone: "main", brickReason: "保留 8 个快捷入口承接参与、入金和账号操作。" },
-    { id: "promo-scoreboard", component: "promo_banner", slot: "main", priority: 110, props: {}, brickId: "promoBanner.scoreboard", brickName: "赛事活动看板", brickFamily: "PromotionBanner", brickSize: "2x1", brickZone: "main", brickReason: "把奖池、倒计时和活动 CTA 从轮播里拆成独立活动看板。" },
-    { id: "referral", component: "referral_link", slot: "full", priority: 130, props: {}, brickId: "referralLink.growthConsole", brickName: "推广链接控制台", brickFamily: "ReferralLink", brickSize: "3x1", brickZone: "full", brickReason: "推广模块单独展示开户链接、邀请码和二维码。" },
-    wantsWalletList
-      ? { id: "wallet-list", component: "wallet_list", slot: "full", priority: 200, props: {}, brickId: "walletList.currencyTable", brickName: "钱包小卡片列表", brickFamily: "WalletList", brickSize: "3x2", brickZone: "full", brickReason: "钱包列表按小卡片组展示多币种余额。" }
-      : null,
-    { id: "trading-accounts", component: "account_list", slot: "full", priority: 220, props: {}, brickId: "tradingAccounts.separatedList", brickName: "真实/模拟账号双列表", brickFamily: "TradingAccounts", brickSize: "3x2", brickZone: "full", brickReason: "默认展示模拟账号列表在上、真实账号列表在下。" },
-  ].filter(Boolean);
+  const design = homepageDesignForIntent(intent);
+	  const brickPlans = {
+    vip: [
+      { brickId: "assetOverview.wealthPlate", brickName: "私行资产服务牌", family: "AssetOverview", feature: "balanceTotal", component: "asset_summary", size: "2x2", zone: "hero", reason: "高净值首页先建立资金实力和私行服务感。" },
+      { brickId: "fundActions.priorityDock", brickName: "资金操作 Dock", family: "FundActions", feature: "fundActions", component: "fund_actions", size: "1x1", zone: "rail", reason: "资金动作作为 VIP 服务入口。" },
+      { brickId: "adCarousel.heroCampaign", brickName: "首屏广告轮播", family: "PromotionBanner", feature: "adCarousel", component: "ad_carousel", size: "3x1", zone: "full", reason: "权益和活动作为高净值服务内容。" },
+      { brickId: "walletBalance.currencyRail", brickName: "钱包币种侧栏", family: "WalletBalance", feature: "walletBalance", component: "wallet_balance", size: "1x1", zone: "rail", reason: "多币种钱包作为资产侧栏。" },
+      { brickId: "openAccount.sidePanel", brickName: "右侧开户操作台", family: "OpenAccount", feature: "openAccountActions", component: "open_account_panel", size: "1x2", zone: "rail", reason: "VIP 客户开户动作保持可达。" },
+      { brickId: "tradingAccounts.separatedList", brickName: "真实/模拟账号双列表", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "3x2", zone: "full", reason: "账号资产完整下置。" },
+    ],
+	    asset: [
+    { brickId: "assetOverview.tickerStrip", brickName: "资产 Ticker 指标条", family: "AssetOverview", feature: "balanceTotal", component: "asset_summary", size: "3x1", zone: "hero", reason: "首屏用横向指标带呈现总资产、可用资金、保证金和风险等级。" },
+    { brickId: "fundActions.priorityDock", brickName: "资金操作 Dock", family: "FundActions", feature: "fundActions", component: "fund_actions", size: "1x1", zone: "rail", reason: "入金和出金作为资产管理高频动作。" },
+    { brickId: "walletList.tiles", brickName: "钱包磁贴组", family: "WalletList", feature: "walletList", component: "wallet_list", size: "3x2", zone: "full", reason: "多币种钱包用磁贴组展示，和普通表格明显区分。" },
+    { brickId: "accountPerformance.proChart", brickName: "账号表现图表", family: "AccountPerformance", feature: "accountPerformance", component: "account_performance", size: "2x2", zone: "main", reason: "账户表现图表需要主栏宽度承载趋势信息。" },
+    { brickId: "riskNotice.marginGuard", brickName: "保证金风险提示", family: "RiskNotice", feature: "riskNotice", component: "risk_notice", size: "1x2", zone: "rail", reason: "把保证金、杠杆和风险等级放到侧栏提醒。" },
+    { brickId: "tradingAccounts.separatedList", brickName: "真实/模拟账号双列表", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "3x2", zone: "full", reason: "交易账号列表作为下方管理区完整承接。" },
+    ],
+    trader: [
+      { brickId: "quickActions.commandBar", brickName: "交易命令栏", family: "QuickActions", feature: "quickActions", component: "quick_actions", size: "3x1", zone: "hero", reason: "专业交易首页先给订单、持仓和 MT5 高频入口。" },
+      { brickId: "accountPerformance.sparklineBoard", brickName: "Sparkline 指挥看板", family: "AccountPerformance", feature: "accountPerformance", component: "account_performance", size: "2x2", zone: "main", reason: "权益和 PnL 曲线作为交易判断依据。" },
+      { brickId: "userKycRail.profileWallet", brickName: "用户/KYC 钱包侧栏", family: "UserKycRail", feature: "userKycRail", component: "user_kyc_rail", size: "1x2", zone: "rail", reason: "右侧保留状态和钱包摘要。" },
+      { brickId: "assetOverview.compactMetrics", brickName: "紧凑资产指标条", family: "AssetOverview", feature: "balanceTotal", component: "asset_summary", size: "3x1", zone: "full", reason: "资产指标压缩成横条，避免抢交易账号区域。" },
+      { brickId: "tradingAccounts.separatedList", brickName: "真实/模拟账号双列表", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "3x2", zone: "full", reason: "账号列表完整展示。" },
+    ],
+    insight: [
+      { brickId: "accountPerformance.sparklineBoard", brickName: "Sparkline 指挥看板", family: "AccountPerformance", feature: "accountPerformance", component: "account_performance", size: "2x2", zone: "hero", reason: "数据洞察首页先看账户表现和 PnL。" },
+      { brickId: "marketInsight.healthPanel", brickName: "账户健康洞察", family: "MarketInsight", feature: "marketInsight", component: "market_insight", size: "1x2", zone: "rail", reason: "右侧放账户健康、资金流和市场状态。" },
+      { brickId: "assetOverview.compactMetrics", brickName: "紧凑资产指标条", family: "AssetOverview", feature: "balanceTotal", component: "asset_summary", size: "3x1", zone: "full", reason: "总资产作为辅助指标条。" },
+      { brickId: "riskNotice.marginGuard", brickName: "保证金风险提示", family: "RiskNotice", feature: "riskNotice", component: "risk_notice", size: "1x2", zone: "rail", reason: "风险和保证金作为洞察结论。" },
+      { brickId: "fundActions.priorityDock", brickName: "资金操作 Dock", family: "FundActions", feature: "fundActions", component: "fund_actions", size: "1x1", zone: "rail", reason: "下一步建议可直接入金或出金。" },
+      { brickId: "tradingAccounts.separatedList", brickName: "真实/模拟账号双列表", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "3x2", zone: "full", reason: "账号列表承接分析下钻。" },
+    ],
+    deposit: [
+      { brickId: "promoBanner.depositLadder", brickName: "入金奖励阶梯", family: "PromotionBanner", feature: "promoHighlight", component: "promo_banner", size: "2x2", zone: "hero", reason: "首屏左侧突出 $500/$2,000/$10,000 三档奖励和最高赠金 $300。" },
+      { brickId: "walletBalance.currencyRail", brickName: "钱包币种侧栏", family: "WalletBalance", feature: "walletBalance", component: "wallet_balance", size: "1x1", zone: "rail", reason: "右侧给出钱包余额，解释当前入金上下文。" },
+      { brickId: "fundActions.priorityDock", brickName: "资金操作 Dock", family: "FundActions", feature: "fundActions", component: "fund_actions", size: "1x1", zone: "rail", reason: "主入金动作只在首屏操作区放大一次。" },
+      { brickId: "openAccount.conversionPanel", brickName: "开户转化面板", family: "OpenAccount", feature: "openAccountActions", component: "open_account_panel", size: "1x2", zone: "rail", reason: "开真实账号作为入金前置动作，而不是散落在页面各处。" },
+      { brickId: "quickActions.taskRail", brickName: "快捷入口", family: "QuickActions", feature: "quickActions", component: "quick_actions", size: "2x1", zone: "main", reason: "快捷入口紧跟首屏，承接转账、订单、持仓和客服，不重复主入金按钮。" },
+      { brickId: "accountPerformance.proChart", brickName: "账号轻趋势", family: "AccountPerformance", feature: "accountPerformance", component: "account_performance", size: "2x2", zone: "main", reason: "账号区保留轻量趋势，复杂图表下移并降噪。" },
+      { brickId: "tradingAccounts.cardProof", brickName: "紧凑账号证明卡", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "2x2", zone: "full", reason: "账号信息作为整栏证明区承接，不抢首屏入金主线。" },
+    ],
+    risk: [
+      { brickId: "accountPerformance.sparklineBoard", brickName: "Sparkline 指挥看板", family: "AccountPerformance", feature: "accountPerformance", component: "account_performance", size: "2x2", zone: "hero", reason: "风险首页先展示权益和 PnL 波动。" },
+      { brickId: "riskNotice.marginGuard", brickName: "保证金风险提示", family: "RiskNotice", feature: "riskNotice", component: "risk_notice", size: "1x2", zone: "rail", reason: "保证金和风险等级需要首屏提醒。" },
+      { brickId: "marketInsight.healthPanel", brickName: "账户健康洞察", family: "MarketInsight", feature: "marketInsight", component: "market_insight", size: "1x2", zone: "rail", reason: "补充市场和账户健康指标。" },
+      { brickId: "assetOverview.compactMetrics", brickName: "紧凑资产指标条", family: "AssetOverview", feature: "balanceTotal", component: "asset_summary", size: "3x1", zone: "full", reason: "资产指标保留但降权。" },
+      { brickId: "userKycRail.profileWallet", brickName: "用户/KYC 钱包侧栏", family: "UserKycRail", feature: "userKycRail", component: "user_kyc_rail", size: "1x2", zone: "rail", reason: "客户状态用于客服跟进。" },
+      { brickId: "tradingAccounts.separatedList", brickName: "真实/模拟账号双列表", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "3x2", zone: "full", reason: "风险排查需要账号列表。" },
+    ],
+    onboarding: [
+      { brickId: "onboardingProgress.timeline", brickName: "新客旅程时间线", family: "OnboardingProgress", feature: "onboardingProgress", component: "onboarding_progress", size: "2x1", zone: "hero", reason: "新客首页先告诉客户下一步。" },
+      { brickId: "openAccount.conversionPanel", brickName: "开户转化面板", family: "OpenAccount", feature: "openAccountActions", component: "open_account_panel", size: "1x2", zone: "rail", reason: "真实、模拟和绑定账号集中处理。" },
+      { brickId: "createAccountForm.realAccount", brickName: "真实账户创建表单", family: "CreateAccountForm", feature: "createAccountForm", component: "create_account_form", size: "1x2", zone: "rail", reason: "直接创建真实账号。" },
+      { brickId: "fundActions.priorityDock", brickName: "资金操作 Dock", family: "FundActions", feature: "fundActions", component: "fund_actions", size: "1x1", zone: "main", reason: "首次入金动作靠前。" },
+      { brickId: "quickActions.taskRail", brickName: "下一步任务按钮组", family: "QuickActions", feature: "quickActions", component: "quick_actions", size: "2x1", zone: "main", reason: "高频动作转成下一步任务。" },
+      { brickId: "tradingAccounts.separatedList", brickName: "真实/模拟账号双列表", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "3x2", zone: "full", reason: "账号列表放下方承接开户结果。" },
+    ],
+    growth: [
+      { brickId: "adCarousel.editorialCover", brickName: "专题封面轮播", family: "PromotionBanner", feature: "adCarousel", component: "ad_carousel", size: "3x1", zone: "hero", reason: "活动增长首页把交易大赛和奖池作为专题封面。" },
+      { brickId: "quickActions.priorityMatrix", brickName: "转化快捷矩阵", family: "QuickActions", feature: "quickActions", component: "quick_actions", size: "2x1", zone: "main", reason: "保留 8 个快捷入口承接参与、入金和账号操作。" },
+      { brickId: "promoBanner.scoreboard", brickName: "赛事活动看板", family: "PromotionBanner", feature: "promoHighlight", component: "promo_banner", size: "2x1", zone: "main", reason: "把奖池、倒计时和活动 CTA 从轮播里拆成独立活动看板。" },
+      { brickId: "fundActions.priorityDock", brickName: "资金操作 Dock", family: "FundActions", feature: "fundActions", component: "fund_actions", size: "1x1", zone: "rail", reason: "活动转化承接入金。" },
+      { brickId: "tradingAccounts.cardProof", brickName: "紧凑账号证明卡", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "2x2", zone: "main", reason: "账号作为活动参与证明。" },
+      { brickId: "referralLink.growthConsole", brickName: "邀请增长控制台", family: "ReferralLink", feature: "referralLink", component: "referral_link", size: "3x1", zone: "full", reason: "推广模块单独展示开户链接、邀请码和二维码。" },
+    ],
+    partner: [
+      { brickId: "referralLink.growthConsole", brickName: "邀请增长控制台", family: "ReferralLink", feature: "referralLink", component: "referral_link", size: "3x1", zone: "hero", reason: "IB 首页优先展示注册链接和邀请数据。" },
+      { brickId: "adCarousel.editorialCover", brickName: "专题封面轮播", family: "PromotionBanner", feature: "adCarousel", component: "ad_carousel", size: "3x1", zone: "full", reason: "活动作为渠道素材曝光。" },
+      { brickId: "openAccount.sidePanel", brickName: "右侧开户操作台", family: "OpenAccount", feature: "openAccountActions", component: "open_account_panel", size: "1x2", zone: "rail", reason: "开户注册动作靠前。" },
+      { brickId: "quickActions.priorityMatrix", brickName: "转化快捷矩阵", family: "QuickActions", feature: "quickActions", component: "quick_actions", size: "2x1", zone: "main", reason: "渠道经理高频操作集中。" },
+      { brickId: "promoBanner.scoreboard", brickName: "赛事活动看板", family: "PromotionBanner", feature: "promoHighlight", component: "promo_banner", size: "2x1", zone: "main", reason: "渠道活动数据独立看板。" },
+      { brickId: "tradingAccounts.cardProof", brickName: "紧凑账号证明卡", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "2x2", zone: "main", reason: "账号转化简洁展示。" },
+    ],
+    retention: [
+      { brickId: "assetOverview.compactMetrics", brickName: "紧凑资产指标条", family: "AssetOverview", feature: "balanceTotal", component: "asset_summary", size: "3x1", zone: "hero", reason: "留存首页先唤起账户状态。" },
+      { brickId: "quickActions.taskRail", brickName: "下一步任务按钮组", family: "QuickActions", feature: "quickActions", component: "quick_actions", size: "2x1", zone: "main", reason: "重新开始交易任务靠前。" },
+      { brickId: "fundActions.priorityDock", brickName: "资金操作 Dock", family: "FundActions", feature: "fundActions", component: "fund_actions", size: "1x1", zone: "rail", reason: "快捷入金降低回流门槛。" },
+      { brickId: "promoBanner.scoreboard", brickName: "温和召回看板", family: "PromotionBanner", feature: "promoHighlight", component: "promo_banner", size: "2x1", zone: "main", reason: "权益提醒温和承接。" },
+      { brickId: "marketInsight.healthPanel", brickName: "账户健康洞察", family: "MarketInsight", feature: "marketInsight", component: "market_insight", size: "1x2", zone: "rail", reason: "告诉客户账户状态和下一步。" },
+      { brickId: "tradingAccounts.cardProof", brickName: "紧凑账号证明卡", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "2x2", zone: "main", reason: "账号信息压缩展示。" },
+    ],
+    mobile: [
+      { brickId: "assetOverview.compactMetrics", brickName: "紧凑资产指标条", family: "AssetOverview", feature: "balanceTotal", component: "asset_summary", size: "3x1", zone: "hero", reason: "移动端首屏先用低高度资产条。" },
+      { brickId: "fundActions.priorityDock", brickName: "资金操作 Dock", family: "FundActions", feature: "fundActions", component: "fund_actions", size: "1x1", zone: "rail", reason: "入金出金按钮靠前。" },
+      { brickId: "quickActions.actionDock", brickName: "交易操作 Dock", family: "QuickActions", feature: "quickActions", component: "quick_actions", size: "3x1", zone: "full", reason: "移动端使用短工具条。" },
+      { brickId: "walletBalance.currencyRail", brickName: "钱包币种侧栏", family: "WalletBalance", feature: "walletBalance", component: "wallet_balance", size: "1x1", zone: "rail", reason: "钱包摘要轻量展示。" },
+      { brickId: "tradingAccounts.cardProof", brickName: "紧凑账号证明卡", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "2x2", zone: "main", reason: "账号列表压缩为卡片。" },
+    ],
+    brand: [
+      { brickId: "adCarousel.editorialCover", brickName: "品牌专题封面", family: "PromotionBanner", feature: "adCarousel", component: "ad_carousel", size: "3x1", zone: "hero", reason: "白标品牌首页先建立可信度。" },
+      { brickId: "assetOverview.compactMetrics", brickName: "紧凑资产指标条", family: "AssetOverview", feature: "balanceTotal", component: "asset_summary", size: "3x1", zone: "full", reason: "资金安全作为品牌背书。" },
+      { brickId: "fundActions.priorityDock", brickName: "资金操作 Dock", family: "FundActions", feature: "fundActions", component: "fund_actions", size: "1x1", zone: "rail", reason: "入金出金保持可达。" },
+      { brickId: "openAccount.sidePanel", brickName: "右侧开户操作台", family: "OpenAccount", feature: "openAccountActions", component: "open_account_panel", size: "1x2", zone: "rail", reason: "开户转化靠前但不破坏品牌感。" },
+      { brickId: "promoBanner.scoreboard", brickName: "主推活动看板", family: "PromotionBanner", feature: "promoHighlight", component: "promo_banner", size: "2x1", zone: "main", reason: "主推活动作为品牌运营内容。" },
+      { brickId: "tradingAccounts.cardProof", brickName: "紧凑账号证明卡", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "2x2", zone: "main", reason: "账号信息作为可信证明。" },
+    ],
+  };
+
+  const plan = brickPlans[intent] || [
+    { brickId: "assetOverview.compactMetrics", brickName: "紧凑资产指标条", family: "AssetOverview", feature: "balanceTotal", component: "asset_summary", size: "3x1", zone: "hero", reason: "标准工作台保留资产摘要。" },
+    { brickId: "fundActions.priorityDock", brickName: "资金操作 Dock", family: "FundActions", feature: "fundActions", component: "fund_actions", size: "1x1", zone: "rail", reason: "资金操作始终可达。" },
+    { brickId: "quickActions.actionDock", brickName: "交易操作 Dock", family: "QuickActions", feature: "quickActions", component: "quick_actions", size: "3x1", zone: "main", reason: "常用操作集中呈现。" },
+    { brickId: "tradingAccounts.separatedList", brickName: "真实/模拟账号双列表", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "3x2", zone: "full", reason: "账号列表完整承接。" },
+  ];
+  const meta = {
+    asset: ["AI 资产运营控制台", design.layoutPreset, "blueFinance", "balanced", "asset_summary", "资产管理首页：总资产、多币种钱包、表现图表和账号列表完整铺满。"],
+    trader: ["AI 交易指挥中心", design.layoutPreset, "darkTech", "compact", "account_list", "专业交易首页：交易工具、账号表现和双列表优先。"],
+    insight: ["AI 数据指挥中心", design.layoutPreset, "blueFinance", "compact", "account_performance", "数据洞察首页：账户表现、PnL、资金流和风险提示形成每日检查流。"],
+    deposit: ["AI 入金奖励阶梯首页", design.layoutPreset, "blueFinance", "balanced", "promo_banner", "入金转化首页：奖励阶梯、钱包余额、唯一主入金入口和开真实账号靠前。"],
+    risk: ["AI 风险指挥中心", design.layoutPreset, "blueFinance", "compact", "risk_notice", "风险提醒首页：保证金、权益波动、账户健康和账号列表形成风控视图。"],
+    onboarding: ["AI 新客旅程首页", design.layoutPreset, "blueFinance", "compact", "onboarding_progress", "新客开户首页：KYC、开户、首次入金和创建账号路径靠前。"],
+    growth: ["AI 活动专题封面", design.layoutPreset, wantsClear ? "blueFinance" : wantsGold ? "lightGold" : "darkTech", "balanced", "ad_carousel", "活动增长首页：广告轮播、快捷矩阵和赛事看板承接转化。"],
+    partner: ["AI 渠道专题封面", design.layoutPreset, "blueFinance", "balanced", "referral_link", "IB 代理首页：开户链接、邀请码、二维码和转化数据靠前。"],
+    retention: ["AI 留存旅程首页", design.layoutPreset, "minimalWhite", "balanced", "quick_actions", "留存唤醒首页：账户状态、召回任务、快捷入金和温和权益提示。"],
+    mobile: ["AI 轻量运营台", design.layoutPreset, "blueFinance", "compact", "asset_summary", "移动优先首页：单列、轻量、短入口和紧凑账号卡片。"],
+    brand: ["AI 品牌专题封面", design.layoutPreset, "minimalWhite", "spacious", "ad_carousel", "白标品牌首页：品牌可信、资金安全、活动和开户转化靠前。"],
+    vip: ["AI 私行服务台", design.layoutPreset, "blackGold", "spacious", "asset_summary", "高净值首页：资产 Hero、资金 Dock 和权益曝光形成服务感。"],
+    standard: ["AI 账户运营台", design.layoutPreset, "default", "balanced", "asset_summary", "平衡工作台：首页业务路径完整但不过度偏向单一场景。"],
+  }[intent] || ["AI 账户运营台", "accountOpsConsole", "default", "balanced", "asset_summary", "平衡工作台：首页业务路径完整但不过度偏向单一场景。"];
 
   return {
     schemaVersion: 4,
     blueprintVersion: 5,
     generationMode: "brick-v2",
-    name: isVip ? "AI 黑金资产首页" : isGrowth ? "AI 活动增长首页" : isTrader ? "AI 专业交易首页" : "AI 平衡工作台",
-    layoutPreset: isVip ? "vipService" : isGrowth ? "conversionFirst" : isTrader ? "tradingPro" : "standardDashboard",
-    themePreset: isVip ? "blackGold" : wantsGold ? "lightGold" : isTrader ? "default" : isGrowth && !wantsClear ? "darkTech" : "blueFinance",
-    density: isTrader ? "compact" : isVip ? "spacious" : "balanced",
+    pageIntent: intentProfile,
+    designGenome: design.designGenome,
+    pageStory: design.pageStory,
+    name: meta[0],
+    layoutPreset: meta[1],
+    themePreset: wantsGold && !["growth", "vip"].includes(intent) ? "lightGold" : meta[2],
+    density: meta[3],
     personalizationStrength: isVip || isGrowth ? "strong" : "medium",
-    heroFocus: isGrowth ? "ad_carousel" : isTrader ? "account_list" : "asset_summary",
-    sections: [
-      { id: "ai-hero", type: "hero", title: "AI 首屏", slots: isGrowth ? ["adCarousel"] : ["balanceTotal", "fundActions", "adCarousel"] },
-      { id: "ai-actions", type: "split", title: "操作路径", slots: isGrowth ? ["quickActions", "promoHighlight", "referralLink"] : ["quickActions", "onboardingProgress", "referralLink"] },
-      ...(isGrowth && wantsWalletList ? [{ id: "ai-wallets", type: "full", title: "钱包列表", slots: ["walletList"] }] : []),
-      { id: "ai-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
-    ],
-    layout: isGrowth ? growthLayout : undefined,
+    heroFocus: meta[4],
+    brickPlan: plan,
+    brickTrace: { intent, strategy: meta[0].replace(/^AI\s*/, ""), score: 90, selectedCount: plan.length, source: "mock" },
+    sections: isAsset
+      ? [
+          { id: "asset-overview", type: "hero", title: "资产总览", slots: ["balanceTotal", "fundActions"] },
+          { id: "asset-wallets", type: "full", title: "多币种钱包", slots: ["walletList"] },
+          { id: "asset-performance", type: "split", title: "账户表现", slots: ["accountPerformance", "riskNotice"] },
+          { id: "asset-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
+        ]
+      : mockSectionsForIntent(intent, plan, wantsWelcome, wantsWalletList),
     modules: {
-      AssetOverview: { variant: isVip ? "vipHero" : isTrader ? "compactTable" : "standard" },
+      AssetOverview: { variant: isVip ? "wealthPlate" : isTrader ? "darkTerminal" : isAsset ? "tickerStrip" : "standard" },
       WalletBalance: { variant: isVip ? "premiumCard" : "splitCurrency" },
-      QuickActions: { variant: isGrowth ? "priorityButtons" : isTrader ? "minimalIcons" : "actionDock" },
-      PromotionBanner: { variant: isVip ? "blackGoldVip" : isGrowth ? "gradientHero" : "splitVisual" },
+      QuickActions: { variant: intent === "deposit" ? "taskRail" : design.designGenome === "tradingCommand" ? "commandBar" : design.designGenome === "onboardingJourney" ? "taskRail" : isGrowth || intent === "retention" ? "priorityButtons" : "actionDock" },
+      PromotionBanner: { variant: intent === "deposit" ? "depositLadder" : design.designGenome === "magazineCampaign" ? "editorialCover" : isVip ? "blackGoldVip" : isGrowth || isPartner ? "gradientHero" : "splitVisual" },
+      AccountPerformance: { variant: intent === "deposit" ? "cleanSnapshot" : design.designGenome === "tradingCommand" ? "sparklineBoard" : intent === "insight" ? "cleanSnapshot" : "proChart" },
+      WalletList: { variant: design.designGenome === "accountOpsConsole" ? "walletTiles" : "currencyTable" },
+      TradingAccounts: { variant: intent === "deposit" ? "accountWall" : design.designGenome === "magazineCampaign" ? "accountWall" : design.designGenome === "tradingCommand" ? "opsTable" : isAsset || isTrader ? "separatedList" : "denseCards" },
+      OpenAccount: { variant: intent === "deposit" || design.designGenome === "onboardingJourney" ? "conversionPanel" : "sidePanel" },
+      OnboardingProgress: { variant: design.designGenome === "onboardingJourney" ? "journeyTimeline" : "checklist" },
     },
     moduleStyles: {
-      balanceTotal: isTrader ? "metric-strip" : "command",
+      balanceTotal: isVip ? "wealth-plate" : design.designGenome === "tradingCommand" ? "ticker-strip" : isAsset ? "ticker-strip" : "command",
       fundActions: "split-buttons",
-      openAccountActions: "horizontal",
-      onboardingProgress: isGrowth ? "checklist" : "path",
-      promoHighlight: isGrowth ? "scoreboard" : "clean",
-      adCarousel: wantsGold ? "clean" : isVip || isGrowth ? "immersive" : "clean",
-      quickActions: isTrader ? "toolbar" : "compact-grid",
+      openAccountActions: intent === "deposit" || design.designGenome === "onboardingJourney" ? "conversion-panel" : "horizontal",
+      onboardingProgress: design.designGenome === "onboardingJourney" ? "journey-timeline" : isGrowth ? "checklist" : "path",
+      promoHighlight: intent === "deposit" ? "deposit-ladder" : isGrowth ? "scoreboard" : "clean",
+      adCarousel: design.designGenome === "magazineCampaign" ? "editorial-cover" : wantsGold ? "clean" : isVip || isGrowth ? "immersive" : "clean",
+      quickActions: intent === "deposit" ? "task-rail" : design.designGenome === "tradingCommand" ? "command-bar" : design.designGenome === "onboardingJourney" ? "task-rail" : isTrader ? "toolbar" : "compact-grid",
       referralLink: isGrowth ? "link-first" : "compact",
-      tradingAccounts: isTrader ? "calm-table" : "dense-cards",
+      tradingAccounts: intent === "deposit" ? "account-wall" : design.designGenome === "magazineCampaign" ? "account-wall" : design.designGenome === "tradingCommand" || isAsset ? "ops-table" : "dense-cards",
+      accountPerformance: design.designGenome === "tradingCommand" ? "sparkline-board" : "pro-chart",
+      walletList: design.designGenome === "accountOpsConsole" ? "wallet-tiles" : "currency-table",
+    },
+    componentMorphs: {
+      AssetOverview: { variant: isVip ? "wealthPlate" : isAsset ? "tickerStrip" : isTrader ? "darkTerminal" : "standard" },
+      QuickActions: { variant: design.designGenome === "tradingCommand" ? "commandBar" : design.designGenome === "onboardingJourney" ? "taskRail" : "priorityButtons" },
+      PromotionBanner: { variant: intent === "deposit" ? "depositLadder" : design.designGenome === "magazineCampaign" ? "editorialCover" : "splitVisual" },
+      TradingAccounts: { variant: design.designGenome === "tradingCommand" ? "opsTable" : design.designGenome === "magazineCampaign" ? "accountWall" : "separatedList" },
     },
     moduleSettings: {
-      adCarousel: { enabled: true },
-      quickActions: { enabled: true, count: isTrader ? 6 : 8, display: isTrader ? "iconOnly" : "iconText" },
-      wallet: { enabled: !(isGrowth && wantsGold), placement: isGrowth && !wantsWalletList ? "mergedWithAssets" : "standalone", showFundActions: isVip },
-      assets: { enabled: !(isGrowth && wantsGold), showFundActions: !(isGrowth && wantsGold) },
-      referral: { enabled: true, showClicks: true, showRegistrations: true, showTradingAccounts: true, showPromoLink: true, showInviteCode: true, showQrCode: true },
+      adCarousel: { enabled: ["growth", "partner", "brand", "vip", "deposit", "retention"].includes(intent) },
+      quickActions: { enabled: !isAsset && intent !== "risk", count: intent === "deposit" ? 4 : isTrader || intent === "mobile" ? 6 : 8, display: isTrader || intent === "mobile" ? "iconOnly" : "iconText", actions: intent === "deposit" ? ["transfer", "orders", "positions", "contactService"] : [] },
+      wallet: { enabled: intent === "deposit" ? true : !(isGrowth && wantsGold), placement: intent === "deposit" ? "standalone" : isGrowth && !wantsWalletList ? "mergedWithAssets" : "standalone", showFundActions: false },
+      assets: { enabled: intent === "deposit" ? false : !(isGrowth && wantsGold), showFundActions: intent === "deposit" ? true : !(isGrowth && wantsGold), showAvailable: isAsset, showMargin: isAsset, showRiskLevel: isAsset, wallets: isAsset ? ["USD", "EUR", "USDT"] : [] },
+      referral: { enabled: isPartner, showClicks: true, showRegistrations: true, showTradingAccounts: true, showPromoLink: true, showInviteCode: true, showQrCode: true },
       tradingAccounts: {
         enabled: true,
         realEnabled: true,
-        demoEnabled: true,
-        grouping: isTrader || wantsSeparatedAccounts || wantsMixedAccountPresentation ? "separated" : "combined",
-        viewMode: wantsMixedAccountPresentation ? "card" : isTrader || wantsSeparatedAccounts ? "list" : "switchable",
-        realViewMode: wantsMixedAccountPresentation ? "card" : isTrader || wantsSeparatedAccounts ? "list" : "card",
-        demoViewMode: wantsMixedAccountPresentation ? "list" : isTrader || wantsSeparatedAccounts ? "list" : "card",
+        demoEnabled: intent === "deposit" ? false : true,
+        grouping: isAsset || isTrader || wantsSeparatedAccounts || wantsAccountList || wantsMixedAccountPresentation ? "separated" : "combined",
+        viewMode: intent === "deposit" ? "card" : wantsMixedAccountPresentation ? "card" : isAsset || isTrader || wantsSeparatedAccounts || wantsAccountList ? "list" : "switchable",
+        realViewMode: wantsMixedAccountPresentation ? "card" : isAsset || isTrader || wantsSeparatedAccounts || wantsAccountList ? "list" : "card",
+        demoViewMode: wantsMixedAccountPresentation ? "list" : isAsset || isTrader || wantsSeparatedAccounts || wantsAccountList ? "list" : "card",
+        demoFirst: /模拟账号.*(?:真实账号|live)|demo.*live|demo\s*在\s*live|模拟.*上面/i.test(String(payload.prompt || "")),
       },
-      openAccount: { enabled: true, real: true, demo: true, bind: true, placement: "insideTradingAccounts" },
+      openAccount: { enabled: true, real: true, demo: intent === "deposit" ? false : true, bind: intent === "deposit" ? false : true, placement: isOnboarding || intent === "deposit" || intent === "brand" || isPartner ? "standalone" : "insideTradingAccounts" },
+      riskNotice: { enabled: isAsset || intent === "risk" || intent === "insight" },
     },
     emphasis: {
-      deposit: isGrowth || isVip ? "high" : "medium",
-      openAccount: isGrowth ? "high" : "medium",
-      promo: isGrowth ? "high" : "medium",
-      accounts: isTrader ? "high" : "medium",
+      deposit: intent === "deposit" || isGrowth || isVip || isAsset ? "high" : "medium",
+      openAccount: intent === "deposit" || isGrowth ? "high" : "medium",
+      promo: intent === "deposit" || isGrowth ? "high" : "low",
+      accounts: isTrader || isAsset ? "high" : "medium",
     },
-    aiSummary: isGrowth
-      ? `已通过 ${providerConfig.name} / ${providerConfig.model} 生成活动增长首页：广告轮播首屏长模块，真实账号卡片，模拟账号列表。`
-      : `已通过 ${providerConfig.name} / ${providerConfig.model} 生成首页蓝图。`,
+    aiSummary: `已通过 ${providerConfig.name} / ${providerConfig.model} 生成${meta[5]}`,
   };
+}
+
+function textHasAny(text, words) {
+  return words.some((word) => text.includes(word.toLowerCase()));
+}
+
+function ensureObject(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+const HOMEPAGE_SLOT_TO_SETTING = {
+  balanceTotal: "assets",
+  walletBalance: "wallet",
+  fundActions: "assets",
+  openAccountActions: "openAccount",
+  onboardingProgress: "onboardingProgress",
+  promoHighlight: "promoHighlight",
+  adCarousel: "adCarousel",
+  quickActions: "quickActions",
+  referralLink: "referral",
+  tradingAccounts: "tradingAccounts",
+  userKycRail: "userKycRail",
+  accountPerformance: "accountPerformance",
+  walletList: "wallet",
+  createAccountForm: "createAccountForm",
+  marketInsight: "marketInsight",
+  riskNotice: "riskNotice",
+};
+
+const HOMEPAGE_SLOT_TO_BRICK_FEATURE = {
+  balanceTotal: "balanceTotal",
+  walletBalance: "walletBalance",
+  fundActions: "fundActions",
+  openAccountActions: "openAccountActions",
+  onboardingProgress: "onboardingProgress",
+  promoHighlight: "promoHighlight",
+  adCarousel: "adCarousel",
+  quickActions: "quickActions",
+  referralLink: "referralLink",
+  tradingAccounts: "tradingAccounts",
+  userKycRail: "userKycRail",
+  accountPerformance: "accountPerformance",
+  walletList: "walletList",
+  createAccountForm: "createAccountForm",
+  marketInsight: "marketInsight",
+  riskNotice: "riskNotice",
+};
+
+const HOMEPAGE_HERO_FOCUS_TO_SLOT = {
+  asset_summary: "balanceTotal",
+  ad_carousel: "adCarousel",
+  promo_banner: "promoHighlight",
+  fund_actions: "fundActions",
+  quick_actions: "quickActions",
+  open_account_panel: "openAccountActions",
+  onboarding_progress: "onboardingProgress",
+  account_list: "tradingAccounts",
+  referral_link: "referralLink",
+  user_kyc_rail: "userKycRail",
+  account_performance: "accountPerformance",
+  wallet_list: "walletList",
+  create_account_form: "createAccountForm",
+  wallet_balance: "walletBalance",
+  risk_notice: "riskNotice",
+  copytrading_summary: "marketInsight",
+};
+
+function sectionHasSlot(sections, slot) {
+  return Array.isArray(sections) && sections.some((section) => Array.isArray(section.slots) && section.slots.includes(slot));
+}
+
+function removeAvoidedHomepageModules(config, avoid = [], keepSlots = []) {
+  if (!avoid.length) return;
+  const keepSet = new Set(keepSlots);
+  const avoidSet = new Set(avoid.filter((slot) => !keepSet.has(slot)));
+  if (!avoidSet.size) return;
+  if (Array.isArray(config.sections)) {
+    config.sections = config.sections
+      .map((section) => ({
+        ...section,
+        slots: Array.isArray(section.slots) ? section.slots.filter((slot) => !avoidSet.has(slot)) : [],
+      }))
+      .filter((section) => section.slots.length);
+  }
+  if (Array.isArray(config.brickPlan)) {
+    config.brickPlan = config.brickPlan.filter((brick) => !avoidSet.has(brick?.feature));
+  }
+
+  const settings = ensureObject(config.moduleSettings);
+  avoidSet.forEach((slot) => {
+    const key = HOMEPAGE_SLOT_TO_SETTING[slot];
+    if (!key) return;
+    settings[key] = { ...ensureObject(settings[key]), enabled: false };
+  });
+  config.moduleSettings = settings;
+}
+
+function enforcePageIntentSections(config, profile, keepSlots = []) {
+  const allowedMustHave = new Set(profile.mustHave || []);
+  const currentSections = Array.isArray(config.sections) ? config.sections : [];
+  const heroSlot = HOMEPAGE_HERO_FOCUS_TO_SLOT[profile.heroFocus] || "balanceTotal";
+  const hasPrimaryHero = currentSections[0]?.type === "hero" && currentSections[0]?.slots?.includes(heroSlot);
+  const missingMustHave = [...allowedMustHave].filter((slot) => !sectionHasSlot(currentSections, slot));
+
+  if (!currentSections.length || missingMustHave.length > Math.max(1, allowedMustHave.size / 2) || !hasPrimaryHero) {
+    config.sections = clonePlain(HOMEPAGE_INTENT_SECTIONS[profile.primaryIntent] || HOMEPAGE_INTENT_SECTIONS.standard);
+    delete config.layout;
+  }
+
+  removeAvoidedHomepageModules(config, profile.avoid, keepSlots);
+}
+
+function cleanupHomepageSections(config) {
+  if (!Array.isArray(config.sections)) {
+    config.sections = [];
+    return;
+  }
+  config.sections = config.sections
+    .map((section) => ({
+      ...ensureObject(section),
+      slots: [...new Set(Array.isArray(section?.slots) ? section.slots.filter((slot) => typeof slot === "string" && slot.trim()) : [])],
+    }))
+    .filter((section) => section.slots.length);
+}
+
+function homepagePromptRequestsAd(text) {
+  const source = String(text || "").toLowerCase();
+  const hasAdSignal = textHasAny(source, ["广告", "轮播", "banner", "焦点图", "广告图", "广告位", "主视觉"]);
+  const rejectsAd = /(?:不要|不需要|去掉|移除|关闭|禁用|隐藏|别放|不要出现).{0,12}(?:广告|轮播|banner|焦点图|广告图|广告位|主视觉)/i.test(source);
+  return hasAdSignal && !rejectsAd;
+}
+
+function enableSettingForHomepageSlot(settings, slot) {
+  const key = HOMEPAGE_SLOT_TO_SETTING[slot];
+  if (!key) return;
+  settings[key] = { ...ensureObject(settings[key]), enabled: true };
+  if (slot === "fundActions") settings.assets = { ...ensureObject(settings.assets), enabled: true, showFundActions: true };
+  if (slot === "walletList") settings.wallet = { ...ensureObject(settings.wallet), enabled: true, placement: "standalone" };
+}
+
+function enableHomepageSettingsForSections(config) {
+  const settings = ensureObject(config.moduleSettings);
+  (config.sections || []).forEach((section) => {
+    (section.slots || []).forEach((slot) => enableSettingForHomepageSlot(settings, slot));
+  });
+  config.moduleSettings = settings;
+}
+
+function ensureIntentCoreSection(config, profile) {
+  const missingSlots = (profile.mustHave || []).filter((slot) => !sectionHasSlot(config.sections, slot));
+  if (!missingSlots.length) return;
+  const existing = (config.sections || []).find((section) => section.id === "intent-core");
+  if (existing) {
+    existing.slots = [...new Set([...(Array.isArray(existing.slots) ? existing.slots : []), ...missingSlots])];
+    return;
+  }
+  config.sections.push({
+    id: "intent-core",
+    type: "split",
+    title: `${profile.label || "意图"}核心模块`,
+    slots: missingSlots,
+  });
+}
+
+function lightRepairHomepageIntent(config, profile, text) {
+  cleanupHomepageSections(config);
+  ensureIntentCoreSection(config, profile);
+  cleanupHomepageSections(config);
+  if ((profile.avoid || []).includes("adCarousel") && !homepagePromptRequestsAd(text)) {
+    removeAvoidedHomepageModules(config, ["adCarousel"]);
+    const settings = ensureObject(config.moduleSettings);
+    settings.adCarousel = { ...ensureObject(settings.adCarousel), enabled: false };
+    config.moduleSettings = settings;
+  }
+  cleanupHomepageSections(config);
+  enableHomepageSettingsForSections(config);
+}
+
+function clonePlain(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function depositGovernedBrickPlan() {
+  return [
+    { brickId: "promoBanner.depositLadder", brickName: "入金奖励阶梯", family: "PromotionBanner", feature: "promoHighlight", component: "promo_banner", size: "2x2", zone: "hero", reason: "首屏左侧突出 $500/$2,000/$10,000 三档奖励和最高赠金 $300。" },
+    { brickId: "walletBalance.currencyRail", brickName: "钱包币种侧栏", family: "WalletBalance", feature: "walletBalance", component: "wallet_balance", size: "1x1", zone: "rail", reason: "右侧给出钱包余额，解释当前入金上下文。" },
+    { brickId: "fundActions.priorityDock", brickName: "资金操作 Dock", family: "FundActions", feature: "fundActions", component: "fund_actions", size: "1x1", zone: "rail", reason: "主入金动作只在首屏操作区放大一次。" },
+    { brickId: "openAccount.conversionPanel", brickName: "开户转化面板", family: "OpenAccount", feature: "openAccountActions", component: "open_account_panel", size: "1x2", zone: "rail", reason: "开真实账号作为入金前置动作，而不是散落在页面各处。" },
+    { brickId: "quickActions.taskRail", brickName: "快捷入口", family: "QuickActions", feature: "quickActions", component: "quick_actions", size: "2x1", zone: "main", reason: "快捷入口紧跟首屏，承接转账、订单、持仓和客服，不重复主入金按钮。" },
+    { brickId: "accountPerformance.proChart", brickName: "账号轻趋势", family: "AccountPerformance", feature: "accountPerformance", component: "account_performance", size: "2x2", zone: "main", reason: "账号区保留轻量趋势，复杂图表下移并降噪。" },
+    { brickId: "tradingAccounts.cardProof", brickName: "紧凑账号证明卡", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "2x2", zone: "full", reason: "账号信息作为整栏证明区承接，不抢首屏入金主线。" },
+  ];
+}
+
+function enforceHomepagePromptIntent(payload, config) {
+  const prompt = String(payload.prompt || "");
+  const text = prompt.toLowerCase() + prompt;
+  const intentProfile = buildHomepageIntentProfile(prompt);
+  const intent = intentProfile.primaryIntent;
+  const intentPreset = HOMEPAGE_INTENT_PRESETS[intent] || HOMEPAGE_INTENT_PRESETS.standard;
+  const design = homepageDesignForIntent(intent);
+  const next = ensureObject(config);
+  const existingPageIntent = ensureObject(next.pageIntent);
+  next.pageIntent = {
+    ...intentProfile,
+    ...existingPageIntent,
+    primaryIntent: intentProfile.primaryIntent,
+    secondaryIntents: intentProfile.secondaryIntents,
+    confidence: intentProfile.confidence,
+    score: intentProfile.score,
+    mustHave: intentProfile.mustHave,
+    avoid: intentProfile.avoid,
+    matchedSignals: intentProfile.matchedSignals,
+  };
+  if (!next.layoutPreset) next.layoutPreset = intentPreset.layoutPreset;
+  if (!next.themePreset) next.themePreset = intentPreset.themePreset;
+  if (!next.density) next.density = intentPreset.density;
+  if (!next.heroFocus) next.heroFocus = intentPreset.heroFocus;
+  if (!next.theme) next.theme = next.themePreset;
+  if (!next.designGenome) next.designGenome = design.designGenome;
+  if (!next.pageStory) next.pageStory = design.pageStory;
+  if (HOMEPAGE_FORCE_INTENTS.has(intent) && intentProfile.confidence !== "fallback") {
+    next.layoutPreset = intentPreset.layoutPreset;
+    next.themePreset = intentPreset.themePreset;
+    next.theme = intentPreset.themePreset;
+    next.density = intentPreset.density;
+    next.heroFocus = intentPreset.heroFocus;
+    next.designGenome = design.designGenome;
+    next.pageStory = design.pageStory;
+  }
+  next.moduleSettings = ensureObject(next.moduleSettings);
+  const settings = next.moduleSettings;
+  settings.assets = ensureObject(settings.assets);
+  settings.quickActions = ensureObject(settings.quickActions);
+  settings.wallet = ensureObject(settings.wallet);
+  settings.referral = ensureObject(settings.referral);
+  settings.tradingAccounts = ensureObject(settings.tradingAccounts);
+  settings.userKycRail = ensureObject(settings.userKycRail);
+  settings.riskNotice = ensureObject(settings.riskNotice);
+  settings.accountPerformance = ensureObject(settings.accountPerformance);
+  settings.marketInsight = ensureObject(settings.marketInsight);
+  settings.onboardingProgress = ensureObject(settings.onboardingProgress);
+  settings.openAccount = ensureObject(settings.openAccount);
+  settings.promoHighlight = ensureObject(settings.promoHighlight);
+  settings.createAccountForm = ensureObject(settings.createAccountForm);
+
+  intentProfile.mustHave.forEach((slot) => {
+    const key = HOMEPAGE_SLOT_TO_SETTING[slot];
+    if (!key) return;
+    settings[key] = { ...ensureObject(settings[key]), enabled: true };
+  });
+
+  const wantsAssetManagement = intent === "asset";
+  const mentionsAd = homepagePromptRequestsAd(text);
+  const mentionsQuick = textHasAny(text, ["快捷入口", "快捷矩阵", "快捷操作", "quick actions", "quickactions"]);
+  const mentionsReferral = textHasAny(text, ["推广", "邀请", "开户链接", "注册链接", "邀请码", "referral", "ib", "代理", "渠道"]);
+
+  if (wantsAssetManagement) {
+    next.name = "AI 资产管理首页";
+    next.layoutPreset = "accountOpsConsole";
+    next.designGenome = "accountOpsConsole";
+    next.pageStory = "opsClarity";
+    next.themePreset = "blueFinance";
+    next.theme = "blueFinance";
+    next.density = "balanced";
+    next.heroFocus = "asset_summary";
+    next.sections = [
+      { id: "asset-overview", type: "hero", title: "资产总览", slots: ["balanceTotal", "fundActions"] },
+      { id: "asset-wallets", type: "full", title: "多币种钱包", slots: ["walletList"] },
+      { id: "asset-performance", type: "split", title: "账户表现", slots: ["accountPerformance", "riskNotice"] },
+      { id: "asset-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
+    ];
+    delete next.layout;
+    next.brickPlan = [
+      { brickId: "assetOverview.tickerStrip", brickName: "资产 Ticker 指标条", family: "AssetOverview", feature: "balanceTotal", component: "asset_summary", size: "3x1", zone: "hero", reason: "首屏用横向指标带呈现总资产、可用资金、保证金和风险等级。" },
+      { brickId: "fundActions.priorityDock", brickName: "资金操作 Dock", family: "FundActions", feature: "fundActions", component: "fund_actions", size: "1x1", zone: "rail", reason: "入金和出金作为资产管理高频动作。" },
+      { brickId: "walletList.tiles", brickName: "钱包磁贴组", family: "WalletList", feature: "walletList", component: "wallet_list", size: "3x2", zone: "full", reason: "多币种钱包用磁贴组展示，和普通表格明显区分。" },
+      { brickId: "accountPerformance.proChart", brickName: "账号表现图表", family: "AccountPerformance", feature: "accountPerformance", component: "account_performance", size: "2x2", zone: "main", reason: "账户表现图表需要主栏宽度承载趋势信息。" },
+      { brickId: "riskNotice.marginGuard", brickName: "保证金风险提示", family: "RiskNotice", feature: "riskNotice", component: "risk_notice", size: "1x2", zone: "rail", reason: "把保证金、杠杆和风险等级放到侧栏提醒。" },
+      { brickId: "tradingAccounts.separatedList", brickName: "真实/模拟账号双列表", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "3x2", zone: "full", reason: "交易账号列表作为下方管理区完整承接。" },
+    ];
+    next.brickTrace = { intent: "asset", strategy: "资产管理纵向流", score: 92, selectedCount: next.brickPlan.length, source: "server-intent-guard" };
+    next.modules = ensureObject(next.modules);
+    next.modules.AssetOverview = { variant: "tickerStrip" };
+    next.modules.FundActions = { variant: "splitButtons" };
+    next.modules.WalletList = { variant: "walletTiles" };
+    next.modules.AccountPerformance = { variant: "proChart" };
+    next.modules.TradingAccounts = { variant: "opsTable" };
+    next.moduleStyles = {
+      ...ensureObject(next.moduleStyles),
+      balanceTotal: "ticker-strip",
+      fundActions: "split-buttons",
+      adCarousel: "clean",
+      quickActions: "matrix",
+      walletList: "wallet-tiles",
+      tradingAccounts: "ops-table",
+    };
+    settings.adCarousel.enabled = mentionsAd;
+    settings.quickActions.enabled = mentionsQuick;
+    settings.referral = { ...ensureObject(settings.referral), enabled: mentionsReferral };
+    settings.wallet.enabled = true;
+    settings.wallet.placement = "standalone";
+    settings.wallet.showFundActions = false;
+    settings.assets.enabled = true;
+    settings.assets.showFundActions = true;
+    settings.assets.showAccountBreakdown = true;
+    settings.assets.showWalletBreakdown = false;
+    settings.assets.showAvailable = true;
+    settings.assets.showMargin = true;
+    settings.assets.showRiskLevel = true;
+    settings.assets.wallets = ["USD", "EUR", "USDT"];
+    settings.riskNotice.enabled = true;
+    settings.tradingAccounts.enabled = true;
+    settings.tradingAccounts.realEnabled = true;
+    settings.tradingAccounts.demoEnabled = true;
+    settings.tradingAccounts.grouping = "separated";
+    settings.tradingAccounts.viewMode = "list";
+    settings.tradingAccounts.realViewMode = "list";
+    settings.tradingAccounts.demoViewMode = "list";
+  }
+
+  if (intent === "deposit") {
+    next.name = "AI 入金奖励阶梯首页";
+    next.layoutPreset = "conversionFirst";
+    next.designGenome = "depositLadder";
+    next.pageStory = "depositConversion";
+    next.themePreset = "blueFinance";
+    next.theme = "blueFinance";
+    next.density = "balanced";
+    next.heroFocus = "promo_banner";
+    next.sections = [
+      { id: "deposit-hero", type: "hero", title: "入金奖励", slots: ["promoHighlight", "walletBalance", "fundActions", "openAccountActions"] },
+      { id: "deposit-actions", type: "split", title: "快捷入口", slots: ["quickActions"] },
+      { id: "deposit-accounts", type: "full", title: "账号与趋势", slots: ["accountPerformance", "tradingAccounts"] },
+    ];
+    delete next.layout;
+    next.brickPlan = depositGovernedBrickPlan();
+    next.brickTrace = { intent: "deposit", strategy: "入金转化契约纠偏", score: 94, selectedCount: next.brickPlan.length, source: "server-page-governance" };
+    next.modules = ensureObject(next.modules);
+    next.modules.PromotionBanner = { variant: "depositLadder" };
+    next.modules.WalletBalance = { variant: "splitCurrency" };
+    next.modules.FundActions = { variant: "splitButtons" };
+    next.modules.OpenAccount = { variant: "conversionPanel" };
+    next.modules.QuickActions = { variant: "taskRail" };
+    next.modules.AccountPerformance = { variant: "cleanSnapshot" };
+    next.modules.TradingAccounts = { variant: "accountWall" };
+    next.moduleStyles = {
+      ...ensureObject(next.moduleStyles),
+      promoHighlight: "deposit-ladder",
+      walletBalance: "wallet-strip",
+      fundActions: "split-buttons",
+      openAccountActions: "conversion-panel",
+      quickActions: "task-rail",
+      accountPerformance: "pro-chart",
+      tradingAccounts: "account-wall",
+    };
+    settings.adCarousel.enabled = true;
+    settings.quickActions = { ...ensureObject(settings.quickActions), enabled: true, count: 4, display: "iconText", actions: ["transfer", "orders", "positions", "contactService"] };
+    settings.wallet = { ...ensureObject(settings.wallet), enabled: true, placement: "standalone", showFundActions: false };
+    settings.assets = { ...ensureObject(settings.assets), enabled: false, showFundActions: true, showAccountBreakdown: false, showWalletBreakdown: false, showAvailable: false, showMargin: false, showRiskLevel: false, wallets: [] };
+    settings.referral = { ...ensureObject(settings.referral), enabled: false };
+    settings.openAccount = { ...ensureObject(settings.openAccount), enabled: true, real: true, demo: false, bind: false, placement: "standalone" };
+    settings.tradingAccounts = { ...ensureObject(settings.tradingAccounts), enabled: true, realEnabled: true, demoEnabled: false, grouping: "combined", viewMode: "card", realViewMode: "card", demoViewMode: "list", demoFirst: false };
+    settings.riskNotice = { ...ensureObject(settings.riskNotice), enabled: false };
+    next.emphasis = { ...ensureObject(next.emphasis), deposit: "high", openAccount: "high", promo: "high", accounts: "medium" };
+    next.aiSummary = "已按入金转化契约重排：首屏奖励阶梯、钱包余额、唯一主入金入口和开真实账号。";
+  }
+
+  const wantsPendingKyc = textHasAny(text, ["刚注册", "新用户", "新客", "未完成实名", "没有完成实名", "还没有完成实名", "待完成", "待 kyc", "kyc 待", "kyc未", "未实名"]);
+  const mentionsKycOnly = textHasAny(text, ["kyc 状态", "kyc状态", "安全状态", "认证状态", "kyc"]) && !wantsPendingKyc;
+  if (wantsPendingKyc) settings.userKycRail.kycStatus = "pending";
+  if (mentionsKycOnly && settings.userKycRail.kycStatus === "pending") settings.userKycRail.kycStatus = "verified";
+
+  const wantsDemoFirst = /模拟账号[\s\S]{0,24}(?:真实账号|live)[\s\S]{0,24}(?:上面|前面|之前)|demo[\s\S]{0,24}live[\s\S]{0,24}(?:上面|前面|之前)|demo\s*在\s*live\s*上/i.test(prompt);
+  if (wantsDemoFirst) settings.tradingAccounts.demoFirst = true;
+
+  const wantsRealCardsDemoList = /真实(?:交易)?账(?:号|户)[\s\S]{0,24}卡片|卡片[\s\S]{0,24}真实(?:交易)?账(?:号|户)/.test(prompt);
+  const wantsAccountList =
+    /交易账号.{0,12}(?:建议)?用列表|账号.{0,8}列表|列表形式|不是卡片|真实账号列表|模拟账号列表|live.{0,8}list|demo.{0,8}list/i.test(prompt);
+  if (wantsRealCardsDemoList) {
+    settings.tradingAccounts.grouping = "separated";
+    settings.tradingAccounts.viewMode = "card";
+    settings.tradingAccounts.realViewMode = "card";
+    settings.tradingAccounts.demoViewMode = "list";
+  } else if (wantsAccountList) {
+    settings.tradingAccounts.grouping = "separated";
+    settings.tradingAccounts.viewMode = "list";
+    settings.tradingAccounts.realViewMode = "list";
+    settings.tradingAccounts.demoViewMode = "list";
+  }
+
+  if (textHasAny(text, ["多币种", "usd", "eur", "usdt", "黄金", "xau", "风险等级", "保证金占用", "可用资金", "资产配置"])) {
+    settings.assets.showAvailable = true;
+    settings.assets.showMargin = true;
+    settings.assets.showRiskLevel = true;
+    const wallets = [];
+    if (textHasAny(text, ["usd", "美元"])) wallets.push("USD");
+    if (textHasAny(text, ["eur", "欧元"])) wallets.push("EUR");
+    if (textHasAny(text, ["usdt"])) wallets.push("USDT");
+    if (textHasAny(text, ["黄金", "xau"])) wallets.push("XAU");
+    settings.assets.wallets = wallets.length ? wallets : ["USD", "EUR", "USDT"];
+    settings.riskNotice.enabled = true;
+  }
+
+  const requestedActions = [];
+  [
+    ["开户链接", "openAccount"],
+    ["邀请好友", "inviteFriends"],
+    ["活动报名", "eventSignup"],
+    ["查看返佣", "viewCommission"],
+    ["返佣", "viewCommission"],
+    ["下载素材", "downloadMaterial"],
+    ["入金", "deposit"],
+    ["开真实账号", "openReal"],
+    ["开真实账户", "openReal"],
+    ["联系客服", "contactService"],
+    ["切换交易账号", "switchAccount"],
+    ["切换账号", "switchAccount"],
+    ["kyc", "kyc"],
+    ["下载 mt5", "downloadMt5"],
+    ["mt5", "downloadMt5"],
+    ["风险", "risk"],
+  ].forEach(([keyword, actionId]) => {
+    if (text.includes(keyword) && !requestedActions.includes(actionId)) requestedActions.push(actionId);
+  });
+  if (requestedActions.length) {
+    const current = Array.isArray(settings.quickActions.actions) ? settings.quickActions.actions.filter((item) => typeof item === "string") : [];
+    settings.quickActions.actions = [...new Set(requestedActions.concat(current))].slice(0, 8);
+    settings.quickActions.count = Math.max(Number(settings.quickActions.count || 0), Math.min(8, settings.quickActions.actions.length));
+  }
+
+  if (settings.riskNotice.enabled && Array.isArray(next.sections)) {
+    const hasRisk = next.sections.some((section) => Array.isArray(section.slots) && section.slots.includes("riskNotice"));
+    if (!hasRisk && textHasAny(text, ["风险", "保证金", "杠杆"])) {
+      next.sections.push({ id: "risk", type: "split", title: "风险提示", slots: ["riskNotice"] });
+    }
+  }
+
+  const keepAvoidedSlots = mentionsAd ? ["adCarousel"] : [];
+  enforcePageIntentSections(next, intentProfile, keepAvoidedSlots);
+  removeAvoidedHomepageModules(next, intentProfile.avoid, keepAvoidedSlots);
+  lightRepairHomepageIntent(next, intentProfile, text);
+
+  next.brickTrace = {
+    ...ensureObject(next.brickTrace),
+    intent,
+    pageIntent: intent,
+    strategy: `${intentProfile.label}服务端意图纠偏`,
+    score: typeof intentProfile.confidence === "number" ? Math.round(intentProfile.confidence * 100) : Math.max(50, intentProfile.score),
+    source: "server-intent-profile",
+  };
+
+  return next;
 }
 
 function mockGeneratedComponent(payload, providerConfig) {
@@ -1490,10 +2743,10 @@ function mockGeneratedComponent(payload, providerConfig) {
     },
     WalletList: {
       name: "多币种钱包卡片组",
-      description: "以卡片或表格展示多币种钱包、余额、可用资金和出入金动作。",
-      html: `<section class="${root}"><header><span>Wallet List</span><strong>多币种钱包</strong></header><div class="wallets"><article><b>USD Wallet</b><strong>99,999.99</strong><span>Available 92,100.00</span><button class="primary" type="button">Deposit</button></article><article><b>AUD Wallet</b><strong>10.48</strong><span>Available 10.48</span><button type="button">Withdraw</button></article><article><b>USDT Wallet</b><strong>6,280.00</strong><span>TRC20</span><button type="button">Transfer</button></article></div></section>`,
-      css: `${baseCss}.${root} header{display:flex;align-items:center;justify-content:space-between;gap:10px}.${root} .wallets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.${root} article{display:grid;gap:7px;padding:12px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fbff}.${root} article strong{font-size:20px}.${root} button{width:100%}@media(max-width:720px){.${root} .wallets{grid-template-columns:1fr}}`,
-      dataRequirements: ["walletRows", "currency", "balance", "availableBalance", "fundingActions"],
+      description: "以多币种卡片展示钱包货币和钱包余额，不展示可用余额、链路或资金动作。",
+      html: `<section class="${root}"><header><span>Wallet List</span><strong>多币种钱包</strong></header><div class="wallets"><article><span><i>🇺🇸</i><b>USD</b></span><strong>99,999.99</strong></article><article><span><i>🇦🇺</i><b>AUD</b></span><strong>10.48</strong></article><article><span><i>₮</i><b>USDT</b></span><strong>6,280.00</strong></article></div></section>`,
+      css: `${baseCss}.${root} header{display:flex;align-items:center;justify-content:space-between;gap:10px}.${root} .wallets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.${root} article{display:grid;gap:12px;padding:14px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fbff}.${root} article span{display:flex;align-items:center;gap:9px}.${root} article i{width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #dbe3ef;border-radius:999px;background:#fff;font-style:normal;font-weight:950}.${root} article b{font-size:15px;color:#172033}.${root} article strong{font-size:24px}@media(max-width:720px){.${root} .wallets{grid-template-columns:1fr}}`,
+      dataRequirements: ["walletRows", "currency", "balance", "currencyIcon"],
     },
     CreateAccountForm: {
       name: "真实账号创建表单",
@@ -1646,7 +2899,7 @@ async function callProvider(payload) {
 
   if (process.env.HOME_AI_MOCK === "true") {
     return {
-      config: mockHomepageConfig(payload, config),
+      config: enforceHomepagePromptIntent(payload, mockHomepageConfig(payload, config)),
       provider: config.provider,
       model: config.model,
       rawText: "",
@@ -1656,7 +2909,7 @@ async function callProvider(payload) {
 
   const result = await callProviderWithPrompt(payload, buildPrompt(payload, config), payload.context?.schema, "homepage_config");
   return {
-    config: result.json,
+    config: enforceHomepagePromptIntent(payload, result.json),
     provider: result.provider,
     model: result.model,
     rawText: result.rawText,
@@ -1734,15 +2987,17 @@ async function handleAiComplete(req, res) {
       callMode: "serverProxy",
       baseUrl: historyConfig.baseUrl,
       endpoint: historyConfig.endpoint,
-      temperature: historyConfig.temperature,
-      maxOutputTokens: historyConfig.maxOutputTokens,
-      status: "success",
+	      temperature: historyConfig.temperature,
+	      maxOutputTokens: historyConfig.maxOutputTokens,
+	      variant: Number.isFinite(Number(payload.variant)) ? Number(payload.variant) : 0,
+	      status: "success",
       mock: Boolean(result.mock),
-      durationMs: Date.now() - startedAt,
-      prompt: safeRecordText(payload.prompt),
-      message: result.config?.name || "首页生成成功",
-      usage: result.usage || null,
-    });
+	      durationMs: Date.now() - startedAt,
+	      prompt: safeRecordText(payload.prompt),
+	      message: result.config?.name || "首页生成成功",
+	      configSnapshot: homepageRecordSnapshot(result.config),
+	      usage: result.usage || null,
+	    });
     sendJson(res, 200, { ok: true, ...result, callRecord });
   } catch (error) {
     if (payload) {
@@ -1755,10 +3010,11 @@ async function handleAiComplete(req, res) {
         apiMode: config.apiMode,
         callMode: "serverProxy",
         baseUrl: config.baseUrl,
-        endpoint: config.endpoint,
-        temperature: config.temperature,
-        maxOutputTokens: config.maxOutputTokens,
-        status: "failed",
+	        endpoint: config.endpoint,
+	        temperature: config.temperature,
+	        maxOutputTokens: config.maxOutputTokens,
+	        variant: Number.isFinite(Number(payload.variant)) ? Number(payload.variant) : 0,
+	        status: "failed",
         durationMs: Date.now() - startedAt,
         prompt: safeRecordText(payload.prompt),
         message: safeRecordText(error.message || "AI generation failed", 900),
@@ -1969,6 +3225,12 @@ async function handleComponentCompose(req, res) {
 
 function handleStatic(req, res, pathname) {
   const safePath = decodeURIComponent(pathname === "/" ? "/index.html" : pathname);
+  const pathSegments = safePath.split("/").filter(Boolean);
+  if (pathSegments.some((segment) => segment.startsWith("."))) {
+    sendText(res, 404, "Not found");
+    return;
+  }
+
   const filePath = path.normalize(path.join(ROOT_DIR, safePath));
 
   if (!filePath.startsWith(ROOT_DIR)) {

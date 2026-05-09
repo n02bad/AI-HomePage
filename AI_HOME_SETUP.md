@@ -69,4 +69,6 @@ DeepSeek V4 使用 OpenAI 兼容接口，Base URL 是 `https://api.deepseek.com`
 npm run start:mock
 ```
 
-mock 模式不会调用外部大模型，但会走同一个 `/api/home-ai/complete` 接口，便于验证“生成预览 -> 保存草稿 -> iframe 预览”的链路。
+mock 模式不会调用外部大模型，但会走同一个 `/api/home-ai/complete` 接口，便于验证“生成预览 -> 保存草稿 -> iframe 预览”的链路。Mock 现在也会按资产管理、数据洞察、入金转化、风控提醒、留存唤醒、移动优先、白标品牌、IB 代理等意图返回不同 `brickPlan`，避免不同提示语都落回同一套首页。
+
+生成记录会保存 `configSnapshot`，包含 `layoutPreset`、`themePreset`、`brickTrace.intent`、`brickTrace.strategy`、`brickPlan` 摘要和 section 摘要，用来判断本次到底是“真实大模型 / Mock / 本地规则 / 回退”，以及为什么页面看起来相似。

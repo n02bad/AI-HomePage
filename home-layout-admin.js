@@ -7,6 +7,7 @@
   const PREVIEW_SIZE_KEY = "forexcrm.home.preview.size";
   const MODEL_CONFIG_KEY = "forexcrm.home.ai.model.config";
   const MODEL_HISTORY_KEY = "forexcrm.home.ai.call.history";
+  const SUGGESTION_HISTORY_KEY = "forexcrm.home.ai.suggestion.history";
   const MAX_MODEL_HISTORY = 120;
   const MODEL_HISTORY_PREVIEW_LIMIT = 5;
   const MINIMAX_CN_BASE_URL = "https://api.minimaxi.com/v1";
@@ -127,6 +128,7 @@
     density: document.querySelector("[data-summary-density]"),
     strength: document.querySelector("[data-summary-strength]"),
     hero: document.querySelector("[data-summary-hero]"),
+    governanceSummary: document.querySelector("[data-governance-summary]"),
     decisionReasons: document.querySelector("[data-decision-reasons]"),
     variantSummary: document.querySelector("[data-variant-summary]"),
     moduleOutline: document.querySelector("[data-module-outline]"),
@@ -136,6 +138,10 @@
     modelConfigOpen: [...document.querySelectorAll("[data-model-config-open]")],
     modelConfigSummary: [...document.querySelectorAll("[data-model-config-summary]")],
     modelCallHistory: document.querySelector("[data-model-call-history]"),
+    suggestionPanel: document.querySelector("[data-ai-suggestions]"),
+    suggestionNote: document.querySelector("[data-suggestion-note]"),
+    generateSuggestions: document.querySelector("[data-ai-generate-suggestions]"),
+    refreshSuggestions: document.querySelector("[data-refresh-suggestions]"),
     suggestionButtons: [...document.querySelectorAll("[data-suggestion-prompt]")],
     json: document.querySelector("[data-config-json]"),
     toast: document.querySelector("[data-admin-toast]"),
@@ -150,6 +156,8 @@
   let aiModelConfig = loadModelConfig();
   let editingModelConfig = null;
   let modelTestState = { tone: "", message: "尚未测试" };
+  let suggestionRound = 0;
+  let suggestionCards = [];
 
   function escapeHtml(value) {
     return String(value)
@@ -308,6 +316,23 @@
     if (els.density) els.density.textContent = labelDensity(config.density);
     if (els.strength) els.strength.textContent = labelStrength(config.personalizationStrength);
     if (els.hero) els.hero.textContent = home.featureLabel(config.heroFocus);
+    if (els.governanceSummary) {
+      const prompt = window.localStorage.getItem(PROMPT_KEY) || promptValue();
+      const governance =
+        typeof home.evaluatePageGovernance === "function"
+          ? home.evaluatePageGovernance(config, prompt)
+          : config.pageGovernance || null;
+      const issues = Array.isArray(governance?.issues) ? governance.issues.filter(Boolean) : [];
+      const score = Number.isFinite(Number(governance?.score)) ? Number(governance.score) : 0;
+      const tone = score >= 90 && issues.length === 0 ? "pass" : score >= 75 ? "warn" : "fail";
+
+      els.governanceSummary.dataset.tone = tone;
+      els.governanceSummary.innerHTML = `
+        <span>页面质检</span>
+        <strong>${escapeHtml(governance?.label || "通用首页契约")} · ${escapeHtml(score)} 分</strong>
+        <small>${escapeHtml(issues.length ? `待优化：${issues.slice(0, 2).join(" / ")}` : "主目标、CTA 去重和模块层级通过")}</small>
+      `;
+    }
     if (els.json) els.json.textContent = JSON.stringify(config, null, 2);
   }
 
@@ -392,6 +417,153 @@
     const savedPrompt = window.localStorage.getItem(PROMPT_KEY);
     if (savedPrompt) els.prompt.value = savedPrompt;
   }
+
+  const AI_SUGGESTION_SCENES = [
+    { id: "vip-managed-account", label: "VIP 托管资产", summary: "$250k+ 净入金、专属经理、2 档服务费、季度收益", prompt: "高净值 VIP 托管资产首页，首屏突出 $250,000+ 净入金门槛、专属客户经理、季度收益率、2 档服务费和多币种资产；右侧放预约经理、入金和风险确认，交易账号列表下置。", tags: ["vip", "asset"] },
+    { id: "pro-trader-cost", label: "专业交易成本", summary: "点差 0.2 起、佣金 $7/手、持仓 PnL、MT5 快捷操作", prompt: "专业交易客户首页，突出交易成本和执行效率：EURUSD 点差 0.2 起、佣金 $7/手、持仓 PnL、保证金占用、MT5 快捷操作；真实账号和模拟账号分开，整体像专业交易工作台。", tags: ["trade", "account"] },
+    { id: "first-deposit-onboarding", label: "首存开户转化", summary: "$100 首存、KYC 3 步、预计 4 分钟、赠金 $30", prompt: "新客户开户转化首页，首屏突出 $100 首存门槛、KYC 3 步进度、预计 4 分钟完成、首存赠金 $30 和开真实/模拟/绑定账号三个动作；模块要有明确下一步。", tags: ["kyc", "conversion"] },
+    { id: "trading-contest-prize", label: "交易大赛奖池", summary: "$50k 奖池、Top 20 榜单、报名 $500 入金、倒计时", prompt: "活动增长首页，首屏突出 $50,000 交易大赛奖池、Top 20 排行榜、报名需 $500 入金、倒计时和 8 个快捷入口；广告轮播独占一整栏，真实交易账号用卡片，模拟账号用列表。", tags: ["growth", "campaign"] },
+    { id: "ib-commission-funnel", label: "IB 佣金漏斗", summary: "CPA $120、返佣 $8/手、点击 3.8k、转化率 7.4%", prompt: "IB 代理增长首页，突出 CPA $120、返佣 $8/手、开户链接、邀请码、二维码、点击 3,800、开户转化率 7.4% 和交易账号转化数据；适合渠道经理日常跟进。", tags: ["ib", "growth"] },
+    { id: "multi-currency-yield", label: "多币种资产收益", summary: "$84.6k 总资产、USD/EUR/USDT、7 日收益 +2.8%", prompt: "资产管理首页，突出 $84,600 总资产、USD/EUR/USDT 多币种钱包、7 日收益 +2.8%、入金出金、账户表现图表和交易账号列表；风格淡蓝、扁平、清爽专业。", tags: ["asset", "wallet"] },
+    { id: "retention-reactivation-credit", label: "沉睡账户唤醒", summary: "14 天未交易、$20 返场券、3 步恢复、有效期 72h", prompt: "留存唤醒首页，面向 14 天未交易客户；首屏突出账户状态、$20 返场券、72 小时有效期、快捷入金和 3 步重新开始交易任务，广告位温和召回。", tags: ["retention", "account"] },
+    { id: "margin-risk-shield", label: "保证金风控", summary: "保证金 138%、爆仓线 80%、亏损 -$1.2k、补保证金", prompt: "风险提醒首页，突出保证金比例 138%、爆仓线 80%、浮动亏损 -$1,200、账户风险等级、持仓提醒、资金保护和客服入口；视觉冷静可信，不要促销氛围。", tags: ["risk", "trade"] },
+    { id: "mobile-fast-deposit", label: "移动端快速入金", summary: "Apple Pay、USDT TRC20、3 分钟到账、手续费 0%", prompt: "移动端优先首页，首屏单列突出 Apple Pay、USDT TRC20、3 分钟到账、0% 手续费、资产和 6 个高频快捷入口；交易账号压缩为轻量卡片，少滚动。", tags: ["mobile", "conversion"] },
+    { id: "white-label-trust", label: "白标品牌可信度", summary: "隔离资金 $12M、99.99% 可用性、24/5 服务、开户 CTA", prompt: "白标品牌客户首页，突出隔离资金 $12M、99.99% 平台可用性、24/5 客服、资金安全、主推活动和开户转化；整体像成熟券商客户端。", tags: ["brand", "conversion"] },
+    { id: "daily-pnl-insight", label: "每日 PnL 洞察", summary: "今日 +$860、胜率 58%、最大回撤 4.2%、下一步建议", prompt: "数据洞察首页，突出今日 PnL +$860、胜率 58%、最大回撤 4.2%、资金流向、交易习惯和下一步建议；适合客户每天判断账户健康度。", tags: ["insight", "trade"] },
+    { id: "deposit-bonus-ladder", label: "入金奖励阶梯", summary: "$500/$2k/$10k 三档奖励、最高 $300、真实账号", prompt: "入金转化首页，首屏突出 $500/$2,000/$10,000 三档入金奖励、最高赠金 $300、钱包余额、入金入口和开真实账号；弱化复杂图表。", tags: ["deposit", "conversion"] },
+    { id: "copy-trading-package", label: "跟单套餐推荐", summary: "月费 $19、高手收益 +12.4%、风险 3/5、订阅入口", prompt: "跟单套餐推荐首页，突出月费 $19、高手 30 日收益 +12.4%、风险等级 3/5、订阅入口、历史回撤和账户余额；适合推动客户从观察转为订阅。", tags: ["insight", "conversion"] },
+    { id: "swap-fee-transparency", label: "隔夜费透明化", summary: "黄金 -$3.2/手、原油 -$1.1/手、费用预估、持仓提醒", prompt: "交易费用透明首页，突出黄金隔夜费 -$3.2/手、原油 -$1.1/手、点差、佣金、持仓费用预估和减少费用的下一步建议；适合专业交易客户。", tags: ["trade", "risk"] },
+    { id: "funding-status-tracker", label: "出入金状态追踪", summary: "待处理 $5k、预计 15 分钟、通道成功率 97.6%", prompt: "资金状态追踪首页，突出待处理入金 $5,000、预计 15 分钟到账、通道成功率 97.6%、出金审核进度、多币种钱包和客服入口。", tags: ["asset", "deposit"] },
+  ];
+
+  function readSuggestionHistory() {
+    try {
+      const parsed = JSON.parse(window.localStorage.getItem(SUGGESTION_HISTORY_KEY) || "[]");
+      return Array.isArray(parsed) ? parsed.filter(Boolean).slice(-AI_SUGGESTION_SCENES.length) : [];
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function writeSuggestionHistory(ids) {
+    window.localStorage.setItem(SUGGESTION_HISTORY_KEY, JSON.stringify([...new Set(ids)].slice(-AI_SUGGESTION_SCENES.length)));
+  }
+
+  function rememberSuggestionCards(cards) {
+    const existing = readSuggestionHistory();
+    writeSuggestionHistory(existing.concat(cards.map((card) => card.id || card.label)));
+  }
+
+  function suggestionScore(scene, text) {
+    const source = String(text || "").toLowerCase();
+    const keywordMap = {
+      vip: ["vip", "高净值", "黑金", "大气", "服务"],
+      asset: ["资产", "钱包", "余额", "入金", "出金"],
+      trade: ["交易", "mt4", "mt5", "持仓", "订单", "pnl"],
+      account: ["账号", "账户", "真实", "模拟"],
+      kyc: ["kyc", "开户", "实名", "认证"],
+      conversion: ["转化", "开户", "入金", "下一步"],
+      growth: ["活动", "增长", "赛事", "奖池", "banner"],
+      campaign: ["活动", "广告", "轮播", "优惠"],
+      ib: ["ib", "代理", "邀请", "二维码", "渠道"],
+      wallet: ["钱包", "币种", "资金"],
+      retention: ["留存", "召回", "沉睡", "唤醒"],
+      risk: ["风险", "风控", "保证金", "预警"],
+      mobile: ["移动", "手机", "单列"],
+      brand: ["品牌", "白标", "可信"],
+      insight: ["洞察", "数据", "表现", "分析"],
+      deposit: ["入金", "首存", "充值"],
+    };
+
+    return scene.tags.reduce((score, tag) => {
+      const words = keywordMap[tag] || [];
+      return score + words.filter((word) => source.includes(word)).length * 10;
+    }, 0);
+  }
+
+	  function buildSuggestionPrompt(scene, index) {
+	    const endings = [
+	      "保留这些价格、金额和指标作为页面内容，整体要明显区别于默认首页。",
+	      "请优先使用积木块组合，让首屏、操作区和账号区有清晰层级，并呈现关键数字。",
+	      "不要只换颜色，要调整模块位置、密度和视觉表达，至少保留 3 个可见数值。",
+	      "客户看到的是生成后的页面，不要出现配置选择器，推荐内容要像真实运营方案。",
+	    ];
+	    const ending = endings[(suggestionRound + index) % endings.length];
+	    return `独立生成目标：${scene.prompt}。${ending} 不沿用上一版模块顺序和布局骨架。本轮推荐编号 ${scene.id || scene.label}-${suggestionRound}-${index}，避免重复上一轮方案。`;
+	  }
+
+  function buildSuggestionCards(options = {}) {
+    if (!els.suggestionPanel) return [];
+
+    const text = options.usePrompt === false ? "" : promptValue();
+    const recentIds = new Set(readSuggestionHistory());
+    const ranked = AI_SUGGESTION_SCENES
+      .map((scene, index) => ({
+        ...scene,
+        index,
+        score: suggestionScore(scene, text) + (recentIds.has(scene.id) ? -1000 : 0),
+      }))
+      .sort((a, b) => b.score - a.score || ((a.index + suggestionRound) % AI_SUGGESTION_SCENES.length) - ((b.index + suggestionRound) % AI_SUGGESTION_SCENES.length));
+
+    let pool = ranked.filter((scene) => !recentIds.has(scene.id));
+    if (pool.length < 6) {
+      writeSuggestionHistory([]);
+      pool = ranked.map((scene) => ({ ...scene, score: Math.max(0, scene.score) }));
+    }
+
+    const offset = (suggestionRound * 3) % Math.max(1, pool.length);
+    const rotated = pool.slice(offset).concat(pool.slice(0, offset));
+    const cards = rotated.slice(0, 6).map((scene, index) => ({
+      ...scene,
+      prompt: buildSuggestionPrompt(scene, index),
+    }));
+    rememberSuggestionCards(cards);
+    return cards;
+  }
+
+  function renderSuggestionCards(statusText = "根据当前文案生成可编辑场景") {
+    if (!els.suggestionPanel) return;
+
+    const oldCards = [...els.suggestionPanel.querySelectorAll("[data-suggestion-prompt]")];
+    oldCards.forEach((button) => button.remove());
+    suggestionCards = suggestionCards.length ? suggestionCards : buildSuggestionCards();
+    if (els.suggestionNote) els.suggestionNote.textContent = statusText;
+
+    els.suggestionPanel.insertAdjacentHTML(
+      "beforeend",
+      suggestionCards
+        .map(
+          (scene) => `
+            <button type="button" data-suggestion-prompt="${escapeHtml(scene.prompt)}">
+              <b>${escapeHtml(scene.label)}</b>
+              <small>${escapeHtml(scene.summary)}</small>
+            </button>
+          `,
+        )
+        .join(""),
+    );
+
+    els.suggestionButtons = [...els.suggestionPanel.querySelectorAll("[data-suggestion-prompt]")];
+  }
+
+	  async function applySuggestionPrompt(button) {
+	    if (els.prompt) els.prompt.value = button.dataset.suggestionPrompt || "";
+	    interpretationRound += 1;
+	    selectedSuggestion = null;
+	    savePrompt();
+	    setAiBusy(true, "正在套用推荐...");
+	    try {
+	      const config = await generateConfigWithFallback(promptValue(), {
+	        variant: interpretationRound,
+	        distinctFrom: currentConfig,
+	      });
+	      setConfig(config, "已套用 AI 推荐");
+	      showToast("已生成一版不同首页");
+	    } finally {
+	      setAiBusy(false);
+	      els.prompt?.focus();
+	    }
+	  }
 
   function providerPreset(provider) {
     return AI_MODEL_PRESETS[provider] || AI_MODEL_PRESETS.openai;
@@ -655,18 +827,21 @@
     }
 
     els.modelCallHistory.innerHTML = previewRecords
-      .map((record) => {
-        const display = modelHistoryDisplay(record);
-        const title = [display.summary, display.advice].filter(Boolean).join(" ");
-        return `
-          <article class="model-call-item" data-call-status="${escapeHtml(record.status || "unknown")}" tabindex="0" title="${escapeHtml(title)}">
-            <div>
-              <strong>${escapeHtml(record.provider || "本地规则")} / ${escapeHtml(record.model || "--")}</strong>
-              <span>${escapeHtml(statusLabel(record.status, record.mock))} · ${escapeHtml(formatHistoryTime(record.at))}</span>
-            </div>
-            <small>${escapeHtml(record.durationMs ? `${record.durationMs}ms` : callModeLabel(record.callMode || "local"))}</small>
-            <p class="model-call-summary">${escapeHtml(display.summary)}</p>
-            ${display.advice ? `<p class="model-call-advice">${escapeHtml(display.advice)}</p>` : ""}
+	      .map((record) => {
+	        const display = modelHistoryDisplay(record);
+	        const title = [display.summary, display.advice].filter(Boolean).join(" ");
+	        const snapshot = record.configSnapshot || {};
+	        const structure = [snapshot.intent, snapshot.layoutPreset, snapshot.strategy].filter(Boolean).join(" · ");
+	        return `
+	          <article class="model-call-item" data-call-status="${escapeHtml(record.status || "unknown")}" tabindex="0" title="${escapeHtml(title)}">
+	            <div>
+	              <strong>${escapeHtml(record.provider || "本地规则")} / ${escapeHtml(record.model || "--")}</strong>
+	              <span>${escapeHtml(statusLabel(record.status, record.mock))} · ${escapeHtml(formatHistoryTime(record.at))}</span>
+	            </div>
+	            <small>${escapeHtml(record.durationMs ? `${record.durationMs}ms` : callModeLabel(record.callMode || "local"))}</small>
+	            <p class="model-call-summary">${escapeHtml(display.summary)}</p>
+	            ${structure ? `<p class="model-call-summary">${escapeHtml(structure)}</p>` : ""}
+	            ${display.advice ? `<p class="model-call-advice">${escapeHtml(display.advice)}</p>` : ""}
             ${
               display.detail
                 ? `<details class="model-call-details"><summary>查看模型返回片段</summary><pre>${escapeHtml(display.detail)}</pre></details>`
@@ -1021,6 +1196,9 @@
     els.suggestionButtons.forEach((button) => {
       button.disabled = busy;
     });
+    [els.generateSuggestions, els.refreshSuggestions].filter(Boolean).forEach((button) => {
+      button.disabled = busy;
+    });
     if (els.reset) els.reset.disabled = busy;
     if (els.prompt) els.prompt.readOnly = busy;
     if (els.intakePage) els.intakePage.classList.toggle("is-generating", busy);
@@ -1227,10 +1405,10 @@
     throw new Error(lastMessage || fetchFailureMessage("Failed to fetch", endpoints));
   }
 
-  async function generateConfigFromModel(prompt, options = {}) {
-    const config = sanitizeModelConfig(aiModelConfig);
-    if (config.callMode !== "serverProxy") {
-      return {
+	  async function generateConfigFromModel(prompt, options = {}) {
+	    const config = sanitizeModelConfig(aiModelConfig);
+	    if (config.callMode !== "serverProxy") {
+	      return {
         config: home.promptToConfig(prompt, options.variant || 0),
         usedModel: false,
         label: "本地规则",
@@ -1260,19 +1438,66 @@
       usedModel: true,
       label: `${usedProvider.name} / ${usedModel}`,
       mock: Boolean(payload.mock),
-      callRecord: payload.callRecord || null,
-    };
-  }
+	      callRecord: payload.callRecord || null,
+	    };
+	  }
 
-  async function generateConfigWithFallback(prompt, options = {}) {
-    const startedAt = Date.now();
+	  function summarizeHomepageConfig(config) {
+	    const normalized = home.normalizeConfig(config || {});
+	    return {
+	      name: normalized.name,
+	      layoutPreset: normalized.layoutPreset,
+	      themePreset: normalized.themePreset || normalized.theme,
+	      density: normalized.density,
+	      intent: normalized.brickTrace?.intent || "",
+	      strategy: normalized.brickTrace?.strategy || normalized.compositionStrategy || "",
+	      brickIds: normalized.brickPlan.map((item) => item.brickId || item.feature).filter(Boolean),
+	      sections: normalized.sections.map((section) => `${section.type}:${section.slots.join("+")}`),
+	    };
+	  }
+
+	  function homepageConfigLooksSame(firstConfig, secondConfig) {
+	    if (!firstConfig || !secondConfig) return false;
+	    const first = summarizeHomepageConfig(firstConfig);
+	    const second = summarizeHomepageConfig(secondConfig);
+	    const firstBricks = new Set(first.brickIds);
+	    const secondBricks = new Set(second.brickIds);
+	    const overlap = [...secondBricks].filter((brickId) => firstBricks.has(brickId)).length;
+	    const maxSize = Math.max(firstBricks.size, secondBricks.size, 1);
+	    const sameSections = first.sections.join("|") === second.sections.join("|");
+
+	    return first.layoutPreset === second.layoutPreset && sameSections && overlap / maxSize >= 0.82;
+	  }
+
+	  function findDistinctLocalConfig(prompt, referenceConfig, startVariant = 0) {
+	    let fallback = null;
+	    for (let offset = 1; offset <= 7; offset += 1) {
+	      const candidate = home.promptToConfig(prompt, startVariant + offset);
+	      fallback = candidate;
+	      if (!homepageConfigLooksSame(referenceConfig, candidate)) return candidate;
+	    }
+	    return fallback || home.promptToConfig(prompt, startVariant + 1);
+	  }
+
+	  function ensureDistinctHomepageConfig(prompt, config, options = {}) {
+	    if (!options.distinctFrom || !homepageConfigLooksSame(options.distinctFrom, config)) return config;
+
+	    const distinct = findDistinctLocalConfig(prompt, options.distinctFrom, options.variant || 0);
+	    const normalized = home.normalizeConfig(distinct);
+	    normalized.aiSummary = `检测到上一版首页结构过近，已自动切换到「${normalized.name}」并重排积木。`;
+	    return normalized;
+	  }
+
+	  async function generateConfigWithFallback(prompt, options = {}) {
+	    const startedAt = Date.now();
     const requestConfig = sanitizeModelConfig(aiModelConfig);
     const provider = providerPreset(requestConfig.provider);
 
-    try {
-      const result = await generateConfigFromModel(prompt, options);
-      addModelHistoryRecord({
-        id: result.callRecord?.id,
+	    try {
+	      const result = await generateConfigFromModel(prompt, options);
+	      const finalConfig = ensureDistinctHomepageConfig(prompt, result.config, options);
+	      addModelHistoryRecord({
+	        id: result.callRecord?.id,
         action: "homepage-generate",
         serverCallId: result.callRecord?.id,
         providerId: result.callRecord?.providerId || requestConfig.provider,
@@ -1288,18 +1513,19 @@
         variant: options.variant || 0,
         status: result.usedModel ? "success" : "local",
         mock: Boolean(result.mock),
-        durationMs: Date.now() - startedAt,
-        prompt: String(prompt || "").slice(0, 1200),
-        message: result.config?.name || result.label,
-      });
+	        durationMs: Date.now() - startedAt,
+	        prompt: String(prompt || "").slice(0, 1200),
+	        message: finalConfig?.name || result.label,
+	        configSnapshot: summarizeHomepageConfig(finalConfig),
+	      });
 
       if (result.usedModel) {
         showToast(result.mock ? "已通过代理 mock 生成首页方案" : `已通过 ${result.label} 生成首页方案`);
       }
-      return result.config;
-    } catch (error) {
-      const fallback = home.promptToConfig(prompt, options.variant || 0);
-      fallback.aiSummary = `大模型调用失败，已使用本地安全方案回退：${errorMessage(error, 220)}`;
+	      return finalConfig;
+	    } catch (error) {
+	      const fallback = ensureDistinctHomepageConfig(prompt, home.promptToConfig(prompt, options.variant || 0), options);
+	      fallback.aiSummary = `大模型调用失败，已使用本地安全方案回退：${errorMessage(error, 220)}`;
       addModelHistoryRecord({
         action: "homepage-generate",
         serverCallId: error.proxyPayload?.callRecord?.id,
@@ -1315,10 +1541,11 @@
         maxOutputTokens: requestConfig.maxOutputTokens,
         variant: options.variant || 0,
         status: "fallback",
-        durationMs: Date.now() - startedAt,
-        prompt: String(prompt || "").slice(0, 1200),
-        message: errorMessage(error, 700),
-      });
+	        durationMs: Date.now() - startedAt,
+	        prompt: String(prompt || "").slice(0, 1200),
+	        message: errorMessage(error, 700),
+	        configSnapshot: summarizeHomepageConfig(fallback),
+	      });
       showToast(`大模型调用失败，已回退本地方案`);
       return fallback;
     }
@@ -1649,25 +1876,57 @@
     });
   }
 
-  document.querySelectorAll("[data-suggestion-prompt]").forEach((button) => {
-    button.addEventListener("click", () => {
-      if (els.prompt) els.prompt.value = button.dataset.suggestionPrompt || "";
-      interpretationRound = 0;
-      selectedSuggestion = null;
-      savePrompt();
-      setConfig(home.promptToConfig(promptValue(), interpretationRound), "已套用建议");
-      els.prompt?.focus();
-    });
+  els.suggestionPanel?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-suggestion-prompt]");
+    if (!button) return;
+    applySuggestionPrompt(button);
   });
 
-  els.generate?.addEventListener("click", async () => {
-    savePrompt();
-    setAiBusy(true, "正在生成...");
-    let shouldResetBusy = true;
-    try {
-      const config = await generateConfigWithFallback(promptValue(), { variant: interpretationRound });
-      generatePreview(config);
-      shouldResetBusy = false;
+	  els.generateSuggestions?.addEventListener("click", async () => {
+	    suggestionRound += 1;
+	    setAiBusy(true, "正在生成推荐...");
+	    try {
+	      const scenePool = buildSuggestionCards({ usePrompt: false });
+	      const nextScene = scenePool[suggestionRound % Math.max(scenePool.length, 1)] || AI_SUGGESTION_SCENES[0];
+	      const richPrompt = [
+	        promptValue() || "根据 ForexCRM 客户首页业务，生成一套更有运营价值的首页方案。",
+	        nextScene.prompt,
+	        "请把推荐里的价格、金额、比例、时效或奖池数字真正放进首页模块，不要只做标题变化。",
+	        "本次 AI 推荐需要和当前预览结构明显不同。",
+	      ].join(" ");
+	      const config = await generateConfigWithFallback(richPrompt, { variant: suggestionRound, distinctFrom: currentConfig });
+	      const normalized = home.normalizeConfig(config);
+	      const generatedScene = {
+	        id: `ai-${nextScene.id || suggestionRound}-${Date.now()}`,
+	        label: `AI 精修：${nextScene.label || normalized.name || "新方案"}`,
+	        summary: `${nextScene.summary || home.themeLabel(normalized.themePreset || normalized.theme)} · ${home.layoutLabel(normalized.layoutPreset)}`,
+	        prompt: `${richPrompt} 上一版「${normalized.name || "当前策略"}」仅作为对照，这次必须换模块顺序和布局骨架。`,
+	        tags: nextScene.tags || ["insight"],
+	      };
+	      suggestionCards = [generatedScene, ...scenePool].slice(0, 6);
+	      rememberSuggestionCards(suggestionCards);
+	      renderSuggestionCards("已结合当前文案生成新推荐");
+	      showToast("已生成一批 AI 推荐");
+    } finally {
+      setAiBusy(false);
+    }
+  });
+
+  els.refreshSuggestions?.addEventListener("click", () => {
+    suggestionRound += 1;
+    suggestionCards = buildSuggestionCards();
+    renderSuggestionCards("已换一批推荐场景");
+    showToast("已换一批推荐");
+  });
+
+	  els.generate?.addEventListener("click", async () => {
+	    savePrompt();
+	    setAiBusy(true, "正在生成...");
+	    let shouldResetBusy = true;
+	    try {
+	      const config = await generateConfigWithFallback(promptValue(), { variant: interpretationRound, distinctFrom: currentConfig });
+	      generatePreview(config);
+	      shouldResetBusy = false;
     } finally {
       if (shouldResetBusy) setAiBusy(false);
     }
@@ -1677,26 +1936,26 @@
     generatePreview(home.randomConfig(promptValue()));
   });
 
-  els.regenerateIntelligence?.addEventListener("click", async () => {
-    interpretationRound += 1;
+	  els.regenerateIntelligence?.addEventListener("click", async () => {
+	    interpretationRound += 1;
     selectedSuggestion = null;
     savePrompt();
-    setAiBusy(true, "正在解读...");
-    try {
-      const config = await generateConfigWithFallback(promptValue(), { variant: interpretationRound });
-      setConfig(config, "已重新解读文案", { saveDraft: Boolean(els.previewPage) });
+	    setAiBusy(true, "正在解读...");
+	    try {
+	      const config = await generateConfigWithFallback(promptValue(), { variant: interpretationRound, distinctFrom: currentConfig });
+	      setConfig(config, "已重新解读文案", { saveDraft: Boolean(els.previewPage) });
       showToast("已重新解读文案");
     } finally {
       setAiBusy(false);
     }
   });
 
-  els.regenerate?.addEventListener("click", async () => {
+	  els.regenerate?.addEventListener("click", async () => {
     interpretationRound += 1;
     setAiBusy(true, "正在生成...");
-    try {
-      const prompt = window.localStorage.getItem(PROMPT_KEY) || "";
-      const config = await generateConfigWithFallback(prompt, { variant: interpretationRound });
+	    try {
+	      const prompt = window.localStorage.getItem(PROMPT_KEY) || "";
+	      const config = await generateConfigWithFallback(prompt, { variant: interpretationRound, distinctFrom: currentConfig });
       setConfig(config, "已重新生成草稿", { saveDraft: true });
       showToast("已重新生成首页方案");
     } finally {
@@ -1739,6 +1998,8 @@
   els.prompt?.addEventListener("input", () => {
     interpretationRound = 0;
     selectedSuggestion = null;
+    suggestionCards = buildSuggestionCards();
+    renderSuggestionCards("已按当前文案更新推荐");
     savePrompt();
     window.clearTimeout(renderIntelligenceSummary.timer);
     renderIntelligenceSummary.timer = window.setTimeout(() => {
@@ -1751,6 +2012,8 @@
   initModelConfig();
   renderModelHistory();
   restorePrompt();
+  suggestionCards = buildSuggestionCards();
+  renderSuggestionCards();
 
   if (els.intakePage) {
     setConfig(home.promptToConfig(promptValue(), interpretationRound), "已完成文案解读");

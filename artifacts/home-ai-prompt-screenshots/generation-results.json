@@ -1,0 +1,1137 @@
+{
+  "generatedAt": "2026-05-09T01:34:50.990Z",
+  "endpoint": "http://127.0.0.1:5185/api/home-ai/complete",
+  "provider": "deepseek",
+  "model": "deepseek-v4-flash",
+  "results": [
+    {
+      "id": "01-vip-asset-service",
+      "title": "高净值 VIP 资产服务首页",
+      "prompt": "为一家面向高净值交易客户的外汇 CRM 生成用户端首页。视觉要是黑金但不要浮夸，首屏突出总资产、净值、可用保证金和本月收益，资金动作要高可见，入金、出金、内部转账放在资产旁边。需要 VIP 专属服务入口、客户经理联系、风险提醒、KYC 状态、活动轮播但不能抢资产主视觉。交易账号要求真实账号用卡片，展示账号号、服务器、杠杆、净值、浮动盈亏、开真实交易账号按钮；模拟账号用列表展示，排在真实账号下方。首页功能复杂一些，要有钱包摘要、多币种资产、快捷入口、开户进度、推广链接可以弱化但保留。",
+      "provider": "deepseek",
+      "model": "deepseek-v4-flash",
+      "mock": false,
+      "durationMs": 20222,
+      "callRecordId": "server-1778290409737-ef9991343f2af",
+      "config": {
+        "schemaVersion": 4,
+        "blueprintVersion": 5,
+        "generationMode": "brick-v2",
+        "name": "VIP 交易首页 - 黑金资产看板",
+        "layoutPreset": "vipService",
+        "themePreset": "blackGold",
+        "personalizationStrength": "strong",
+        "density": "balanced",
+        "heroFocus": "asset_summary",
+        "brickPlan": [
+          {
+            "brickId": "assetOverview.vipHero",
+            "brickName": "VIP 资产首屏",
+            "family": "AssetOverview",
+            "feature": "balanceTotal",
+            "component": "asset_summary",
+            "size": "3x1",
+            "zone": "hero",
+            "reason": "首屏突出总资产、净值、可用保证金、本月收益，黑金视觉建立信任。"
+          },
+          {
+            "brickId": "fundActions.priorityDock",
+            "brickName": "资金操作 Dock",
+            "family": "FundActions",
+            "feature": "fundActions",
+            "component": "fund_actions",
+            "size": "1x1",
+            "zone": "rail",
+            "reason": "入金、出金、内部转账高可见，放在资产旁边。"
+          },
+          {
+            "brickId": "adCarousel.heroCampaign",
+            "brickName": "活动轮播",
+            "family": "PromotionBanner",
+            "feature": "adCarousel",
+            "component": "ad_carousel",
+            "size": "3x1",
+            "zone": "full",
+            "reason": "活动轮播但不抢资产主视觉。"
+          },
+          {
+            "brickId": "quickActions.priorityMatrix",
+            "brickName": "8 个快捷入口",
+            "family": "QuickActions",
+            "feature": "quickActions",
+            "component": "quick_actions",
+            "size": "2x1",
+            "zone": "main",
+            "reason": "两行四个，提供常用功能入口。"
+          },
+          {
+            "brickId": "userKycRail.profileWallet",
+            "brickName": "KYC 状态与钱包摘要",
+            "family": "UserKycRail",
+            "feature": "userKycRail",
+            "component": "user_kyc_rail",
+            "size": "1x1",
+            "zone": "rail",
+            "reason": "KYC 状态、客户经理联系、风险提醒、钱包摘要。"
+          },
+          {
+            "brickId": "tradingAccounts.separatedList",
+            "brickName": "真实卡片+模拟列表",
+            "family": "TradingAccounts",
+            "feature": "tradingAccounts",
+            "component": "account_list",
+            "size": "3x2",
+            "zone": "full",
+            "reason": "真实账号用卡片展示，模拟账号用列表排在下方。"
+          },
+          {
+            "brickId": "walletList.currencyTable",
+            "brickName": "多币种钱包",
+            "family": "WalletList",
+            "feature": "walletList",
+            "component": "wallet_list",
+            "size": "2x1",
+            "zone": "main",
+            "reason": "多币种资产明细。"
+          },
+          {
+            "brickId": "referralLink.growthConsole",
+            "brickName": "推广链接",
+            "family": "ReferralLink",
+            "feature": "referralLink",
+            "component": "referral_link",
+            "size": "1x1",
+            "zone": "rail",
+            "reason": "弱化但保留推广入口。"
+          }
+        ],
+        "brickTrace": {
+          "intent": "vipService",
+          "strategy": "AI 积木编排",
+          "score": 92,
+          "selectedCount": 8,
+          "source": "model"
+        },
+        "sections": [
+          {
+            "id": "hero",
+            "type": "hero",
+            "title": "资产概览",
+            "slots": [
+              "balanceTotal",
+              "fundActions"
+            ]
+          },
+          {
+            "id": "campaign",
+            "type": "full",
+            "title": "活动轮播",
+            "slots": [
+              "adCarousel"
+            ]
+          },
+          {
+            "id": "tools",
+            "type": "split",
+            "title": "快捷工具",
+            "slots": [
+              "quickActions",
+              "userKycRail"
+            ]
+          },
+          {
+            "id": "accounts",
+            "type": "full",
+            "title": "交易账号",
+            "slots": [
+              "tradingAccounts"
+            ]
+          },
+          {
+            "id": "wallet",
+            "type": "split",
+            "title": "钱包与推广",
+            "slots": [
+              "walletList",
+              "referralLink"
+            ]
+          }
+        ],
+        "modules": {
+          "AssetOverview": {
+            "variant": "vipHero"
+          },
+          "WalletBalance": {
+            "variant": "premiumCard"
+          },
+          "FundActions": {
+            "variant": "dock"
+          },
+          "QuickActions": {
+            "variant": "gridCards"
+          },
+          "PromotionBanner": {
+            "variant": "blackGoldVip"
+          },
+          "ReferralLink": {
+            "variant": "compact"
+          },
+          "TradingAccounts": {
+            "variant": "separatedList"
+          },
+          "UserKycRail": {
+            "variant": "profileWallet"
+          },
+          "WalletList": {
+            "variant": "currencyTable"
+          }
+        },
+        "moduleStyles": {
+          "balanceTotal": "command",
+          "fundActions": "dock",
+          "adCarousel": "clean",
+          "quickActions": "matrix",
+          "referralLink": "compact",
+          "tradingAccounts": "workbench"
+        },
+        "moduleSettings": {
+          "adCarousel": {
+            "enabled": true
+          },
+          "quickActions": {
+            "enabled": true,
+            "count": 8,
+            "display": "iconText"
+          },
+          "wallet": {
+            "enabled": true,
+            "placement": "standalone",
+            "showFundActions": false
+          },
+          "assets": {
+            "enabled": true,
+            "showFundActions": true
+          },
+          "referral": {
+            "enabled": true
+          },
+          "tradingAccounts": {
+            "enabled": true,
+            "realEnabled": true,
+            "demoEnabled": true,
+            "grouping": "separated",
+            "viewMode": "card",
+            "realViewMode": "card",
+            "demoViewMode": "list"
+          },
+          "openAccount": {
+            "enabled": true,
+            "real": true,
+            "demo": true,
+            "bind": true,
+            "placement": "insideTradingAccounts"
+          }
+        },
+        "emphasis": {
+          "deposit": "high",
+          "openAccount": "high",
+          "promo": "medium",
+          "accounts": "high"
+        },
+        "aiSummary": "黑金风格首页，首屏资产与资金操作，活动轮播、快捷入口、KYC、真实卡片与模拟列表、多币种钱包、推广链接。"
+      }
+    },
+    {
+      "id": "02-pro-trader-console",
+      "title": "专业交易员紧凑工作台",
+      "prompt": "生成一个给高频专业交易员使用的首页，不要营销感，要像交易工作台。整体密度紧凑、信息扫描效率高，首屏优先交易账号和账号表现图表，显示 MT4/MT5、真实账号和模拟账号都分成列表，模拟账号列表放在真实账号列表上面，列表里有余额、净值、保证金比例、今日盈亏、持仓数量、服务器、状态。需要持仓风险提醒、快速入金出金、切换交易账号、查看订单、下载 MT5、联系客服、KYC 状态。广告轮播可以非常轻，不要大横幅。快捷入口用工具栏形式，功能复杂但视觉克制。",
+      "provider": "deepseek",
+      "model": "deepseek-v4-flash",
+      "mock": false,
+      "durationMs": 19988,
+      "callRecordId": "server-1778290429726-3b77a454e5e12",
+      "config": {
+        "schemaVersion": 4,
+        "blueprintVersion": 5,
+        "generationMode": "brick-v2",
+        "name": "专业交易员工作台",
+        "layoutPreset": "tradingPro",
+        "themePreset": "darkTech",
+        "personalizationStrength": "strong",
+        "density": "compact",
+        "heroFocus": "account_list",
+        "brickPlan": [
+          {
+            "brickId": "tradingAccounts.separatedList",
+            "brickName": "真实/模拟账号双列表",
+            "family": "TradingAccounts",
+            "feature": "tradingAccounts",
+            "component": "account_list",
+            "size": "3x2",
+            "zone": "hero",
+            "reason": "首屏优先展示交易账号列表，模拟在上真实在下，含余额、净值、保证金比例、今日盈亏、持仓、服务器、状态。"
+          },
+          {
+            "brickId": "accountPerformance.proChart",
+            "brickName": "账号表现图表",
+            "family": "AccountPerformance",
+            "feature": "accountPerformance",
+            "component": "account_performance",
+            "size": "2x2",
+            "zone": "main",
+            "reason": "与账号列表同屏显示表现图表，便于快速评估。"
+          },
+          {
+            "brickId": "userKycRail.profileWallet",
+            "brickName": "KYC状态与钱包摘要",
+            "family": "UserKycRail",
+            "feature": "userKycRail",
+            "component": "user_kyc_rail",
+            "size": "1x2",
+            "zone": "rail",
+            "reason": "侧栏展示KYC状态、钱包摘要，与图表等高。"
+          },
+          {
+            "brickId": "quickActions.actionDock",
+            "brickName": "快捷工具栏",
+            "family": "QuickActions",
+            "feature": "quickActions",
+            "component": "quick_actions",
+            "size": "2x1",
+            "zone": "main",
+            "reason": "工具栏形式放置8个快捷入口：入金、出金、切换账号、查看订单、下载MT5、联系客服、KYC、风险提醒。"
+          },
+          {
+            "brickId": "fundActions.priorityDock",
+            "brickName": "资金操作Dock",
+            "family": "FundActions",
+            "feature": "fundActions",
+            "component": "fund_actions",
+            "size": "1x1",
+            "zone": "rail",
+            "reason": "快速入金出金独立操作。"
+          },
+          {
+            "brickId": "adCarousel.heroCampaign",
+            "brickName": "轻量广告轮播",
+            "family": "AdCarousel",
+            "feature": "adCarousel",
+            "component": "ad_carousel",
+            "size": "3x1",
+            "zone": "full",
+            "reason": "非大横幅，轻量轮播，不干扰交易信息。"
+          }
+        ],
+        "brickTrace": {
+          "intent": "tradingPro",
+          "strategy": "AI积木编排",
+          "score": 92,
+          "selectedCount": 6,
+          "source": "model"
+        },
+        "sections": [
+          {
+            "id": "accounts",
+            "type": "hero",
+            "title": "交易账号",
+            "slots": [
+              "tradingAccounts"
+            ]
+          },
+          {
+            "id": "performance",
+            "type": "split",
+            "title": "表现与状态",
+            "slots": [
+              "accountPerformance",
+              "userKycRail"
+            ]
+          },
+          {
+            "id": "actions",
+            "type": "split",
+            "title": "快捷操作",
+            "slots": [
+              "quickActions",
+              "fundActions"
+            ]
+          },
+          {
+            "id": "promo",
+            "type": "full",
+            "title": "活动",
+            "slots": [
+              "adCarousel"
+            ]
+          }
+        ],
+        "modules": {
+          "AssetOverview": {
+            "variant": "standard"
+          },
+          "WalletBalance": {
+            "variant": "compact"
+          },
+          "FundActions": {
+            "variant": "dock"
+          },
+          "QuickActions": {
+            "variant": "actionDock"
+          },
+          "PromotionBanner": {
+            "variant": "imageBanner"
+          },
+          "ReferralLink": {
+            "variant": "compact"
+          },
+          "TradingAccounts": {
+            "variant": "separatedList"
+          },
+          "OpenAccount": {
+            "variant": "inlineActions"
+          },
+          "OnboardingProgress": {
+            "variant": "compact"
+          },
+          "UserKycRail": {
+            "variant": "profileWallet"
+          },
+          "AccountPerformance": {
+            "variant": "proChart"
+          },
+          "WalletList": {
+            "variant": "compactRows"
+          },
+          "CreateAccountForm": {
+            "variant": "compactForm"
+          }
+        },
+        "moduleStyles": {
+          "balanceTotal": "metric-strip",
+          "fundActions": "dock",
+          "adCarousel": "compact",
+          "quickActions": "toolbar",
+          "referralLink": "compact",
+          "tradingAccounts": "workbench"
+        },
+        "moduleSettings": {
+          "adCarousel": {
+            "enabled": true
+          },
+          "quickActions": {
+            "enabled": true,
+            "count": 8,
+            "display": "iconText"
+          },
+          "wallet": {
+            "enabled": true,
+            "placement": "standalone",
+            "showFundActions": false
+          },
+          "assets": {
+            "enabled": true,
+            "showFundActions": true
+          },
+          "referral": {
+            "enabled": false
+          },
+          "tradingAccounts": {
+            "enabled": true,
+            "realEnabled": true,
+            "demoEnabled": true,
+            "grouping": "separated",
+            "viewMode": "list",
+            "realViewMode": "list",
+            "demoViewMode": "list",
+            "demoFirst": true
+          },
+          "openAccount": {
+            "enabled": true,
+            "real": true,
+            "demo": true,
+            "bind": false,
+            "placement": "insideTradingAccounts"
+          }
+        },
+        "emphasis": {
+          "deposit": "high",
+          "openAccount": "medium",
+          "promo": "low",
+          "accounts": "high"
+        },
+        "aiSummary": "为高频专业交易员设计，首屏展示模拟在上真实在下的账号列表，配图表、KYC、工具栏，密度紧凑无营销感。"
+      }
+    },
+    {
+      "id": "03-new-user-onboarding",
+      "title": "新用户开户转化首页",
+      "prompt": "为刚注册但还没有完成实名和入金的新用户生成首页。整体要明亮、清爽、可信，首屏要把欢迎信息、开户进度、KYC 待完成、创建真实账户、创建模拟账户、首次入金奖励串成一条清晰路径。广告轮播可以作为首屏第二模块，展示新手奖励、0 手续费入金、交易教程。交易账号模块可以用卡片形式，真实账号和模拟账号都要有空状态和创建按钮；如果已经有模拟账号，也要显示模拟账号列表。不要过度强调推广链接，保留但放低。需要钱包、多币种余额、常用功能、客服帮助、新手任务清单。",
+      "provider": "deepseek",
+      "model": "deepseek-v4-flash",
+      "mock": false,
+      "durationMs": 19611,
+      "callRecordId": "server-1778290449338-cc5a4831682e5",
+      "config": {
+        "schemaVersion": 4,
+        "blueprintVersion": 5,
+        "generationMode": "brick-v2",
+        "name": "新用户入门首页",
+        "layoutPreset": "conversionFirst",
+        "themePreset": "lightGold",
+        "personalizationStrength": "medium",
+        "density": "balanced",
+        "heroFocus": "onboarding_progress",
+        "brickPlan": [
+          {
+            "brickId": "onboardingProgress.checklist",
+            "brickName": "开户进度清单",
+            "family": "OnboardingProgress",
+            "feature": "onboardingProgress",
+            "component": "onboarding_progress",
+            "size": "3x1",
+            "zone": "hero",
+            "reason": "首屏欢迎信息与开户进度引导"
+          },
+          {
+            "brickId": "adCarousel.heroCampaign",
+            "brickName": "广告轮播",
+            "family": "AdCarousel",
+            "feature": "adCarousel",
+            "component": "ad_carousel",
+            "size": "3x1",
+            "zone": "full",
+            "reason": "展示新手奖励、0手续费入金、交易教程"
+          },
+          {
+            "brickId": "quickActions.priorityMatrix",
+            "brickName": "8个快捷入口",
+            "family": "QuickActions",
+            "feature": "quickActions",
+            "component": "quick_actions",
+            "size": "2x1",
+            "zone": "main",
+            "reason": "常用功能入口"
+          },
+          {
+            "brickId": "userKycRail.profileWallet",
+            "brickName": "用户KYC与钱包摘要",
+            "family": "UserKycRail",
+            "feature": "userKycRail",
+            "component": "user_kyc_rail",
+            "size": "1x1",
+            "zone": "rail",
+            "reason": "KYC状态与钱包摘要侧栏"
+          },
+          {
+            "brickId": "tradingAccounts.separatedList",
+            "brickName": "真实/模拟账号分区",
+            "family": "TradingAccounts",
+            "feature": "tradingAccounts",
+            "component": "account_list",
+            "size": "3x2",
+            "zone": "full",
+            "reason": "真实卡片+模拟列表，含创建按钮"
+          },
+          {
+            "brickId": "walletList.currencyTable",
+            "brickName": "多币种钱包列表",
+            "family": "WalletList",
+            "feature": "walletList",
+            "component": "wallet_list",
+            "size": "3x2",
+            "zone": "full",
+            "reason": "钱包与多币种余额"
+          },
+          {
+            "brickId": "referralLink.growthConsole",
+            "brickName": "推广链接控制台",
+            "family": "ReferralLink",
+            "feature": "referralLink",
+            "component": "referral_link",
+            "size": "1x1",
+            "zone": "rail",
+            "reason": "推广链接，放低权重"
+          }
+        ],
+        "brickTrace": {
+          "intent": "conversion",
+          "strategy": "AI积木编排",
+          "score": 90,
+          "selectedCount": 7,
+          "source": "model"
+        },
+        "sections": [
+          {
+            "id": "hero",
+            "type": "hero",
+            "title": "欢迎",
+            "slots": [
+              "onboardingProgress"
+            ]
+          },
+          {
+            "id": "promo",
+            "type": "full",
+            "title": "活动与教程",
+            "slots": [
+              "adCarousel"
+            ]
+          },
+          {
+            "id": "main",
+            "type": "split",
+            "title": "快捷与KYC",
+            "slots": [
+              "quickActions",
+              "userKycRail"
+            ]
+          },
+          {
+            "id": "accounts",
+            "type": "full",
+            "title": "交易账号",
+            "slots": [
+              "tradingAccounts"
+            ]
+          },
+          {
+            "id": "wallet",
+            "type": "full",
+            "title": "钱包与推广",
+            "slots": [
+              "walletList",
+              "referralLink"
+            ]
+          }
+        ],
+        "modules": {
+          "OnboardingProgress": {
+            "variant": "path"
+          },
+          "AdCarousel": {
+            "variant": "imageBanner"
+          },
+          "QuickActions": {
+            "variant": "gridCards"
+          },
+          "UserKycRail": {
+            "variant": "profileWallet"
+          },
+          "TradingAccounts": {
+            "variant": "separatedList"
+          },
+          "WalletList": {
+            "variant": "currencyTable"
+          },
+          "ReferralLink": {
+            "variant": "compact"
+          }
+        },
+        "moduleStyles": {
+          "onboardingProgress": "command",
+          "adCarousel": "clean",
+          "quickActions": "matrix",
+          "userKycRail": "compact-status",
+          "tradingAccounts": "workbench",
+          "walletList": "currency-table",
+          "referralLink": "compact"
+        },
+        "moduleSettings": {
+          "adCarousel": {
+            "enabled": true
+          },
+          "quickActions": {
+            "enabled": true,
+            "count": 8,
+            "display": "iconText"
+          },
+          "wallet": {
+            "enabled": true,
+            "placement": "standalone",
+            "showFundActions": false
+          },
+          "assets": {
+            "enabled": false,
+            "showFundActions": false
+          },
+          "referral": {
+            "enabled": true
+          },
+          "tradingAccounts": {
+            "enabled": true,
+            "realEnabled": true,
+            "demoEnabled": true,
+            "grouping": "separated",
+            "viewMode": "card",
+            "realViewMode": "card",
+            "demoViewMode": "list"
+          },
+          "openAccount": {
+            "enabled": true,
+            "real": true,
+            "demo": true,
+            "bind": false,
+            "placement": "insideTradingAccounts"
+          },
+          "onboardingProgress": {
+            "enabled": true,
+            "showWelcome": true,
+            "showKyc": true,
+            "showCreateReal": true,
+            "showCreateDemo": true,
+            "showDeposit": true
+          }
+        },
+        "emphasis": {
+          "deposit": "high",
+          "openAccount": "high",
+          "promo": "medium",
+          "accounts": "high"
+        },
+        "aiSummary": "为新用户打造明亮清爽的入门首页，首屏引导开户进度与KYC，广告轮播展示奖励，快捷入口与钱包列表辅助操作，真实卡片与模拟列表清晰管理账号。"
+      }
+    },
+    {
+      "id": "04-ib-growth-campaign",
+      "title": "IB 渠道增长活动首页",
+      "prompt": "生成一个给 IB/代理渠道用户看的增长型首页，目标是推广链接转化、活动报名和交易大赛参与。首屏欢迎模块独占第一栏，紧接着广告轮播作为独立整栏长模块，展示交易大赛奖池、倒计时、活动报名、返佣权益。快捷入口两行一行四个，共 8 个，包含开户链接、邀请好友、活动报名、查看返佣、下载素材、入金、开真实账号、联系客服。推广模块必须单独成块，展示开户链接、邀请码、二维码、点击数、注册数、交易账号数。交易账号要求真实账号卡片，模拟账号列表，Demo 在 Live 上面也可以。钱包列表用小卡片展示多币种余额。",
+      "provider": "deepseek",
+      "model": "deepseek-v4-flash",
+      "mock": false,
+      "durationMs": 18102,
+      "callRecordId": "server-1778290467440-40b7896f343d5",
+      "config": {
+        "schemaVersion": 4,
+        "blueprintVersion": 5,
+        "generationMode": "brick-v2",
+        "name": "IB代理增长首页",
+        "layoutPreset": "conversionFirst",
+        "themePreset": "lightGold",
+        "personalizationStrength": "medium",
+        "density": "balanced",
+        "heroFocus": "ad_carousel",
+        "brickPlan": [
+          {
+            "brickId": "adCarousel.heroCampaign",
+            "brickName": "广告轮播-赛事主视觉",
+            "family": "AdCarousel",
+            "feature": "adCarousel",
+            "component": "ad_carousel",
+            "size": "3x1",
+            "zone": "hero",
+            "reason": "首屏核心，展示交易大赛奖池、倒计时、活动报名、返佣权益。"
+          },
+          {
+            "brickId": "quickActions.priorityMatrix",
+            "brickName": "快捷入口矩阵",
+            "family": "QuickActions",
+            "feature": "quickActions",
+            "component": "quick_actions",
+            "size": "2x1",
+            "zone": "main",
+            "reason": "8个入口两行四个，包含开户链接、邀请好友、活动报名等。"
+          },
+          {
+            "brickId": "referralLink.growthConsole",
+            "brickName": "推广链接控制台",
+            "family": "ReferralLink",
+            "feature": "referralLink",
+            "component": "referral_link",
+            "size": "1x1",
+            "zone": "rail",
+            "reason": "单独成块展示开户链接、邀请码、二维码、点击数、注册数、交易账号数。"
+          },
+          {
+            "brickId": "tradingAccounts.separatedList",
+            "brickName": "真实/模拟账号分区",
+            "family": "TradingAccounts",
+            "feature": "tradingAccounts",
+            "component": "account_list",
+            "size": "3x2",
+            "zone": "full",
+            "reason": "真实账号卡片，模拟账号列表，Demo在Live上面。"
+          },
+          {
+            "brickId": "walletList.currencyTable",
+            "brickName": "多币种钱包列表",
+            "family": "WalletList",
+            "feature": "walletList",
+            "component": "wallet_list",
+            "size": "3x2",
+            "zone": "full",
+            "reason": "小卡片展示多币种余额。"
+          }
+        ],
+        "brickTrace": {
+          "intent": "growth",
+          "strategy": "AI积木编排",
+          "score": 92,
+          "selectedCount": 5,
+          "source": "model"
+        },
+        "sections": [
+          {
+            "id": "hero",
+            "type": "hero",
+            "title": "首屏",
+            "slots": [
+              "adCarousel"
+            ]
+          },
+          {
+            "id": "actions",
+            "type": "split",
+            "title": "快捷与推广",
+            "slots": [
+              "quickActions",
+              "referralLink"
+            ]
+          },
+          {
+            "id": "accounts",
+            "type": "full",
+            "title": "交易账号",
+            "slots": [
+              "tradingAccounts"
+            ]
+          },
+          {
+            "id": "wallets",
+            "type": "full",
+            "title": "钱包",
+            "slots": [
+              "walletList"
+            ]
+          }
+        ],
+        "modules": {
+          "AdCarousel": {
+            "variant": "gradientHero"
+          },
+          "QuickActions": {
+            "variant": "priorityButtons"
+          },
+          "ReferralLink": {
+            "variant": "console"
+          },
+          "TradingAccounts": {
+            "variant": "separatedList"
+          },
+          "WalletList": {
+            "variant": "currencyTable"
+          }
+        },
+        "moduleStyles": {
+          "adCarousel": "immersive",
+          "quickActions": "matrix",
+          "referralLink": "console",
+          "tradingAccounts": "workbench",
+          "walletList": "currencyTable"
+        },
+        "moduleSettings": {
+          "adCarousel": {
+            "enabled": true,
+            "autoPlay": true,
+            "interval": 5000
+          },
+          "quickActions": {
+            "enabled": true,
+            "count": 8,
+            "display": "iconText",
+            "actions": [
+              "openAccount",
+              "inviteFriends",
+              "eventSignup",
+              "viewCommission",
+              "downloadMaterial",
+              "deposit",
+              "openReal",
+              "contactService"
+            ]
+          },
+          "referral": {
+            "enabled": true,
+            "showQR": true,
+            "showStats": true
+          },
+          "tradingAccounts": {
+            "enabled": true,
+            "realEnabled": true,
+            "demoEnabled": true,
+            "grouping": "separated",
+            "viewMode": "card",
+            "realViewMode": "card",
+            "demoViewMode": "list",
+            "demoFirst": true
+          },
+          "wallet": {
+            "enabled": true,
+            "placement": "standalone",
+            "showFundActions": false
+          },
+          "openAccount": {
+            "enabled": true,
+            "real": true,
+            "demo": true,
+            "bind": false,
+            "placement": "insideTradingAccounts"
+          }
+        },
+        "emphasis": {
+          "deposit": "medium",
+          "openAccount": "high",
+          "promo": "high",
+          "accounts": "high"
+        },
+        "aiSummary": "为IB代理打造增长型首页，首屏广告轮播展示交易大赛，快捷入口与推广模块并排，真实账号卡片与模拟列表分区展示，钱包列表多币种余额。"
+      }
+    },
+    {
+      "id": "05-multi-currency-risk",
+      "title": "多币种资产与风险分析首页",
+      "prompt": "为重仓多币种、多账户管理的成熟客户生成首页。首页应围绕资产配置、钱包列表、账户表现和风险信号展开，不要像活动页。首屏要显示总资产、美元/欧元/USDT/黄金钱包、可用资金、保证金占用、风险等级，旁边放资金动作和 KYC/安全状态。交易账号建议用列表，真实账号和模拟账号分开，真实账号列表更突出，模拟账号列表收起但可见。需要账号表现图表、收益曲线、风控提示、快捷入口、入金出金、内部转账、绑定账号、创建真实账户。广告轮播只保留一条产品通知，不要大面积。整体可以是蓝色金融风，复杂但清楚。",
+      "provider": "deepseek",
+      "model": "deepseek-v4-flash",
+      "mock": false,
+      "durationMs": 23546,
+      "callRecordId": "server-1778290490986-539871beebed",
+      "config": {
+        "schemaVersion": 4,
+        "blueprintVersion": 5,
+        "generationMode": "brick-v2",
+        "name": "多币种资产首页",
+        "layoutPreset": "assetFirst",
+        "themePreset": "blueFinance",
+        "personalizationStrength": "strong",
+        "density": "balanced",
+        "heroFocus": "asset_summary",
+        "brickPlan": [
+          {
+            "brickId": "assetOverview.vipHero",
+            "brickName": "高净值资产首屏",
+            "family": "AssetOverview",
+            "feature": "balanceTotal",
+            "component": "asset_summary",
+            "size": "3x1",
+            "zone": "hero",
+            "reason": "首屏展示总资产、多币种钱包、可用资金、保证金、风险等级。"
+          },
+          {
+            "brickId": "fundActions.priorityDock",
+            "brickName": "资金操作 Dock",
+            "family": "FundActions",
+            "feature": "fundActions",
+            "component": "fund_actions",
+            "size": "1x1",
+            "zone": "rail",
+            "reason": "入金出金、内部转账、绑定账号等资金动作。"
+          },
+          {
+            "brickId": "userKycRail.profileWallet",
+            "brickName": "KYC/安全状态侧栏",
+            "family": "UserKycRail",
+            "feature": "userKycRail",
+            "component": "user_kyc_rail",
+            "size": "1x1",
+            "zone": "rail",
+            "reason": "KYC状态、安全设置、钱包摘要。"
+          },
+          {
+            "brickId": "quickActions.priorityMatrix",
+            "brickName": "8个快捷入口矩阵",
+            "family": "QuickActions",
+            "feature": "quickActions",
+            "component": "quick_actions",
+            "size": "2x1",
+            "zone": "main",
+            "reason": "入金、出金、内部转账、绑定账号、创建真实账户等快捷入口。"
+          },
+          {
+            "brickId": "adCarousel.heroCampaign",
+            "brickName": "产品通知轮播",
+            "family": "AdCarousel",
+            "feature": "adCarousel",
+            "component": "ad_carousel",
+            "size": "3x1",
+            "zone": "full",
+            "reason": "仅保留一条产品通知，不占大面积。"
+          },
+          {
+            "brickId": "tradingAccounts.separatedList",
+            "brickName": "真实/模拟账号分区列表",
+            "family": "TradingAccounts",
+            "feature": "tradingAccounts",
+            "component": "account_list",
+            "size": "3x2",
+            "zone": "full",
+            "reason": "真实账号卡片突出，模拟账号列表收起但可见。"
+          },
+          {
+            "brickId": "accountPerformance.proChart",
+            "brickName": "账号表现图表",
+            "family": "AccountPerformance",
+            "feature": "accountPerformance",
+            "component": "account_performance",
+            "size": "2x2",
+            "zone": "main",
+            "reason": "收益曲线、表现图表。"
+          },
+          {
+            "brickId": "walletList.currencyTable",
+            "brickName": "多币种钱包列表",
+            "family": "WalletList",
+            "feature": "walletList",
+            "component": "wallet_list",
+            "size": "3x2",
+            "zone": "full",
+            "reason": "美元/欧元/USDT/黄金钱包详细列表。"
+          }
+        ],
+        "brickTrace": {
+          "intent": "assetFirst",
+          "strategy": "AI积木编排",
+          "score": 92,
+          "selectedCount": 8,
+          "source": "model"
+        },
+        "sections": [
+          {
+            "id": "hero",
+            "type": "hero",
+            "title": "资产总览",
+            "slots": [
+              "balanceTotal",
+              "fundActions",
+              "userKycRail"
+            ]
+          },
+          {
+            "id": "quick",
+            "type": "split",
+            "title": "快捷操作",
+            "slots": [
+              "quickActions",
+              "adCarousel"
+            ]
+          },
+          {
+            "id": "accounts",
+            "type": "full",
+            "title": "交易账号",
+            "slots": [
+              "tradingAccounts"
+            ]
+          },
+          {
+            "id": "performance",
+            "type": "split",
+            "title": "表现与风控",
+            "slots": [
+              "accountPerformance",
+              "walletList"
+            ]
+          }
+        ],
+        "modules": {
+          "AssetOverview": {
+            "variant": "vipHero"
+          },
+          "WalletBalance": {
+            "variant": "splitCurrency"
+          },
+          "FundActions": {
+            "variant": "dock"
+          },
+          "QuickActions": {
+            "variant": "gridCards"
+          },
+          "AdCarousel": {
+            "variant": "clean"
+          },
+          "TradingAccounts": {
+            "variant": "separatedList"
+          },
+          "AccountPerformance": {
+            "variant": "proChart"
+          },
+          "WalletList": {
+            "variant": "currencyTable"
+          },
+          "UserKycRail": {
+            "variant": "profileWallet"
+          }
+        },
+        "moduleStyles": {
+          "balanceTotal": "command",
+          "fundActions": "dock",
+          "adCarousel": "clean",
+          "quickActions": "matrix",
+          "referralLink": "compact",
+          "tradingAccounts": "workbench",
+          "accountPerformance": "proChart",
+          "walletList": "currencyTable",
+          "userKycRail": "profileWallet"
+        },
+        "moduleSettings": {
+          "adCarousel": {
+            "enabled": true,
+            "count": 1
+          },
+          "quickActions": {
+            "enabled": true,
+            "count": 8,
+            "display": "iconText"
+          },
+          "wallet": {
+            "enabled": true,
+            "placement": "standalone",
+            "showFundActions": false
+          },
+          "assets": {
+            "enabled": true,
+            "showFundActions": true,
+            "showRiskLevel": true,
+            "showMargin": true,
+            "showAvailable": true,
+            "wallets": [
+              "USD",
+              "EUR",
+              "USDT",
+              "XAU"
+            ]
+          },
+          "referral": {
+            "enabled": false
+          },
+          "tradingAccounts": {
+            "enabled": true,
+            "realEnabled": true,
+            "demoEnabled": true,
+            "grouping": "separated",
+            "viewMode": "card",
+            "realViewMode": "card",
+            "demoViewMode": "list",
+            "showTabs": false
+          },
+          "openAccount": {
+            "enabled": true,
+            "real": true,
+            "demo": true,
+            "bind": true,
+            "placement": "insideTradingAccounts"
+          },
+          "riskNotice": {
+            "enabled": true
+          }
+        },
+        "emphasis": {
+          "deposit": "high",
+          "openAccount": "high",
+          "promo": "low",
+          "accounts": "high"
+        },
+        "aiSummary": "首屏展示总资产与多币种钱包，资金操作与KYC侧栏并排；8个快捷入口与产品通知轮播同行；真实账号卡片突出，模拟列表收起；收益曲线与钱包列表分栏展示。"
+      }
+    }
+  ]
+}

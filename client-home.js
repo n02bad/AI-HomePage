@@ -54,6 +54,7 @@ function homeAccountSettings() {
       : configuredView === "card"
       ? "card"
       : "list",
+    demoFirst: readBooleanDataset("homeAccountDemoFirst", false),
     openEnabled: readBooleanDataset("homeOpenAccountEnabled", true),
     openReal: readBooleanDataset("homeOpenAccountReal", true),
     openDemo: readBooleanDataset("homeOpenAccountDemo", true),
@@ -434,6 +435,8 @@ function renderSplitAccounts() {
 
   realSection?.setAttribute("data-account-view", settings.realViewMode);
   demoSection?.setAttribute("data-account-view", settings.demoViewMode);
+  if (realSection) realSection.style.order = settings.demoFirst ? "2" : "1";
+  if (demoSection) demoSection.style.order = settings.demoFirst ? "1" : "2";
 
   if (els.realAccountCount) els.realAccountCount.textContent = String(realItems.length);
   if (els.demoAccountCount) els.demoAccountCount.textContent = String(demoItems.length);
@@ -564,6 +567,15 @@ function homeActionMessage(action, element) {
     kyc: "KYC 入口已保留在首页",
     promo: "活动入口已保留在首页",
     referral: "推广链接入口已保留在首页",
+    openReal: "开真实账号入口已保留在首页",
+    inviteFriends: "邀请好友入口已保留在首页",
+    eventSignup: "活动报名入口已保留在首页",
+    viewCommission: "返佣查看入口已保留在首页",
+    downloadMaterial: "素材下载入口已保留在首页",
+    contactService: "客服入口已保留在首页",
+    downloadMt5: "MT5 下载入口已保留在首页",
+    switchAccount: "切换账号入口已保留在首页",
+    risk: "风险提醒入口已保留在首页",
   }[action] || "该入口已保留在首页";
 }
 
