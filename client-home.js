@@ -1,11 +1,15 @@
 const accounts = [
-  { id: "80009", kind: "real", balance: "999999.99", currency: "USD", platform: "MT5", broker: "HCHoldingsGroup", type: "ECN", credit: "7788.00", leverage: "100", usages: ["Trade"] },
-  { id: "80010", kind: "real", balance: "999999.99", currency: "USD", platform: "MT5", broker: "HCHoldingsGroup", type: "ECN", credit: "7788.00", leverage: "100", usages: ["Trade", "CopyTrading"] },
-  { id: "80011", kind: "real", balance: "999999.99", currency: "USD", platform: "MT5", broker: "HCHoldingsGroup", type: "ECN", credit: "7788.00", leverage: "100", usages: ["PAMM"] },
-  { id: "80012", kind: "real", balance: "999999.99", currency: "USD", platform: "MT5", broker: "HCHoldingsGroup", type: "ECN", credit: "7788.00", leverage: "100", usages: ["Trade"] },
-  { id: "80013", kind: "real", balance: "999999.99", currency: "USD", platform: "MT5", broker: "HCHoldingsGroup", type: "ECN", credit: "7788.00", leverage: "100", usages: ["CopyTrading"] },
-  { id: "90021", kind: "demo", balance: "50000.00", currency: "USD", platform: "MT5", broker: "HCHoldingsGroup", type: "Demo", credit: "0.00", leverage: "500", usages: ["Trade"] },
+  { id: "80010", kind: "real", balance: "12480.50", equity: "12726.40", currency: "USD", platform: "MT5", broker: "HCHoldings-Live2", type: "ECN Standard", credit: "500.00", leverage: "1:100", pnl: "+1,280.60", margin: "2,410.00", marginLevel: "528%", positions: "3", usages: ["Trade", "CopyTrading"] },
+  { id: "80011", kind: "real", balance: "8250.00", equity: "8196.70", currency: "USD", platform: "MT5", broker: "HCHoldings-Live2", type: "PAMM Investor", credit: "0.00", leverage: "1:200", pnl: "-53.30", margin: "620.00", marginLevel: "1322%", positions: "1", usages: ["PAMM"] },
+  { id: "90021", kind: "demo", balance: "50000.00", equity: "51280.60", currency: "USD", platform: "MT5", broker: "HCHoldings-Demo", type: "Demo ECN", credit: "0.00", leverage: "1:500", pnl: "+428.20", margin: "1,180.00", marginLevel: "4345%", positions: "5", usages: ["Practice", "Strategy Test"] },
 ];
+
+const demoPracticeAccount = {
+  id: "D-202605",
+  balance: "100000.00",
+  platform: "MT5 Web Demo",
+  purpose: "新手练习 / 跟单前策略测试",
+};
 
 const wallets = [
   { name: "USD Wallet", balance: 9999.99, currency: "USD" },
@@ -87,6 +91,7 @@ function collectElements() {
     splitView: document.querySelector("[data-accounts-split-view]"),
     realAccountCards: document.querySelector("[data-real-account-cards]"),
     demoAccountList: document.querySelector("[data-demo-account-list]"),
+    demoPracticeCard: document.querySelector("[data-demo-practice-card]"),
     realAccountCount: document.querySelector("[data-real-account-count]"),
     demoAccountCount: document.querySelector("[data-demo-account-count]"),
     accountOpenMenu: document.querySelector("[data-account-open-menu]"),
@@ -110,7 +115,7 @@ function escapeHtml(value) {
 }
 
 function kindLabel(account) {
-  return account.kind === "demo" ? "模拟" : "真实";
+  return account.kind === "demo" ? "模拟交易" : "真实交易";
 }
 
 function visibleAccounts() {
@@ -162,6 +167,7 @@ function ensureSplitAccountShell() {
         <b data-demo-account-count>0</b>
       </header>
       <div data-demo-account-list></div>
+      <div data-demo-practice-card></div>
     </section>
   `;
 
@@ -277,6 +283,18 @@ function renderAccountCard(account) {
   const usageTags = (account.usages || ["Trade"])
     .map((usage) => `<span>${escapeHtml(usage)}</span>`)
     .join("");
+  const actions =
+    account.kind === "demo"
+      ? [
+          { label: "补充模拟金", action: "demoTopUp" },
+          { label: "重置", action: "resetDemo" },
+          { label: "交易", action: "trade" },
+        ]
+      : [
+          { label: "入金", action: "deposit" },
+          { label: "交易", action: "trade" },
+          { label: "资金划转", action: "transfer" },
+        ];
 
   return `
     <article class="trade-account-card" data-kind="${escapeHtml(account.kind)}">
@@ -288,18 +306,59 @@ function renderAccountCard(account) {
       <div class="account-tags">
         ${usageTags}
       </div>
-      <div class="balance-box">
-        <strong>${escapeHtml(formatUsdNumber(toUsd(account.balance, account.currency)))}</strong>
-        <span>余额(USD)</span>
+      <div class="account-value-grid">
+        <div>
+          <span>余额(USD)</span>
+          <strong>${escapeHtml(formatUsdNumber(toUsd(account.balance, account.currency)))}</strong>
+        </div>
+        <div>
+          <span>净值(USD)</span>
+          <strong>${escapeHtml(formatUsdNumber(toUsd(account.equity || account.balance, account.currency)))}</strong>
+        </div>
+        <div>
+          <span>持仓 PnL</span>
+          <strong class="${String(account.pnl || "").startsWith("-") ? "is-loss" : "is-profit"}">${escapeHtml(account.pnl || "--")}</strong>
+        </div>
+        <div>
+          <span>保证金占用</span>
+          <strong>${escapeHtml(account.margin || "--")}</strong>
+        </div>
       </div>
       <div class="account-platform">
         <span class="platform-chip">${escapeHtml(account.platform)}</span>
         <span>${escapeHtml(account.broker)}</span>
       </div>
       <div class="account-meta">
-        <div><span>账号类型</span><b>${escapeHtml(account.type)}</b></div>
-        <div><span>信用额</span><b>${escapeHtml(account.credit)}</b></div>
+        <div><span>类型</span><b>${escapeHtml(account.type)}</b></div>
+        <div><span>信用金</span><b>${escapeHtml(account.credit)}</b></div>
         <div><span>杠杆</span><b>${escapeHtml(account.leverage)}</b></div>
+        <div><span>持仓</span><b>${escapeHtml(account.positions || "0")}</b></div>
+      </div>
+      <div class="account-card-actions">
+        ${actions
+          .map((action) => `<button type="button" data-home-action="${escapeHtml(action.action)}">${escapeHtml(action.label)}</button>`)
+          .join("")}
+      </div>
+    </article>
+  `;
+}
+
+function renderDemoPracticeCard() {
+  return `
+    <article class="demo-practice-card">
+      <div>
+        <span class="section-kicker">模拟账号</span>
+        <strong>${escapeHtml(demoPracticeAccount.id)}</strong>
+        <p>${escapeHtml(demoPracticeAccount.purpose)}</p>
+      </div>
+      <div class="demo-practice-metrics">
+        <span><small>模拟余额</small><b>$${escapeHtml(formatUsdNumber(demoPracticeAccount.balance))}</b></span>
+        <span><small>平台</small><b>${escapeHtml(demoPracticeAccount.platform)}</b></span>
+      </div>
+      <div class="demo-practice-actions">
+        <button type="button" data-home-action="demoTopUp">入金</button>
+        <button type="button" data-home-action="resetDemo">重置</button>
+        <button type="button" data-home-action="trade">交易</button>
       </div>
     </article>
   `;
@@ -344,6 +403,9 @@ function renderAccountRows(items) {
           <td>${escapeHtml(account.platform)}</td>
           <td>${escapeHtml(account.broker)}</td>
           <td><strong>${escapeHtml(formatUsdNumber(toUsd(account.balance, account.currency)))}</strong> USD</td>
+          <td><strong class="${String(account.pnl || "").startsWith("-") ? "is-loss" : "is-profit"}">${escapeHtml(account.pnl || "--")}</strong></td>
+          <td>${escapeHtml(account.margin || "--")} USD</td>
+          <td>${escapeHtml(account.positions || "0")}</td>
           <td>${escapeHtml(account.type)}</td>
           <td>${escapeHtml(account.credit)}</td>
           <td>${escapeHtml(account.leverage)}</td>
@@ -390,6 +452,9 @@ function renderAccountTableContent(items) {
             <th>平台</th>
             <th>服务器</th>
             <th>余额</th>
+            <th>持仓 PnL</th>
+            <th>保证金占用</th>
+            <th>持仓</th>
             <th>账号类型</th>
             <th>信用额</th>
             <th>杠杆</th>
@@ -456,6 +521,10 @@ function renderSplitAccounts() {
         ? `<div class="real-account-card-grid">${demoItems.map(renderAccountCard).join("")}</div>`
         : renderAccountTableContent(demoItems)
       : '<div class="account-empty-state">暂无模拟交易账号</div>';
+  }
+
+  if (els.demoPracticeCard) {
+    els.demoPracticeCard.innerHTML = renderDemoPracticeCard();
   }
 }
 
@@ -559,8 +628,11 @@ function homeActionMessage(action, element) {
   return {
     bindAccount: "绑定账号入口已保留在首页",
     deposit: "入金入口已保留在首页",
+    demoTopUp: "模拟账户入金入口已保留在首页",
     withdraw: "出金入口已保留在首页",
     transfer: "转账入口已保留在首页",
+    trade: "交易入口已保留在首页",
+    resetDemo: "模拟账号重置入口已保留在首页",
     transactions: "交易记录入口已保留在首页",
     orders: "订单入口已保留在首页",
     positions: "持仓入口已保留在首页",
@@ -568,6 +640,9 @@ function homeActionMessage(action, element) {
     promo: "活动入口已保留在首页",
     referral: "推广链接入口已保留在首页",
     openReal: "开真实账号入口已保留在首页",
+    openDemo: "开模拟账户入口已保留在首页",
+    copytrading: "Copytrading 跟单入口已保留在首页",
+    pamm: "PAMM 跟单入口已保留在首页",
     inviteFriends: "邀请好友入口已保留在首页",
     eventSignup: "活动报名入口已保留在首页",
     viewCommission: "返佣查看入口已保留在首页",

@@ -6,14 +6,17 @@
 
 这份文档不仅是模块说明，也是 AI 生成首页配置时的约束依据。AI 在生成首页时必须遵守以下规则：
 
-- 新首页生成只允许使用 12 个内容块：`welcome_header`、`asset_overview`、`quick_actions`、`onboarding_guide`、`trading_account_highlight`、`trading_accounts_list`、`promo_banner`、`pamm_products`、`copytrading_signals`、`referral_link_card`、`announcements`、`market_news`。
-- `reward_tasks`、`kyc_risk_notice`、`ib_dashboard`、`support_help` 默认禁用；旧的 `ReferralLink`、KYC/风控侧栏和客服帮助入口只能作为历史兼容输入处理，不能作为新首页输出。代理推广只允许通过轻量 `referral_link_card` 表达。
+- 新首页生成只允许使用 16 个内容块：`welcome_header`、`asset_overview`、`quick_actions`、`onboarding_guide`、`trading_account_highlight`、`trading_accounts_list`、`promo_banner`、`pamm_products`、`copytrading_signals`、`referral_link_card`、`announcements`、`market_news`、`risk_disclosure`、`faq_section`、`support_contact`、`app_download`。
+- `reward_tasks`、`kyc_risk_notice`、`ib_dashboard` 默认禁用；旧的 `ReferralLink`、KYC/风控侧栏、`RiskNotice` 和 `support_help` 只能作为历史兼容输入处理。风险提示、FAQ、在线客服和 APP 下载必须分别通过 `risk_disclosure`、`faq_section`、`support_contact`、`app_download` 表达；代理推广只允许通过轻量 `referral_link_card` 表达。
 - 快捷操作区入口内容由后台配置或接口返回，AI 只负责布局、数量、样式、占位和响应式适配，不能写死入金、出金、开户、客服等具体入口。
 - 资产概览区只能展示 `total`、`wallet`、`tradingAccount` 中任意 1-3 个字段，可选展示资金按钮；不能新增系统未定义资产字段或编造金额。
 - PAMM 与 CopyTrading 必须拆成 `pamm_products` 和 `copytrading_signals` 两个独立模块，且仅在租户开启对应能力时展示。
+- 连续时间数据必须按趋势表达。近 N 天收益、净值、PnL、回撤变化、收益率曲线等必须使用折线图或面积折线图；除非用户明确要求，不得画成柱状图、胶囊柱或装饰性条形图。
 - `referral_link_card` 仅代理/IB/合作伙伴或租户开启推广链接功能时展示；只展示推广链接、邀请码、复制/分享和可选基础统计，不展示返佣、团队层级或完整代理业绩。
 - AI 不允许发明新的业务功能、业务入口或后端不存在的数据能力，例如不存在的交易功能、支付功能、账户能力、KYC 能力。
 - AI 可以基于现有业务模块发明新的组件、新的样式变体、新的组合方式和新的尺寸规格，但必须说明它依托的父模块、参考组件、业务用途和回退方案。
+- AI 生成模块时必须先参考组件库已保存积木的内容：字段、按钮、标签、尺寸、卡片密度、响应式规则和已有组合建议；再根据本次意图做新的变体或组合。
+- 组件库参考只提供形态、语汇和灵感，不代表可以新增业务功能；不要直接复制某个积木或只换颜色，要在布局、密度、层级或组合方式上形成新的合理发散。
 - 正式首页配置中的业务模块 ID 必须来自本文档，或先作为候选模块进入审核；但组件级别、样式级别、尺寸级别可以开放扩展。
 - 当用户明确指定模块顺序、展示形式、禁止项时，用户本次需求优先级高于通用预设。
 - 模块的业务能力和样式变体必须分开表达，不能通过 CSS 隐藏来伪装成配置变化。
@@ -43,7 +46,7 @@
 ## 拆解原则
 
 - 共用外壳不进入积木库：顶部导航、左侧菜单、消息/语言/头像、一级页签属于公共布局，由 `common-layout.js` 和页面外壳控制。
-- 首页内容才进入积木库：正式 AI 输出只允许资产概览、快捷入口、新手引导、交易账号、活动 Banner、PAMM、CopyTrading、轻量推广链接、公告和市场资讯等 12 个内容块；历史钱包、完整邀请控制台、KYC/风控、客服等模块只保留为兼容代码，不作为新首页输出。
+- 首页内容才进入积木库：正式 AI 输出只允许资产概览、快捷入口、新手引导、交易账号、活动 Banner、PAMM、CopyTrading、轻量推广链接、公告、市场资讯、风险提示、FAQ、在线客服和 APP 下载等 16 个内容块；历史钱包、完整邀请控制台、KYC/风控等模块只保留为兼容代码，不作为新首页输出。
 - 模块要有尺寸，不只要有样式：每个模块都需要标注推荐尺寸，方便拼版；推荐尺寸不是限制，AI 可以提出新的尺寸规格，例如 `4x1`、`4x2`、`4x3`、`5x1`，但必须说明适用场景、响应式降级和回退尺寸。
 - 样式、尺寸和业务能力分开：业务能力定义“能做什么”，样式变体定义“长什么样”，尺寸规格定义“占多少空间”。AI 可以发明新的样式和尺寸，但不能发明新的业务能力。
 - 开户入口和交易账号属于同一业务路径：默认应靠近账号筛选、账号列表或右侧开户操作区，不应藏在页面很深的位置。
@@ -105,13 +108,17 @@
 | `quick_actions` | 快捷操作区 | 后台配置入口的占位、渲染和适配，AI 不写死入口 | `2x1`, `3x1`, `1x1` | 可扩展为横向快捷栏或紧凑菜单 | 已纳入白名单 |
 | `onboarding_guide` | 新手引导区 | 未开户、未入金、未开始交易等阶段的引导 | `2x1`, `3x1`, `1x2` | 可扩展为流程进度或引导卡片组 | 已纳入白名单 |
 | `trading_account_highlight` | 交易账户重点展示区 | 一个账号的基础信息、收益率、浮动盈亏和盈亏折线图 | `2x2`, `2x1`, `1x2` | 可扩展为宽屏表现图表 | 已纳入白名单 |
-| `trading_accounts_list` | 交易账户列表区 | 多账号简要信息、详情入口，支持列表、卡片、横滑、紧凑卡 | `3x2`, `2x2` | 可扩展 `4x2` 做宽表格 | 已纳入白名单 |
+| `trading_accounts_list` | 交易账户列表区 | 多账号简要信息、详情入口，支持表格、列表、真实/模拟分组、卡片墙和工作台切换 | `3x2`, `2x2` | 根据账号数量和字段密度选择版式，不默认卡片 | 已纳入白名单 |
 | `promo_banner` | 活动 Banner 区 | 租户配置活动时展示活动内容和 CTA，不编造规则 | `2x1`, `3x1` | 可扩展为活动首屏横幅 | 已纳入白名单 |
 | `pamm_products` | PAMM 产品推荐区 | PAMM 开启且接口返回产品时展示产品推荐 | `2x1`, `3x2`, `1x2` | 可扩展为排行榜或收益图卡片 | 已纳入白名单 |
-| `copytrading_signals` | CopyTrading 信号源推荐区 | CopyTrading 开启且接口返回信号源时展示推荐交易员/策略 | `2x1`, `3x2`, `1x2` | 可扩展为热门榜单或曲线卡片 | 已纳入白名单 |
+| `copytrading_signals` | CopyTrading 信号源推荐区 | CopyTrading 开启且接口返回信号源时展示推荐交易员/策略；收益曲线必须用折线图或面积折线图 | `2x1`, `3x2`, `1x2`, `2x2` | 可扩展为热门榜单或曲线卡片 | 已纳入白名单 |
 | `referral_link_card` | 推广链接卡片 | 代理/IB/合作伙伴轻量查看推广链接、邀请码和可选基础统计 | `1x1`, `1x2`, `2x1` | 可扩展为紧凑卡、横向信息卡或链接 + 统计组合卡 | 已纳入白名单 |
 | `announcements` | 公告通知区 | 系统公告、活动公告、维护通知、资金通知、平台消息 | `2x1`, `3x1`, `1x1` | 可扩展为优先公告或紧凑 feed | 已纳入白名单 |
 | `market_news` | 市场资讯区 | 市场新闻、平台资讯、新手教程、交易教育、热门文章 | `2x1`, `3x2`, `1x2` | 可扩展为文章卡片或内容 feed | 已纳入白名单 |
+| `risk_disclosure` | 风险提示区 | 后台配置的风险披露、保证金提示和合规说明，不暗示稳赚 | `3x1` | 固定为页面底部 legal-strip 富文本区，不作为普通侧栏指标卡 | 已纳入白名单 |
+| `faq_section` | FAQ 常见问题区 | 开户、入金、下载、交易规则等常见问题，内容来自后台配置 | `2x1`, `3x1`, `1x2` | 默认折叠问答 accordion，可扩展双列问答或紧凑列表 | 已纳入白名单 |
+| `support_contact` | 在线客服区 | 在线客服、客户经理或服务时间入口，不编造在线状态 | `1x1`, `1x2`, `2x1` | 可扩展为客服卡、客户经理卡或联系条 | 已纳入白名单 |
+| `app_download` | APP 下载区 | APP、MT5 或移动端下载入口，不编造链接或二维码 | `1x1`, `2x1`, `3x1` | 可扩展为二维码卡、商店按钮或下载横条 | 已纳入白名单 |
 
 ## 可发明与不可发明边界
 
@@ -129,7 +136,7 @@
 
 ## 历史参考图拆解
 
-以下内容只用于理解旧静态页面和组件来源，不再作为 AI 生成首页的正式模块清单。凡是出现旧 `ReferralLink`、`UserKycRail`、`RiskNotice`、独立钱包列表、KYC、完整代理数据或客服入口的描述，都必须按历史兼容参考处理，正式输出仍以 12 个 canonical 内容块为准。
+以下内容只用于理解旧静态页面和组件来源，不再作为 AI 生成首页的正式模块清单。凡是出现旧 `ReferralLink`、`UserKycRail`、`RiskNotice`、独立钱包列表、KYC 或完整代理数据的描述，都必须按历史兼容参考处理，正式输出仍以 16 个 canonical 内容块为准。
 
 ### 参考图 1：左侧导航型 Dashboard
 
@@ -531,7 +538,7 @@
 - 不要把真实账号和模拟账号混在一个列表里。
 - 不要在用户明确要求“模拟在上”时仍然先展示真实账号列表。
 - 活动增长、交易大赛、奖池、广告轮播首屏核心这类需求，必须让 `adCarousel` 成为首个整行长模块，不能与快捷入口并排。
-- 完整代理数据、返佣、团队层级、下级客户列表、客服帮助、KYC/风控提醒当前默认不作为首页内容块输出；推广链接/开户链接/邀请码只能在代理/IB/合作伙伴或租户开启推广链接功能时由 `referral_link_card` 轻量展示。
+- 完整代理数据、返佣、团队层级、下级客户列表、KYC/风控提醒当前默认不作为首页内容块输出；推广链接/开户链接/邀请码只能在代理/IB/合作伙伴或租户开启推广链接功能时由 `referral_link_card` 轻量展示。客服、FAQ、风险提示、APP 下载如被选择，使用对应的 canonical 内容块。
 - 钱包信息默认并入 `asset_overview` 的 `wallet` 字段或后台返回摘要；不要生成独立 `WalletList`/`WalletBalance` 首页模块。
 - 不要使用账号卡片。
 - 不要出现 Bind Account。
@@ -541,22 +548,22 @@
 
 当前项目已经有这些基础：
 
-- `home-personalization.js` 已把 12 个 canonical 内容块纳入白名单、归一化和渲染映射。
+- `home-personalization.js` 已把 16 个 canonical 内容块纳入白名单、归一化和渲染映射。
 - `home-personalization.js` 对历史 slot 仍做兼容读取，但输出会被归一化到 canonical 内容块或直接过滤。
 - `home-layout-admin.js` 的配置应围绕 canonical 内容块继续收敛；快捷入口内容由后台配置或接口返回。
 - `client-home.html` 的静态基础只能作为布局/视觉参考，不能绕过蓝图白名单新增业务模块。
 
 下一步建议不是重写整个首页，而是做两件事：
 
-1. 继续补齐 12 个 canonical 内容块的样式变体、响应式尺寸和空数据占位。
+1. 继续补齐 16 个 canonical 内容块的样式变体、响应式尺寸和空数据占位。
 2. 对历史模块保持兼容过滤，不再把 `ReferralLink`、`UserKycRail`、`RiskNotice`、`WalletList`、`CreateAccountForm` 升为默认首页模块。
 
-组件库页面已经补齐 `client-home.html` 的细颗粒组件拆解，包括 `WelcomeHeader`、`BalanceMetric`、`QuickActionTile`、`PromoBadge`、`AccountToolbar`、`ViewToggle` 等，这些组件只能作为 12 个 canonical 内容块的内部积木继续扩展。
+组件库页面已经补齐 `client-home.html` 的细颗粒组件拆解，包括 `WelcomeHeader`、`BalanceMetric`、`QuickActionTile`、`PromoBadge`、`AccountToolbar`、`ViewToggle` 等，这些组件只能作为 16 个 canonical 内容块的内部积木继续扩展。
 
 AI 组件生成链路：
 
 1. 管理员在 `home-module-preview.html` 输入组件需求、模块归属和尺寸。
-2. 服务端调用大模型生成组件或样式候选定义，包含 `html`、`css`、`layoutHints`、`sizeHints`、`responsiveRules`、`fallbackSize` 和 `dataRequirements`。
+2. 服务端把同 family / 同尺寸 / 与 prompt 相关的已保存积木摘要传给大模型，让模型先参考组件库内容，再生成组件或样式候选定义，包含 `html`、`css`、`layoutHints`、`sizeHints`、`responsiveRules`、`fallbackSize` 和 `dataRequirements`。
 3. 生成结果保存到 `home-component-library.json`，同时写入浏览器缓存便于即时预览。
 4. AI 可以读取已保存组件，生成 `home-component-compositions.json` 里的首页组合建议。
 5. 首页生成器再根据组合建议生成草稿配置，进入 `home-layout-preview.html` 做最终预览和美化确认。
@@ -580,6 +587,10 @@ AI 组件生成链路：
 4. `referral_link_card`
 5. `announcements`
 6. `market_news`
+7. `risk_disclosure`
+8. `faq_section`
+9. `support_contact`
+10. `app_download`
 
 第三批做低频但完整性需要的模块：
 

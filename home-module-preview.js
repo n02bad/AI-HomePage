@@ -104,6 +104,7 @@
   let aiModelConfig = loadModelConfig();
   let editingModelConfig = null;
   let modelTestState = { tone: "", message: "组件生成会复用这套模型配置" };
+  let componentEditorState = { componentId: "", messages: [], busy: false };
 
   function escapeHtml(value) {
     return String(value)
@@ -251,10 +252,43 @@
     return /Primary Action|AI\s*样式|Lorem ipsum|Sample Component/i.test(source);
   }
 
+  function stripEditorArtifacts(value) {
+    return String(value || "").replace(/<small\b[^>]*data-ai-edit-note[^>]*>[\s\S]*?<\/small>/gi, "");
+  }
+
+  function stripEditorCssArtifacts(value) {
+    return String(value || "")
+      .replace(/[^{}]*\.ai-edit-note[^{}]*\{[^{}]*\}/gi, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  }
+
+  function stripEditorTextArtifacts(value) {
+    return String(value || "")
+      .replace(/\s*已按「[^」]{0,300}」调整。?/g, "")
+      .replace(/\s*AI\s*修改[:：][^。.!！?？]{0,300}[。.!！?？]?/gi, "")
+      .replace(/\s*已改为带编号、状态和连接线的渐进式开户路径。?/g, "")
+      .replace(/\s*标题已更新为[^。.!！?？]{1,120}[。.!！?？]?/g, "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+  }
+
+  function sanitizeComponentForClient(component) {
+    if (!component || typeof component !== "object") return component;
+    return {
+      ...component,
+      description: stripEditorTextArtifacts(component.description),
+      html: stripEditorArtifacts(component.html),
+      css: stripEditorCssArtifacts(component.css),
+    };
+  }
+
   function loadCachedComponents() {
     try {
       const data = JSON.parse(window.localStorage.getItem(COMPONENT_CACHE_KEY) || "[]");
-      return Array.isArray(data) ? data.filter((component) => component?.id && !componentLooksGeneric(component)) : [];
+      return Array.isArray(data)
+        ? data.map(sanitizeComponentForClient).filter((component) => component?.id && !componentLooksGeneric(component))
+        : [];
     } catch (error) {
       return [];
     }
@@ -264,12 +298,28 @@
     const source = options.replace ? [] : loadCachedComponents();
     const map = new Map(source.map((component) => [component.id, component]));
     components.forEach((component) => {
-      if (component?.id && !componentLooksGeneric(component)) map.set(component.id, component);
+      const cleanComponent = sanitizeComponentForClient(component);
+      if (cleanComponent?.id && !componentLooksGeneric(cleanComponent)) map.set(cleanComponent.id, cleanComponent);
     });
     const next = [...map.values()];
     window.localStorage.setItem(COMPONENT_CACHE_KEY, JSON.stringify(next));
     savedComponents = next;
     return next;
+  }
+
+  function removeCachedComponent(componentId) {
+    const next = loadCachedComponents().filter((component) => component.id !== componentId);
+    window.localStorage.setItem(COMPONENT_CACHE_KEY, JSON.stringify(next));
+    savedComponents = next;
+    return next;
+  }
+
+  function syncComponentLibraryFromResponse(data) {
+    if (Array.isArray(data?.library?.components)) {
+      cacheComponents(data.library.components, { replace: true });
+      return true;
+    }
+    return false;
   }
 
   function proxyErrorMessage(data, response) {
@@ -654,7 +704,9 @@
           <span>${escapeHtml(component.name)}</span>
           <div class="brick-card-tools">
             <b>${escapeHtml(component.size)}</b>
-            <button class="brick-ai-inline-generate" type="button" data-ai-regenerate-component="${escapeHtml(component.id)}">AI 生成</button>
+            <button class="brick-ai-inline-generate" type="button" data-ai-regenerate-component="${escapeHtml(component.id)}">再生成</button>
+            <button class="brick-ai-secondary-action" type="button" data-ai-edit-component="${escapeHtml(component.id)}">编辑</button>
+            <button class="brick-ai-danger-action" type="button" data-ai-delete-component="${escapeHtml(component.id)}">删除</button>
           </div>
         </header>
         <div class="brick-canvas">
@@ -668,27 +720,31 @@
     `;
   }
 
+  function renderComponentPreview(host, component) {
+    if (!host || !component) return;
+    const shadow = host.shadowRoot || host.attachShadow({ mode: "open" });
+    shadow.innerHTML = `
+      <style>
+        :host {
+          display: block;
+          width: 100%;
+          color: #172033;
+          font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+        }
+        *, *::before, *::after { box-sizing: border-box; }
+        button { font: inherit; cursor: pointer; }
+        a { color: inherit; text-decoration: none; }
+        ${component.css || ""}
+      </style>
+      ${component.html || ""}
+    `;
+  }
+
   function renderGeneratedPreviews() {
     document.querySelectorAll("[data-generated-preview]").forEach((host) => {
       const component = savedComponents.find((item) => item.id === host.dataset.generatedPreview);
       if (!component) return;
-
-      const shadow = host.shadowRoot || host.attachShadow({ mode: "open" });
-      shadow.innerHTML = `
-        <style>
-          :host {
-            display: block;
-            width: 100%;
-            color: #172033;
-            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-          }
-          *, *::before, *::after { box-sizing: border-box; }
-          button { font: inherit; cursor: pointer; }
-          a { color: inherit; text-decoration: none; }
-          ${component.css || ""}
-        </style>
-        ${component.html || ""}
-      `;
+      renderComponentPreview(host, component);
     });
   }
 
@@ -699,6 +755,225 @@
     if (els.savedCount) els.savedCount.textContent = `${savedComponents.length} 个`;
     els.savedComponents.innerHTML = savedComponents.map(generatedCard).join("");
     renderGeneratedPreviews();
+  }
+
+  function componentById(componentId) {
+    return savedComponents.find((component) => component.id === componentId);
+  }
+
+  function ensureComponentEditorModal() {
+    let modal = document.querySelector("[data-component-editor-modal]");
+    if (modal) return modal;
+
+    modal = document.createElement("div");
+    modal.className = "component-editor-modal";
+    modal.dataset.componentEditorModal = "";
+    modal.hidden = true;
+    modal.innerHTML = `
+      <div class="component-editor-backdrop" data-component-editor-close></div>
+      <section class="component-editor-dialog" role="dialog" aria-modal="true" aria-labelledby="component-editor-title">
+        <header>
+          <div>
+            <span class="brick-kicker">AI Component Editor</span>
+            <h2 id="component-editor-title" data-component-editor-title>编辑积木组件</h2>
+            <p data-component-editor-subtitle></p>
+          </div>
+          <button class="component-editor-close" type="button" data-component-editor-close aria-label="关闭">×</button>
+        </header>
+
+        <div class="component-editor-layout">
+          <aside class="component-editor-preview-card">
+            <div class="component-editor-meta" data-component-editor-meta></div>
+            <div class="component-editor-preview" data-component-editor-preview></div>
+          </aside>
+
+          <section class="component-editor-chat" aria-label="组件编辑对话">
+            <div class="component-editor-messages" data-component-editor-messages></div>
+            <form class="component-editor-form" data-component-editor-form>
+              <textarea data-component-editor-input rows="4" placeholder="例如：把主按钮改成入金优先，增加 KYC 状态提示，整体更紧凑。"></textarea>
+              <footer>
+                <button type="button" data-component-editor-close>取消</button>
+                <button class="primary" type="submit" data-component-editor-submit>发送修改</button>
+              </footer>
+            </form>
+          </section>
+        </div>
+      </section>
+    `;
+
+    document.body.appendChild(modal);
+
+    modal.querySelectorAll("[data-component-editor-close]").forEach((button) => {
+      button.addEventListener("click", closeComponentEditorModal);
+    });
+    modal.querySelector("[data-component-editor-form]")?.addEventListener("submit", submitComponentEdit);
+
+    return modal;
+  }
+
+  function componentEditorGreeting(component) {
+    return {
+      role: "assistant",
+      content: `正在编辑「${component.name}」。你可以直接描述要调整的结构、文案、字段、按钮优先级或视觉密度。`,
+    };
+  }
+
+  function renderComponentEditorModal() {
+    const modal = ensureComponentEditorModal();
+    const component = componentById(componentEditorState.componentId);
+    if (!component) {
+      closeComponentEditorModal();
+      return;
+    }
+
+    const title = modal.querySelector("[data-component-editor-title]");
+    const subtitle = modal.querySelector("[data-component-editor-subtitle]");
+    const meta = modal.querySelector("[data-component-editor-meta]");
+    const preview = modal.querySelector("[data-component-editor-preview]");
+    const messages = modal.querySelector("[data-component-editor-messages]");
+    const input = modal.querySelector("[data-component-editor-input]");
+    const submit = modal.querySelector("[data-component-editor-submit]");
+
+    if (title) title.textContent = `编辑：${component.name}`;
+    if (subtitle) subtitle.textContent = `${component.family} · ${component.size}`;
+    if (meta) {
+      meta.innerHTML = `
+        <span>${escapeHtml(component.family)}</span>
+        <strong>${escapeHtml(component.name)}</strong>
+        <p>${escapeHtml(component.description || "")}</p>
+      `;
+    }
+    renderComponentPreview(preview, component);
+
+    if (messages) {
+      messages.innerHTML = componentEditorState.messages
+        .map(
+          (message) => `
+            <article class="${message.role === "user" ? "user" : "assistant"}">
+              <span>${message.role === "user" ? "你" : "AI"}</span>
+              <p>${escapeHtml(message.content)}</p>
+            </article>
+          `,
+        )
+        .join("");
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    if (input) input.disabled = componentEditorState.busy;
+    if (submit) {
+      submit.disabled = componentEditorState.busy;
+      submit.textContent = componentEditorState.busy ? "修改中..." : "发送修改";
+    }
+  }
+
+  function openComponentEditor(componentId) {
+    const component = componentById(componentId);
+    if (!component) return;
+
+    componentEditorState = {
+      componentId,
+      messages: [componentEditorGreeting(component)],
+      busy: false,
+    };
+
+    const modal = ensureComponentEditorModal();
+    renderComponentEditorModal();
+    modal.hidden = false;
+    modal.querySelector("[data-component-editor-input]")?.focus();
+  }
+
+  function closeComponentEditorModal() {
+    const modal = document.querySelector("[data-component-editor-modal]");
+    if (modal) modal.hidden = true;
+  }
+
+  async function submitComponentEdit(event) {
+    event.preventDefault();
+    const modal = ensureComponentEditorModal();
+    const input = modal.querySelector("[data-component-editor-input]");
+    const instruction = input?.value.trim() || "";
+    const component = componentById(componentEditorState.componentId);
+
+    if (!instruction || !component || componentEditorState.busy) return;
+
+    componentEditorState.messages.push({ role: "user", content: instruction });
+    componentEditorState.busy = true;
+    if (input) input.value = "";
+    renderComponentEditorModal();
+    setStatus(`正在通过 ${modelLabel()} 修改「${component.name}」...`);
+
+    try {
+      const data = await requestJson("/api/home-components/edit", {
+        componentId: component.id,
+        instruction,
+        messages: componentEditorState.messages,
+        component,
+        modelConfig: aiRequestModelConfig(),
+      });
+      if (data.component) {
+        cacheComponents([data.component]);
+        componentEditorState.componentId = data.component.id;
+        componentEditorState.messages.push({
+          role: "assistant",
+          content: `已更新为「${data.component.name}」。可以继续描述下一轮调整。`,
+        });
+      } else {
+        componentEditorState.messages.push({ role: "assistant", content: "修改完成，但接口没有返回组件内容。" });
+      }
+      renderSavedComponents();
+      setStatus(`已保存修改：${data.component?.name || component.name}`, data.mock ? "mock" : "success");
+    } catch (error) {
+      componentEditorState.messages.push({ role: "assistant", content: `${error.message}。可以调整模型配置后再试。` });
+      setStatus(`组件修改失败：${error.message}`, "error");
+    } finally {
+      componentEditorState.busy = false;
+      renderComponentEditorModal();
+    }
+  }
+
+  function pruneCompositionComponent(componentId) {
+    try {
+      const composition = JSON.parse(window.localStorage.getItem(COMPOSITION_CACHE_KEY) || "null");
+      if (!composition || !Array.isArray(composition.layout)) return;
+
+      const nextLayout = composition.layout.filter((item) => item.componentId !== componentId);
+      if (nextLayout.length === composition.layout.length) return;
+
+      if (!nextLayout.length) {
+        window.localStorage.removeItem(COMPOSITION_CACHE_KEY);
+        if (els.compositionSection) els.compositionSection.hidden = true;
+        return;
+      }
+
+      const nextComposition = { ...composition, layout: nextLayout, updatedAt: new Date().toISOString() };
+      window.localStorage.setItem(COMPOSITION_CACHE_KEY, JSON.stringify(nextComposition));
+      renderComposition(nextComposition);
+    } catch (error) {
+      // Ignore invalid cached compositions.
+    }
+  }
+
+  async function deleteComponent(componentId, trigger) {
+    const component = componentById(componentId);
+    if (!component) return;
+    const confirmed = window.confirm(`删除已保存组件「${component.name}」？`);
+    if (!confirmed) return;
+
+    if (trigger) trigger.disabled = true;
+
+    try {
+      const data = await requestJson("/api/home-components/delete", { componentId });
+      if (!syncComponentLibraryFromResponse(data)) removeCachedComponent(componentId);
+      setStatus(`已删除组件：${component.name}`, "success");
+    } catch (error) {
+      removeCachedComponent(componentId);
+      setStatus(`已从当前浏览器缓存删除：${component.name}。后端同步失败：${error.message}`, "mock");
+    } finally {
+      pruneCompositionComponent(componentId);
+      if (componentEditorState.componentId === componentId) closeComponentEditorModal();
+      renderSavedComponents();
+      if (trigger) trigger.disabled = false;
+    }
   }
 
   function renderComposition(composition) {
@@ -910,6 +1185,20 @@
           trigger: regenerateButton,
         });
       }
+      return;
+    }
+
+    const editButton = target?.closest("[data-ai-edit-component]");
+    if (editButton) {
+      event.preventDefault();
+      openComponentEditor(editButton.dataset.aiEditComponent);
+      return;
+    }
+
+    const deleteButton = target?.closest("[data-ai-delete-component]");
+    if (deleteButton) {
+      event.preventDefault();
+      deleteComponent(deleteButton.dataset.aiDeleteComponent, deleteButton);
       return;
     }
 

@@ -449,6 +449,38 @@
   cursor: wait;
 }
 
+.brick-ai-secondary-action,
+.brick-ai-danger-action {
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #fff;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.brick-ai-secondary-action {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.brick-ai-danger-action {
+  border-color: #fecaca;
+  background: #fff5f5;
+  color: #b91c1c;
+}
+
+.brick-ai-secondary-action:disabled,
+.brick-ai-danger-action:disabled {
+  opacity: 0.58;
+  cursor: wait;
+}
+
 .brick-canvas {
   flex: 1;
   min-height: 230px;
@@ -1498,6 +1530,224 @@
   padding: 0 16px;
 }
 
+.component-editor-modal[hidden] {
+  display: none;
+}
+
+.component-editor-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.component-editor-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.46);
+  backdrop-filter: blur(8px);
+}
+
+.component-editor-dialog {
+  position: relative;
+  width: min(1120px, 100%);
+  max-height: min(860px, calc(100vh - 48px));
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+}
+
+.component-editor-dialog > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.component-editor-dialog h2 {
+  margin: 6px 0;
+  color: #0f172a;
+  font-size: 22px;
+  letter-spacing: 0;
+}
+
+.component-editor-dialog header p {
+  margin: 0;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.component-editor-close {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.component-editor-layout {
+  display: grid;
+  grid-template-columns: minmax(360px, 1fr) minmax(380px, 0.9fr);
+  gap: 14px;
+}
+
+.component-editor-preview-card,
+.component-editor-chat {
+  min-width: 0;
+  border: 1px solid #dfe7f2;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.component-editor-preview-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.component-editor-meta {
+  display: grid;
+  gap: 6px;
+}
+
+.component-editor-meta span {
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.component-editor-meta strong {
+  color: #0f172a;
+  font-size: 18px;
+  letter-spacing: 0;
+}
+
+.component-editor-meta p {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.component-editor-preview {
+  min-height: 360px;
+  display: grid;
+  align-items: center;
+  padding: 18px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background:
+    linear-gradient(#eef2f7 1px, transparent 1px),
+    linear-gradient(90deg, #eef2f7 1px, transparent 1px),
+    #fff;
+  background-size: 28px 28px;
+}
+
+.component-editor-chat {
+  display: grid;
+  grid-template-rows: minmax(260px, 1fr) auto;
+  overflow: hidden;
+  background: #fff;
+}
+
+.component-editor-messages {
+  max-height: 470px;
+  overflow: auto;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 14px;
+}
+
+.component-editor-messages article {
+  width: min(92%, 520px);
+  display: grid;
+  gap: 5px;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.component-editor-messages article.user {
+  justify-self: end;
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+
+.component-editor-messages span {
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.component-editor-messages p {
+  margin: 0;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.component-editor-form {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-top: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.component-editor-form textarea {
+  width: 100%;
+  min-height: 104px;
+  resize: vertical;
+  padding: 12px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #fff;
+  color: #172033;
+  line-height: 1.5;
+  outline: 0;
+}
+
+.component-editor-form footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.component-editor-form button {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #fff;
+  color: #334155;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.component-editor-form button.primary {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #fff;
+}
+
+.component-editor-form button:disabled,
+.component-editor-form textarea:disabled {
+  opacity: 0.62;
+  cursor: wait;
+}
+
 .ai-model-modal[hidden] {
   display: none;
 }
@@ -1741,6 +1991,7 @@
 
   .brick-ai-workbench,
   .brick-composition-card > div,
+  .component-editor-layout,
   .ai-model-provider-grid,
   .ai-model-form,
   .ai-model-config-note dl {
@@ -1755,6 +2006,16 @@
 @media (max-width: 860px) {
   .brick-preview-page {
     padding: 22px 16px 48px;
+  }
+
+  .component-editor-modal,
+  .ai-model-modal {
+    padding: 12px;
+  }
+
+  .component-editor-preview {
+    min-height: 260px;
+    padding: 12px;
   }
 
   .brick-page-head,

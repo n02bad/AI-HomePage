@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>pro-trader-cost-3-1 preview</title>
+  </head>
+  <body>
+    <script>
+      const config = {
+        schemaVersion: 4,
+        blueprintVersion: 5,
+        generationMode: "brick-v2",
+        name: "AI pro-trader-cost-3-1",
+        layoutPreset: "tradingCommand",
+        designGenome: "tradingCommand",
+        pageStory: "tradingEfficiency",
+        themePreset: "darkTech",
+        theme: "darkTech",
+        personalizationStrength: "strong",
+        density: "compact",
+        heroFocus: "trading_account_highlight",
+        moduleStyles: {
+          accountPerformance: "cost-board",
+          quickActions: "command-bar",
+          balanceTotal: "ticker-strip",
+          tradingAccounts: "ops-table",
+          adCarousel: "clean"
+        },
+        moduleSettings: {
+          adCarousel: { enabled: false },
+          promoHighlight: { enabled: false },
+          quickActions: {
+            enabled: true,
+            count: 6,
+            display: "iconText",
+            actions: []
+          },
+          assets: {
+            enabled: true,
+            visibleFields: ["tradingAccount", "wallet"],
+            showFundActions: false,
+            showAccountBreakdown: true,
+            showWalletBreakdown: false,
+            showAvailable: true,
+            showMargin: true,
+            showRiskLevel: false,
+            wallets: []
+          },
+          wallet: { enabled: false, placement: "mergedWithAssets", showFundActions: false },
+          openAccount: { enabled: true, real: true, demo: true, bind: false, placement: "insideTradingAccounts" },
+          tradingAccounts: {
+            enabled: true,
+            realEnabled: true,
+            demoEnabled: true,
+            grouping: "separated",
+            viewMode: "list",
+            realViewMode: "list",
+            demoViewMode: "list",
+            demoFirst: false
+          },
+          pamm: { enabled: false },
+          copytrading: { enabled: false },
+          announcements: { enabled: false },
+          marketNews: { enabled: false },
+          riskNotice: { enabled: false }
+        },
+        sections: [
+          { id: "cost-execution-hero", type: "hero", title: "交易成本与执行", slots: ["trading_account_highlight", "quick_actions"] },
+          { id: "cost-margin-strip", type: "full", title: "持仓与保证金", slots: ["asset_overview"] },
+          { id: "cost-account-ledger", type: "full", title: "真实与模拟账号", slots: ["trading_accounts_list"] }
+        ],
+        brickPlan: [
+          { brickId: "accountPerformance.costBoard", brickName: "交易成本与执行看板", family: "AccountPerformance", feature: "trading_account_highlight", component: "trading_account_highlight", size: "2x2", zone: "hero", reason: "首屏直接保留 EURUSD 点差 0.2 起、佣金 $7/手、持仓 PnL、保证金占用和执行效率。" },
+          { brickId: "quickActions.mt5CommandBar", brickName: "MT5 快捷命令栏", family: "QuickActions", feature: "quick_actions", component: "quick_actions", size: "1x2", zone: "rail", reason: "MT5、持仓、订单和切换账号作为专业交易高频操作。" },
+          { brickId: "assetOverview.marginTicker", brickName: "保证金与资产 Ticker", family: "AssetOverview", feature: "asset_overview", component: "asset_overview", size: "3x1", zone: "full", reason: "把保证金占用和可用资金压缩为行情式横向指标，不复用新手路径。" },
+          { brickId: "tradingAccounts.separatedList", brickName: "真实/模拟账号双列表", family: "TradingAccounts", feature: "trading_accounts_list", component: "trading_accounts_list", size: "3x2", zone: "full", reason: "真实账号和模拟账号分区列表展示，适合专业交易排查与切换。" }
+        ],
+        brickTrace: { intent: "trader", pageIntent: "trader", strategy: "专业交易成本工作台契约", score: 98, selectedCount: 4 },
+        emphasis: { deposit: "medium", openAccount: "low", promo: "low", accounts: "high" },
+        aiSummary: "已按专业交易成本工作台重排：首屏保留 EURUSD 点差 0.2 起、佣金 $7/手、持仓 PnL、保证金占用和 MT5 快捷操作，真实/模拟账号分开。"
+      };
+
+      localStorage.setItem("forexcrm.home.personalization.draft", JSON.stringify(config));
+      localStorage.setItem("forexcrm.home.personalization.prompt", "专业交易客户首页，突出交易成本和执行效率：EURUSD 点差 0.2 起、佣金 $7/手、持仓 PnL、保证金占用、MT5 快捷操作；真实账号和模拟账号分开。");
+      location.replace(`/client-home.html?preview=1&case=pro-trader-cost-3-1&v=${Date.now()}`);
+    </script>
+  </body>
+</html>

@@ -335,7 +335,7 @@ body[data-tenant-theme="blueFinance"] {
     radial-gradient(circle at 75% 8%, rgba(20, 184, 166, 0.12), transparent 30%),
     linear-gradient(180deg, #f7fdff 0%, #eef9f8 100%);
   --tenant-cardStyle: rgba(255, 255, 255, 0.98);
-  --tenant-cardRadius: 8px;
+  --tenant-cardRadius: 10px;
   --tenant-cardShadow: 0 16px 36px rgba(15, 72, 118, 0.075);
   --tenant-buttonStyle: linear-gradient(135deg, #0f766e 0%, #2563eb 100%);
   --tenant-fontDensity: 1;
@@ -992,10 +992,13 @@ body[data-layout-page="client-home"] :is(
   .ai-onboarding-feature,
   .ai-quick-feature,
   .ai-referral-feature,
-  .ai-accounts-feature,
-  .ai-market-feature,
-  .ai-risk-feature,
-  .ai-copytrading-feature
+	  .ai-accounts-feature,
+	  .ai-market-feature,
+	  .ai-risk-feature,
+	  .ai-faq-feature,
+	  .ai-support-feature,
+	  .ai-app-download-feature,
+	  .ai-copytrading-feature
 ),
 body[data-home-preview="content-only"] :is(
   .balance-overview,
@@ -1012,10 +1015,13 @@ body[data-home-preview="content-only"] :is(
   .ai-onboarding-feature,
   .ai-quick-feature,
   .ai-referral-feature,
-  .ai-accounts-feature,
-  .ai-market-feature,
-  .ai-risk-feature,
-  .ai-copytrading-feature
+	  .ai-accounts-feature,
+	  .ai-market-feature,
+	  .ai-risk-feature,
+	  .ai-faq-feature,
+	  .ai-support-feature,
+	  .ai-app-download-feature,
+	  .ai-copytrading-feature
 ) {
   border-color: var(--home-card-border);
   border-radius: var(--home-card-radius);

@@ -143,6 +143,14 @@
     generateSuggestions: document.querySelector("[data-ai-generate-suggestions]"),
     refreshSuggestions: document.querySelector("[data-refresh-suggestions]"),
     suggestionButtons: [...document.querySelectorAll("[data-suggestion-prompt]")],
+    generationModeButtons: [...document.querySelectorAll("[data-generation-mode-button]")],
+    generationPanels: [...document.querySelectorAll("[data-generation-panel]")],
+    guidedChoices: [...document.querySelectorAll("[data-guided-choice]")],
+    guidedGenerate: document.querySelector("[data-guided-generate]"),
+    guidedSync: document.querySelector("[data-guided-sync]"),
+    guidedSummary: document.querySelector("[data-guided-summary]"),
+    guidedSummaryTitle: document.querySelector("[data-guided-summary-title]"),
+    guidedNote: document.querySelector("[data-guided-note]"),
     json: document.querySelector("[data-config-json]"),
     toast: document.querySelector("[data-admin-toast]"),
   };
@@ -166,6 +174,10 @@
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#39;");
+  }
+
+  function uniqueList(values) {
+    return [...new Set((Array.isArray(values) ? values.flat(Infinity) : [values]).filter(Boolean))];
   }
 
   function showToast(message) {
@@ -436,6 +448,480 @@
     { id: "funding-status-tracker", label: "出入金状态追踪", summary: "待处理 $5k、预计 15 分钟、通道成功率 97.6%", prompt: "资金状态追踪首页，突出待处理入金 $5,000、预计 15 分钟到账、通道成功率 97.6%、出金审核进度、多币种钱包和客服入口。", tags: ["asset", "deposit"] },
   ];
 
+  const GUIDED_FIELD_LABELS = {
+    intent: "首页目标",
+    audience: "目标用户",
+    level: "功能分级",
+    modules: "页面模块",
+    theme: "视觉主题",
+    tone: "内容语气",
+    cta: "主 CTA",
+    note: "补充要求",
+  };
+
+  const GUIDED_PROMPT_COPY = {
+    intent: {
+      accountOpening: "开户引导，重点推动客户完成真实账户开户、KYC 和首次入金准备",
+      promotionConversion: "推广转化，重点把访客导向留资咨询、权益领取或活动承接",
+      newUserOnboarding: "新用户引导，重点让客户看清开户、认证、入金、交易的下一步",
+      marketingCampaign: "营销推广，重点曝光运营活动、权益和主按钮转化",
+      rewardActivity: "参与奖励活动，重点展示奖励规则、参与步骤和活动倒计时",
+      ibRecruitment: "代理/IB 招募，重点展示推广链接、邀请码、合作流程和客户经理入口",
+      depositConversion: "入金转化，重点推动已开户客户完成首存或追加入金",
+      retention: "老用户唤醒，重点召回沉睡用户重新入金、交易或领取返场权益",
+    },
+    level: {
+      basic: "基础版，保留首屏、主 CTA、核心说明、客服和风险提示",
+      growth: "增长版，在基础能力上加入活动权益、FAQ、表单/按钮和转化承接",
+      pro: "专业版，加入账号、资产、推广链接、数据指标或更完整的运营模块",
+    },
+    modules: {
+      heroBanner: "首屏 Banner 和主 CTA",
+      openingFlow: "开户流程与三步路径",
+      accountBenefits: "账户优势、真实账户和模拟账户入口",
+      kycGuide: "KYC 材料说明和认证状态",
+      depositBonus: "入金奖励、首存门槛和赠金梯度",
+      rewardRules: "活动规则、参与步骤、倒计时和权益说明",
+      pammProducts: "PAMM 产品推荐区，使用独立的 pamm_products 模块，仅在租户开启 PAMM 且接口返回产品时展示",
+      copyTrading: "CopyTrading 信号源推荐区，使用独立的 copytrading_signals 模块，仅在租户开启 CopyTrading 且接口返回信号源时展示",
+      rewardActivity: "奖励活动专题区，使用活动 Banner、奖励权益、参与步骤和活动 CTA 承接转化",
+      referralLink: "推广链接、邀请码、复制按钮和基础推广统计",
+      appDownload: "APP 下载、MT5 下载或移动端交易入口",
+      tradingAccounts: "交易账号列表、真实账号和模拟账号状态",
+      customerService: "在线客服、客户经理或一对一协助入口",
+      faq: "FAQ 常见问题",
+      riskDisclosure: "风险提示与合规声明，不暗示稳赚",
+    },
+    theme: {
+      blueFinance: "蓝色金融，清爽专业",
+      blackGold: "黑金高净值，高端稳重",
+      lightGold: "浅金活动，适合营销权益",
+      minimalWhite: "极简白，清爽克制",
+      darkTech: "暗色科技，交易终端感",
+    },
+    tone: {
+      professional: "专业稳健",
+      conversion: "营销转化",
+      beginner: "新手友好",
+      campaign: "活动促销",
+      premium: "高净值客户导向",
+      ib: "代理招募导向",
+    },
+    cta: {
+      openAccount: "立即开户",
+      claimReward: "领取奖励",
+      depositNow: "立即入金",
+      contactManager: "联系客户经理",
+      joinCampaign: "参与活动",
+      downloadApp: "下载 APP",
+    },
+  };
+
+  const GUIDED_CANONICAL_TARGETS = {
+    heroBanner: ["welcome_header", "promo_banner"],
+    openingFlow: ["onboarding_guide"],
+    accountBenefits: ["onboarding_guide", "trading_accounts_list"],
+    kycGuide: ["onboarding_guide"],
+    depositBonus: ["promo_banner", "asset_overview"],
+    rewardRules: ["promo_banner", "announcements"],
+    pammProducts: ["pamm_products"],
+    copyTrading: ["copytrading_signals"],
+    rewardActivity: ["promo_banner"],
+    referralLink: ["referral_link_card"],
+    appDownload: ["app_download"],
+    tradingAccounts: ["trading_accounts_list"],
+    customerService: ["support_contact"],
+    faq: ["faq_section"],
+    riskDisclosure: ["risk_disclosure"],
+  };
+
+  const GUIDED_INTENT_CANONICAL = {
+    accountOpening: {
+      primaryIntent: "onboarding",
+      layoutPreset: "onboardingJourney",
+      heroFocus: "onboarding_guide",
+      mustHave: ["onboarding_guide", "quick_actions", "asset_overview", "trading_accounts_list"],
+    },
+    promotionConversion: {
+      primaryIntent: "growth",
+      layoutPreset: "magazineCampaign",
+      heroFocus: "promo_banner",
+      mustHave: ["promo_banner", "quick_actions", "asset_overview", "trading_accounts_list"],
+    },
+    newUserOnboarding: {
+      primaryIntent: "onboarding",
+      layoutPreset: "onboardingJourney",
+      heroFocus: "onboarding_guide",
+      mustHave: ["onboarding_guide", "quick_actions", "asset_overview"],
+    },
+    marketingCampaign: {
+      primaryIntent: "growth",
+      layoutPreset: "magazineCampaign",
+      heroFocus: "promo_banner",
+      mustHave: ["promo_banner", "quick_actions", "trading_accounts_list"],
+    },
+    rewardActivity: {
+      primaryIntent: "growth",
+      layoutPreset: "magazineCampaign",
+      heroFocus: "promo_banner",
+      mustHave: ["promo_banner", "quick_actions", "trading_accounts_list"],
+    },
+    ibRecruitment: {
+      primaryIntent: "partner",
+      layoutPreset: "accountOpsConsole",
+      heroFocus: "referral_link_card",
+      mustHave: ["referral_link_card", "quick_actions", "announcements", "trading_accounts_list"],
+    },
+    depositConversion: {
+      primaryIntent: "deposit",
+      layoutPreset: "conversionFirst",
+      heroFocus: "asset_overview",
+      mustHave: ["asset_overview", "quick_actions", "promo_banner", "trading_accounts_list"],
+    },
+    retention: {
+      primaryIntent: "retention",
+      layoutPreset: "onboardingJourney",
+      heroFocus: "onboarding_guide",
+      mustHave: ["onboarding_guide", "asset_overview", "quick_actions", "promo_banner"],
+    },
+  };
+
+  const GUIDED_INTENT_DEFAULTS = {
+    accountOpening: {
+      audience: ["newVisitor", "registeredNoAccount"],
+      level: "growth",
+      modules: ["heroBanner", "openingFlow", "accountBenefits", "kycGuide", "customerService", "faq", "riskDisclosure"],
+      theme: "blueFinance",
+      tone: "professional",
+      cta: "openAccount",
+    },
+    promotionConversion: {
+      audience: ["newVisitor", "registeredNoAccount", "openedNoDeposit"],
+      level: "growth",
+      modules: ["heroBanner", "accountBenefits", "depositBonus", "rewardRules", "customerService", "faq", "riskDisclosure"],
+      theme: "blueFinance",
+      tone: "conversion",
+      cta: "openAccount",
+    },
+    newUserOnboarding: {
+      audience: ["newVisitor", "registeredNoAccount"],
+      level: "basic",
+      modules: ["heroBanner", "openingFlow", "kycGuide", "appDownload", "customerService", "faq", "riskDisclosure"],
+      theme: "minimalWhite",
+      tone: "beginner",
+      cta: "openAccount",
+    },
+    marketingCampaign: {
+      audience: ["newVisitor", "activityUser"],
+      level: "growth",
+      modules: ["heroBanner", "rewardActivity", "rewardRules", "depositBonus", "appDownload", "customerService", "riskDisclosure"],
+      theme: "lightGold",
+      tone: "campaign",
+      cta: "joinCampaign",
+    },
+    rewardActivity: {
+      audience: ["openedNoDeposit", "fundedUser", "activityUser"],
+      level: "growth",
+      modules: ["heroBanner", "rewardActivity", "rewardRules", "depositBonus", "tradingAccounts", "customerService", "riskDisclosure"],
+      theme: "lightGold",
+      tone: "campaign",
+      cta: "claimReward",
+    },
+    ibRecruitment: {
+      audience: ["ibUser", "highNetWorth"],
+      level: "pro",
+      modules: ["heroBanner", "referralLink", "accountBenefits", "customerService", "faq", "riskDisclosure"],
+      theme: "blackGold",
+      tone: "ib",
+      cta: "contactManager",
+    },
+    depositConversion: {
+      audience: ["openedNoDeposit", "fundedUser"],
+      level: "growth",
+      modules: ["heroBanner", "depositBonus", "tradingAccounts", "customerService", "faq", "riskDisclosure"],
+      theme: "blueFinance",
+      tone: "conversion",
+      cta: "depositNow",
+    },
+    retention: {
+      audience: ["dormantUser", "fundedUser"],
+      level: "basic",
+      modules: ["heroBanner", "depositBonus", "appDownload", "tradingAccounts", "customerService", "riskDisclosure"],
+      theme: "minimalWhite",
+      tone: "professional",
+      cta: "depositNow",
+    },
+  };
+
+  function setGenerationMode(mode) {
+    const nextMode = mode === "guided" ? "guided" : "quick";
+    document.body.dataset.generationMode = nextMode;
+    els.generationModeButtons.forEach((button) => {
+      const active = button.dataset.generationModeButton === nextMode;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-selected", active ? "true" : "false");
+    });
+    els.generationPanels.forEach((panel) => {
+      const active = panel.dataset.generationPanel === nextMode;
+      panel.classList.toggle("active", active);
+      panel.hidden = !active;
+    });
+  }
+
+  function guidedButtonsFor(group) {
+    return els.guidedChoices.filter((button) => button.dataset.guidedGroup === group);
+  }
+
+  function setGuidedActive(button, active) {
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+  }
+
+  function setGuidedGroupValues(group, values) {
+    const buttons = guidedButtonsFor(group);
+    const nextValues = new Set(Array.isArray(values) ? values : [values].filter(Boolean));
+    buttons.forEach((button) => {
+      setGuidedActive(button, nextValues.has(button.dataset.guidedValue));
+    });
+
+    if (!buttons.some((button) => button.classList.contains("active")) && buttons[0]) {
+      setGuidedActive(buttons[0], true);
+    }
+  }
+
+  function selectedGuidedValues(group) {
+    return guidedButtonsFor(group)
+      .filter((button) => button.classList.contains("active"))
+      .map((button) => button.dataset.guidedValue)
+      .filter(Boolean);
+  }
+
+  function selectedGuidedValue(group) {
+    return selectedGuidedValues(group)[0] || guidedButtonsFor(group)[0]?.dataset.guidedValue || "";
+  }
+
+  function guidedLabel(group, value) {
+    const button = guidedButtonsFor(group).find((item) => item.dataset.guidedValue === value);
+    return button?.dataset.guidedLabel || value || "未选择";
+  }
+
+  function guidedPromptCopy(group, value) {
+    return GUIDED_PROMPT_COPY[group]?.[value] || guidedLabel(group, value);
+  }
+
+  function guidedFreedomHint(intent) {
+    return {
+      accountOpening: "版式自由度：采用开户旅程、路径或任务流骨架，开户清单、开户面板和 KYC 下一步优先，资产概览不要抢首屏。",
+      promotionConversion: "版式自由度：采用增长专题或活动封面骨架，首屏可以更像营销落地页，权益、主 CTA 和转化按钮优先。",
+      newUserOnboarding: "版式自由度：采用新用户旅程、路径或任务流骨架，用步骤化结构替代标准资产工作台。",
+      marketingCampaign: "版式自由度：采用活动封面、专题或大视觉骨架，活动 Banner、权益和参与动作优先，账号信息下移。",
+      rewardActivity: "版式自由度：采用活动封面、专题或大视觉骨架，奖励规则、参与步骤、倒计时和领取奖励按钮优先。",
+      ibRecruitment: "版式自由度：采用渠道增长专题骨架，推广链接、邀请码、复制动作和客户经理入口靠前。",
+      depositConversion: "版式自由度：采用入金奖励阶梯骨架，赠金梯度、钱包余额、入金动作和开真实账号压进首屏。",
+      retention: "版式自由度：采用召回任务流骨架，返场权益、账户状态、快捷入金和重新开始交易优先。",
+    }[intent] || "版式自由度：允许重排模块顺序、首屏组件和页面密度，让结果明显区别于默认工作台。";
+  }
+
+  function applyGuidedDefaults(intent) {
+    const defaults = GUIDED_INTENT_DEFAULTS[intent];
+    if (!defaults) return;
+
+    setGuidedGroupValues("audience", defaults.audience);
+    setGuidedGroupValues("level", defaults.level);
+    setGuidedGroupValues("modules", defaults.modules);
+    setGuidedGroupValues("theme", defaults.theme);
+    setGuidedGroupValues("tone", defaults.tone);
+    setGuidedGroupValues("cta", defaults.cta);
+  }
+
+  function readGuidedState() {
+    const state = {
+      intent: selectedGuidedValue("intent"),
+      audience: selectedGuidedValues("audience"),
+      level: selectedGuidedValue("level"),
+      modules: selectedGuidedValues("modules"),
+      theme: selectedGuidedValue("theme"),
+      tone: selectedGuidedValue("tone"),
+      cta: selectedGuidedValue("cta"),
+      note: (els.guidedNote?.value || "").trim(),
+    };
+
+    if (!state.audience.length) state.audience = [guidedButtonsFor("audience")[0]?.dataset.guidedValue].filter(Boolean);
+    if (!state.modules.length) state.modules = [guidedButtonsFor("modules")[0]?.dataset.guidedValue].filter(Boolean);
+    return state;
+  }
+
+  function guidedChoiceDescriptor(group, value) {
+    return {
+      id: value,
+      label: guidedLabel(group, value),
+      instruction: guidedPromptCopy(group, value),
+    };
+  }
+
+  function buildGuidedAiIntake() {
+    const state = readGuidedState();
+    const canonicalIntent = GUIDED_INTENT_CANONICAL[state.intent] || {};
+    const modules = state.modules.map((value) => ({
+      ...guidedChoiceDescriptor("modules", value),
+      canonicalTargets: GUIDED_CANONICAL_TARGETS[value] || [],
+    }));
+    const canonicalMustHave = uniqueList([
+      canonicalIntent.mustHave || [],
+      modules.map((module) => module.canonicalTargets || []),
+    ]);
+
+    return {
+      source: "guided-builder",
+      intent: {
+        ...guidedChoiceDescriptor("intent", state.intent),
+        canonicalIntent: canonicalIntent.primaryIntent || "",
+      },
+      audience: state.audience.map((value) => guidedChoiceDescriptor("audience", value)),
+      level: guidedChoiceDescriptor("level", state.level),
+      modules,
+      theme: {
+        ...guidedChoiceDescriptor("theme", state.theme),
+        themePreset: state.theme,
+      },
+      tone: guidedChoiceDescriptor("tone", state.tone),
+      cta: guidedChoiceDescriptor("cta", state.cta),
+      canonical: {
+        primaryIntent: canonicalIntent.primaryIntent || "",
+        layoutPreset: canonicalIntent.layoutPreset || "",
+        heroFocus: canonicalIntent.heroFocus || "",
+        mustHave: canonicalMustHave,
+      },
+      freedomHint: guidedFreedomHint(state.intent),
+      note: state.note,
+    };
+  }
+
+  function summarizeGuidedValues(group, values) {
+    return values.map((value) => guidedLabel(group, value)).join("、") || "未选择";
+  }
+
+  function buildGuidedPrompt() {
+    const state = readGuidedState();
+    const modules = state.modules.map((value) => guidedPromptCopy("modules", value));
+    const audiences = state.audience.map((value) => guidedLabel("audience", value));
+    const parts = [
+      "请为 ForexCRM 用户端首页生成可发布的首页方案",
+      `目标：${guidedPromptCopy("intent", state.intent)}`,
+      `用户：${audiences.join("、")}`,
+      `分级：${guidedPromptCopy("level", state.level)}`,
+      `主 CTA：${guidedPromptCopy("cta", state.cta)}`,
+      `视觉：${guidedPromptCopy("theme", state.theme)}`,
+      `语气：${guidedPromptCopy("tone", state.tone)}`,
+      `必须可见模块：${modules.join("、")}`,
+      "允许在白名单内重排 sections、brickPlan、模块变体和密度，优先让目标决定首屏",
+      "不要编造收益、客服在线状态、下载链接或后台未提供的数据",
+    ];
+
+    if (state.note) parts.push(`补充要求：${state.note}`);
+    return parts.join("。");
+  }
+
+  function renderGuidedSummary() {
+    if (!els.guidedSummary) return;
+
+    const state = readGuidedState();
+    const rows = [
+      [GUIDED_FIELD_LABELS.intent, guidedLabel("intent", state.intent)],
+      [GUIDED_FIELD_LABELS.audience, summarizeGuidedValues("audience", state.audience)],
+      [GUIDED_FIELD_LABELS.level, guidedLabel("level", state.level)],
+      [GUIDED_FIELD_LABELS.cta, guidedLabel("cta", state.cta)],
+      [GUIDED_FIELD_LABELS.theme, guidedLabel("theme", state.theme)],
+      [GUIDED_FIELD_LABELS.tone, guidedLabel("tone", state.tone)],
+      [GUIDED_FIELD_LABELS.modules, summarizeGuidedValues("modules", state.modules)],
+    ];
+
+    if (state.note) rows.push([GUIDED_FIELD_LABELS.note, state.note]);
+    if (els.guidedSummaryTitle) els.guidedSummaryTitle.textContent = `${guidedLabel("intent", state.intent)}方案`;
+    els.guidedSummary.innerHTML = rows
+      .map(
+        ([label, value]) => `
+          <article>
+            <span>${escapeHtml(label)}</span>
+            <strong>${escapeHtml(value)}</strong>
+          </article>
+        `,
+      )
+      .join("");
+  }
+
+  function syncGuidedPromptToQuick(options = {}) {
+    const prompt = buildGuidedPrompt();
+    if (els.prompt) els.prompt.value = prompt;
+    savePrompt();
+
+    if (options.switchMode) setGenerationMode("quick");
+    if (options.updateConfig !== false) {
+      setConfig(home.promptToConfig(prompt, interpretationRound), "已写入引导配置");
+    }
+    if (options.updateSuggestions !== false) {
+      suggestionCards = buildSuggestionCards();
+      renderSuggestionCards("已按引导配置更新推荐");
+    }
+    if (options.toast) showToast("已写入快速输入");
+    return prompt;
+  }
+
+  function initGuidedBuilder() {
+    if (!els.guidedChoices.length) return;
+
+    els.guidedChoices.forEach((button) => {
+      button.setAttribute("aria-pressed", button.classList.contains("active") ? "true" : "false");
+      button.addEventListener("click", () => {
+        const group = button.dataset.guidedGroup;
+        const value = button.dataset.guidedValue;
+        const isMultiple = button.hasAttribute("data-guided-multiple");
+
+        if (isMultiple) {
+          const willActivate = !button.classList.contains("active");
+          setGuidedActive(button, willActivate);
+          const activeInGroup = guidedButtonsFor(group).filter((item) => item.classList.contains("active"));
+          if (!activeInGroup.length) setGuidedActive(button, true);
+        } else {
+          setGuidedGroupValues(group, value);
+          if (group === "intent") applyGuidedDefaults(value);
+        }
+
+        renderGuidedSummary();
+      });
+    });
+
+    els.generationModeButtons.forEach((button) => {
+      button.addEventListener("click", () => setGenerationMode(button.dataset.generationModeButton));
+    });
+
+    els.guidedNote?.addEventListener("input", renderGuidedSummary);
+    els.guidedSync?.addEventListener("click", () => syncGuidedPromptToQuick({ switchMode: true, toast: true }));
+    els.guidedGenerate?.addEventListener("click", async () => {
+      interpretationRound += 1;
+      const guidedIntake = buildGuidedAiIntake();
+      const guidedPrompt = syncGuidedPromptToQuick({ updateConfig: false });
+      setAiBusy(true, aiBusyLabel("正在生成引导方案"));
+      let shouldResetBusy = true;
+      try {
+        const config = await generateConfigWithFallback(guidedPrompt, {
+          variant: interpretationRound,
+          distinctFrom: currentConfig,
+          inputMode: "guided",
+          guidedIntake,
+        });
+        generatePreview(config);
+        shouldResetBusy = false;
+      } finally {
+        if (shouldResetBusy) setAiBusy(false);
+      }
+    });
+
+    applyGuidedDefaults(selectedGuidedValue("intent"));
+    renderGuidedSummary();
+    setGenerationMode("quick");
+  }
+
   function readSuggestionHistory() {
     try {
       const parsed = JSON.parse(window.localStorage.getItem(SUGGESTION_HISTORY_KEY) || "[]");
@@ -551,7 +1037,7 @@
 	    interpretationRound += 1;
 	    selectedSuggestion = null;
 	    savePrompt();
-	    setAiBusy(true, "正在套用推荐...");
+	    setAiBusy(true, aiBusyLabel("正在套用推荐"));
 	    try {
 	      const config = await generateConfigWithFallback(promptValue(), {
 	        variant: interpretationRound,
@@ -737,6 +1223,10 @@
     return "调用失败";
   }
 
+  function inputModeLabel(mode) {
+    return mode === "guided" ? "引导式" : "快速输入";
+  }
+
   function modelHistoryAdvice(message) {
     const source = String(message || "");
     if (!source || /处理建议/.test(source)) return "";
@@ -836,7 +1326,7 @@
 	          <article class="model-call-item" data-call-status="${escapeHtml(record.status || "unknown")}" tabindex="0" title="${escapeHtml(title)}">
 	            <div>
 	              <strong>${escapeHtml(record.provider || "本地规则")} / ${escapeHtml(record.model || "--")}</strong>
-	              <span>${escapeHtml(statusLabel(record.status, record.mock))} · ${escapeHtml(formatHistoryTime(record.at))}</span>
+	              <span>${escapeHtml(statusLabel(record.status, record.mock))} · ${escapeHtml(inputModeLabel(record.inputMode))} · ${escapeHtml(formatHistoryTime(record.at))}</span>
 	            </div>
 	            <small>${escapeHtml(record.durationMs ? `${record.durationMs}ms` : callModeLabel(record.callMode || "local"))}</small>
 	            <p class="model-call-summary">${escapeHtml(display.summary)}</p>
@@ -1199,8 +1689,19 @@
     [els.generateSuggestions, els.refreshSuggestions].filter(Boolean).forEach((button) => {
       button.disabled = busy;
     });
+    els.generationModeButtons.forEach((button) => {
+      button.disabled = busy;
+    });
+    els.guidedChoices.forEach((button) => {
+      button.disabled = busy;
+    });
+    [els.guidedGenerate, els.guidedSync].filter(Boolean).forEach((button) => {
+      button.disabled = busy;
+      button.classList.toggle("is-loading", busy);
+    });
     if (els.reset) els.reset.disabled = busy;
     if (els.prompt) els.prompt.readOnly = busy;
+    if (els.guidedNote) els.guidedNote.readOnly = busy;
     if (els.intakePage) els.intakePage.classList.toggle("is-generating", busy);
     if (els.composer) {
       els.composer.classList.toggle("is-generating", busy);
@@ -1254,8 +1755,8 @@
     return aiRequestModelConfigFrom(aiModelConfig);
   }
 
-  function aiRequestContext() {
-    return {
+  function aiRequestContext(options = {}) {
+    const context = {
       currentConfig: home.normalizeConfig(currentConfig),
       defaultConfig: home.DEFAULT_CONFIG,
       features: home.FEATURES,
@@ -1264,11 +1765,21 @@
       moduleVariantOptions: home.MODULE_VARIANT_OPTIONS,
       schema: home.HOMEPAGE_CONFIG_JSON_SCHEMA,
     };
+
+    if (options.inputMode) context.inputMode = options.inputMode;
+    if (options.guidedIntake) context.guidedIntake = options.guidedIntake;
+    return context;
   }
 
   function aiGenerationLabel(config) {
     const provider = providerPreset(config.provider);
     return `${provider.name} / ${config.model}`;
+  }
+
+  function aiBusyLabel(baseLabel = "正在生成") {
+    const config = sanitizeModelConfig(aiModelConfig);
+    if (config.callMode !== "serverProxy") return `${baseLabel}（本地规则）`;
+    return `${baseLabel}：${aiGenerationLabel(config)}`;
   }
 
   function errorMessage(error, limit = 320) {
@@ -1418,8 +1929,12 @@
     const payload = await requestAiProxy(config, "complete", {
       prompt,
       variant: options.variant || 0,
+      inputMode: options.inputMode || "quick",
       modelConfig: aiRequestModelConfig(),
-      context: aiRequestContext(),
+      context: aiRequestContext({
+        inputMode: options.inputMode || "quick",
+        guidedIntake: options.guidedIntake || null,
+      }),
     });
     const usedProvider = providerPreset(payload.provider || config.provider);
     const usedModel = payload.model || config.model;
@@ -1492,6 +2007,7 @@
 	    const startedAt = Date.now();
     const requestConfig = sanitizeModelConfig(aiModelConfig);
     const provider = providerPreset(requestConfig.provider);
+    const inputMode = options.inputMode === "guided" ? "guided" : "quick";
 
 	    try {
 	      const result = await generateConfigFromModel(prompt, options);
@@ -1510,6 +2026,7 @@
         proxyEndpoint: requestConfig.proxyEndpoint,
         temperature: requestConfig.temperature,
         maxOutputTokens: requestConfig.maxOutputTokens,
+        inputMode,
         variant: options.variant || 0,
         status: result.usedModel ? "success" : "local",
         mock: Boolean(result.mock),
@@ -1539,6 +2056,7 @@
         proxyEndpoint: requestConfig.proxyEndpoint,
         temperature: requestConfig.temperature,
         maxOutputTokens: requestConfig.maxOutputTokens,
+        inputMode,
         variant: options.variant || 0,
         status: "fallback",
 	        durationMs: Date.now() - startedAt,
@@ -1884,7 +2402,7 @@
 
 	  els.generateSuggestions?.addEventListener("click", async () => {
 	    suggestionRound += 1;
-	    setAiBusy(true, "正在生成推荐...");
+	    setAiBusy(true, aiBusyLabel("正在生成推荐"));
 	    try {
 	      const scenePool = buildSuggestionCards({ usePrompt: false });
 	      const nextScene = scenePool[suggestionRound % Math.max(scenePool.length, 1)] || AI_SUGGESTION_SCENES[0];
@@ -1921,7 +2439,7 @@
 
 	  els.generate?.addEventListener("click", async () => {
 	    savePrompt();
-	    setAiBusy(true, "正在生成...");
+	    setAiBusy(true, aiBusyLabel("正在生成"));
 	    let shouldResetBusy = true;
 	    try {
 	      const config = await generateConfigWithFallback(promptValue(), { variant: interpretationRound, distinctFrom: currentConfig });
@@ -1940,7 +2458,7 @@
 	    interpretationRound += 1;
     selectedSuggestion = null;
     savePrompt();
-	    setAiBusy(true, "正在解读...");
+	    setAiBusy(true, aiBusyLabel("正在解读"));
 	    try {
 	      const config = await generateConfigWithFallback(promptValue(), { variant: interpretationRound, distinctFrom: currentConfig });
 	      setConfig(config, "已重新解读文案", { saveDraft: Boolean(els.previewPage) });
@@ -1952,7 +2470,7 @@
 
 	  els.regenerate?.addEventListener("click", async () => {
     interpretationRound += 1;
-    setAiBusy(true, "正在生成...");
+    setAiBusy(true, aiBusyLabel("正在生成"));
 	    try {
 	      const prompt = window.localStorage.getItem(PROMPT_KEY) || "";
 	      const config = await generateConfigWithFallback(prompt, { variant: interpretationRound, distinctFrom: currentConfig });
@@ -2012,6 +2530,7 @@
   initModelConfig();
   renderModelHistory();
   restorePrompt();
+  initGuidedBuilder();
   suggestionCards = buildSuggestionCards();
   renderSuggestionCards();
 

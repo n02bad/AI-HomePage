@@ -39,7 +39,7 @@
       "themeAdvice": "使用 blackGold 主题，资产和广告权重最高，账号列表保持安静表格。",
       "polishInstructions": "首屏保持宽松，右侧只放开户和资金动作，不再堆叠过多小卡片。",
       "createdAt": "2026-05-07T00:00:00.000Z",
-      "updatedAt": "2026-05-07T00:00:00.000Z"
+      "updatedAt": "2026-05-10T05:56:19.007Z"
     },
     {
       "id": "trader-console-brick-flow",
@@ -74,7 +74,7 @@
       "themeAdvice": "使用 default 或 darkTech，信息密度 compact，账号列表固定 list。",
       "polishInstructions": "减少营销卡片，优先保证表格、图表和工具条可扫读。",
       "createdAt": "2026-05-07T00:00:00.000Z",
-      "updatedAt": "2026-05-07T00:00:00.000Z"
+      "updatedAt": "2026-05-10T05:56:19.007Z"
     },
     {
       "id": "onboarding-conversion-brick-flow",
@@ -115,7 +115,7 @@
       "themeAdvice": "使用 blueFinance，开户路径清晰，按钮权重要高于广告。",
       "polishInstructions": "首屏不要堆太多资产数字，优先把开户步骤、开户动作和表单连起来。",
       "createdAt": "2026-05-07T00:00:00.000Z",
-      "updatedAt": "2026-05-07T00:00:00.000Z"
+      "updatedAt": "2026-05-10T05:56:19.007Z"
     },
     {
       "id": "mowlkigr",
@@ -169,7 +169,7 @@
       "polishInstructions": "确保所有卡片圆角一致（8px），行间距12px，列间距16px；资产总览添加悬浮微动效；工具条按钮高对比度，悬停时金色描边；开户面板增加步骤引导指示器；账号列表隔行浅色区分；轮播图保证4:1宽高比，切换平滑。",
       "sourcePrompt": "用已保存组件组合一个专业首页。",
       "createdAt": "2026-05-08T07:32:12.795Z",
-      "updatedAt": "2026-05-08T07:32:12.795Z"
+      "updatedAt": "2026-05-10T05:56:19.007Z"
     },
     {
       "id": "professional-trader-dashboard-mowlltek",
@@ -217,7 +217,7 @@
       "polishInstructions": "Ensure consistent grid alignment with 8px gutters. Apply subtle card shadows and rounded corners. Use monospaced fonts for financial figures. The header dock should be sticky. Animate chart transitions smoothly.",
       "sourcePrompt": "用已保存组件组合一个专业首页。",
       "createdAt": "2026-05-08T07:33:13.628Z",
-      "updatedAt": "2026-05-08T07:33:13.628Z"
+      "updatedAt": "2026-05-10T05:56:19.007Z"
     }
   ]
 }
