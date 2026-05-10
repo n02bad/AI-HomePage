@@ -6,6 +6,12 @@
 
 这份文档不仅是模块说明，也是 AI 生成首页配置时的约束依据。AI 在生成首页时必须遵守以下规则：
 
+- 新首页生成只允许使用 12 个内容块：`welcome_header`、`asset_overview`、`quick_actions`、`onboarding_guide`、`trading_account_highlight`、`trading_accounts_list`、`promo_banner`、`pamm_products`、`copytrading_signals`、`referral_link_card`、`announcements`、`market_news`。
+- `reward_tasks`、`kyc_risk_notice`、`ib_dashboard`、`support_help` 默认禁用；旧的 `ReferralLink`、KYC/风控侧栏和客服帮助入口只能作为历史兼容输入处理，不能作为新首页输出。代理推广只允许通过轻量 `referral_link_card` 表达。
+- 快捷操作区入口内容由后台配置或接口返回，AI 只负责布局、数量、样式、占位和响应式适配，不能写死入金、出金、开户、客服等具体入口。
+- 资产概览区只能展示 `total`、`wallet`、`tradingAccount` 中任意 1-3 个字段，可选展示资金按钮；不能新增系统未定义资产字段或编造金额。
+- PAMM 与 CopyTrading 必须拆成 `pamm_products` 和 `copytrading_signals` 两个独立模块，且仅在租户开启对应能力时展示。
+- `referral_link_card` 仅代理/IB/合作伙伴或租户开启推广链接功能时展示；只展示推广链接、邀请码、复制/分享和可选基础统计，不展示返佣、团队层级或完整代理业绩。
 - AI 不允许发明新的业务功能、业务入口或后端不存在的数据能力，例如不存在的交易功能、支付功能、账户能力、KYC 能力。
 - AI 可以基于现有业务模块发明新的组件、新的样式变体、新的组合方式和新的尺寸规格，但必须说明它依托的父模块、参考组件、业务用途和回退方案。
 - 正式首页配置中的业务模块 ID 必须来自本文档，或先作为候选模块进入审核；但组件级别、样式级别、尺寸级别可以开放扩展。
@@ -37,21 +43,22 @@
 ## 拆解原则
 
 - 共用外壳不进入积木库：顶部导航、左侧菜单、消息/语言/头像、一级页签属于公共布局，由 `common-layout.js` 和页面外壳控制。
-- 首页内容才进入积木库：资产、钱包、快捷入口、广告、邀请、交易账号、开户、KYC/用户信息、图表等才是 AI 可以拼装的模块。
+- 首页内容才进入积木库：正式 AI 输出只允许资产概览、快捷入口、新手引导、交易账号、活动 Banner、PAMM、CopyTrading、轻量推广链接、公告和市场资讯等 12 个内容块；历史钱包、完整邀请控制台、KYC/风控、客服等模块只保留为兼容代码，不作为新首页输出。
 - 模块要有尺寸，不只要有样式：每个模块都需要标注推荐尺寸，方便拼版；推荐尺寸不是限制，AI 可以提出新的尺寸规格，例如 `4x1`、`4x2`、`4x3`、`5x1`，但必须说明适用场景、响应式降级和回退尺寸。
 - 样式、尺寸和业务能力分开：业务能力定义“能做什么”，样式变体定义“长什么样”，尺寸规格定义“占多少空间”。AI 可以发明新的样式和尺寸，但不能发明新的业务能力。
 - 开户入口和交易账号属于同一业务路径：默认应靠近账号筛选、账号列表或右侧开户操作区，不应藏在页面很深的位置。
+- 白标可信、资金安全、成熟券商客户端这类首页不按营销封面处理；默认先展示资金安全、资产余额和开户转化，再展示钱包卡片、快捷入口、主推活动和合并账号列表。
 
 ## 积木尺寸定义
 
 | 尺寸 | 对应布局 | 适合内容 |
 | --- | --- | --- |
-| `1x1` | 右侧 rail / 小卡片 | KYC 状态、钱包币种、小指标、单个快捷动作 |
-| `1x2` | 右侧高卡 / 侧栏 | 用户信息、KYC + 钱包、开户操作、创建账号表单 |
-| `2x1` | 主内容横卡 | 资产摘要、快捷入口、邀请链接、开户路径 |
+| `1x1` | 右侧 rail / 小卡片 | 小指标、公告摘要、资讯摘要、单个推荐卡 |
+| `1x2` | 右侧高卡 / 侧栏 | 新手引导、榜单摘要、重点账号表现 |
+| `2x1` | 主内容横卡 | 资产概览、快捷入口、新手引导、活动 Banner |
 | `2x2` | 主内容重点模块 | 资产驾驶舱、交易账号工作台、图表 + 账号概览 |
-| `3x1` | 整行横幅 | 广告轮播、快捷工具条、完整邀请条 |
-| `3x2` | 大面积内容区 | 交易账号长表格、Live/Demo/Wallet 分组列表 |
+| `3x1` | 整行横幅 | 活动 Banner、快捷工具条、公告/资讯横条 |
+| `3x2` | 大面积内容区 | 交易账号长表格、PAMM 产品组、CopyTrading 信号源组 |
 | `4x1` | 超宽横幅 / 宽屏首屏 | 大轮播、整行账户指标条、品牌化 Campaign Hero |
 | `4x2` | 宽屏主内容区 | 双列表组合、资产总览 + 快捷入口组合、交易账号 + 钱包并列组合 |
 | `4x3` | 宽屏工作台 | 专业交易工作台、多表格组合、完整账户管理区 |
@@ -93,18 +100,18 @@
 
 | 模块 ID | 中文名称 | 核心职责 | 推荐尺寸 | 尺寸扩展建议 | 当前项目状态 |
 | --- | --- | --- | --- | --- | --- |
-| `AssetOverview` | 资产总览 | 展示总资产、钱包资产、交易账号资产、入金/出金入口 | `2x1`, `2x2`, `3x1` | 可扩展 `4x1` 作为宽屏账户指标条，`4x2` 作为资产驾驶舱 | 已有一等模块和变体 |
-| `WalletBalance` | 钱包余额 | 展示钱包总额、币种拆分、入金/出金 | `1x1`, `1x2`, `2x1` | 可扩展 `4x1` 作为多币种横向钱包条 | 已有一等模块和变体 |
-| `QuickActions` | 快捷入口 | 放置 Deposit、Withdrawal、Internal Transfer、Wallet Flow、Order、Position 等操作 | `2x1`, `3x1`, `1x1` | 可扩展 `4x1` 做 2 行 4 列或 1 行 8 列宽屏操作区 | 已有一等模块和变体 |
-| `PromotionBanner` | 广告/活动 | 放置活动图、轮播、权益 Banner、交易大赛 | `2x1`, `3x1` | 可扩展 `4x1` 做顶部通栏轮播，`4x2` 做大 Campaign Hero | 已有一等模块和变体；需要明确支持顶部轮播图 |
-| `ReferralLink` | 邀请链接 | 推广链接、邀请码、二维码、点击/注册/交易账号统计 | `2x1`, `3x1`, `1x1` | 可扩展 `4x1` 做渠道增长横幅 | 已能渲染，需升为一等模块 |
-| `TradingAccounts` | 交易账号 | Live/Demo 合并或分组、卡片/列表、详情、分页、创建入口 | `2x2`, `3x2` | 可扩展 `4x2` 做宽表格，`4x3` 做完整账号工作台 | 已能渲染，需升为一等模块；需要支持真实/模拟拆分为上下两个独立列表 |
-| `OpenAccount` | 开户入口 | 开真实账号、开模拟账号、绑定账号、创建表单入口 | `1x1`, `1x2`, `2x1` | 可扩展 `4x1` 做开户路径 CTA 条 | 已是配置能力，需独立模块化 |
-| `OnboardingProgress` | 开户路径 | KYC、首个真实账号、首次入金等步骤引导 | `2x1`, `3x1` | 可扩展 `4x1` 做完整新手任务路径 | 已能渲染，需升为一等模块 |
-| `UserKycRail` | 用户/KYC 侧栏 | 头像、名称、所在地、时间、KYC 状态、钱包摘要 | `1x2` | 可扩展 `2x1` 做横向用户状态条 | 参考图中明显，项目未一等模块化 |
-| `AccountPerformance` | 账号表现图表 | 当前账号余额、权益、信用、杠杆、PnL 曲线 | `2x2` | 可扩展 `4x2` 做宽屏图表工作台 | 参考图中明显，项目未模块化 |
-| `WalletList` | 钱包列表 | 多币种钱包表格、余额、Deposit/Withdraw 操作；可独立于资产总览展示 | `3x2`, `2x2` | 可扩展 `4x2` 做宽表格钱包列表 | 参考图中明显，项目未模块化；需要升为一等模块 |
-| `CreateAccountForm` | 创建账号表单 | 真实账号创建表单、平台、名称、类型、杠杆、校验 | `1x2`, `2x2` | 可扩展 `4x2` 做完整开户表单页片段 | 参考图中明显，项目未模块化 |
+| `welcome_header` | 首页欢迎区 | 可选轻量欢迎语、姓名/昵称或简短提示 | `3x1`, `2x1` | 可扩展为品牌化顶部问候条 | 已纳入白名单 |
+| `asset_overview` | 资产概览区 | 展示 `total`、`wallet`、`tradingAccount` 中任意 1-3 项，可选入金/出金按钮 | `2x1`, `2x2`, `3x1` | 可扩展 `4x1` 作为宽屏账户指标条 | 已纳入白名单 |
+| `quick_actions` | 快捷操作区 | 后台配置入口的占位、渲染和适配，AI 不写死入口 | `2x1`, `3x1`, `1x1` | 可扩展为横向快捷栏或紧凑菜单 | 已纳入白名单 |
+| `onboarding_guide` | 新手引导区 | 未开户、未入金、未开始交易等阶段的引导 | `2x1`, `3x1`, `1x2` | 可扩展为流程进度或引导卡片组 | 已纳入白名单 |
+| `trading_account_highlight` | 交易账户重点展示区 | 一个账号的基础信息、收益率、浮动盈亏和盈亏折线图 | `2x2`, `2x1`, `1x2` | 可扩展为宽屏表现图表 | 已纳入白名单 |
+| `trading_accounts_list` | 交易账户列表区 | 多账号简要信息、详情入口，支持列表、卡片、横滑、紧凑卡 | `3x2`, `2x2` | 可扩展 `4x2` 做宽表格 | 已纳入白名单 |
+| `promo_banner` | 活动 Banner 区 | 租户配置活动时展示活动内容和 CTA，不编造规则 | `2x1`, `3x1` | 可扩展为活动首屏横幅 | 已纳入白名单 |
+| `pamm_products` | PAMM 产品推荐区 | PAMM 开启且接口返回产品时展示产品推荐 | `2x1`, `3x2`, `1x2` | 可扩展为排行榜或收益图卡片 | 已纳入白名单 |
+| `copytrading_signals` | CopyTrading 信号源推荐区 | CopyTrading 开启且接口返回信号源时展示推荐交易员/策略 | `2x1`, `3x2`, `1x2` | 可扩展为热门榜单或曲线卡片 | 已纳入白名单 |
+| `referral_link_card` | 推广链接卡片 | 代理/IB/合作伙伴轻量查看推广链接、邀请码和可选基础统计 | `1x1`, `1x2`, `2x1` | 可扩展为紧凑卡、横向信息卡或链接 + 统计组合卡 | 已纳入白名单 |
+| `announcements` | 公告通知区 | 系统公告、活动公告、维护通知、资金通知、平台消息 | `2x1`, `3x1`, `1x1` | 可扩展为优先公告或紧凑 feed | 已纳入白名单 |
+| `market_news` | 市场资讯区 | 市场新闻、平台资讯、新手教程、交易教育、热门文章 | `2x1`, `3x2`, `1x2` | 可扩展为文章卡片或内容 feed | 已纳入白名单 |
 
 ## 可发明与不可发明边界
 
@@ -120,7 +127,9 @@
 | 新尺寸规格 | 允许 | 可以提出 `4x1`、`4x2`、`4x3` 等，但必须有响应式和回退规则 |
 | 新数据字段 | 不可直接依赖 | 只能进入 `dataRequirements`，不能作为正式渲染依赖 |
 
-## 参考图拆解
+## 历史参考图拆解
+
+以下内容只用于理解旧静态页面和组件来源，不再作为 AI 生成首页的正式模块清单。凡是出现旧 `ReferralLink`、`UserKycRail`、`RiskNotice`、独立钱包列表、KYC、完整代理数据或客服入口的描述，都必须按历史兼容参考处理，正式输出仍以 12 个 canonical 内容块为准。
 
 ### 参考图 1：左侧导航型 Dashboard
 
@@ -284,25 +293,31 @@
 
 - 图片横幅、浅色占位、科技渐变、黑金权益、短轮播。
 
-### 5. `ReferralLink` 邀请链接
+### 5. `referral_link_card` 推广链接卡片
 
 内容能力：
 
 - 推广链接。
 - 邀请码。
-- 二维码。
-- 点击数、注册数、交易账号数。
-- 复制动作。
+- 复制推广链接按钮、复制邀请码按钮。
+- 可选分享按钮。
+- 可选打开数、注册数、开户数、注册转化率、开户转化率。
 
 推荐规格：
 
-- `3x1`：完整邀请控制台。
-- `2x1`：链接 + 邀请码。
-- `1x1`：紧凑邀请卡。
+- `1x1`：只展示推广链接、邀请码和复制按钮。
+- `1x2`：链接 + 邀请码 + 基础统计。
+- `2x1`：横向信息卡或链接 + 数据统计组合卡。
 
 下一步样式方向：
 
-- 链接优先、数据优先、紧凑邀请、渠道增长 Hero。
+- 紧凑卡片、链接优先、统计小卡组合、右侧辅助面板。
+
+限制：
+
+- 仅代理/IB/合作伙伴或租户开启推广链接功能时展示，普通客户首页不展示。
+- 不展示返佣、团队入金、下级客户列表、层级关系或完整代理业绩。
+- 推广链接、邀请码和统计数据必须来自后台配置或接口返回，AI 不得虚构。
 
 ### 6. `TradingAccounts` 交易账号
 
@@ -516,8 +531,8 @@
 - 不要把真实账号和模拟账号混在一个列表里。
 - 不要在用户明确要求“模拟在上”时仍然先展示真实账号列表。
 - 活动增长、交易大赛、奖池、广告轮播首屏核心这类需求，必须让 `adCarousel` 成为首个整行长模块，不能与快捷入口并排。
-- 推广链接/开户链接/邀请码/二维码属于 `ReferralLink`，需要单独成块；不能只用赛事活动看板或轮播代替。
-- 钱包列表应使用 `WalletList` 并渲染为多币种小卡片组；`WalletBalance` 只能作为余额摘要。
+- 完整代理数据、返佣、团队层级、下级客户列表、客服帮助、KYC/风控提醒当前默认不作为首页内容块输出；推广链接/开户链接/邀请码只能在代理/IB/合作伙伴或租户开启推广链接功能时由 `referral_link_card` 轻量展示。
+- 钱包信息默认并入 `asset_overview` 的 `wallet` 字段或后台返回摘要；不要生成独立 `WalletList`/`WalletBalance` 首页模块。
 - 不要使用账号卡片。
 - 不要出现 Bind Account。
 - 不要在账户总览里展示钱包余额或交易账户余额。
@@ -526,17 +541,17 @@
 
 当前项目已经有这些基础：
 
-- `home-personalization.js` 有 `AssetOverview`、`WalletBalance`、`QuickActions`、`PromotionBanner` 四个一等模块。
-- `home-personalization.js` 已经能渲染 `fundActions`、`openAccountActions`、`onboardingProgress`、`referralLink`、`tradingAccounts` 等 slot。
-- `home-layout-admin.js` 已经有模块配置面板，可配置广告、快捷入口、钱包、资产、邀请、交易账号、开户。
-- `client-home.html` 已经有账户总览、开户进度、广告、快捷入口、邀请链接、交易账号这些静态模块基础。
+- `home-personalization.js` 已把 12 个 canonical 内容块纳入白名单、归一化和渲染映射。
+- `home-personalization.js` 对历史 slot 仍做兼容读取，但输出会被归一化到 canonical 内容块或直接过滤。
+- `home-layout-admin.js` 的配置应围绕 canonical 内容块继续收敛；快捷入口内容由后台配置或接口返回。
+- `client-home.html` 的静态基础只能作为布局/视觉参考，不能绕过蓝图白名单新增业务模块。
 
 下一步建议不是重写整个首页，而是做两件事：
 
-1. 把 `ReferralLink`、`TradingAccounts`、`RealTradingAccounts`、`DemoTradingAccounts`、`OpenAccount`、`OnboardingProgress`、`UserKycRail`、`AccountPerformance`、`WalletList`、`CreateAccountForm` 也升成一等模块。
-2. 给每个模块补 3 到 5 个清晰样式，而不是一次性做很多相似皮肤。
+1. 继续补齐 12 个 canonical 内容块的样式变体、响应式尺寸和空数据占位。
+2. 对历史模块保持兼容过滤，不再把 `ReferralLink`、`UserKycRail`、`RiskNotice`、`WalletList`、`CreateAccountForm` 升为默认首页模块。
 
-组件库页面已经补齐 `client-home.html` 的细颗粒组件拆解，包括 `WelcomeHeader`、`BalanceMetric`、`FundAction`、`ProgressTask`、`QuickActionTile`、`PromoBadge`、`ReferralField`、`AccountToolbar`、`ViewToggle` 等，这些组件可以作为大模块的内部积木继续扩展。
+组件库页面已经补齐 `client-home.html` 的细颗粒组件拆解，包括 `WelcomeHeader`、`BalanceMetric`、`QuickActionTile`、`PromoBadge`、`AccountToolbar`、`ViewToggle` 等，这些组件只能作为 12 个 canonical 内容块的内部积木继续扩展。
 
 AI 组件生成链路：
 
@@ -551,19 +566,20 @@ AI 组件生成链路：
 
 第一批先做高频核心模块：
 
-1. `AssetOverview`
-2. `QuickActions`
-3. `TradingAccounts`
-4. `OpenAccount`
-5. `ReferralLink`
+1. `asset_overview`
+2. `quick_actions`
+3. `trading_account_highlight`
+4. `trading_accounts_list`
+5. `onboarding_guide`
 
 第二批再做布局增强模块：
 
-1. `UserKycRail`
-2. `AccountPerformance`
-3. `OnboardingProgress`
-4. `WalletBalance`
-5. `PromotionBanner`
+1. `promo_banner`
+2. `pamm_products`
+3. `copytrading_signals`
+4. `referral_link_card`
+5. `announcements`
+6. `market_news`
 
 第三批做低频但完整性需要的模块：
 

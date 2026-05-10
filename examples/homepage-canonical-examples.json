@@ -1,0 +1,223 @@
+{
+  "examples": [
+    {
+      "name": "资产与交易账户首页",
+      "schemaVersion": 4,
+      "blueprintVersion": 5,
+      "generationMode": "brick-v2",
+      "heroFocus": "asset_overview",
+      "sections": [
+        {
+          "id": "top",
+          "type": "hero",
+          "title": "资产概览",
+          "slots": ["asset_overview", "quick_actions"]
+        },
+        {
+          "id": "accounts",
+          "type": "split",
+          "title": "交易账户",
+          "slots": ["trading_account_highlight", "trading_accounts_list"]
+        }
+      ],
+      "brickPlan": [
+        {
+          "brickId": "assetOverview.flexible",
+          "brickName": "资产概览区",
+          "family": "AssetOverview",
+          "feature": "asset_overview",
+          "component": "asset_overview",
+          "size": "2x1",
+          "zone": "hero",
+          "reason": "上半部分展示 Total、钱包余额、交易账号余额中的配置字段。"
+        },
+        {
+          "brickId": "quickActions.configDriven",
+          "brickName": "快捷操作区",
+          "family": "QuickActions",
+          "feature": "quick_actions",
+          "component": "quick_actions",
+          "size": "2x1",
+          "zone": "main",
+          "reason": "仅渲染后台返回的快捷入口。"
+        },
+        {
+          "brickId": "tradingAccount.highlight",
+          "brickName": "交易账户重点展示",
+          "family": "TradingAccountHighlight",
+          "feature": "trading_account_highlight",
+          "component": "trading_account_highlight",
+          "size": "2x2",
+          "zone": "main",
+          "reason": "突出一个主账户的收益率、浮动盈亏和折线图。"
+        },
+        {
+          "brickId": "tradingAccounts.list",
+          "brickName": "交易账户列表区",
+          "family": "TradingAccountsList",
+          "feature": "trading_accounts_list",
+          "component": "trading_accounts_list",
+          "size": "3x2",
+          "zone": "full",
+          "reason": "展示多个交易账户简要信息。"
+        }
+      ],
+      "moduleSettings": {
+        "assets": {
+          "enabled": true,
+          "visibleFields": ["wallet", "tradingAccount"],
+          "showFundActions": false
+        },
+        "quickActions": {
+          "enabled": true,
+          "count": 5,
+          "display": "iconText",
+          "actions": []
+        },
+        "tradingAccounts": {
+          "enabled": true,
+          "realEnabled": true,
+          "demoEnabled": true,
+          "grouping": "combined",
+          "viewMode": "list"
+        }
+      }
+    },
+    {
+      "name": "PAMM 与 CopyTrading 推荐首页",
+      "schemaVersion": 4,
+      "blueprintVersion": 5,
+      "generationMode": "brick-v2",
+      "heroFocus": "asset_overview",
+      "sections": [
+        {
+          "id": "top",
+          "type": "hero",
+          "title": "资产与快捷入口",
+          "slots": ["asset_overview", "quick_actions"]
+        },
+        {
+          "id": "investing",
+          "type": "split",
+          "title": "投资产品",
+          "slots": ["pamm_products", "copytrading_signals"]
+        },
+        {
+          "id": "updates",
+          "type": "full",
+          "title": "公告与资讯",
+          "slots": ["announcements", "market_news"]
+        }
+      ],
+      "moduleSettings": {
+        "assets": {
+          "enabled": true,
+          "visibleFields": ["total"]
+        },
+        "quickActions": {
+          "enabled": true,
+          "count": 4,
+          "display": "iconText",
+          "actions": []
+        },
+        "pamm": {
+          "enabled": true
+        },
+        "copytrading": {
+          "enabled": true
+        },
+        "announcements": {
+          "enabled": true
+        },
+        "marketNews": {
+          "enabled": true
+        }
+      }
+    },
+    {
+      "name": "代理推广链接轻量首页",
+      "schemaVersion": 4,
+      "blueprintVersion": 5,
+      "generationMode": "brick-v2",
+      "heroFocus": "asset_overview",
+      "sections": [
+        {
+          "id": "top",
+          "type": "hero",
+          "title": "资产与快捷入口",
+          "slots": [
+            "asset_overview",
+            "quick_actions"
+          ]
+        },
+        {
+          "id": "partner-referral",
+          "type": "rail",
+          "title": "推广链接",
+          "slots": [
+            "referral_link_card",
+            "announcements"
+          ]
+        },
+        {
+          "id": "accounts",
+          "type": "full",
+          "title": "交易账户",
+          "slots": [
+            "trading_accounts_list"
+          ]
+        }
+      ],
+      "brickPlan": [
+        {
+          "brickId": "referralLinkCard.compact",
+          "brickName": "推广链接卡片",
+          "family": "ReferralLinkCard",
+          "feature": "referral_link_card",
+          "component": "referral_link_card",
+          "size": "1x1",
+          "zone": "rail",
+          "reason": "代理用户快速复制推广链接和邀请码；统计数据仅在接口返回时展示。"
+        }
+      ],
+      "moduleStyles": {
+        "referral_link_card": "compact-card"
+      },
+      "moduleSettings": {
+        "assets": {
+          "enabled": true,
+          "visibleFields": [
+            "total",
+            "tradingAccount"
+          ],
+          "showFundActions": false
+        },
+        "quickActions": {
+          "enabled": true,
+          "count": 4,
+          "display": "iconText",
+          "actions": []
+        },
+        "referralLinkCard": {
+          "enabled": true,
+          "showPromoLink": true,
+          "showInviteCode": true,
+          "showShare": false,
+          "showStats": false,
+          "showOpens": true,
+          "showRegistrations": true,
+          "showAccounts": true,
+          "showRegistrationRate": true,
+          "showAccountRate": true
+        },
+        "announcements": {
+          "enabled": true
+        },
+        "tradingAccounts": {
+          "enabled": true,
+          "viewMode": "card"
+        }
+      }
+    }
+  ]
+}

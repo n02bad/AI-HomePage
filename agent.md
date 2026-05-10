@@ -15,13 +15,14 @@ AI 的作用不是直接生成页面代码，而是根据租户描述、品牌�
 1. Layout 差异：首屏结构、左右分栏、模块宽度、模块优先级不同。
 2. Theme 差异：背景、色彩、卡片、按钮、阴影、圆角、字体密度不同。
 3. Module Style 差异：同一个业务模块可以有不同展示形态，而不是永远复用同一种卡片。
-4. Business Focus 差异：首页重点可以偏入金转化、资产展示、专业交易、代理增长或新客开户。
+4. Business Focus 差异：首页重点可以偏资产展示、专业交易、新客引导、活动曝光、PAMM/CopyTrading 推荐或内容资讯。
 
 禁止只通过更换标题、颜色、文案、间距或模块顺序来伪装成个性化首页。AI 首页个性化的重点是在利用基础组件、基础积木块来延伸布局，通过组件、积分快的个性化设计(不改变功能只改变样式布局)、布局预设、主题 token、模块变体之间做组合，并且必须让不同租户首页产生肉眼可见的差异。
 
 ## 关键边界
 
-- 欢迎模块永远在在最上方且欢迎模块可以展示也可以不展示
+- 欢迎模块不是必选；如果展示，应放在首页第一栏或顶部区域，保持轻量欢迎语，不承载复杂业务数据。
+- AI 生成或优化首页前必须遵守 `AI_UI_GENERATION_PROTOCOL.md`：先提取硬性要求、设计意图和禁止项，再生成受控首页蓝图；数量、账号分组、筛选形态等明确要求必须作为可失败的验收标准。
 - 左侧导航、顶部搜索、页签栏属于系统共用布局，不属于首页配置范围。
 - 当前原型只保留 `client-home.html`、`home-layout-admin.html`、`home-layout-preview.html` 这条首页与 AI 个性化链路；不要重新引入独立开户、入金、订单、CRM、IB、推广等页面入口。
 - 本项目只调整首页内容区域，也就是 `client-home.html` 内 `data-home-shell` 承载的内容。
@@ -96,7 +97,7 @@ AI 的作用不是直接生成页面代码，而是根据租户描述、品牌�
 | `medium` | 中等个性化 | 调整模块布局、模块样式、首屏重点和部分组件形态 |
 | `strong` | 明显差异化 | 必须产生明显不同的首页结构和视觉表现，同时改变 layout、theme、moduleStyles 和关键 moduleSettings |
 
-当管理员选择“明显差异”、AI 判断租户需要品牌化首页、或页面风格预设为高净值黑金、活动增长、专业交易、新客开户、代理增长等强风格方案时，必须使用 `strong`，不能只换颜色或文案。
+当管理员选择“明显差异”、AI 判断租户需要品牌化首页、或页面风格预设为高净值黑金、活动增长、专业交易、新客引导、PAMM/CopyTrading 推荐等强风格方案时，必须使用 `strong`，不能只换颜色或文案。
 
 不同强度的处理边界：
 
@@ -106,17 +107,24 @@ AI 的作用不是直接生成页面代码，而是根据租户描述、品牌�
 
 ## 首页模块清单
 
-后续开发必须围绕以下模块建模，不要把功能散落在临时 HTML 里。
+后续开发必须围绕以下 12 个首页内容块建模，不要把功能散落在临时 HTML 里。AI 可以自由组合布局、尺寸、顺序和样式，但不能新增系统未支持的业务功能。
 
-| 模块 | 配置能力 | 设计要点 |
+| 模块 ID | 中文名称 | 生成规则 |
 | --- | --- | --- |
-| 广告轮播图 | 后台开启/关闭 | 可作为首屏，也可作为活动/品牌辅助模块 |
-| 快捷入口 | 数量 3 到 8；样式可选 | 支持 icon+文案、仅 icon、hover 显示文案 |
-| 钱包模块 | 开启/关闭；单独或聚合到资产模块 | 展示钱包余额，可配入金/出金按钮 |
-| 资产模块 | 展示总资产：钱包资产+交易账号资产 | 可配入金/出金按钮，也可纯展示 |
-| 邀请链接模块 | 数据项可显示/隐藏 | 推广链接、邀请码、二维码是核心信息 |
-| 交易账号模块 | 真实/模拟可一起或分开 | 支持卡片、列表、可切换或固定单样式 |
-| 开户模块 | 真实账号、模拟账号、绑定账号可配置 | 优先与交易账号模块结合，不做孤立入口 |
+| `welcome_header` | 首页欢迎区 | 可选；轻量欢迎语、姓名/昵称或短提示，不承载复杂业务数据 |
+| `asset_overview` | 资产概览区 | 可选但建议靠上；只展示 `total`、`wallet`、`tradingAccount` 中任意 1-3 项，可选资金按钮 |
+| `quick_actions` | 快捷操作区 | 内容由后台配置或接口返回；AI 只决定展示方式、数量和适配，不写死入口 |
+| `onboarding_guide` | 新手引导区 | 可选；仅适合未开户、未入金、未开始交易等阶段 |
+| `trading_account_highlight` | 交易账户重点展示区 | 可选；突出一个账号，可展示收益率、浮动盈亏和盈亏折线图，数据来自接口 |
+| `trading_accounts_list` | 交易账户列表区 | 展示多个交易账号，可用列表、卡片组、横滑卡片或紧凑账户卡 |
+| `promo_banner` | 活动 Banner 区 | 仅租户配置活动时展示，不虚构活动或奖励规则 |
+| `pamm_products` | PAMM 产品推荐区 | 仅开启 PAMM 且接口返回产品时展示 |
+| `copytrading_signals` | CopyTrading 信号源推荐区 | 仅开启 CopyTrading 且接口返回信号源时展示 |
+| `referral_link_card` | 推广链接卡片 | 可选；仅代理/IB/合作伙伴或租户开启推广链接功能时展示，轻量展示推广链接、邀请码和可选基础统计 |
+| `announcements` | 公告通知区 | 可选；普通公告不能抢核心模块优先级 |
+| `market_news` | 市场资讯区 | 可选；适合首页下半部分，不优先于资产、账号和快捷操作 |
+
+默认不再让 AI 主动生成 `reward_tasks`、`kyc_risk_notice`、`ib_dashboard`、`support_help`。旧的 `referralLink`、`userKycRail`、`riskNotice` 只作为历史兼容输入处理，不作为新首页内容块输出；代理推广只允许用轻量 `referral_link_card` 承接。
 
 ## 模块样式变体矩阵
 
@@ -124,14 +132,18 @@ AI 的作用不是直接生成页面代码，而是根据租户描述、品牌�
 
 | 模块 | 样式变体 | 用途 |
 | --- | --- | --- |
-| `balanceTotal` | `command` / `metric-strip` / `quiet-card` / `vip-hero` | 资产总览，可用于资产驾驶舱、高净值首屏或低调数据展示 |
-| `fundActions` | `dock` / `split-buttons` / `compact-row` / `priority-cta` | 入金、出金、内部转账等资金操作 |
-| `adCarousel` | `classic-banner` / `campaign-hero` / `black-gold-hero` / `compact-strip` | 广告活动、品牌首屏、营销转化横幅 |
-| `quickActions` | `icon-grid` / `action-dock` / `minimal-icons` / `priority-actions` | 快捷入口，可偏标准宫格、悬浮操作、极简图标或高优先级 CTA |
-| `wallet` | `standalone-card` / `merged-assets` / `split-currency` / `premium-card` | 钱包余额，可独立展示、并入资产或按币种拆分 |
-| `tradingAccounts` | `workbench` / `dense-cards` / `calm-table` / `pro-console` | 交易账号，可偏工作台、密集卡片、稳重表格或专业终端 |
-| `referral` | `simple-link` / `growth-card` / `partner-console` / `qr-focused` | 邀请链接、邀请码、二维码和代理增长数据 |
-| `openAccount` | `inline-actions` / `progress-guide` / `account-wizard` / `compact-entry` | 开户入口，可内联到交易账号、做进度引导或表单式向导 |
+| `welcome_header` | `minimal` / `personal` / `brand-line` | 可选轻量欢迎语，放顶部，不承载复杂业务数据 |
+| `asset_overview` | `metric-strip` / `quiet-card` / `split-card` / `ticker-strip` | 展示 `total`、`wallet`、`tradingAccount` 中任意 1-3 项 |
+| `quick_actions` | `icon-grid` / `action-dock` / `compact-menu` / `command-bar` | 后台配置入口的展示容器，AI 不写死入口内容 |
+| `onboarding_guide` | `path` / `checklist` / `guide-cards` / `compact` | 新用户或未完成关键流程时的轻量引导 |
+| `trading_account_highlight` | `clean-snapshot` / `sparkline-board` / `split-performance` | 一个重点交易账号的余额、净值、收益率、浮动盈亏和折线图 |
+| `trading_accounts_list` | `workbench` / `dense-cards` / `calm-table` / `horizontal-cards` | 多个交易账号的列表、卡片组或横滑卡片 |
+| `promo_banner` | `banner` / `editorial-cover` / `compact-strip` / `split-visual` | 租户已配置活动时展示的活动 Banner |
+| `pamm_products` | `cards` / `ranking` / `yield-chart-cards` | PAMM 开启时的产品推荐 |
+| `copytrading_signals` | `signal-cards` / `ranking` / `curve-cards` | CopyTrading 开启时的信号源推荐 |
+| `referral_link_card` | `compact-card` / `link-first` / `stats-card` | 代理/IB/合作伙伴可见的轻量推广链接、邀请码和基础统计 |
+| `announcements` | `list` / `priority-notice` / `compact-feed` | 公告通知，不抢核心模块优先级 |
+| `market_news` | `feed` / `article-cards` / `education-list` | 市场资讯、平台资讯、教程或热门文章 |
 
 样式变体要求：
 
@@ -150,18 +162,18 @@ AI 的作用不是直接生成页面代码，而是根据租户描述、品牌�
 
 组件库必须同时维护两种粒度：
 
-- 模块级积木：`AssetOverview`、`WalletBalance`、`QuickActions`、`PromotionBanner`、`ReferralLink`、`TradingAccounts`、`OpenAccount`、`OnboardingProgress`、`UserKycRail`、`AccountPerformance`、`WalletList`、`CreateAccountForm`。
-- 细颗粒组件：从 `client-home.html` 拆出的 `WelcomeHeader`、`BalanceMetric`、`FundAction`、`ProgressTask`、`QuickActionTile`、`PromoBadge`、`ReferralField`、`AccountToolbar`、`ViewToggle` 等。
+- 模块级积木：只面向 `welcome_header`、`asset_overview`、`quick_actions`、`onboarding_guide`、`trading_account_highlight`、`trading_accounts_list`、`promo_banner`、`pamm_products`、`copytrading_signals`、`referral_link_card`、`announcements`、`market_news` 这 12 个首页内容块。
+- 细颗粒组件：从 `client-home.html` 拆出的 `WelcomeHeader`、`BalanceMetric`、`QuickActionTile`、`PromoBadge`、`AccountToolbar`、`ViewToggle` 等，只能作为上述内容块内部元素继续扩展。
 
 积木尺寸用固定规格表达：
 
 ```text
-1x1: 小卡片、状态、单动作
-1x2: 右侧侧栏、用户/KYC、开户表单
-2x1: 主内容横卡、邀请条、快捷入口
+1x1: 小卡片、小指标、紧凑资讯
+1x2: 右侧侧栏、轻量引导、榜单摘要
+2x1: 主内容横卡、资产概览、快捷入口
 2x2: 资产驾驶舱、账号工作台、图表模块
-3x1: 整行横幅、工具条、邀请控制台
-3x2: 长表格、钱包列表、交易账号列表
+3x1: 整行横幅、工具条、公告/资讯条
+3x2: 长表格、交易账号列表、产品/信号源列表
 ```
 
 AI 生成组件的闭环：
@@ -190,28 +202,30 @@ AI 生成首页时必须把 `home-module-bricks.md` 当成模块参考，而不�
 
 | 用户说法 | 应命中积木 | 必须落到配置 |
 | --- | --- | --- |
-| 轮播图、广告图、banner | `PromotionBanner` / `adCarousel` | `moduleSettings.adCarousel.enabled = true`，并把 `adCarousel` 放入 `sections` |
-| 活动增长、交易大赛、奖池、广告轮播首屏核心 | `adCarousel.heroCampaign` + `promoBanner.scoreboard` | `heroFocus = "ad_carousel"`，`adCarousel` 必须是首个 full-width hero，不能被欢迎卡、资产卡或快捷入口抢首屏 |
-| 账户余额总览、资产概览 | `AssetOverview` | `assets.enabled = true`；如果用户不要钱包余额细分，钱包不要在资产总览里强展示 |
-| 快捷入口两行、一行几个 | `QuickActions` | `quickActions.enabled = true`，`quickActions.count` 按数量设置，优先用矩阵/工具条样式 |
-| 真实账号列表和模拟账号列表分开 | `TradingAccounts` 拆成 Live List + Demo List 两个列表区域 | `tradingAccounts.realEnabled = true`、`demoEnabled = true`、`grouping = "separated"`、`viewMode = "list"` |
-| 模拟账号列表在真实账号列表上面 | `TradingAccounts` 分组列表 | 默认 All 状态下按 Demo List、Live List 顺序渲染 |
-| 都是列表形式，不是卡片 | `TradingAccounts` | `tradingAccounts.viewMode = "list"`，`moduleStyles.tradingAccounts = "calm-table"` 或 `workbench` |
-| 钱包列表、多币种钱包、小卡片 | `WalletList` / `WalletBalance` | 使用 `walletList` / `wallet_list` 独立模块，正式首页以小卡片组展示多币种余额 |
-| 推广模块、推广链接单独处理 | `ReferralLink` | 保留 `referralLink` 独立 section，不要把推广链接并进活动轮播或赛事看板 |
-| 开户入口，不要绑定入口 | `OpenAccount` | `openAccount.enabled = true`，按需求设置 `real/demo/bind`；明确“不要绑定”时 `bind = false` |
+| 欢迎模块、欢迎区 | `welcome_header` | 可选顶部轻量模块，不自动补齐，不抢业务首屏 |
+| 账户余额总览、资产概览 | `asset_overview` | `assets.enabled = true`，`assets.visibleFields` 只能取 `total`、`wallet`、`tradingAccount` 中 1-3 个 |
+| 快捷入口两行、一行几个 | `quick_actions` | `quickActions.enabled = true`，`quickActions.count` 可按面积设置，`quickActions.actions` 默认空数组 |
+| 新手、新客、未开户、未入金 | `onboarding_guide` | 仅作为轻量引导，不生成 KYC/风控模块 |
+| 重点交易账号、收益率、盈亏折线图 | `trading_account_highlight` | 展示一个账号的核心表现，数据和图表来自接口 |
+| 多个交易账号、账号列表 | `trading_accounts_list` | 按账号数量选择列表、卡片组、横滑卡片或紧凑账户卡 |
+| 活动、Banner、推广活动 | `promo_banner` | 仅租户已配置活动时展示，不编造奖励规则 |
+| PAMM 产品 | `pamm_products` | 仅 PAMM 开启且接口有产品时展示 |
+| CopyTrading、信号源、推荐交易员 | `copytrading_signals` | 仅 CopyTrading 开启且接口有信号源时展示 |
+| 代理推广链接、邀请码 | `referral_link_card` | 仅代理/IB/合作伙伴或租户开启推广链接功能时展示；普通客户不展示 |
+| 公告、通知、维护消息 | `announcements` | 可选，普通公告放中下部 |
+| 市场资讯、交易教育、热门文章 | `market_news` | 可选，默认不优先于资产、账号和快捷入口 |
 
 关键约束：
 
 - 用户明确要求“两个列表”“真实列表 + 模拟列表”“Live/Demo 分开”时，绝不能只用一个筛选器列表替代，必须在默认全部状态下渲染两个独立列表区块。
 - 用户明确要求“模拟账号列表在真实账号列表上面”时，默认 All 状态必须先展示 Demo List，再展示 Live List。
 - 用户明确要求“列表形式，不是卡片”时，不能返回 `viewMode: "card"` 或 `switchable` 作为主结果。
-- 用户要求“活动增长 / 交易大赛 / 奖池 / 广告轮播首屏核心”时，活动意图优先级高于钱包/资产词，首屏第一块必须是广告轮播长模块，第一张要直接讲交易大赛和奖池。
-- 用户要求“钱包列表”时，不能把钱包余额摘要当成完整钱包列表；正式首页已有 `WalletList` 时必须用小卡片组承接。
-- 用户要求“推广模块单独处理”时，`ReferralLink` 必须单独渲染，不能只靠 `PromoBanner` 或 `adCarousel` 代替。
+- 用户要求活动、交易大赛、奖池等内容时，只在租户配置活动的前提下使用 `promo_banner`，不能编造活动或奖励规则。
+- 用户要求“钱包列表”时，默认由 `asset_overview` 的 `wallet` 字段或后台返回的钱包摘要承接，不能新增独立钱包业务模块。
+- 用户要求代理推广链接、邀请码时，只能在代理/IB/合作伙伴或租户开启推广链接功能的前提下使用 `referral_link_card`；不得生成返佣、团队层级、下级客户列表或完整 `ib_dashboard`。
 - 积木组合可以参考已保存 AI 组件，但正式首页仍必须通过白名单模块渲染；未进入白名单的数据结构只能作为布局和样式参考。
 - `sections` 不能有空数组，`layout` 不能包含禁用或不可渲染模块；如果某个功能关闭，生成器和标准化层必须把对应 slot 移除，而不是留一个空白模块。
-- 小尺寸积木（`1x1`、`1x2`）不能孤立占据整行，必须和资产、资金、开户、KYC、快捷入口等相关积木成组排布；`3x1`、`3x2` 才适合整行视觉或长列表。
+- 小尺寸积木（`1x1`、`1x2`）不能孤立占据整行，必须和资产、账号、快捷入口、公告/资讯等相关积木成组排布；`3x1`、`3x2` 才适合整行视觉或长列表。
 - 预览页和正式首页都不能展示 `brickName`、`brickSize`、`brickReason` 等积木说明条；管理员要看这些信息时，应在方案摘要、调用记录或 DOM 调试属性里查看。
 
 ## 页面治理契约
@@ -221,20 +235,20 @@ AI 生成首页不能只靠 prompt 自觉遵守结构。每个结果都要先经
 治理契约至少检查五件事：
 
 1. 页面主目标是否清楚：首屏必须出现该意图的核心模块。
-2. 主操作是否重复过度：入金、开户、报名等 CTA 不能因为多个积木相关而满屏重复。
-3. 操作区是否早于账号区：快捷入口、资金动作、开户动作应在长表格和账号列表之前。
+2. 主操作是否重复过度：入金、开户、报名等 CTA 只能来自系统能力或后台配置，不能因为多个积木相关而满屏重复。
+3. 操作区是否早于账号区：快捷入口或新手引导应在长表格和账号列表之前。
 4. 低优先级模块是否克制：和当前目标弱相关的模块不能挤进首屏主线。
 5. 模块数量是否可控：优先做清晰分层，不把所有可用模块堆到一屏。
 
 预览页左侧会展示 `页面质检` 分数。低于 90 分时，不要只改文案，应回到 `sections`、`moduleStyles`、`moduleSettings` 和 `brickPlan` 调整结构。
 
-入金转化页是当前最严格的契约：
+入金转化相关需求当前按受控内容块处理：
 
-- 首屏必须用 `promoBanner.depositLadder` / `PromotionBanner.variant=depositLadder` 展示 `$500`、`$2,000`、`$10,000` 三档奖励和最高赠金 `$300`。
-- 首屏组合必须是 `promoHighlight + walletBalance + fundActions + openAccountActions`，再由下一层承接 `quickActions`。
-- 主入金 CTA 只保留在资金操作区；快捷入口不能再重复入金或开真实账号，应放 `transfer`、`orders`、`positions`、`contactService` 等二级处理任务。
-- 出金、钱包列表、资产总览、复杂图表、推广和独立创建账号表单都属于弱化项，不应抢首屏。
-- 账号区可以展示交易账号、余额、信用额、杠杆和轻量趋势，但要放在操作区之后。
+- 首屏优先使用 `asset_overview`，可在该模块内按系统能力展示入金/出金按钮。
+- 只有租户配置活动时才使用 `promo_banner`，不得编造活动档位、赠金金额或奖励规则。
+- `quick_actions` 只展示后台配置或接口返回的入口；AI 不得写死 `deposit`、`withdraw`、`openReal`、`contactService` 等动作。
+- 独立资金操作区、钱包列表、KYC/风控、完整代理数据和客服帮助都不属于当前默认首页内容块；轻量推广链接只能由 `referral_link_card` 承接。
+- 账号区可以展示交易账号、余额、净值、杠杆、收益率、浮动盈亏和轻量趋势，但数据必须来自接口。
 
 ## brick-v2 积木方案
 
@@ -258,28 +272,28 @@ AI 生成首页不能只靠 prompt 自觉遵守结构。每个结果都要先经
   personalizationStrength: "subtle | medium | strong",
   layout: [
     {
-      id: "assetOverview-vipHero",
-      component: "asset_summary",
+      id: "asset-overview-hero",
+      component: "asset_overview",
       slot: "hero | main | rail | full",
       priority: 20,
-      brickId: "assetOverview.vipHero",
-      brickName: "VIP 资产 Hero",
+      brickId: "assetOverview.flexible",
+      brickName: "资产概览区",
       brickFamily: "AssetOverview",
-      brickSize: "3x2",
+      brickSize: "2x1",
       brickZone: "hero",
-      brickReason: "高净值客户首屏需要先看到资产与资金动作。"
+      brickReason: "用户需要在首页上半部分快速了解资产情况。"
     }
   ],
   brickPlan: [
     {
-      brickId: "adCarousel.heroCampaign",
-      brickName: "首屏广告轮播",
-      family: "PromotionBanner",
-      feature: "adCarousel",
-      component: "ad_carousel",
-      size: "3x1",
-      zone: "hero",
-      reason: "用户要求首屏广告轮播。"
+      brickId: "tradingAccountHighlight.performance",
+      brickName: "交易账户重点展示区",
+      family: "TradingAccountHighlight",
+      feature: "trading_account_highlight",
+      component: "trading_account_highlight",
+      size: "2x2",
+      zone: "main",
+      reason: "突出一个交易账号的收益率、浮动盈亏和盈亏折线图。"
     }
   ],
   brickTrace: {
@@ -310,13 +324,14 @@ AI 生成首页不能只靠 prompt 自觉遵守结构。每个结果都要先经
 
 | intent | 触发词 | 默认积木组合 |
 | --- | --- | --- |
-| `vip` | 高净值、VIP、黑金、尊贵、机构 | `assetOverview.vipHero`、`fundActions.priorityDock`、`adCarousel.heroCampaign`、`walletBalance.currencyRail`、`openAccount.sidePanel`、`tradingAccounts.separatedList` |
-| `asset` | 资产、钱包、资金、钱包列表 | `assetOverview.vipHero`、`fundActions.priorityDock`、`walletBalance.currencyRail`、`walletList.currencyTable`、`accountPerformance.proChart`、`tradingAccounts.separatedList` |
-| `trader` | 专业交易、MT5、持仓、订单、表现图表 | `quickActions.actionDock`、`accountPerformance.proChart`、`userKycRail.profileWallet`、`assetOverview.compactMetrics`、`tradingAccounts.separatedList` |
-| `onboarding` | 新客、开户、注册、KYC、创建账户 | `onboardingProgress.checklist`、`openAccount.sidePanel`、`createAccountForm.realAccount`、`fundActions.priorityDock`、`quickActions.priorityMatrix`、`tradingAccounts.separatedList` |
-| `growth` | 活动、比赛、奖池、营销、转化、广告 | `adCarousel.heroCampaign`、`quickActions.priorityMatrix`、`promoBanner.scoreboard`、`fundActions.priorityDock`、`tradingAccounts.cardProof`、`referralLink.growthConsole` |
-| `partner` | IB、代理、渠道、邀请、开户链接 | `referralLink.growthConsole`、`adCarousel.heroCampaign`、`openAccount.sidePanel`、`quickActions.priorityMatrix`、`promoBanner.scoreboard`、`tradingAccounts.cardProof` |
-| `standard` | 默认或无法判断 | `assetOverview.compactMetrics`、`fundActions.priorityDock`、`quickActions.actionDock`、`adCarousel.heroCampaign`、`referralLink.growthConsole`、`tradingAccounts.separatedList` |
+| `asset` | 资产、钱包、资金、余额 | `asset_overview`、`quick_actions`、`trading_account_highlight`、`trading_accounts_list` |
+| `trader` | 专业交易、MT5、持仓、订单、表现图表 | `trading_account_highlight`、`trading_accounts_list`、`quick_actions`、`market_news` |
+| `onboarding` | 新手、新客、未开户、未入金、未交易 | `welcome_header`、`onboarding_guide`、`asset_overview`、`quick_actions`、`trading_accounts_list` |
+| `growth` | 活动、比赛、奖池、营销、转化、Banner | `promo_banner`、`quick_actions`、`asset_overview`、`trading_accounts_list` |
+| `investment` | PAMM、资管、产品推荐 | `asset_overview`、`pamm_products`、`announcements`、`market_news` |
+| `copytrading` | 跟单、CopyTrading、信号源、推荐交易员 | `copytrading_signals`、`trading_account_highlight`、`quick_actions`、`market_news` |
+| `partner` | IB、代理用户、合作伙伴、推广链接、邀请码 | `referral_link_card`、`asset_overview`、`quick_actions`、`trading_accounts_list` |
+| `standard` | 默认或无法判断 | `asset_overview`、`quick_actions`、`trading_account_highlight`、`trading_accounts_list` |
 
 调用失败处理：
 
@@ -338,21 +353,24 @@ AI 生成首页不能只靠 prompt 自觉遵守结构。每个结果都要先经
   density: "compact | balanced | spacious",
   personalizationStrength: "subtle | medium | strong",
   sections: [
-    { id: "hero", type: "hero", title: "首屏", slots: ["balanceTotal", "fundActions", "adCarousel"] }
+    { id: "overview", type: "hero", title: "资产概览", slots: ["asset_overview", "quick_actions"] },
+    { id: "accounts", type: "split", title: "交易账户", slots: ["trading_account_highlight", "trading_accounts_list"] }
   ],
   moduleStyles: {
-    balanceTotal: "command | metric-strip | quiet-card",
-    fundActions: "dock | split-buttons | compact-row",
-    tradingAccounts: "workbench | dense-cards | calm-table"
+    asset_overview: "metric-strip | quiet-card | split-card",
+    quick_actions: "matrix | toolbar | compact-menu",
+    trading_account_highlight: "clean-snapshot | sparkline-board",
+    trading_accounts_list: "workbench | dense-cards | calm-table"
   },
   moduleSettings: {
-    adCarousel: { enabled: true },
-    quickActions: { count: 6, display: "iconText | iconOnly | hoverText" },
-    wallet: { enabled: true, placement: "standalone | mergedWithAssets", showFundActions: true },
-    assets: { enabled: true, showFundActions: true },
-    referral: { showClicks: true, showRegistrations: true, showTradingAccounts: true },
-    tradingAccounts: { realEnabled: true, demoEnabled: true, grouping: "combined | separated", viewMode: "card | list | switchable" },
-    openAccount: { real: true, demo: true, bind: true, placement: "insideTradingAccounts" }
+    quickActions: { count: 4, display: "iconText | iconOnly | hoverText", actions: [] },
+    assets: { enabled: true, visibleFields: ["total", "wallet", "tradingAccount"], showFundActions: false },
+	    tradingAccounts: { realEnabled: true, demoEnabled: true, grouping: "combined | separated", viewMode: "card | list | switchable" },
+	    pamm: { enabled: false },
+	    copytrading: { enabled: false },
+	    referralLinkCard: { enabled: false, showPromoLink: true, showInviteCode: true, showStats: false },
+	    announcements: { enabled: false },
+	    marketNews: { enabled: false }
   }
 }
 ```
@@ -365,11 +383,11 @@ AI 生成首页不能只靠 prompt 自觉遵守结构。每个结果都要先经
 
 - 输入页只解决“想做什么”。不要在输入页放完整预览和复杂控制。
 - 预览页只解决“怎么组合和选样式”。不要恢复批注层、随机按钮堆、默认展开 JSON 等重交互。
-- 预览页的页面风格按钮应该一键切换成明显不同的首页方案，例如高净值黑金、活动增长、专业交易、新客开户。
+- 预览页的页面风格按钮应该一键切换成明显不同的首页方案，例如高净值黑金、活动增长、专业交易、新客引导、PAMM 推荐或 CopyTrading 推荐。
 - 预览页的页面风格按钮不能只是换色。每个按钮必须切换到不同的 layout、theme、moduleStyles 和关键 moduleSettings，并在 1440px 预览下形成肉眼可见差异。
 - 模块样式选择应该是少量明确选项，每个模块 2 到 3 个常用样式优先。
-- 交易账号相关的开户动作应该靠近交易账号筛选或账号模块，不要放到页面很深的位置。
-- 入金、出金按钮如果出现，必须是明显可点击的大按钮，并且 icon 要融入按钮形态。
+- 交易账号相关的查看详情、快速入金等动作应该靠近账号模块，但按钮是否出现取决于接口数据和系统能力。
+- 入金、出金按钮如果出现在资产概览中，必须是可选操作，不得在快捷入口中被 AI 写死。
 - 如果后台关闭某个模块，相关能力必须确认是否由其他模块承接。例如关闭钱包模块后，资产模块仍可展示钱包汇总。
 - 预览 iframe 在 `preview=1` 时只展示首页内容区域，避免共用导航误导管理员。
 
@@ -401,11 +419,11 @@ AI 生成首页不能只靠 prompt 自觉遵守结构。每个结果都要先经
    主题不能只改 primary color，必须影响背景、卡片、按钮、边框、阴影、圆角、字体密度和数字展示方式。
 
 4. 业务重点不同  
-   - 高净值黑金：突出资产、VIP 服务、入金按钮。
-   - 活动增长：突出广告、入金、奖励、KYC/开户路径。
-   - 专业交易：突出交易账号、账户状态、数据密度、交易工具。
-   - 新客开户：突出 KYC、开户、首次入金、开户进度。
-   - 代理增长：突出邀请链接、邀请码、二维码、注册/开户数据。
+   - 高净值黑金：突出资产、重点账号和专业内容价值。
+   - 活动增长：只在租户配置活动时突出 `promo_banner`，不编造奖励规则。
+   - 专业交易：突出交易账号、账户状态、数据密度和市场资讯。
+   - 新客引导：突出 `onboarding_guide`、资产理解和下一步操作。
+   - PAMM/CopyTrading：分别突出 `pamm_products` 与 `copytrading_signals`，两者不能混成一个模块。
 
 5. 一眼可区分  
    在 1440px 预览下，管理员不看标题也应该能明显感知不同预设不是同一套首页换色。
@@ -432,7 +450,7 @@ AI 生成首页不能只靠 prompt 自觉遵守结构。每个结果都要先经
 - 切换模块样式后，iframe 内对应模块的 `data-module-style` 应变化。
 - 切换页面风格预设后，iframe 内首页的 `layout`、`theme`、`personalizationStrength`、核心 `data-module-style` 和关键模块开关应同时变化。
 - 选择 `strong` 个性化强度后，页面不能只出现颜色、文案或顺序变化，必须能看到首屏结构和核心模块形态变化。
-- 在 1440px 预览下，高净值黑金、活动增长、专业交易、新客开户、代理增长等预设应能一眼区分。
+- 在 1440px 预览下，高净值黑金、活动增长、专业交易、新客引导、PAMM 推荐、CopyTrading 推荐等预设应能一眼区分。
 - 390px 和 1440px 宽度不应出现首页工作区横向溢出。
 - 1440px 预览下不应出现可见的 `ai-brick-meta`、积木尺寸标签、积木名称或选择理由条。
 - 1440px 预览下首页模块应按 auto layout 紧凑填充，不应出现空 section、空 slot、孤立小卡独占整行或明显的无内容大空白。

@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "start:mock": "HOME_AI_MOCK=true node server.js",
-    "check": "node --check server.js && node --check home-layout-admin.js && node --check home-model-calls.js && node --check home-module-preview.js && node --check home-personalization.js && node --check client-home.js"
+    "check": "node --check server.js && node --check home-layout-admin.js && node --check home-model-calls.js && node --check home-module-preview.js && node --check home-personalization.js && node --check client-home.js",
+    "test": "node tests/home-generation-rules.test.js"
   }
 }

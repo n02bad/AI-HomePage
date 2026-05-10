@@ -423,7 +423,7 @@
     { id: "pro-trader-cost", label: "专业交易成本", summary: "点差 0.2 起、佣金 $7/手、持仓 PnL、MT5 快捷操作", prompt: "专业交易客户首页，突出交易成本和执行效率：EURUSD 点差 0.2 起、佣金 $7/手、持仓 PnL、保证金占用、MT5 快捷操作；真实账号和模拟账号分开，整体像专业交易工作台。", tags: ["trade", "account"] },
     { id: "first-deposit-onboarding", label: "首存开户转化", summary: "$100 首存、KYC 3 步、预计 4 分钟、赠金 $30", prompt: "新客户开户转化首页，首屏突出 $100 首存门槛、KYC 3 步进度、预计 4 分钟完成、首存赠金 $30 和开真实/模拟/绑定账号三个动作；模块要有明确下一步。", tags: ["kyc", "conversion"] },
     { id: "trading-contest-prize", label: "交易大赛奖池", summary: "$50k 奖池、Top 20 榜单、报名 $500 入金、倒计时", prompt: "活动增长首页，首屏突出 $50,000 交易大赛奖池、Top 20 排行榜、报名需 $500 入金、倒计时和 8 个快捷入口；广告轮播独占一整栏，真实交易账号用卡片，模拟账号用列表。", tags: ["growth", "campaign"] },
-    { id: "ib-commission-funnel", label: "IB 佣金漏斗", summary: "CPA $120、返佣 $8/手、点击 3.8k、转化率 7.4%", prompt: "IB 代理增长首页，突出 CPA $120、返佣 $8/手、开户链接、邀请码、二维码、点击 3,800、开户转化率 7.4% 和交易账号转化数据；适合渠道经理日常跟进。", tags: ["ib", "growth"] },
+    { id: "ib-referral-card", label: "IB 推广链接卡", summary: "推广链接、邀请码、复制按钮、可选基础统计", prompt: "IB 代理用户首页，允许展示轻量 referral_link_card，只展示推广链接、邀请码、复制推广链接按钮、复制邀请码按钮；如果接口有数据，可展示打开数、注册数、开户数、注册转化率和开户转化率。不要返佣、团队层级或完整代理数据区。", tags: ["ib", "referral"] },
     { id: "multi-currency-yield", label: "多币种资产收益", summary: "$84.6k 总资产、USD/EUR/USDT、7 日收益 +2.8%", prompt: "资产管理首页，突出 $84,600 总资产、USD/EUR/USDT 多币种钱包、7 日收益 +2.8%、入金出金、账户表现图表和交易账号列表；风格淡蓝、扁平、清爽专业。", tags: ["asset", "wallet"] },
     { id: "retention-reactivation-credit", label: "沉睡账户唤醒", summary: "14 天未交易、$20 返场券、3 步恢复、有效期 72h", prompt: "留存唤醒首页，面向 14 天未交易客户；首屏突出账户状态、$20 返场券、72 小时有效期、快捷入金和 3 步重新开始交易任务，广告位温和召回。", tags: ["retention", "account"] },
     { id: "margin-risk-shield", label: "保证金风控", summary: "保证金 138%、爆仓线 80%、亏损 -$1.2k、补保证金", prompt: "风险提醒首页，突出保证金比例 138%、爆仓线 80%、浮动亏损 -$1,200、账户风险等级、持仓提醒、资金保护和客服入口；视觉冷静可信，不要促销氛围。", tags: ["risk", "trade"] },
@@ -1821,14 +1821,14 @@
       </article>
 
       <article class="module-setting-card">
-        <header><span>邀请链接</span><b>信息显隐</b></header>
-        ${settingRow("模块状态", renderToggleButton("referral.enabled", settings.referral.enabled))}
-        ${settingRow("打开数", renderToggleButton("referral.showClicks", settings.referral.showClicks, "显示", "隐藏"))}
-        ${settingRow("邀请注册数", renderToggleButton("referral.showRegistrations", settings.referral.showRegistrations, "显示", "隐藏"))}
-        ${settingRow("交易账号数", renderToggleButton("referral.showTradingAccounts", settings.referral.showTradingAccounts, "显示", "隐藏"))}
-        ${settingRow("推广链接", renderToggleButton("referral.showPromoLink", settings.referral.showPromoLink, "显示", "隐藏"))}
-        ${settingRow("邀请码", renderToggleButton("referral.showInviteCode", settings.referral.showInviteCode, "显示", "隐藏"))}
-        ${settingRow("二维码", renderToggleButton("referral.showQrCode", settings.referral.showQrCode, "显示", "隐藏"))}
+        <header><span>推广链接卡片</span><b>${settings.referralLinkCard.enabled ? "代理可见" : "默认隐藏"}</b></header>
+        ${settingRow("模块状态", renderToggleButton("referralLinkCard.enabled", settings.referralLinkCard.enabled))}
+        ${settingRow("推广链接", renderToggleButton("referralLinkCard.showPromoLink", settings.referralLinkCard.showPromoLink, "显示", "隐藏"))}
+        ${settingRow("邀请码", renderToggleButton("referralLinkCard.showInviteCode", settings.referralLinkCard.showInviteCode, "显示", "隐藏"))}
+        ${settingRow("分享按钮", renderToggleButton("referralLinkCard.showShare", settings.referralLinkCard.showShare, "显示", "隐藏"))}
+        ${settingRow("基础统计", renderToggleButton("referralLinkCard.showStats", settings.referralLinkCard.showStats, "显示", "隐藏"))}
+        ${settingRow("注册转化率", renderToggleButton("referralLinkCard.showRegistrationRate", settings.referralLinkCard.showRegistrationRate, "显示", "隐藏"))}
+        ${settingRow("开户转化率", renderToggleButton("referralLinkCard.showAccountRate", settings.referralLinkCard.showAccountRate, "显示", "隐藏"))}
       </article>
 
       <article class="module-setting-card">

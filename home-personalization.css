@@ -895,6 +895,13 @@ body[data-home-layout="traderConsole"] .ai-section-rail .ai-quick-feature {
   font-weight: 950;
 }
 
+.ai-shortcut-placeholder {
+  min-height: 44px;
+  border: 1px dashed var(--home-border);
+  border-radius: var(--home-radius-sm);
+  background: var(--home-surface-soft);
+}
+
 .ai-shortcut-matrix a span {
   min-width: 0;
   max-width: 100%;
@@ -935,7 +942,7 @@ body[data-home-layout="traderConsole"] .ai-section-rail .ai-quick-feature {
 
 .ai-referral-stats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
   gap: 10px;
 }
 
@@ -972,6 +979,17 @@ body[data-home-layout="traderConsole"] .ai-section-rail .ai-quick-feature {
   background: var(--home-surface);
 }
 
+.ai-referral-card-feature .ai-referral-line {
+  grid-template-columns: auto minmax(0, 1fr) 34px;
+}
+
+.ai-referral-line small {
+  color: var(--home-text-muted);
+  font-size: 11px;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
 .ai-referral-line span {
   overflow: hidden;
   color: var(--home-text-subtle);
@@ -990,6 +1008,20 @@ body[data-home-layout="traderConsole"] .ai-section-rail .ai-quick-feature {
   border-radius: 8px;
   background: #eff6ff;
   color: #2563eb;
+}
+
+.ai-referral-line button:disabled,
+.ai-referral-qr:disabled {
+  cursor: default;
+  opacity: 0.62;
+}
+
+.ai-referral-card-feature p {
+  margin: 0;
+  color: var(--home-text-muted);
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.5;
 }
 
 .ai-referral-core {
@@ -4316,8 +4348,17 @@ body:not([data-home-layout="tradingPro"]) .ai-balance-feature[data-module-style=
   background: #eff6ff;
 }
 
+.ai-referral-feature[data-module-style="compact-card"] .ai-referral-stats,
 .ai-referral-feature[data-module-style="compact"] .ai-referral-stats {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ai-referral-feature[data-module-style="compact-card"] .ai-referral-stats {
+  display: none;
+}
+
+.ai-referral-feature[data-module-style="stats-card"] .ai-referral-core {
+  gap: 8px;
 }
 
 .ai-referral-feature[data-module-style="compact"] .ai-referral-line.wide {
@@ -5035,22 +5076,57 @@ body[data-home-layout="accountOpsConsole"] .client-shell.is-blueprint-home {
 }
 
 .ai-balance-feature[data-module-style="ticker-strip"] {
-  min-height: 170px;
-  grid-template-columns: minmax(180px, 0.6fr) minmax(0, 1fr);
+  min-height: 188px;
+  grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1fr);
   align-items: center;
-  padding: 16px;
+  gap: 14px;
+  padding: 18px;
   border-color: var(--home-primary-border);
   background: var(--home-primary-surface);
   box-shadow: none;
 }
 
 .ai-balance-feature[data-module-style="ticker-strip"] .ai-balance-breakdown {
-  grid-template-columns: repeat(auto-fit, minmax(126px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-self: stretch;
 }
 
 .ai-balance-feature[data-module-style="ticker-strip"] .ai-balance-breakdown span {
   grid-template-columns: 1fr;
   gap: 5px;
+  min-height: 64px;
+  align-content: center;
+}
+
+.ai-trust-status {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  grid-column: 1 / -1;
+}
+
+.ai-trust-status span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--home-primary-border) 78%, transparent);
+  border-radius: var(--home-radius-sm);
+  background: color-mix(in srgb, var(--home-surface) 82%, var(--home-primary-soft));
+}
+
+.ai-trust-status small {
+  color: var(--home-muted);
+  font-size: 11px;
+}
+
+.ai-trust-status b {
+  color: var(--home-text);
+  font-size: 13px;
+}
+
+body[data-home-layout="accountOpsConsole"] .ai-balance-feature[data-module-style="ticker-strip"] .ai-trust-status + .ai-balance-breakdown {
+  grid-column: 1 / -1;
 }
 
 .ai-balance-feature[data-module-style="wealth-plate"] {
@@ -5204,6 +5280,10 @@ body[data-home-layout="accountOpsConsole"] .client-shell.is-blueprint-home {
   .ai-section-hero .ai-feature-slot:first-child {
     grid-row: auto;
   }
+
+  .ai-balance-feature[data-module-style="ticker-strip"] {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 720px) {
@@ -5257,6 +5337,7 @@ body[data-home-layout="accountOpsConsole"] .client-shell.is-blueprint-home {
   }
 
   .ai-balance-breakdown,
+  .ai-trust-status,
   .ai-wallet-breakdown,
   .ai-promo-feature[data-module-style="deposit-ladder"],
   .ai-inline-fund-actions,
