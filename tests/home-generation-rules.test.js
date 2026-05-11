@@ -263,6 +263,49 @@ async function run() {
   assert.strictEqual(hasBlock(localProTraderCost, "trading_account_highlight"), true);
   assert.strictEqual(hasBlock(localProTraderCost, "quick_actions"), true);
 
+  const accountPerformancePrompt =
+    "账号表现模块要展示 7日 或 30日 的账号净值和持仓 PnL 折线图，交易账号卡片不要乱摆指标，真实账号和模拟账号用列表。";
+  const localAccountPerformance = home.promptToConfig(accountPerformancePrompt);
+  assertOnlyAllowedBlocks(localAccountPerformance);
+  assert.strictEqual(hasBlock(localAccountPerformance, "trading_account_highlight"), true);
+  assert.strictEqual(localAccountPerformance.moduleStyles.accountPerformance, "pro-chart");
+  assert(["calm-table", "ops-table"].includes(localAccountPerformance.moduleStyles.tradingAccounts));
+  assert.strictEqual(localAccountPerformance.moduleSettings.tradingAccounts.grouping, "separated");
+  assert.strictEqual(localAccountPerformance.moduleSettings.tradingAccounts.viewMode, "list");
+
+  const flatAccountPrompt =
+    "账号表现的数据指标排版需要更简洁扁平，不要模块内还有好多模块；交易账号卡片排版做视觉优化，单个小卡片里面模块太多、重点太多。";
+  const localFlatAccounts = home.promptToConfig(flatAccountPrompt);
+  assertOnlyAllowedBlocks(localFlatAccounts);
+  assert.strictEqual(localFlatAccounts.moduleStyles.accountPerformance, "pro-chart");
+  assert.strictEqual(localFlatAccounts.moduleStyles.tradingAccounts, "dense-cards");
+  assert.strictEqual(localFlatAccounts.moduleSettings.tradingAccounts.viewMode, "card");
+
+  const personalizationSource = fs.readFileSync(path.join(ROOT, "home-personalization.js"), "utf8");
+  assert(!personalizationSource.includes('<i style="height: 34%"'), "account performance must not render decorative bar placeholders");
+  assert(personalizationSource.includes("ECHARTS_RUNTIME_URL"), "generated statistical charts must load an ECharts runtime");
+  assert(personalizationSource.includes("data-home-echart"), "account performance renderer must output an ECharts chart container");
+  assert(personalizationSource.includes('data-chart-kind="recommendation-curve"'), "recommendation trend charts must also use ECharts containers");
+  assert(personalizationSource.includes("chartDateLabels"), "trend chart x axes must use date labels");
+  assert(!personalizationSource.includes("<span>D1</span>"), "trend chart visible labels must not use D1/D7 placeholders");
+  assert(personalizationSource.includes('data-chart-axis-mode="xy"'), "analytical account charts must support an XY axis mode");
+  assert(personalizationSource.includes('data-chart-axis-mode="minimal"'), "recommendation charts must support a minimal axis mode");
+  assert(personalizationSource.includes("ai-performance-summary"), "account performance should use a flat account summary");
+  assert(!personalizationSource.includes("ai-performance-ledger"), "account performance must not nest balance/equity ledger cards");
+  const clientHomeSource = fs.readFileSync(path.join(ROOT, "client-home.js"), "utf8");
+  assert(clientHomeSource.includes("account-card-flat-meta"), "trading account cards must use a flat metadata strip");
+  assert(!clientHomeSource.includes("account-value-grid"), "trading account cards must not render a nested metric grid");
+  const personalizationCss = fs.readFileSync(path.join(ROOT, "home-personalization.css"), "utf8");
+  assert(!/\.ai-copy-signal-metrics span\s*\{[\s\S]{0,220}border-left:\s*1px/.test(personalizationCss), "recommendation metric rows should not be divided by heavy vertical lines");
+  assert(!/\.ai-copy-curve\s*\{[\s\S]{0,260}repeating-linear-gradient/.test(personalizationCss), "recommendation charts should not default to dense grid backgrounds");
+  const componentLibrary = JSON.parse(fs.readFileSync(path.join(ROOT, "home-component-library.json"), "utf8"));
+  const accountPerformanceBrick = componentLibrary.components.find((component) => component.id === "account-performance-pro-chart");
+  assert(accountPerformanceBrick.html.includes("data-home-echart"), "account performance demo must use an ECharts chart container");
+  assert(accountPerformanceBrick.html.includes('data-chart-axis-mode="xy"'), "account performance demo must declare chart axis mode");
+  assert(accountPerformanceBrick.html.includes("05/05") && accountPerformanceBrick.html.includes("05/11"), "account performance demo must use date labels");
+  assert(accountPerformanceBrick.tags.includes("echarts"), "account performance brick must be tagged as an ECharts chart");
+  assert(accountPerformanceBrick.html.includes("7D") && accountPerformanceBrick.html.includes("30D"), "account performance demo must include 7D/30D semantics");
+
   const port = 5197;
   const child = spawn(process.execPath, ["server.js"], {
     cwd: ROOT,
@@ -286,12 +329,45 @@ async function run() {
     assert.strictEqual(response.config.moduleSettings.copytrading.enabled, true);
     assert.strictEqual(response.config.moduleSettings.referral.enabled, false);
     assert.strictEqual(response.config.moduleSettings.referralLinkCard.enabled, false);
-    assert.strictEqual(response.config.moduleSettings.riskNotice.enabled, false);
-    assert.strictEqual(response.config.moduleSettings.supportContact.enabled, false);
-    assert.strictEqual(hasBlock(response.config, "referral_link_card"), false);
-    assert.strictEqual(hasBlock(response.config, "support_contact"), false);
+	    assert.strictEqual(response.config.moduleSettings.riskNotice.enabled, false);
+	    assert.strictEqual(response.config.moduleSettings.supportContact.enabled, false);
+	    assert.strictEqual(hasBlock(response.config, "referral_link_card"), false);
+	    assert.strictEqual(hasBlock(response.config, "support_contact"), false);
 
-    const guidedResponse = await postJson(port, {
+	    const guidedCoreResponse = await postJson(port, {
+	      inputMode: "guided",
+	      prompt: "请生成开户引导首页，必须可见模块：首屏 Banner、新手引导、账户类型与优势、交易账号。不要编造收益、下载链接、后台未提供的数据或未选择的辅助模块。",
+	      guidedIntake: {
+	        source: "guided-builder",
+	        canonical: {
+	          primaryIntent: "onboarding",
+	          layoutPreset: "onboardingJourney",
+	          heroFocus: "onboarding_guide",
+	          mustHave: ["welcome_header", "promo_banner", "onboarding_guide", "trading_accounts_list"],
+	        },
+	        modules: [
+	          { id: "heroBanner", label: "首屏 Banner", canonicalTargets: ["welcome_header", "promo_banner"] },
+	          { id: "openingFlow", label: "新手引导", canonicalTargets: ["onboarding_guide"] },
+	          { id: "accountBenefits", label: "账户类型与优势", canonicalTargets: ["onboarding_guide", "trading_accounts_list"] },
+	          { id: "tradingAccounts", label: "交易账号", canonicalTargets: ["trading_accounts_list"] },
+	        ],
+	      },
+	      modelConfig: { provider: "openai" },
+	    });
+	    assert.strictEqual(guidedCoreResponse.ok, true);
+	    assertOnlyAllowedBlocks(guidedCoreResponse.config);
+	    assert.strictEqual(hasBlock(guidedCoreResponse.config, "support_contact"), false);
+	    assert.strictEqual(hasBlock(guidedCoreResponse.config, "faq_section"), false);
+	    assert.strictEqual(hasBlock(guidedCoreResponse.config, "app_download"), false);
+	    assert.strictEqual(hasBlock(guidedCoreResponse.config, "risk_disclosure"), false);
+	    assert.strictEqual(guidedCoreResponse.config.moduleSettings.supportContact.enabled, false);
+	    assert.strictEqual(guidedCoreResponse.config.moduleSettings.faq.enabled, false);
+	    assert.strictEqual(guidedCoreResponse.config.moduleSettings.appDownload.enabled, false);
+	    assert.strictEqual(guidedCoreResponse.config.moduleSettings.riskDisclosure.enabled, false);
+	    assert(["workbench", "calm-table", "ops-table"].includes(guidedCoreResponse.config.moduleStyles.tradingAccounts));
+	    assert.strictEqual(guidedCoreResponse.config.moduleSettings.tradingAccounts.viewMode, "list");
+
+	    const guidedResponse = await postJson(port, {
       inputMode: "guided",
       prompt: "请生成开户引导首页，必须可见模块：风险提示、FAQ、在线客服、APP 下载。不要编造在线状态或下载链接。",
       guidedIntake: {
@@ -363,6 +439,26 @@ async function run() {
     assert.strictEqual(hasBlock(proTraderCostResponse.config, "onboarding_guide"), false);
     assert.strictEqual(hasBlock(proTraderCostResponse.config, "trading_account_highlight"), true);
     assert.strictEqual(hasBlock(proTraderCostResponse.config, "quick_actions"), true);
+
+    const accountPerformanceResponse = await postJson(port, {
+      prompt: accountPerformancePrompt,
+      modelConfig: { provider: "openai" },
+    });
+    assert.strictEqual(accountPerformanceResponse.ok, true);
+    assertOnlyAllowedBlocks(accountPerformanceResponse.config);
+    assert.strictEqual(hasBlock(accountPerformanceResponse.config, "trading_account_highlight"), true);
+    assert.strictEqual(accountPerformanceResponse.config.moduleStyles.accountPerformance, "pro-chart");
+    assert(["calm-table", "ops-table"].includes(accountPerformanceResponse.config.moduleStyles.tradingAccounts));
+
+    const flatAccountResponse = await postJson(port, {
+      prompt: flatAccountPrompt,
+      modelConfig: { provider: "openai" },
+    });
+    assert.strictEqual(flatAccountResponse.ok, true);
+    assertOnlyAllowedBlocks(flatAccountResponse.config);
+    assert.strictEqual(flatAccountResponse.config.moduleStyles.accountPerformance, "pro-chart");
+    assert.strictEqual(flatAccountResponse.config.moduleStyles.tradingAccounts, "dense-cards");
+    assert.strictEqual(flatAccountResponse.config.moduleSettings.tradingAccounts.viewMode, "card");
 
     const referralCoreResponse = await postJson(port, {
       prompt:

@@ -281,6 +281,7 @@ function renderAccountEntryMenu() {
 
 function renderAccountCard(account) {
   const usageTags = (account.usages || ["Trade"])
+    .slice(0, 2)
     .map((usage) => `<span>${escapeHtml(usage)}</span>`)
     .join("");
   const actions =
@@ -295,6 +296,9 @@ function renderAccountCard(account) {
           { label: "交易", action: "trade" },
           { label: "资金划转", action: "transfer" },
         ];
+  const primaryAction = actions[0];
+  const secondaryAction = actions[1];
+  const brokerLabel = `${account.platform} · ${account.broker}`;
 
   return `
     <article class="trade-account-card" data-kind="${escapeHtml(account.kind)}">
@@ -306,38 +310,21 @@ function renderAccountCard(account) {
       <div class="account-tags">
         ${usageTags}
       </div>
-      <div class="account-value-grid">
-        <div>
-          <span>余额(USD)</span>
-          <strong>${escapeHtml(formatUsdNumber(toUsd(account.balance, account.currency)))}</strong>
-        </div>
+      <div class="account-card-hero">
         <div>
           <span>净值(USD)</span>
           <strong>${escapeHtml(formatUsdNumber(toUsd(account.equity || account.balance, account.currency)))}</strong>
         </div>
-        <div>
-          <span>持仓 PnL</span>
-          <strong class="${String(account.pnl || "").startsWith("-") ? "is-loss" : "is-profit"}">${escapeHtml(account.pnl || "--")}</strong>
-        </div>
-        <div>
-          <span>保证金占用</span>
-          <strong>${escapeHtml(account.margin || "--")}</strong>
-        </div>
+        <b class="${String(account.pnl || "").startsWith("-") ? "is-loss" : "is-profit"}">${escapeHtml(account.pnl || "--")}</b>
       </div>
-      <div class="account-platform">
-        <span class="platform-chip">${escapeHtml(account.platform)}</span>
-        <span>${escapeHtml(account.broker)}</span>
+      <div class="account-card-flat-meta" aria-label="账号概要">
+        <span><small>平台 / 服务器</small><b>${escapeHtml(brokerLabel)}</b></span>
+        <span><small>余额</small><b>${escapeHtml(formatUsdNumber(toUsd(account.balance, account.currency)))}</b></span>
+        <span><small>保证金 / 杠杆</small><b>${escapeHtml(account.margin || "--")} · ${escapeHtml(account.leverage)}</b></span>
       </div>
-      <div class="account-meta">
-        <div><span>类型</span><b>${escapeHtml(account.type)}</b></div>
-        <div><span>信用金</span><b>${escapeHtml(account.credit)}</b></div>
-        <div><span>杠杆</span><b>${escapeHtml(account.leverage)}</b></div>
-        <div><span>持仓</span><b>${escapeHtml(account.positions || "0")}</b></div>
-      </div>
-      <div class="account-card-actions">
-        ${actions
-          .map((action) => `<button type="button" data-home-action="${escapeHtml(action.action)}">${escapeHtml(action.label)}</button>`)
-          .join("")}
+      <div class="account-card-actions compact">
+        <button type="button" data-home-action="${escapeHtml(primaryAction.action)}">${escapeHtml(primaryAction.label)}</button>
+        <button type="button" data-home-action="${escapeHtml(secondaryAction.action)}">${escapeHtml(secondaryAction.label)}</button>
       </div>
     </article>
   `;

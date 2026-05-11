@@ -144,14 +144,14 @@
       "name": "邀请增长控制台",
       "family": "ReferralLink",
       "size": "3x1",
-      "description": "IB 和渠道首页使用的开户链接、邀请码、二维码和转化指标。",
+      "description": "IB 和渠道首页使用的开户链接、邀请码、二维码和基础转化指标，数值来自接口。",
       "tags": [
         "ib",
         "referral",
         "partner",
         "growth"
       ],
-      "html": "<section class=\"brick-referral-console\"><span>Referral</span><strong>Invite Link First</strong><p>Link, invite code, QR and conversion metrics stay visible.</p><div><b>123 Opens</b><b>50 Accounts</b></div></section>",
+      "html": "<section class=\"brick-referral-console\"><span>Referral</span><strong>Invite Link First</strong><p>Link, invite code, QR and conversion metrics stay visible.</p><div><b>-- Opens</b><b>-- Accounts</b></div></section>",
       "css": ".brick-referral-console{display:grid;gap:10px;padding:18px;border:1px solid #bfdbfe;border-radius:8px;background:#eff6ff;color:#172033}.brick-referral-console span{color:#2563eb;font-size:12px;font-weight:900}.brick-referral-console strong{font-size:22px}.brick-referral-console p{margin:0;color:#475569}.brick-referral-console div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.brick-referral-console b{padding:8px;border-radius:8px;background:#fff}",
       "layoutHints": [
         "hero",
@@ -168,9 +168,41 @@
       "updatedAt": "2026-05-09T03:44:17.720Z"
     },
     {
+      "id": "referral-link-card-compact",
+      "type": "ai-generated",
+      "name": "推广链接卡片",
+      "family": "ReferralLinkCard",
+      "size": "1x1",
+      "description": "轻量推广链接卡，字段只包含推广链接、邀请码、复制动作和可选基础统计。",
+      "tags": [
+        "ib",
+        "referral",
+        "inviteCode",
+        "copy",
+        "compact"
+      ],
+      "html": "<section class=\"brick-referral-card\"><span>Referral Link</span><strong>推广链接卡片</strong><div><small>推广链接</small><b>--</b><button>Copy</button></div><div><small>邀请码</small><b>--</b><button>Copy</button></div></section>",
+      "css": ".brick-referral-card{display:grid;gap:10px;padding:16px;border:1px solid #bfdbfe;border-radius:8px;background:#fff;color:#172033}.brick-referral-card span{color:#2563eb;font-size:12px;font-weight:900}.brick-referral-card strong{font-size:18px}.brick-referral-card div{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:10px;border:1px solid #dbe3ef;border-radius:8px;background:#f8fbff}.brick-referral-card small{color:#64748b;font-size:11px;font-weight:800}.brick-referral-card b{font-size:12px}.brick-referral-card button{min-height:30px;border:1px solid #2563eb;border-radius:8px;background:#2563eb;color:#fff;font-size:11px;font-weight:900}",
+      "layoutHints": [
+        "rail",
+        "1x1",
+        "link-first",
+        "compact-card"
+      ],
+      "dataRequirements": [
+        "promoLink",
+        "inviteCode",
+        "copyActions",
+        "referralStats"
+      ],
+      "sourcePrompt": "根据 ReferralLinkCard 积木字段生成推广链接卡片样式，不编造返佣或团队数据。",
+      "createdAt": "2026-05-11T00:00:00.000Z",
+      "updatedAt": "2026-05-11T00:00:00.000Z"
+    },
+    {
       "id": "onboarding-progress-checklist",
       "type": "ai-generated",
-      "name": "Become A Master",
+      "name": "新手引导路径",
       "family": "OnboardingProgress",
       "size": "2x1",
       "description": "KYC、开真实账号和首次入金任务化展示。",
@@ -181,7 +213,7 @@
         "edited",
         "progressive"
       ],
-      "html": "\n    <section class=\"brick-onboarding\">\n      <span>Next Step</span>\n      <strong>Become A Master</strong>\n      <ol class=\"onboarding-progress-steps\">\n        <li class=\"done\">\n          <b>01</b>\n          <span>KYC</span>\n          <small>已完成</small>\n        </li>\n      \n        <li class=\"active\">\n          <b>02</b>\n          <span>Live Account</span>\n          <small>当前步骤</small>\n        </li>\n      \n        <li class=\"pending\">\n          <b>03</b>\n          <span>First Deposit</span>\n          <small>待完成</small>\n        </li>\n      </ol>\n    </section>\n  ",
+      "html": "\n    <section class=\"brick-onboarding\">\n      <span>Onboarding</span>\n      <strong>新手引导路径</strong>\n      <ol class=\"onboarding-progress-steps\">\n        <li class=\"active\">\n          <b>01</b>\n          <span>KYC</span>\n          <small>未提交/待审/通过/拒绝</small>\n        </li>\n      \n        <li class=\"pending\">\n          <b>02</b>\n          <span>开真实账户</span>\n          <small>通过后解锁</small>\n        </li>\n      \n        <li class=\"pending\">\n          <b>03</b>\n          <span>首次入金</span>\n          <small>待完成</small>\n        </li>\n      </ol>\n    </section>\n  ",
       "css": ".brick-onboarding{display:grid;gap:14px;padding:18px;border:1px solid #dbe3ef;border-radius:8px;background:#fff;color:#172033}\n    .brick-onboarding *{box-sizing:border-box}\n    .brick-onboarding>span{color:#2563eb;font-size:12px;font-weight:900}\n    .brick-onboarding>strong{font-size:22px;letter-spacing:0}\n    .brick-onboarding .onboarding-progress-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0;padding:0;list-style:none}\n    .brick-onboarding .onboarding-progress-steps li{position:relative;display:grid;grid-template-columns:auto 1fr;gap:6px 9px;align-items:center;min-height:78px;padding:12px;border:1px solid #dbe3ef;border-radius:8px;background:#f8fbff}\n    .brick-onboarding .onboarding-progress-steps li::after{content:\"\";position:absolute;top:24px;right:-13px;width:13px;height:2px;background:#bfdbfe}\n    .brick-onboarding .onboarding-progress-steps li:last-child::after{display:none}\n    .brick-onboarding .onboarding-progress-steps b{width:28px;height:28px;display:grid;place-items:center;border-radius:8px;background:#dbeafe;color:#1d4ed8;font-size:12px}\n    .brick-onboarding .onboarding-progress-steps span{color:#172033;font-size:13px;font-weight:900}\n    .brick-onboarding .onboarding-progress-steps small{grid-column:2;color:#64748b;font-size:11px;font-weight:800}\n    .brick-onboarding .onboarding-progress-steps .done{border-color:#bbf7d0;background:#f0fdf4}\n    .brick-onboarding .onboarding-progress-steps .done b{background:#16a34a;color:#fff}\n    .brick-onboarding .onboarding-progress-steps .active{border-color:#93c5fd;background:#eff6ff;box-shadow:0 0 0 2px rgba(37,99,235,.08)}\n    .brick-onboarding .onboarding-progress-steps .active b{background:#2563eb;color:#fff}\n    @media(max-width:720px){.brick-onboarding .onboarding-progress-steps{grid-template-columns:1fr}.brick-onboarding .onboarding-progress-steps li::after{left:25px;right:auto;top:auto;bottom:-13px;width:2px;height:13px}}",
       "layoutHints": [
         "hero",
@@ -258,15 +290,19 @@
       "name": "账号表现图表",
       "family": "AccountPerformance",
       "size": "2x2",
-      "description": "专业交易客户首屏查看余额、权益、信用和 PnL 曲线。",
+      "description": "专业交易客户首屏查看单个账号摘要、由 ECharts 渲染的 7日/30日净值或 PnL 折线图，X 轴使用日期；账号上下文和指标采用单层扁平排版，避免卡片内再套小卡片。",
       "tags": [
         "trader",
         "performance",
         "chart",
-        "pnl"
+        "echarts",
+        "pnl",
+        "equityCurve",
+        "7d",
+        "30d"
       ],
-      "html": "<section class=\"brick-performance\"><span>Performance</span><strong>Equity +2.4%</strong><div><i></i><i></i><i></i><i></i><i></i></div></section>",
-      "css": ".brick-performance{min-height:220px;display:grid;gap:14px;padding:18px;border:1px solid #dbe3ef;border-radius:8px;background:#fff}.brick-performance span{color:#2563eb;font-size:12px;font-weight:900}.brick-performance strong{font-size:24px}.brick-performance div{height:120px;display:flex;align-items:end;gap:8px;padding:10px;border-radius:8px;background:#f8fbff}.brick-performance i{flex:1;border-radius:5px 5px 0 0;background:#2563eb}.brick-performance i:nth-child(1){height:38%}.brick-performance i:nth-child(2){height:58%}.brick-performance i:nth-child(3){height:46%}.brick-performance i:nth-child(4){height:74%}.brick-performance i:nth-child(5){height:66%}",
+      "html": "<section class=\"brick-performance\"><header><div><span>Account Performance</span><strong>账号表现</strong></div><nav><button>7D</button><button>30D</button></nav></header><main><aside><small>Live · MT5 · HCHoldings-Live2</small><b>Equity --</b><p>Selected trading account</p></aside><div class=\"curve\"><div class=\"echart-canvas\" data-home-echart data-chart-kind=\"account-performance\" data-chart-axis-mode=\"xy\" data-chart-period=\"7\" role=\"img\" aria-label=\"ECharts 账号净值和PnL日期折线图\"></div><p>05/05 · 05/08 · 05/11</p></div></main><footer><span>Floating P/L --</span><span>Margin Ratio --</span><span>Credit --</span><span>Leverage --</span></footer></section>",
+      "css": ".brick-performance{min-height:260px;display:grid;gap:14px;padding:18px;border:1px solid #dbe3ef;border-radius:8px;background:#fff;color:#172033}.brick-performance header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.brick-performance header div{display:grid;gap:6px}.brick-performance span,.brick-performance small,.brick-performance p{color:#64748b;font-size:12px;font-weight:850}.brick-performance strong{font-size:22px;font-weight:950}.brick-performance nav{display:flex;gap:4px;padding:4px;border:1px solid #dbe3ef;border-radius:8px;background:#f8fbff}.brick-performance button{min-height:28px;border:0;border-radius:6px;background:#2563eb;color:#fff;font-size:12px;font-weight:950}.brick-performance main{display:grid;grid-template-columns:.7fr 1.5fr;gap:18px;padding-top:10px;border-top:1px solid #e5edf8}.brick-performance aside{display:grid;gap:8px;align-content:start;padding:4px 0}.brick-performance aside b{font-size:32px;font-weight:950}.brick-performance aside p,.brick-performance .curve p{margin:0}.brick-performance .curve{display:grid;grid-template-rows:minmax(154px,1fr) auto;gap:8px}.brick-performance .echart-canvas{min-height:154px}.brick-performance footer{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding-top:10px;border-top:1px solid #e5edf8}.brick-performance footer span{display:flex;justify-content:space-between;gap:8px}@media(max-width:720px){.brick-performance main,.brick-performance footer{grid-template-columns:1fr}}",
       "layoutHints": [
         "main",
         "2x2"
@@ -275,7 +311,10 @@
         "accountBalance",
         "equity",
         "credit",
-        "pnlCurve"
+        "pnlCurve",
+        "equityCurve",
+        "performancePeriod",
+        "chartEngine"
       ],
       "sourcePrompt": "",
       "createdAt": "2026-05-08T09:18:13.977Z",

@@ -884,11 +884,11 @@
 
 .trade-account-card {
   min-width: 0;
-  min-height: 254px;
+  min-height: 218px;
   display: grid;
   align-content: start;
   gap: 12px;
-  padding: 14px;
+  padding: 16px;
   border: 1px solid var(--home-card-border-strong);
   border-radius: var(--home-radius-md);
   background: var(--home-surface);
@@ -943,6 +943,63 @@
   gap: 6px;
 }
 
+.account-card-hero {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+  padding: 14px 0 6px;
+  border-top: 1px solid var(--home-divider);
+}
+
+.account-card-hero div {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.account-card-hero span {
+  color: var(--home-text-muted);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.account-card-hero strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--home-text-strong);
+  font-family: var(--home-number-font-family);
+  font-size: 28px;
+  font-variant-numeric: var(--home-number-feature);
+  font-weight: var(--home-number-weight);
+  letter-spacing: var(--home-number-letter-spacing);
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-card-hero > b {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  border-radius: var(--home-radius-sm);
+  background: color-mix(in srgb, var(--home-success) 12%, transparent);
+  color: var(--home-success);
+  font-family: var(--home-number-font-family);
+  font-size: 13px;
+  font-variant-numeric: var(--home-number-feature);
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.account-card-hero > b.is-loss {
+  background: color-mix(in srgb, var(--home-danger) 12%, transparent);
+  color: var(--home-danger);
+}
+
 .account-tags span,
 .platform-chip {
   min-height: 24px;
@@ -959,18 +1016,28 @@
 .account-value-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--home-divider);
+  border-radius: var(--home-radius-md);
 }
 
 .account-value-grid div {
   min-width: 0;
-  min-height: 74px;
+  min-height: 58px;
   display: grid;
   align-content: center;
-  gap: 8px;
-  padding: 12px;
-  border-radius: var(--home-radius-md);
-  background: var(--home-primary-soft);
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--home-surface-soft);
+}
+
+.account-value-grid div:nth-child(odd) {
+  border-right: 1px solid var(--home-divider);
+}
+
+.account-value-grid div:nth-child(n + 3) {
+  border-top: 1px solid var(--home-divider);
 }
 
 .account-value-grid strong {
@@ -978,7 +1045,7 @@
   overflow: hidden;
   color: var(--home-text-strong);
   font-family: var(--home-number-font-family);
-  font-size: 20px;
+  font-size: 15px;
   font-variant-numeric: var(--home-number-feature);
   font-weight: var(--home-number-weight);
   letter-spacing: var(--home-number-letter-spacing);
@@ -1011,6 +1078,37 @@
   font-size: 13px;
 }
 
+.account-card-flat-meta {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.account-card-flat-meta span {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(82px, 0.5fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.account-card-flat-meta small {
+  color: var(--home-text-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.account-card-flat-meta b {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--home-text-strong);
+  font-size: 13px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .account-meta {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1023,7 +1121,7 @@
   gap: 5px;
   padding: 8px;
   border-radius: var(--home-radius-md);
-  background: var(--home-surface-muted);
+  background: var(--home-surface-soft);
   color: var(--home-text-muted);
 }
 
@@ -1044,6 +1142,11 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
+}
+
+.account-card-actions.compact {
+  grid-template-columns: 1fr 1fr;
+  padding-top: 2px;
 }
 
 .account-card-actions button,

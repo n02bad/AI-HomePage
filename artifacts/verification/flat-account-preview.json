@@ -1,0 +1,39 @@
+{
+  "config": {
+    "moduleStyles": {
+      "balanceTotal": "command",
+      "fundActions": "split-buttons",
+      "openAccountActions": "horizontal",
+      "onboardingProgress": "path",
+      "promoHighlight": "clean",
+      "adCarousel": "clean",
+      "quickActions": "compact-grid",
+      "referral_link_card": "compact-card",
+      "copytrading_signals": "curve-cards",
+      "tradingAccounts": "dense-cards",
+      "accountPerformance": "pro-chart",
+      "walletList": "wallet-tiles"
+    },
+    "tradingAccounts": {
+      "enabled": true,
+      "realEnabled": true,
+      "demoEnabled": true,
+      "grouping": "combined",
+      "viewMode": "card",
+      "realViewMode": "card",
+      "demoViewMode": "card",
+      "demoFirst": false
+    }
+  },
+  "result": {
+    "title": "ForexCRM - 用户端首页",
+    "accountPerformanceSummary": 1,
+    "accountPerformanceLedger": 0,
+    "nestedAccountMetricGrid": 0,
+    "flatAccountMeta": 3,
+    "accountCards": 3,
+    "performanceMetrics": 4,
+    "tradingStyle": "standard",
+    "accountView": "card"
+  }
+}

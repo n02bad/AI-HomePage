@@ -22,8 +22,11 @@ If a phrase has an implied meaning, make it explicit before generation:
 - "mature broker client" means trusted, data-led, dense enough for daily use, and not a marketing landing page.
 - "do not only change color" means layout, module density, visual hierarchy, and module expression must change.
 - Visual tokens such as "light blue", "flat", "10px radius", or "PingFang SC" are theme constraints only. They must not override the product intent or force the page into a generic asset/trust dashboard.
-- "CopyTrading recommendation" means the `copytrading_signals` module should be treated as a primary opportunity module. If the user asks for signal name, return rate, total return, or return curve, choose a signal-card/curve-card expression instead of a blank summary. Return curves and "near N days" performance are continuous time-series data, so they must use a line chart or area line chart, not a bar chart.
-- Metric labels such as total return, 30-day return, total profit, max drawdown, and risk level do not always need individual bordered cards. Prefer compact stat rows, separators, or quiet inline groups when the module already has a framed chart or recommendation card.
+- "CopyTrading recommendation" means the `copytrading_signals` module should be treated as a primary opportunity module. If the user asks for signal name, return rate, total return, or return curve, choose a signal-card/curve-card expression instead of a blank summary. Return curves and "near N days" performance are continuous time-series data, so they must use an ECharts line chart or area line chart, not a bar chart.
+- "Account performance" means one selected trading account plus a 7-day or 30-day equity/PnL trend. It is not a generic metric dump, and it must not use bars, capsule columns, or decorative histograms.
+- "Trading account card" means account identity first, one dominant money value, one PnL/risk status, and quiet secondary metadata. Do not render every field as an equal colored tile.
+- "Simpler", "flat", "too many modules inside a module", or "too many focal points" means reduce nested panels first. Do not answer this by only shrinking gaps or changing colors.
+- Metric labels such as total return, 30-day return, total profit, max drawdown, and risk level do not always need individual bordered cards. Prefer compact stat rows or quiet inline groups when the module already has a framed chart or recommendation card. Avoid heavy vertical dividers that make the metric row feel like a spreadsheet.
 - Avoid decorative English eyebrow labels such as "AI Copytrading Match" when the title already explains the module. Show the business title directly unless the small label adds necessary product meaning.
 
 ## 2. Design Strategy
@@ -74,7 +77,7 @@ Before choosing a module style, the AI must classify the data semantics:
 
 | Data semantics | Trigger words | Required expression | Forbidden expression |
 | --- | --- | --- | --- |
-| Continuous time trend | near N days, 7/30/90 day return, trend, curve, net value, PnL change, drawdown change | line chart or area line chart | bar chart, capsule bars, decorative histogram |
+| Continuous time trend | near N days, 7/30/90 day return, trend, curve, net value, PnL change, drawdown change | ECharts line chart or area line chart | bar chart, capsule bars, decorative histogram |
 | Category comparison | signal source comparison, products, channels, account groups | bar chart or horizontal bar chart | line chart |
 | Composition / share | ratio, distribution, allocation, structure | donut, stacked bar, segmented metric | line chart |
 | Single status | risk level, stability label, current status | metric card, status tag, compact badge | complex chart |
@@ -82,17 +85,37 @@ Before choosing a module style, the AI must classify the data semantics:
 Hard rules:
 
 - If the field or prompt combines "near N days / 7 days / 30 days / 90 days" with "return / net value / trend / curve / PnL / drawdown", default to a line chart or area line chart.
+- If the prompt asks for account performance, account overview trend, account net value, or account PnL, the module must include 7D/30D period semantics and a visible time axis cue.
+- Time-series chart X axes should use date labels such as `05/05`, `05/08`, `05/11`, not placeholder labels such as `D1`, `D4`, or `D7`.
+- Choose the axis mode deliberately: analytical account performance can use a visible XY axis; compact recommendation cards should prefer a minimal or no-strong-axis chart with only date cues.
 - Do not turn continuous trend data into vertical bars, capsule bars, or decorative columns unless the user explicitly asks for a bar chart.
+- Generated statistical charts should use ECharts as the preferred rendering component, or another approved interactive chart component when explicitly chosen. Inline SVG is only acceptable as a loading/error fallback or static component-library reference.
 - A trend chart must include at least a visible time axis cue, a readable trend line, and one or more meaningful reference points such as current value, high point, low point, drawdown point, or start/end labels.
 - If there are fewer than 4 data points, do not fake a trend chart. Use a metric card or short explanation instead.
 - Chart pixels must carry data meaning. A graph-shaped decoration with no axis cue, value cue, or trend semantics fails this protocol.
+
+Recommended layout for `trading_account_highlight` account performance:
+
+1. Header: title, selected account label, and a 7D/30D segmented period control.
+2. Left side: account identity, platform/server, and one dominant value such as equity or balance.
+3. Right side: ECharts line or area line chart for equity, net value, or PnL. Use date labels on the X axis and choose `xy` or `minimal` axis mode based on density.
+4. Bottom: 3 to 4 quiet metrics such as floating P/L, margin ratio, credit, and leverage.
+5. Missing API values render as `--`; do not invent balances, PnL, account numbers, or risk levels.
+
+Avoid equal-weight metric grids, random color blocks, nested cards, oversized empty white space, and chart shapes without a time period.
+
+Flat account-performance refinement:
+
+- The selected account context should be a quiet line or summary block, not another large card inside the module.
+- Balance/Equity/Floating P/L/Margin/Credit/Leverage should collapse into one restrained metric strip unless the prompt explicitly asks for a detailed ledger.
+- If the visual hierarchy feels crowded, keep the chart and one main value prominent, then demote secondary metrics to inline text.
 
 Recommended layout for `copytrading_signals` curve cards:
 
 1. Top: module title and one-sentence recommendation conclusion.
 2. Signal source row: source name, risk/stability tag, and no oversized decorative banner.
-3. Core metrics: 3 to 4 compact equal-width metrics such as near-30-day return, total return, max drawdown, and risk level.
-4. Trend chart: line or area line chart as the main visual evidence.
+3. Core metrics: 3 to 4 compact metrics such as near-30-day return, total return, max drawdown, and risk level. Do not divide every metric with heavy vertical rules.
+4. Trend chart: ECharts line or area line chart as the main visual evidence, usually with minimal axis chrome and date labels.
 5. AI recommendation reason: explain how the metrics and curve support the recommendation.
 6. Primary action: one restrained CTA, usually 44-56px high.
 
@@ -120,6 +143,8 @@ The generated homepage must pass these checks before delivery:
 - No fake referral link, invite code, opens, registrations, account openings, or conversion rates are introduced by the AI.
 - Continuous time-series data such as near-30-day return curves are rendered as line or area line charts, not bar charts or decorative capsule columns.
 - Recommendation modules put the chart and metrics ahead of decorative backgrounds, oversized empty banners, or heavy CTA blocks.
+- Account performance modules include a selected account context, 7D/30D period semantics, and an ECharts line/area line chart.
+- Trading account cards have one dominant value and restrained secondary metrics; they do not show four to six equally loud metric tiles.
 
 If any hard constraint fails, regenerate or repair the blueprint before preview.
 
@@ -139,9 +164,11 @@ Understanding protocol:
 2. Treat exact numbers as exact.
 3. Treat "together" account wording as one combined account module unless the user explicitly says separate.
 4. Choose a layout strategy that is visibly different from the previous skeleton.
-5. Classify chart data before choosing chart type: time-series return/PNL/net-value data must use line or area line charts, not bars.
-6. Put risk disclosure at the bottom, FAQ as accordion, and account lists in the most suitable account presentation.
-7. Self-check the result against hard constraints before returning JSON.
+5. Classify chart data before choosing chart type: time-series return/PNL/net-value data must use ECharts line or area line charts, not bars.
+6. For account performance, use a selected account context, 7D/30D period semantics, and an ECharts line/area line chart.
+7. Trading account cards must have one dominant value and restrained secondary metadata; use lists/tables when field density is high.
+8. Put risk disclosure at the bottom, FAQ as accordion, and account lists in the most suitable account presentation.
+9. Self-check the result against hard constraints before returning JSON.
 
 Output:
 Return only a JSON object that can be parsed by JSON.parse.

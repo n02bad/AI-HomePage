@@ -431,21 +431,20 @@
   }
 
   const AI_SUGGESTION_SCENES = [
-    { id: "vip-managed-account", label: "VIP 托管资产", summary: "$250k+ 净入金、专属经理、2 档服务费、季度收益", prompt: "高净值 VIP 托管资产首页，首屏突出 $250,000+ 净入金门槛、专属客户经理、季度收益率、2 档服务费和多币种资产；右侧放预约经理、入金和风险确认，交易账号列表下置。", tags: ["vip", "asset"] },
-    { id: "pro-trader-cost", label: "专业交易成本", summary: "点差 0.2 起、佣金 $7/手、持仓 PnL、MT5 快捷操作", prompt: "专业交易客户首页，突出交易成本和执行效率：EURUSD 点差 0.2 起、佣金 $7/手、持仓 PnL、保证金占用、MT5 快捷操作；真实账号和模拟账号分开，整体像专业交易工作台。", tags: ["trade", "account"] },
-    { id: "first-deposit-onboarding", label: "首存开户转化", summary: "$100 首存、KYC 3 步、预计 4 分钟、赠金 $30", prompt: "新客户开户转化首页，首屏突出 $100 首存门槛、KYC 3 步进度、预计 4 分钟完成、首存赠金 $30 和开真实/模拟/绑定账号三个动作；模块要有明确下一步。", tags: ["kyc", "conversion"] },
-    { id: "trading-contest-prize", label: "交易大赛奖池", summary: "$50k 奖池、Top 20 榜单、报名 $500 入金、倒计时", prompt: "活动增长首页，首屏突出 $50,000 交易大赛奖池、Top 20 排行榜、报名需 $500 入金、倒计时和 8 个快捷入口；广告轮播独占一整栏，真实交易账号用卡片，模拟账号用列表。", tags: ["growth", "campaign"] },
-    { id: "ib-referral-card", label: "IB 推广链接卡", summary: "推广链接、邀请码、复制按钮、可选基础统计", prompt: "IB 代理用户首页，允许展示轻量 referral_link_card，只展示推广链接、邀请码、复制推广链接按钮、复制邀请码按钮；如果接口有数据，可展示打开数、注册数、开户数、注册转化率和开户转化率。不要返佣、团队层级或完整代理数据区。", tags: ["ib", "referral"] },
-    { id: "multi-currency-yield", label: "多币种资产收益", summary: "$84.6k 总资产、USD/EUR/USDT、7 日收益 +2.8%", prompt: "资产管理首页，突出 $84,600 总资产、USD/EUR/USDT 多币种钱包、7 日收益 +2.8%、入金出金、账户表现图表和交易账号列表；风格淡蓝、扁平、清爽专业。", tags: ["asset", "wallet"] },
-    { id: "retention-reactivation-credit", label: "沉睡账户唤醒", summary: "14 天未交易、$20 返场券、3 步恢复、有效期 72h", prompt: "留存唤醒首页，面向 14 天未交易客户；首屏突出账户状态、$20 返场券、72 小时有效期、快捷入金和 3 步重新开始交易任务，广告位温和召回。", tags: ["retention", "account"] },
-    { id: "margin-risk-shield", label: "保证金风控", summary: "保证金 138%、爆仓线 80%、亏损 -$1.2k、补保证金", prompt: "风险提醒首页，突出保证金比例 138%、爆仓线 80%、浮动亏损 -$1,200、账户风险等级、持仓提醒、资金保护和客服入口；视觉冷静可信，不要促销氛围。", tags: ["risk", "trade"] },
-    { id: "mobile-fast-deposit", label: "移动端快速入金", summary: "Apple Pay、USDT TRC20、3 分钟到账、手续费 0%", prompt: "移动端优先首页，首屏单列突出 Apple Pay、USDT TRC20、3 分钟到账、0% 手续费、资产和 6 个高频快捷入口；交易账号压缩为轻量卡片，少滚动。", tags: ["mobile", "conversion"] },
-    { id: "white-label-trust", label: "白标品牌可信度", summary: "隔离资金 $12M、99.99% 可用性、24/5 服务、开户 CTA", prompt: "白标品牌客户首页，突出隔离资金 $12M、99.99% 平台可用性、24/5 客服、资金安全、主推活动和开户转化；整体像成熟券商客户端。", tags: ["brand", "conversion"] },
-    { id: "daily-pnl-insight", label: "每日 PnL 洞察", summary: "今日 +$860、胜率 58%、最大回撤 4.2%、下一步建议", prompt: "数据洞察首页，突出今日 PnL +$860、胜率 58%、最大回撤 4.2%、资金流向、交易习惯和下一步建议；适合客户每天判断账户健康度。", tags: ["insight", "trade"] },
-    { id: "deposit-bonus-ladder", label: "入金奖励阶梯", summary: "$500/$2k/$10k 三档奖励、最高 $300、真实账号", prompt: "入金转化首页，首屏突出 $500/$2,000/$10,000 三档入金奖励、最高赠金 $300、钱包余额、入金入口和开真实账号；弱化复杂图表。", tags: ["deposit", "conversion"] },
-    { id: "copy-trading-package", label: "跟单套餐推荐", summary: "月费 $19、高手收益 +12.4%、风险 3/5、订阅入口", prompt: "跟单套餐推荐首页，突出月费 $19、高手 30 日收益 +12.4%、风险等级 3/5、订阅入口、历史回撤和账户余额；适合推动客户从观察转为订阅。", tags: ["insight", "conversion"] },
-    { id: "swap-fee-transparency", label: "隔夜费透明化", summary: "黄金 -$3.2/手、原油 -$1.1/手、费用预估、持仓提醒", prompt: "交易费用透明首页，突出黄金隔夜费 -$3.2/手、原油 -$1.1/手、点差、佣金、持仓费用预估和减少费用的下一步建议；适合专业交易客户。", tags: ["trade", "risk"] },
-    { id: "funding-status-tracker", label: "出入金状态追踪", summary: "待处理 $5k、预计 15 分钟、通道成功率 97.6%", prompt: "资金状态追踪首页，突出待处理入金 $5,000、预计 15 分钟到账、通道成功率 97.6%、出金审核进度、多币种钱包和客服入口。", tags: ["asset", "deposit"] },
+    { id: "new-user-onboarding-prompt", label: "新手引导提示语", summary: "适合不知道怎么描述开户旅程的客户", prompt: "请生成一个新用户 Onboarding 首页，主线是 KYC 状态、开真实账户、首次入金；KYC 只展示当前 CRM 账户状态，状态可能是未提交、待审、通过、拒绝。请用任务流或路径卡呈现下一步，不要编造金额、收益或活动奖励。", tags: ["kyc", "conversion"] },
+    { id: "account-type-benefit-prompt", label: "账户类型与优势提示语", summary: "把真实账户、模拟账户和账户权益说清楚", prompt: "请生成一个账户类型与优势首页，说明真实账户、模拟账户和绑定账号各自适合什么场景；账户优势只使用后台已配置字段，例如账户类型、点差、杠杆、平台、入金门槛或服务权益，没有数据就用占位或隐藏。", tags: ["account", "trade"] },
+    { id: "ib-referral-card-prompt", label: "推广链接卡片提示语", summary: "推广链接、邀请码、复制动作和基础统计", prompt: "请生成一个代理/IB 用户首页，重点使用 referral_link_card 积木；推广链接模块要参考积木块已有字段，再引申出自己的样式，例如链接优先、邀请码优先、分享按钮或基础统计。不要生成返佣、团队层级、下级客户或完整代理中心。", tags: ["ib", "referral"] },
+    { id: "professional-trader-workbench-prompt", label: "专业交易工作台提示语", summary: "适合交易型客户的账户与持仓入口", prompt: "请生成一个专业交易客户首页，首屏突出交易账号状态、账户表现图表、持仓入口和 MT5 操作入口；所有交易成本、PnL、保证金和图表数据都必须来自接口，缺失时用占位，不要写死具体数值。", tags: ["trade", "account"] },
+    { id: "asset-overview-prompt", label: "资产概览提示语", summary: "适合以资产、钱包和交易账号为主的首页", prompt: "请生成一个资产概览首页，首屏展示总资产、钱包和交易账号摘要；模块顺序要像成熟券商客户端，资产概览、快捷入口、交易账号列表层级清楚。不要新增后台没有的资产字段。", tags: ["asset", "wallet"] },
+    { id: "deposit-conversion-prompt", label: "首次入金提示语", summary: "适合已开户但还没有入金的客户", prompt: "请生成一个首次入金转化首页，目标是让已开户未入金客户看清下一步；可以用入金引导、资金状态、客服协助和交易账号承接，但奖励、手续费、到账时间必须来自后台活动或支付通道数据。", tags: ["deposit", "conversion"] },
+    { id: "campaign-landing-prompt", label: "活动承接提示语", summary: "适合已有活动配置的首页方案", prompt: "请生成一个活动承接首页，前提是租户后台已经配置活动内容；用 promo_banner 或公告承接活动曝光，用快捷入口和交易账号承接转化。不要虚构奖池、倒计时、报名条件或奖励规则。", tags: ["growth", "campaign"] },
+    { id: "copytrading-prompt", label: "跟单推荐提示语", summary: "适合租户开启 CopyTrading 的首页", prompt: "请生成一个 CopyTrading 首页，使用 copytrading_signals 独立模块展示信号源推荐；收益率、总收益、回撤、风险和曲线都必须来自接口，并用折线或面积曲线表达趋势，不要把 PAMM 和 CopyTrading 合并。", tags: ["insight", "conversion"] },
+    { id: "pamm-products-prompt", label: "PAMM 产品提示语", summary: "适合租户开启 PAMM 的产品推荐", prompt: "请生成一个 PAMM 产品推荐首页，使用 pamm_products 独立模块展示产品列表或排行；产品名称、收益、规模、风险和曲线均来自接口，缺少数据时隐藏对应指标。不要和 CopyTrading 信号源混在一起。", tags: ["asset", "insight"] },
+    { id: "risk-disclosure-prompt", label: "风险提示提示语", summary: "适合需要合规与保证金提醒的页面", prompt: "请生成一个风险提示首页，重点是保证金提醒、风险披露和客服入口；风险披露使用后台合规文案，放在底部或低干扰区域，不要把风险提示做成夸张营销卡，也不要暗示稳赚。", tags: ["risk", "trade"] },
+    { id: "mobile-compact-prompt", label: "移动端紧凑提示语", summary: "适合手机端优先、少滚动的首页", prompt: "请生成一个移动端优先首页，首屏单列，保留资产概览、当前 KYC/开户状态、快捷入口和交易账号摘要；模块高度要克制，避免大面积横幅和重复按钮。所有内容来自后台或接口。", tags: ["mobile", "conversion"] },
+    { id: "brand-trust-prompt", label: "品牌可信首页提示语", summary: "适合白标券商或成熟品牌调性", prompt: "请生成一个品牌可信首页，整体像成熟券商客户端，首屏强调资产安全感、账户状态、快捷入口和客服承接；不要虚构隔离资金、监管资质、在线客服状态或服务时间。", tags: ["brand", "conversion"] },
+    { id: "retention-prompt", label: "老用户唤醒提示语", summary: "适合沉睡用户或回访用户", prompt: "请生成一个老用户唤醒首页，先展示账户状态和可继续完成的下一步，再给出快捷入口、客服协助和交易账号摘要；如果没有后台返场权益或活动，不要编造优惠券、赠金或有效期。", tags: ["retention", "account"] },
+    { id: "funding-status-prompt", label: "出入金状态提示语", summary: "适合资金流程透明的首页", prompt: "请生成一个资金状态追踪首页，展示入金、出金或钱包状态的当前进度；通道、预计时间、成功率和订单金额都必须来自支付接口，没有数据时只显示状态占位和客服入口。", tags: ["asset", "deposit"] },
   ];
 
   const GUIDED_FIELD_LABELS = {
@@ -469,23 +468,23 @@
       ibRecruitment: "代理/IB 招募，重点展示推广链接、邀请码、合作流程和客户经理入口",
       depositConversion: "入金转化，重点推动已开户客户完成首存或追加入金",
       retention: "老用户唤醒，重点召回沉睡用户重新入金、交易或领取返场权益",
-    },
-    level: {
-      basic: "基础版，保留首屏、主 CTA、核心说明、客服和风险提示",
-      growth: "增长版，在基础能力上加入活动权益、FAQ、表单/按钮和转化承接",
-      pro: "专业版，加入账号、资产、推广链接、数据指标或更完整的运营模块",
-    },
+	    },
+	    level: {
+	      basic: "基础版，保留首屏、主 CTA 和核心说明",
+	      growth: "增长版，在基础能力上加入活动权益、按钮和转化承接",
+	      pro: "专业版，加入账号、资产、推广链接、数据指标或更完整的运营模块",
+	    },
     modules: {
       heroBanner: "首屏 Banner 和主 CTA",
-      openingFlow: "开户流程与三步路径",
-      accountBenefits: "账户优势、真实账户和模拟账户入口",
-      kycGuide: "KYC 材料说明和认证状态",
+      openingFlow: "新手 Onboarding 引导：KYC -> 开真实账户 -> 首次入金，帮助新用户完成基础流程",
+      accountBenefits: "账户类型与优势：说明真实账户、模拟账户和绑定账号的用途、限制和后台已配置权益",
+      kycGuide: "CRM 账户 KYC 状态：未提交、待审、通过、拒绝；只展示当前状态和下一步，不做材料说明页",
       depositBonus: "入金奖励、首存门槛和赠金梯度",
       rewardRules: "活动规则、参与步骤、倒计时和权益说明",
       pammProducts: "PAMM 产品推荐区，使用独立的 pamm_products 模块，仅在租户开启 PAMM 且接口返回产品时展示",
       copyTrading: "CopyTrading 信号源推荐区，使用独立的 copytrading_signals 模块，仅在租户开启 CopyTrading 且接口返回信号源时展示",
       rewardActivity: "奖励活动专题区，使用活动 Banner、奖励权益、参与步骤和活动 CTA 承接转化",
-      referralLink: "推广链接、邀请码、复制按钮和基础推广统计",
+      referralLink: "推广链接卡片：参考 ReferralLinkCard 积木字段，引申链接优先、邀请码优先、分享或基础统计样式",
       appDownload: "APP 下载、MT5 下载或移动端交易入口",
       tradingAccounts: "交易账号列表、真实账号和模拟账号状态",
       customerService: "在线客服、客户经理或一对一协助入口",
@@ -587,70 +586,70 @@
   };
 
   const GUIDED_INTENT_DEFAULTS = {
-    accountOpening: {
-      audience: ["newVisitor", "registeredNoAccount"],
-      level: "growth",
-      modules: ["heroBanner", "openingFlow", "accountBenefits", "kycGuide", "customerService", "faq", "riskDisclosure"],
-      theme: "blueFinance",
-      tone: "professional",
-      cta: "openAccount",
-    },
-    promotionConversion: {
-      audience: ["newVisitor", "registeredNoAccount", "openedNoDeposit"],
-      level: "growth",
-      modules: ["heroBanner", "accountBenefits", "depositBonus", "rewardRules", "customerService", "faq", "riskDisclosure"],
-      theme: "blueFinance",
-      tone: "conversion",
-      cta: "openAccount",
-    },
-    newUserOnboarding: {
-      audience: ["newVisitor", "registeredNoAccount"],
-      level: "basic",
-      modules: ["heroBanner", "openingFlow", "kycGuide", "appDownload", "customerService", "faq", "riskDisclosure"],
-      theme: "minimalWhite",
-      tone: "beginner",
-      cta: "openAccount",
-    },
-    marketingCampaign: {
-      audience: ["newVisitor", "activityUser"],
-      level: "growth",
-      modules: ["heroBanner", "rewardActivity", "rewardRules", "depositBonus", "appDownload", "customerService", "riskDisclosure"],
-      theme: "lightGold",
-      tone: "campaign",
-      cta: "joinCampaign",
-    },
-    rewardActivity: {
-      audience: ["openedNoDeposit", "fundedUser", "activityUser"],
-      level: "growth",
-      modules: ["heroBanner", "rewardActivity", "rewardRules", "depositBonus", "tradingAccounts", "customerService", "riskDisclosure"],
-      theme: "lightGold",
-      tone: "campaign",
-      cta: "claimReward",
-    },
-    ibRecruitment: {
-      audience: ["ibUser", "highNetWorth"],
-      level: "pro",
-      modules: ["heroBanner", "referralLink", "accountBenefits", "customerService", "faq", "riskDisclosure"],
-      theme: "blackGold",
-      tone: "ib",
-      cta: "contactManager",
-    },
-    depositConversion: {
-      audience: ["openedNoDeposit", "fundedUser"],
-      level: "growth",
-      modules: ["heroBanner", "depositBonus", "tradingAccounts", "customerService", "faq", "riskDisclosure"],
-      theme: "blueFinance",
-      tone: "conversion",
-      cta: "depositNow",
-    },
-    retention: {
-      audience: ["dormantUser", "fundedUser"],
-      level: "basic",
-      modules: ["heroBanner", "depositBonus", "appDownload", "tradingAccounts", "customerService", "riskDisclosure"],
-      theme: "minimalWhite",
-      tone: "professional",
-      cta: "depositNow",
-    },
+	    accountOpening: {
+	      audience: ["newVisitor", "registeredNoAccount"],
+	      level: "growth",
+	      modules: ["heroBanner", "openingFlow", "accountBenefits", "kycGuide", "tradingAccounts"],
+	      theme: "blueFinance",
+	      tone: "professional",
+	      cta: "openAccount",
+	    },
+	    promotionConversion: {
+	      audience: ["newVisitor", "registeredNoAccount", "openedNoDeposit"],
+	      level: "growth",
+	      modules: ["heroBanner", "accountBenefits", "depositBonus", "rewardRules", "tradingAccounts"],
+	      theme: "blueFinance",
+	      tone: "conversion",
+	      cta: "openAccount",
+	    },
+	    newUserOnboarding: {
+	      audience: ["newVisitor", "registeredNoAccount"],
+	      level: "basic",
+	      modules: ["heroBanner", "openingFlow", "kycGuide", "tradingAccounts"],
+	      theme: "minimalWhite",
+	      tone: "beginner",
+	      cta: "openAccount",
+	    },
+	    marketingCampaign: {
+	      audience: ["newVisitor", "activityUser"],
+	      level: "growth",
+	      modules: ["heroBanner", "rewardActivity", "rewardRules", "depositBonus"],
+	      theme: "lightGold",
+	      tone: "campaign",
+	      cta: "joinCampaign",
+	    },
+	    rewardActivity: {
+	      audience: ["openedNoDeposit", "fundedUser", "activityUser"],
+	      level: "growth",
+	      modules: ["heroBanner", "rewardActivity", "rewardRules", "depositBonus", "tradingAccounts"],
+	      theme: "lightGold",
+	      tone: "campaign",
+	      cta: "claimReward",
+	    },
+	    ibRecruitment: {
+	      audience: ["ibUser", "highNetWorth"],
+	      level: "pro",
+	      modules: ["heroBanner", "referralLink", "accountBenefits", "tradingAccounts"],
+	      theme: "blackGold",
+	      tone: "ib",
+	      cta: "contactManager",
+	    },
+	    depositConversion: {
+	      audience: ["openedNoDeposit", "fundedUser"],
+	      level: "growth",
+	      modules: ["heroBanner", "depositBonus", "tradingAccounts"],
+	      theme: "blueFinance",
+	      tone: "conversion",
+	      cta: "depositNow",
+	    },
+	    retention: {
+	      audience: ["dormantUser", "fundedUser"],
+	      level: "basic",
+	      modules: ["heroBanner", "depositBonus", "tradingAccounts"],
+	      theme: "minimalWhite",
+	      tone: "professional",
+	      cta: "depositNow",
+	    },
   };
 
   function setGenerationMode(mode) {
@@ -815,7 +814,7 @@
       `语气：${guidedPromptCopy("tone", state.tone)}`,
       `必须可见模块：${modules.join("、")}`,
       "允许在白名单内重排 sections、brickPlan、模块变体和密度，优先让目标决定首屏",
-      "不要编造收益、客服在线状态、下载链接或后台未提供的数据",
+	      "不要编造收益、下载链接、后台未提供的数据或未选择的辅助模块",
     ];
 
     if (state.note) parts.push(`补充要求：${state.note}`);
@@ -967,16 +966,16 @@
     }, 0);
   }
 
-	  function buildSuggestionPrompt(scene, index) {
-	    const endings = [
-	      "保留这些价格、金额和指标作为页面内容，整体要明显区别于默认首页。",
-	      "请优先使用积木块组合，让首屏、操作区和账号区有清晰层级，并呈现关键数字。",
-	      "不要只换颜色，要调整模块位置、密度和视觉表达，至少保留 3 个可见数值。",
-	      "客户看到的是生成后的页面，不要出现配置选择器，推荐内容要像真实运营方案。",
-	    ];
-	    const ending = endings[(suggestionRound + index) % endings.length];
-	    return `独立生成目标：${scene.prompt}。${ending} 不沿用上一版模块顺序和布局骨架。本轮推荐编号 ${scene.id || scene.label}-${suggestionRound}-${index}，避免重复上一轮方案。`;
-	  }
+  function buildSuggestionPrompt(scene, index) {
+    const endings = [
+      "这是给客户参考的首页提示语案例，不是页面数据脚本；请只把业务意图和模块结构写清楚。",
+      "请优先使用积木块组合，让首屏、操作区和账号区有清晰层级；真实数值必须来自后台或接口。",
+      "不要只换颜色，要调整模块位置、密度和视觉表达；没有数据的字段请用占位或隐藏。",
+      "客户看到的是可编辑提示语案例，不要在提示语里编造金额、收益、人数、奖池、时效或客服状态。",
+    ];
+    const ending = endings[(suggestionRound + index) % endings.length];
+    return `${scene.prompt} ${ending} 推荐编号 ${scene.id || scene.label}-${suggestionRound}-${index}，生成页面时需避免重复上一版模块顺序和布局骨架。`;
+  }
 
   function buildSuggestionCards(options = {}) {
     if (!els.suggestionPanel) return [];
@@ -1007,7 +1006,7 @@
     return cards;
   }
 
-  function renderSuggestionCards(statusText = "根据当前文案生成可编辑场景") {
+  function renderSuggestionCards(statusText = "推荐可直接套用的首页提示语案例") {
     if (!els.suggestionPanel) return;
 
     const oldCards = [...els.suggestionPanel.querySelectorAll("[data-suggestion-prompt]")];
@@ -1032,24 +1031,17 @@
     els.suggestionButtons = [...els.suggestionPanel.querySelectorAll("[data-suggestion-prompt]")];
   }
 
-	  async function applySuggestionPrompt(button) {
-	    if (els.prompt) els.prompt.value = button.dataset.suggestionPrompt || "";
-	    interpretationRound += 1;
-	    selectedSuggestion = null;
-	    savePrompt();
-	    setAiBusy(true, aiBusyLabel("正在套用推荐"));
-	    try {
-	      const config = await generateConfigWithFallback(promptValue(), {
-	        variant: interpretationRound,
-	        distinctFrom: currentConfig,
-	      });
-	      setConfig(config, "已套用 AI 推荐");
-	      showToast("已生成一版不同首页");
-	    } finally {
-	      setAiBusy(false);
-	      els.prompt?.focus();
-	    }
-	  }
+  function applySuggestionPrompt(button) {
+    if (els.prompt) els.prompt.value = button.dataset.suggestionPrompt || "";
+    interpretationRound += 1;
+    selectedSuggestion = null;
+    savePrompt();
+    const previewConfig = home.promptToConfig(promptValue(), interpretationRound, currentConfig);
+    setConfig(previewConfig, "已写入推荐提示语，可继续编辑或生成预览");
+    renderSuggestionCards("已套用提示语，可继续编辑");
+    showToast("已写入提示语案例");
+    els.prompt?.focus();
+  }
 
   function providerPreset(provider) {
     return AI_MODEL_PRESETS[provider] || AI_MODEL_PRESETS.openai;
@@ -2400,41 +2392,18 @@
     applySuggestionPrompt(button);
   });
 
-	  els.generateSuggestions?.addEventListener("click", async () => {
-	    suggestionRound += 1;
-	    setAiBusy(true, aiBusyLabel("正在生成推荐"));
-	    try {
-	      const scenePool = buildSuggestionCards({ usePrompt: false });
-	      const nextScene = scenePool[suggestionRound % Math.max(scenePool.length, 1)] || AI_SUGGESTION_SCENES[0];
-	      const richPrompt = [
-	        promptValue() || "根据 ForexCRM 客户首页业务，生成一套更有运营价值的首页方案。",
-	        nextScene.prompt,
-	        "请把推荐里的价格、金额、比例、时效或奖池数字真正放进首页模块，不要只做标题变化。",
-	        "本次 AI 推荐需要和当前预览结构明显不同。",
-	      ].join(" ");
-	      const config = await generateConfigWithFallback(richPrompt, { variant: suggestionRound, distinctFrom: currentConfig });
-	      const normalized = home.normalizeConfig(config);
-	      const generatedScene = {
-	        id: `ai-${nextScene.id || suggestionRound}-${Date.now()}`,
-	        label: `AI 精修：${nextScene.label || normalized.name || "新方案"}`,
-	        summary: `${nextScene.summary || home.themeLabel(normalized.themePreset || normalized.theme)} · ${home.layoutLabel(normalized.layoutPreset)}`,
-	        prompt: `${richPrompt} 上一版「${normalized.name || "当前策略"}」仅作为对照，这次必须换模块顺序和布局骨架。`,
-	        tags: nextScene.tags || ["insight"],
-	      };
-	      suggestionCards = [generatedScene, ...scenePool].slice(0, 6);
-	      rememberSuggestionCards(suggestionCards);
-	      renderSuggestionCards("已结合当前文案生成新推荐");
-	      showToast("已生成一批 AI 推荐");
-    } finally {
-      setAiBusy(false);
-    }
+  els.generateSuggestions?.addEventListener("click", () => {
+    suggestionRound += 1;
+    suggestionCards = buildSuggestionCards();
+    renderSuggestionCards("已生成一批提示语案例");
+    showToast("已生成提示语案例");
   });
 
   els.refreshSuggestions?.addEventListener("click", () => {
     suggestionRound += 1;
     suggestionCards = buildSuggestionCards();
-    renderSuggestionCards("已换一批推荐场景");
-    showToast("已换一批推荐");
+    renderSuggestionCards("已换一批提示语案例");
+    showToast("已换一批提示语");
   });
 
 	  els.generate?.addEventListener("click", async () => {
