@@ -151,6 +151,7 @@
     guidedSummary: document.querySelector("[data-guided-summary]"),
     guidedSummaryTitle: document.querySelector("[data-guided-summary-title]"),
     guidedNote: document.querySelector("[data-guided-note]"),
+    guidedThemeCustom: document.querySelector("[data-guided-theme-custom]"),
     json: document.querySelector("[data-config-json]"),
     toast: document.querySelector("[data-admin-toast]"),
   };
@@ -453,6 +454,7 @@
     level: "功能分级",
     modules: "页面模块",
     theme: "视觉主题",
+    themeCustom: "自定义主题",
     tone: "内容语气",
     cta: "主 CTA",
     note: "补充要求",
@@ -476,6 +478,7 @@
 	    },
     modules: {
       heroBanner: "首屏 Banner 和主 CTA",
+      accountOverview: "账户概览：使用 asset_overview 展示账户摘要",
       openingFlow: "新手 Onboarding 引导：KYC -> 开真实账户 -> 首次入金，帮助新用户完成基础流程",
       accountBenefits: "账户类型与优势：说明真实账户、模拟账户和绑定账号的用途、限制和后台已配置权益",
       kycGuide: "CRM 账户 KYC 状态：未提交、待审、通过、拒绝；只展示当前状态和下一步，不做材料说明页",
@@ -518,6 +521,7 @@
 
   const GUIDED_CANONICAL_TARGETS = {
     heroBanner: ["welcome_header", "promo_banner"],
+    accountOverview: ["asset_overview"],
     openingFlow: ["onboarding_guide"],
     accountBenefits: ["onboarding_guide", "trading_accounts_list"],
     kycGuide: ["onboarding_guide"],
@@ -589,7 +593,8 @@
 	    accountOpening: {
 	      audience: ["newVisitor", "registeredNoAccount"],
 	      level: "growth",
-	      modules: ["heroBanner", "openingFlow", "accountBenefits", "kycGuide", "tradingAccounts"],
+	      modules: ["heroBanner", "accountOverview", "openingFlow", "accountBenefits", "kycGuide", "tradingAccounts"],
+	      assetFields: ["total", "wallet", "tradingAccount"],
 	      theme: "blueFinance",
 	      tone: "professional",
 	      cta: "openAccount",
@@ -597,7 +602,8 @@
 	    promotionConversion: {
 	      audience: ["newVisitor", "registeredNoAccount", "openedNoDeposit"],
 	      level: "growth",
-	      modules: ["heroBanner", "accountBenefits", "depositBonus", "rewardRules", "tradingAccounts"],
+	      modules: ["heroBanner", "accountOverview", "accountBenefits", "depositBonus", "rewardRules", "tradingAccounts"],
+	      assetFields: ["total", "wallet", "tradingAccount"],
 	      theme: "blueFinance",
 	      tone: "conversion",
 	      cta: "openAccount",
@@ -605,7 +611,8 @@
 	    newUserOnboarding: {
 	      audience: ["newVisitor", "registeredNoAccount"],
 	      level: "basic",
-	      modules: ["heroBanner", "openingFlow", "kycGuide", "tradingAccounts"],
+	      modules: ["heroBanner", "accountOverview", "openingFlow", "kycGuide", "tradingAccounts"],
+	      assetFields: ["total", "tradingAccount"],
 	      theme: "minimalWhite",
 	      tone: "beginner",
 	      cta: "openAccount",
@@ -614,6 +621,7 @@
 	      audience: ["newVisitor", "activityUser"],
 	      level: "growth",
 	      modules: ["heroBanner", "rewardActivity", "rewardRules", "depositBonus"],
+	      assetFields: ["total", "wallet", "tradingAccount"],
 	      theme: "lightGold",
 	      tone: "campaign",
 	      cta: "joinCampaign",
@@ -622,6 +630,7 @@
 	      audience: ["openedNoDeposit", "fundedUser", "activityUser"],
 	      level: "growth",
 	      modules: ["heroBanner", "rewardActivity", "rewardRules", "depositBonus", "tradingAccounts"],
+	      assetFields: ["total", "wallet", "tradingAccount"],
 	      theme: "lightGold",
 	      tone: "campaign",
 	      cta: "claimReward",
@@ -629,7 +638,8 @@
 	    ibRecruitment: {
 	      audience: ["ibUser", "highNetWorth"],
 	      level: "pro",
-	      modules: ["heroBanner", "referralLink", "accountBenefits", "tradingAccounts"],
+	      modules: ["heroBanner", "accountOverview", "referralLink", "accountBenefits", "tradingAccounts"],
+	      assetFields: ["total", "tradingAccount"],
 	      theme: "blackGold",
 	      tone: "ib",
 	      cta: "contactManager",
@@ -638,6 +648,7 @@
 	      audience: ["openedNoDeposit", "fundedUser"],
 	      level: "growth",
 	      modules: ["heroBanner", "depositBonus", "tradingAccounts"],
+	      assetFields: ["wallet", "tradingAccount"],
 	      theme: "blueFinance",
 	      tone: "conversion",
 	      cta: "depositNow",
@@ -645,7 +656,8 @@
 	    retention: {
 	      audience: ["dormantUser", "fundedUser"],
 	      level: "basic",
-	      modules: ["heroBanner", "depositBonus", "tradingAccounts"],
+	      modules: ["heroBanner", "accountOverview", "depositBonus", "tradingAccounts"],
+	      assetFields: ["total", "wallet", "tradingAccount"],
 	      theme: "minimalWhite",
 	      tone: "professional",
 	      cta: "depositNow",
@@ -708,6 +720,14 @@
     return GUIDED_PROMPT_COPY[group]?.[value] || guidedLabel(group, value);
   }
 
+  function hasGuidedAccountOverview(modules) {
+    return (Array.isArray(modules) ? modules : []).includes("accountOverview");
+  }
+
+  function guidedDefaultAssetFields(intent) {
+    return [...(GUIDED_INTENT_DEFAULTS[intent]?.assetFields || ["total", "wallet", "tradingAccount"])];
+  }
+
   function guidedFreedomHint(intent) {
     return {
       accountOpening: "版式自由度：采用开户旅程、路径或任务流骨架，开户清单、开户面板和 KYC 下一步优先，资产概览不要抢首屏。",
@@ -739,7 +759,9 @@
       audience: selectedGuidedValues("audience"),
       level: selectedGuidedValue("level"),
       modules: selectedGuidedValues("modules"),
+      assetFields: selectedGuidedValues("assetFields"),
       theme: selectedGuidedValue("theme"),
+      themeCustom: (els.guidedThemeCustom?.value || "").trim(),
       tone: selectedGuidedValue("tone"),
       cta: selectedGuidedValue("cta"),
       note: (els.guidedNote?.value || "").trim(),
@@ -747,6 +769,7 @@
 
     if (!state.audience.length) state.audience = [guidedButtonsFor("audience")[0]?.dataset.guidedValue].filter(Boolean);
     if (!state.modules.length) state.modules = [guidedButtonsFor("modules")[0]?.dataset.guidedValue].filter(Boolean);
+    if (!state.assetFields.length) state.assetFields = guidedDefaultAssetFields(state.intent);
     return state;
   }
 
@@ -769,6 +792,8 @@
       canonicalIntent.mustHave || [],
       modules.map((module) => module.canonicalTargets || []),
     ]);
+    const accountOverviewEnabled = hasGuidedAccountOverview(state.modules);
+    const visibleAssetFields = accountOverviewEnabled ? state.assetFields : [];
 
     return {
       source: "guided-builder",
@@ -782,9 +807,18 @@
       theme: {
         ...guidedChoiceDescriptor("theme", state.theme),
         themePreset: state.theme,
+        customInput: state.themeCustom,
       },
       tone: guidedChoiceDescriptor("tone", state.tone),
       cta: guidedChoiceDescriptor("cta", state.cta),
+      moduleSettings: {
+        assets: {
+          enabled: accountOverviewEnabled,
+          visibleFields: visibleAssetFields,
+          showAccountBreakdown: visibleAssetFields.includes("tradingAccount"),
+          showWalletBreakdown: visibleAssetFields.includes("wallet"),
+        },
+      },
       canonical: {
         primaryIntent: canonicalIntent.primaryIntent || "",
         layoutPreset: canonicalIntent.layoutPreset || "",
@@ -804,13 +838,16 @@
     const state = readGuidedState();
     const modules = state.modules.map((value) => guidedPromptCopy("modules", value));
     const audiences = state.audience.map((value) => guidedLabel("audience", value));
+    const visualInstruction = state.themeCustom
+      ? `${guidedPromptCopy("theme", state.theme)}；自定义色值或风格文案：${state.themeCustom}`
+      : guidedPromptCopy("theme", state.theme);
     const parts = [
       "请为 ForexCRM 用户端首页生成可发布的首页方案",
       `目标：${guidedPromptCopy("intent", state.intent)}`,
       `用户：${audiences.join("、")}`,
       `分级：${guidedPromptCopy("level", state.level)}`,
       `主 CTA：${guidedPromptCopy("cta", state.cta)}`,
-      `视觉：${guidedPromptCopy("theme", state.theme)}`,
+      `视觉：${visualInstruction}`,
       `语气：${guidedPromptCopy("tone", state.tone)}`,
       `必须可见模块：${modules.join("、")}`,
       "允许在白名单内重排 sections、brickPlan、模块变体和密度，优先让目标决定首屏",
@@ -819,6 +856,276 @@
 
     if (state.note) parts.push(`补充要求：${state.note}`);
     return parts.join("。");
+  }
+
+  function guidedAssetFieldsFromIntake(guidedIntake) {
+    const fields = guidedIntake?.moduleSettings?.assets?.visibleFields;
+    const valid = new Set(["total", "wallet", "tradingAccount"]);
+    return (Array.isArray(fields) ? fields : [])
+      .map((field) => String(field || "").trim())
+      .filter((field, index, list) => valid.has(field) && list.indexOf(field) === index)
+      .slice(0, 3);
+  }
+
+  function guidedIntakeHasModule(guidedIntake, moduleId) {
+    return (Array.isArray(guidedIntake?.modules) ? guidedIntake.modules : []).some((module) => module?.id === moduleId);
+  }
+
+  const GUIDED_SLOT_ORDER = [
+    "welcome_header",
+    "promo_banner",
+    "copytrading_signals",
+    "onboarding_guide",
+    "asset_overview",
+    "quick_actions",
+    "pamm_products",
+    "referral_link_card",
+    "announcements",
+    "market_news",
+    "faq_section",
+    "support_contact",
+    "app_download",
+    "trading_account_highlight",
+    "trading_accounts_list",
+    "risk_disclosure",
+  ];
+
+  const GUIDED_SLOT_SECTIONS = {
+    welcome_header: { id: "guided-welcome", type: "hero", title: "欢迎" },
+    promo_banner: { id: "guided-hero", type: "split", title: "首屏重点" },
+    copytrading_signals: { id: "guided-hero", type: "split", title: "首屏重点" },
+    onboarding_guide: { id: "guided-hero", type: "split", title: "首屏重点" },
+    asset_overview: { id: "guided-overview", type: "split", title: "账户概览" },
+    quick_actions: { id: "guided-actions", type: "split", title: "快捷操作" },
+    pamm_products: { id: "guided-products", type: "split", title: "产品推荐" },
+    referral_link_card: { id: "guided-growth", type: "split", title: "增长工具" },
+    announcements: { id: "guided-content", type: "split", title: "公告资讯" },
+    market_news: { id: "guided-content", type: "split", title: "公告资讯" },
+    faq_section: { id: "guided-help", type: "split", title: "帮助与下载" },
+    support_contact: { id: "guided-help", type: "split", title: "帮助与下载" },
+    app_download: { id: "guided-help", type: "split", title: "帮助与下载" },
+    trading_account_highlight: { id: "guided-account-performance", type: "split", title: "账户表现" },
+    trading_accounts_list: { id: "guided-trading-accounts", type: "full", title: "交易账号" },
+    risk_disclosure: { id: "guided-risk-disclosure", type: "full", title: "风险提示" },
+  };
+
+  function guidedCanonicalSlot(value) {
+    const slot = String(value || "").trim();
+    return home.FEATURES?.[slot] ? slot : "";
+  }
+
+  function guidedRequiredSlots(guidedIntake) {
+    const slots = [];
+    const addSlot = (slot) => {
+      const canonical = guidedCanonicalSlot(slot);
+      if (canonical && !slots.includes(canonical)) slots.push(canonical);
+    };
+
+    (Array.isArray(guidedIntake?.modules) ? guidedIntake.modules : []).forEach((module) => {
+      (Array.isArray(module?.canonicalTargets) ? module.canonicalTargets : []).forEach(addSlot);
+    });
+    (Array.isArray(guidedIntake?.canonical?.mustHave) ? guidedIntake.canonical.mustHave : []).forEach(addSlot);
+    if (guidedIntake?.moduleSettings?.assets?.enabled) addSlot("asset_overview");
+
+    return slots.sort((a, b) => {
+      const indexA = GUIDED_SLOT_ORDER.includes(a) ? GUIDED_SLOT_ORDER.indexOf(a) : GUIDED_SLOT_ORDER.length;
+      const indexB = GUIDED_SLOT_ORDER.includes(b) ? GUIDED_SLOT_ORDER.indexOf(b) : GUIDED_SLOT_ORDER.length;
+      return indexA - indexB;
+    });
+  }
+
+  function ensureGuidedSlot(config, slot, sectionSeed = GUIDED_SLOT_SECTIONS[slot]) {
+    const sections = Array.isArray(config.sections) ? config.sections : [];
+    if (sections.some((section) => Array.isArray(section.slots) && section.slots.includes(slot))) return;
+
+    config.sections = sections;
+    const seed = sectionSeed || { id: `guided-${slot.replace(/_/g, "-")}`, type: "split", title: home.featureLabel?.(slot) || slot };
+    const existing = config.sections.find((section) => section.id === seed.id);
+    if (existing) {
+      existing.slots = [...new Set([...(Array.isArray(existing.slots) ? existing.slots : []), slot])];
+      return;
+    }
+
+    const nextSection = { ...seed, slots: [slot] };
+    if (slot === "welcome_header") config.sections.unshift(nextSection);
+    else config.sections.push(nextSection);
+  }
+
+  function mergeGuidedSetting(config, group, updates) {
+    config.moduleSettings = config.moduleSettings && typeof config.moduleSettings === "object" ? config.moduleSettings : {};
+    config.moduleSettings[group] = {
+      ...(config.moduleSettings[group] && typeof config.moduleSettings[group] === "object" ? config.moduleSettings[group] : {}),
+      ...updates,
+    };
+  }
+
+  function enableGuidedSlot(config, slot, assetFields) {
+    const modules = config.modules && typeof config.modules === "object" ? config.modules : {};
+    const styles = config.moduleStyles && typeof config.moduleStyles === "object" ? config.moduleStyles : {};
+    config.modules = modules;
+    config.moduleStyles = styles;
+
+    if (slot === "asset_overview") {
+      const fields = assetFields.length ? assetFields : ["total", "wallet", "tradingAccount"];
+      mergeGuidedSetting(config, "assets", {
+        enabled: true,
+        visibleFields: fields,
+        showAccountBreakdown: fields.includes("tradingAccount"),
+        showWalletBreakdown: fields.includes("wallet"),
+      });
+      mergeGuidedSetting(config, "wallet", {
+        enabled: fields.includes("wallet"),
+        placement: fields.includes("wallet") ? "mergedWithAssets" : config.moduleSettings.wallet?.placement || "mergedWithAssets",
+        showFundActions: false,
+      });
+      modules.AssetOverview = modules.AssetOverview || { variant: "standard" };
+      styles.balanceTotal = styles.balanceTotal || "command";
+    }
+
+    if (slot === "quick_actions") {
+      mergeGuidedSetting(config, "quickActions", {
+        enabled: true,
+        count: Math.max(Number(config.moduleSettings.quickActions?.count) || 0, 4),
+        display: config.moduleSettings.quickActions?.display || "iconText",
+        actions: Array.isArray(config.moduleSettings.quickActions?.actions) ? config.moduleSettings.quickActions.actions : [],
+      });
+      modules.QuickActions = modules.QuickActions || { variant: "gridCards" };
+      styles.quickActions = styles.quickActions || "matrix";
+    }
+
+    if (slot === "onboarding_guide") {
+      mergeGuidedSetting(config, "openAccount", { enabled: true, real: true, demo: true, bind: false, placement: "insideTradingAccounts" });
+      modules.OnboardingProgress = modules.OnboardingProgress || { variant: "journeyTimeline" };
+      styles.onboardingProgress = styles.onboardingProgress || "journey-timeline";
+    }
+
+    if (slot === "trading_account_highlight") {
+      mergeGuidedSetting(config, "tradingAccounts", { enabled: true, realEnabled: true, demoEnabled: true });
+      modules.AccountPerformance = modules.AccountPerformance || { variant: "proChart" };
+      styles.accountPerformance = styles.accountPerformance || "pro-chart";
+    }
+
+    if (slot === "trading_accounts_list") {
+      mergeGuidedSetting(config, "tradingAccounts", { enabled: true, realEnabled: true, demoEnabled: true });
+      modules.TradingAccounts = modules.TradingAccounts || { variant: "separatedList" };
+      styles.tradingAccounts = styles.tradingAccounts || "dense-cards";
+    }
+
+    if (slot === "promo_banner") {
+      mergeGuidedSetting(config, "promoHighlight", { enabled: true });
+      modules.PromotionBanner = modules.PromotionBanner || { variant: "imageBanner" };
+      styles.promoHighlight = styles.promoHighlight || "clean";
+    }
+
+    if (slot === "pamm_products") {
+      mergeGuidedSetting(config, "pamm", { enabled: true });
+      modules.PammProducts = modules.PammProducts || { variant: "yieldChartCards" };
+      styles.pamm_products = styles.pamm_products || "yield-chart-cards";
+    }
+
+    if (slot === "copytrading_signals") {
+      mergeGuidedSetting(config, "copytrading", { enabled: true });
+      modules.CopytradingSignals = modules.CopytradingSignals || { variant: "curveCards" };
+      styles.copytrading_signals = styles.copytrading_signals || "curve-cards";
+    }
+
+    if (slot === "referral_link_card") {
+      mergeGuidedSetting(config, "referralLinkCard", { enabled: true, showPromoLink: true, showInviteCode: true });
+      modules.ReferralLinkCard = modules.ReferralLinkCard || { variant: "compactCard" };
+      styles.referral_link_card = styles.referral_link_card || "compact-card";
+    }
+
+    if (slot === "announcements") {
+      mergeGuidedSetting(config, "announcements", { enabled: true });
+      modules.Announcements = modules.Announcements || { variant: "list" };
+      styles.announcements = styles.announcements || "list";
+    }
+
+    if (slot === "market_news") {
+      mergeGuidedSetting(config, "marketNews", { enabled: true });
+      modules.MarketNews = modules.MarketNews || { variant: "feed" };
+      styles.market_news = styles.market_news || "feed";
+    }
+
+    if (slot === "risk_disclosure") {
+      mergeGuidedSetting(config, "riskDisclosure", { enabled: true });
+      modules.RiskDisclosure = modules.RiskDisclosure || { variant: "legalStrip" };
+      styles.risk_disclosure = "legal-strip";
+    }
+
+    if (slot === "faq_section") {
+      mergeGuidedSetting(config, "faq", { enabled: true });
+      modules.FaqSection = modules.FaqSection || { variant: "accordion" };
+      styles.faq_section = styles.faq_section || "accordion";
+    }
+
+    if (slot === "support_contact") {
+      mergeGuidedSetting(config, "supportContact", { enabled: true });
+      modules.SupportContact = modules.SupportContact || { variant: "serviceCard" };
+      styles.support_contact = styles.support_contact || "service-card";
+    }
+
+    if (slot === "app_download") {
+      mergeGuidedSetting(config, "appDownload", { enabled: true });
+      modules.AppDownload = modules.AppDownload || { variant: "qrCard" };
+      styles.app_download = styles.app_download || "qr-card";
+    }
+  }
+
+  function applyGuidedOverridesToConfig(config, guidedIntake) {
+    const next = JSON.parse(JSON.stringify(config || {}));
+    const assetFields = guidedAssetFieldsFromIntake(guidedIntake);
+    const accountOverviewEnabled = Boolean(guidedIntake?.moduleSettings?.assets?.enabled || guidedIntakeHasModule(guidedIntake, "accountOverview"));
+    const customThemeInput = String(guidedIntake?.theme?.customInput || "").trim();
+    const requiredSlots = guidedRequiredSlots(guidedIntake);
+
+    if (customThemeInput) {
+      next.themeCustom = { input: customThemeInput };
+    }
+
+    if (accountOverviewEnabled && assetFields.length) {
+      next.moduleSettings = next.moduleSettings && typeof next.moduleSettings === "object" ? next.moduleSettings : {};
+      next.moduleSettings.assets = {
+        ...(next.moduleSettings.assets || {}),
+        enabled: true,
+        visibleFields: assetFields,
+        showAccountBreakdown: assetFields.includes("tradingAccount"),
+        showWalletBreakdown: assetFields.includes("wallet"),
+      };
+      next.moduleSettings.wallet = {
+        ...(next.moduleSettings.wallet || {}),
+        enabled: assetFields.includes("wallet"),
+        placement: assetFields.includes("wallet") ? "mergedWithAssets" : next.moduleSettings.wallet?.placement || "mergedWithAssets",
+        showFundActions: false,
+      };
+      next.modules = { ...(next.modules || {}), AssetOverview: next.modules?.AssetOverview || { variant: "standard" } };
+      next.moduleStyles = { ...(next.moduleStyles || {}), balanceTotal: next.moduleStyles?.balanceTotal || "command" };
+      next.brickPlan = Array.isArray(next.brickPlan) ? next.brickPlan : [];
+      if (!next.brickPlan.some((brick) => brick?.component === "asset_overview")) {
+        next.brickPlan.unshift({
+          brickId: "assetOverview.flexible",
+          brickName: "账户概览",
+          family: "AssetOverview",
+          feature: "asset_overview",
+          component: "asset_overview",
+          size: "2x1",
+          zone: "hero",
+          reason: "引导式选择要求展示账户概览。",
+        });
+      }
+      ensureGuidedSlot(next, "asset_overview");
+    }
+
+    requiredSlots.forEach((slot) => {
+      ensureGuidedSlot(next, slot);
+      enableGuidedSlot(next, slot, assetFields);
+    });
+
+    if (requiredSlots.length) {
+      delete next.layout;
+    }
+
+    return home.normalizeConfig(next);
   }
 
   function renderGuidedSummary() {
@@ -835,6 +1142,7 @@
       [GUIDED_FIELD_LABELS.modules, summarizeGuidedValues("modules", state.modules)],
     ];
 
+    if (state.themeCustom) rows.splice(5, 0, [GUIDED_FIELD_LABELS.themeCustom, state.themeCustom]);
     if (state.note) rows.push([GUIDED_FIELD_LABELS.note, state.note]);
     if (els.guidedSummaryTitle) els.guidedSummaryTitle.textContent = `${guidedLabel("intent", state.intent)}方案`;
     els.guidedSummary.innerHTML = rows
@@ -856,7 +1164,7 @@
 
     if (options.switchMode) setGenerationMode("quick");
     if (options.updateConfig !== false) {
-      setConfig(home.promptToConfig(prompt, interpretationRound), "已写入引导配置");
+      setConfig(applyGuidedOverridesToConfig(home.promptToConfig(prompt, interpretationRound), buildGuidedAiIntake()), "已写入引导配置");
     }
     if (options.updateSuggestions !== false) {
       suggestionCards = buildSuggestionCards();
@@ -895,6 +1203,7 @@
     });
 
     els.guidedNote?.addEventListener("input", renderGuidedSummary);
+    els.guidedThemeCustom?.addEventListener("input", renderGuidedSummary);
     els.guidedSync?.addEventListener("click", () => syncGuidedPromptToQuick({ switchMode: true, toast: true }));
     els.guidedGenerate?.addEventListener("click", async () => {
       interpretationRound += 1;
@@ -909,7 +1218,7 @@
           inputMode: "guided",
           guidedIntake,
         });
-        generatePreview(config);
+        generatePreview(applyGuidedOverridesToConfig(config, guidedIntake));
         shouldResetBusy = false;
       } finally {
         if (shouldResetBusy) setAiBusy(false);
@@ -1694,6 +2003,7 @@
     if (els.reset) els.reset.disabled = busy;
     if (els.prompt) els.prompt.readOnly = busy;
     if (els.guidedNote) els.guidedNote.readOnly = busy;
+    if (els.guidedThemeCustom) els.guidedThemeCustom.readOnly = busy;
     if (els.intakePage) els.intakePage.classList.toggle("is-generating", busy);
     if (els.composer) {
       els.composer.classList.toggle("is-generating", busy);

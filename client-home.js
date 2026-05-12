@@ -145,7 +145,6 @@ function ensureSplitAccountShell() {
     <section class="account-split-module account-split-module-real" data-account-section="real">
       <header>
         <div>
-          <span class="section-kicker">真实账号</span>
           <strong>真实交易账号列表</strong>
         </div>
         <div class="account-section-tools">
@@ -161,7 +160,6 @@ function ensureSplitAccountShell() {
     <section class="account-split-module account-split-module-demo" data-account-section="demo">
       <header>
         <div>
-          <span class="section-kicker">模拟账号</span>
           <strong>模拟交易账号列表</strong>
         </div>
         <b data-demo-account-count>0</b>
@@ -334,7 +332,6 @@ function renderDemoPracticeCard() {
   return `
     <article class="demo-practice-card">
       <div>
-        <span class="section-kicker">模拟账号</span>
         <strong>${escapeHtml(demoPracticeAccount.id)}</strong>
         <p>${escapeHtml(demoPracticeAccount.purpose)}</p>
       </div>

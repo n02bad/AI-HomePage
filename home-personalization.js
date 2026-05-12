@@ -335,10 +335,12 @@
 
   const COMPONENT_STYLE_FEATURE_MAP = {
     welcome_header: "welcome_header",
-    asset_overview: "asset_overview",
-    onboarding_guide: "onboarding_guide",
-    trading_account_highlight: "trading_account_highlight",
-    trading_accounts_list: "trading_accounts_list",
+    asset_overview: "balanceTotal",
+    onboarding_guide: "onboardingProgress",
+    trading_account_highlight: "accountPerformance",
+    trading_accounts_list: "tradingAccounts",
+    quick_actions: "quickActions",
+    promo_banner: "promoHighlight",
     pamm_products: "pamm_products",
     copytrading_signals: "copytrading_signals",
     referral_link_card: "referral_link_card",
@@ -348,11 +350,9 @@
     faq_section: "faq_section",
     support_contact: "support_contact",
     app_download: "app_download",
-    promo_banner: "promoHighlight",
     asset_summary: "balanceTotal",
     wallet_balance: "walletBalance",
     fund_actions: "fundActions",
-    quick_actions: "quickActions",
     open_account_panel: "openAccountActions",
     onboarding_progress: "onboardingProgress",
     account_list: "tradingAccounts",
@@ -703,6 +703,13 @@
       componentMorphs: { type: "object" },
       themePreset: { enum: Object.keys(THEMES) },
       theme: { enum: Object.keys(THEMES) },
+      themeCustom: {
+        type: "object",
+        properties: {
+          input: { type: "string" },
+          primaryColor: { type: "string" },
+        },
+      },
       personalizationStrength: { enum: ["subtle", "medium", "strong"] },
       modules: {
         type: "object",
@@ -1175,7 +1182,7 @@
 
   const I18N = {
     "home.welcome.title": "欢迎回来, Huang!",
-    "home.welcome.subtitle": "集中查看交易表现、账户资产和常用操作。",
+    "home.welcome.subtitle": "查看账户净值、资金状态和待办事项，常用交易入口都在这里。",
     "home.welcome.customize": "首页个性化",
     "home.welcome.date": "2026 年 5 月 3 日, 星期日",
     "home.asset.eyebrow": "资产摘要",
@@ -1558,6 +1565,7 @@
     pageStory: "accountActivation",
     themePreset: "blueFinance",
     theme: "blueFinance",
+    themeCustom: null,
     personalizationStrength: "strong",
     density: "balanced",
     heroFocus: "copytrading_signals",
@@ -3680,7 +3688,7 @@
         wallet: { enabled: true, placement: "standalone", showFundActions: false },
         assets: { enabled: false, showFundActions: true, showAccountBreakdown: false, showWalletBreakdown: false, showAvailable: false, showMargin: false, showRiskLevel: false, wallets: [] },
         referral: { enabled: false },
-        tradingAccounts: { enabled: true, realEnabled: true, demoEnabled: false, grouping: "combined", viewMode: "card", realViewMode: "card", demoViewMode: "list" },
+        tradingAccounts: { enabled: true, realEnabled: true, demoEnabled: true, grouping: "combined", viewMode: "card", realViewMode: "card", demoViewMode: "list" },
         openAccount: { enabled: true, real: true, demo: false, bind: false, placement: "standalone" },
         riskNotice: { enabled: false },
       }));
@@ -4777,19 +4785,11 @@
 	    return Object.prototype.hasOwnProperty.call(I18N, key) ? I18N[key] : key;
 	  }
 
-	  function featureTitleHtml(safeProps, options = {}) {
+	  function featureTitleHtml(safeProps) {
 	    const eyebrow = t(safeProps.eyebrowKey).trim();
 	    const title = t(safeProps.titleKey).trim();
-	    const showEyebrow =
-	      options.showEyebrow === true &&
-	      eyebrow &&
-	      title &&
-	      eyebrow !== title &&
-	      !title.includes(eyebrow) &&
-	      !eyebrow.includes(title);
 	    return `
 	      <div class="ai-feature-title">
-	        ${showEyebrow ? `<span>${escapeHtml(eyebrow)}</span>` : ""}
 	        <strong>${escapeHtml(title || eyebrow)}</strong>
 	      </div>
 	    `;
@@ -4948,6 +4948,24 @@
     return blocks.length > 1 ? blocks : defaultHomepageLayout();
   }
 
+  function layoutCoversSections(sourceLayout, sections) {
+    if (!Array.isArray(sourceLayout) || !Array.isArray(sections)) return false;
+
+    const sectionComponents = new Set(
+      sections
+        .flatMap((section) => (Array.isArray(section.slots) ? section.slots : []))
+        .map((slot) => componentFromFeature(slot))
+        .filter(Boolean),
+    );
+    const layoutComponents = new Set(
+      sourceLayout
+        .map((block) => canonicalHomeBlock(block?.component) || block?.component)
+        .filter(Boolean),
+    );
+
+    return [...sectionComponents].every((component) => layoutComponents.has(component));
+  }
+
   function normalizeHomepageLayout(sourceLayout, sections) {
     const errors = [];
     const source = Array.isArray(sourceLayout) ? sourceLayout : layoutFromSections(sections);
@@ -5048,6 +5066,24 @@
   function normalizeThemeId(value) {
     const theme = LEGACY_THEME_MAP[value] || value;
     return THEMES[theme] ? theme : DEFAULT_CONFIG.theme;
+  }
+
+  function normalizeHexColor(value) {
+    const match = String(value || "").match(/#(?:[0-9a-f]{3}|[0-9a-f]{6})\b/i);
+    if (!match) return "";
+
+    const raw = match[0].toLowerCase();
+    if (raw.length === 4) {
+      return `#${raw[1]}${raw[1]}${raw[2]}${raw[2]}${raw[3]}${raw[3]}`;
+    }
+    return raw;
+  }
+
+  function normalizeThemeCustom(value) {
+    const source = typeof value === "string" ? { input: value } : value && typeof value === "object" ? value : null;
+    const input = String(source?.input || source?.value || "").trim().slice(0, 96);
+    const primaryColor = normalizeHexColor(source?.primaryColor || input);
+    return input ? { input, primaryColor } : null;
   }
 
   function normalizeLayoutPreset(value) {
@@ -5375,9 +5411,9 @@
       },
     };
 
-    if (!normalized.tradingAccounts.realEnabled && !normalized.tradingAccounts.demoEnabled) {
-      normalized.tradingAccounts.enabled = false;
-    }
+    normalized.tradingAccounts.enabled = true;
+    normalized.tradingAccounts.realEnabled = true;
+    normalized.tradingAccounts.demoEnabled = true;
 
     if (!normalized.openAccount.real && !normalized.openAccount.demo && !normalized.openAccount.bind) {
       normalized.openAccount.enabled = false;
@@ -5801,6 +5837,58 @@
 	    );
 	  }
 
+	  function enforceWelcomeHeaderTop(config) {
+	    if (!homepageHasSlot(config, "welcome_header")) return config;
+
+	    const existingBlock = (Array.isArray(config.layout) ? config.layout : []).find((block) => block.component === "welcome_header");
+	    const welcomeBlock = {
+	      ...(existingBlock || {}),
+	      id: "welcome-header",
+	      component: "welcome_header",
+	      slot: "hero",
+	      priority: 0,
+	      props: clone(COMPONENT_PROPS_SCHEMA.welcome_header),
+	      brickId: existingBlock?.brickId || "system.welcomeHeader",
+	      brickName: existingBlock?.brickName || "欢迎头部",
+	      brickFamily: existingBlock?.brickFamily || "WelcomeHeader",
+	      brickSize: "3x1",
+	      brickZone: "hero",
+	      brickReason: "欢迎栏如果出现，固定作为页面顶部的轻量横栏。",
+	    };
+
+	    config.sections = (Array.isArray(config.sections) ? config.sections : [])
+	      .map((section) => ({ ...section, slots: (section.slots || []).filter((slot) => slot !== "welcome_header") }))
+	      .filter((section) => section.slots.length);
+	    config.sections.unshift({ id: "welcome-header", type: "hero", title: "欢迎", slots: ["welcome_header"] });
+	    config.layout = [welcomeBlock].concat((Array.isArray(config.layout) ? config.layout : []).filter((block) => block.component !== "welcome_header"));
+	    config.brickPlan = (Array.isArray(config.brickPlan) ? config.brickPlan : [])
+	      .filter((brick) => brick.component !== "welcome_header" && brick.feature !== "welcome_header");
+
+	    return config;
+	  }
+
+	  function enforceJourneyTimelineFullRow(config) {
+	    const isJourneyTimeline =
+	      config?.moduleStyles?.onboardingProgress === "journey-timeline" ||
+	      config?.modules?.OnboardingProgress?.variant === "journeyTimeline";
+	    if (!isJourneyTimeline || !homepageHasSlot(config, "onboarding_guide")) return config;
+
+	    config.sections = (Array.isArray(config.sections) ? config.sections : [])
+	      .map((section) => ({ ...section, slots: (section.slots || []).filter((slot) => slot !== "onboarding_guide") }))
+	      .filter((section) => section.slots.length);
+	    const insertIndex = config.sections[0]?.slots?.includes("welcome_header") ? 1 : 0;
+	    config.sections.splice(insertIndex, 0, { id: "onboarding-journey", type: "full", title: "开户进度", slots: ["onboarding_guide"] });
+
+	    config.layout = (Array.isArray(config.layout) ? config.layout : []).map((block) =>
+	      block.component === "onboarding_guide"
+	        ? { ...block, slot: "full", priority: Math.min(Number(block.priority) || 20, 8), brickSize: "3x1", brickZone: "full" }
+	        : block,
+	    );
+	    config.layout.sort((a, b) => (Number(a.priority) || 0) - (Number(b.priority) || 0));
+
+	    return config;
+	  }
+
 	  function enforceRiskDisclosureFooter(config) {
 	    const settings = config.moduleSettings || {};
 	    const riskEnabled = Boolean(settings.riskDisclosure?.enabled || homepageHasSlot(config, "risk_disclosure"));
@@ -5935,6 +6023,8 @@
       next.brickPlan = next.brickPlan.filter((brick) => !disabledOptionalSlots.has(brick.component));
 	    }
 	    next.moduleSettings = settings;
+	    enforceWelcomeHeaderTop(next);
+	    enforceJourneyTimelineFullRow(next);
 	    enforceRiskDisclosureFooter(next);
 
 	    return next;
@@ -5950,10 +6040,18 @@
       !source.sections && !legacySections && sourceBrickPlan.length
         ? sectionsFromBrickPlan(sourceBrickPlan, { label: cleanMetaText(source.name, "AI 积木编排", 28) })
         : null;
-    const sections = normalizeSections(source.sections || legacySections || brickSections || DEFAULT_CONFIG.sections);
+    let sections = normalizeSections(source.sections || legacySections || brickSections || DEFAULT_CONFIG.sections);
+    const requiredSectionShell = { sections };
+    ensureSectionContains(requiredSectionShell, { id: "trading-accounts", type: "full", title: "交易账号" }, "trading_accounts_list");
+    sections = requiredSectionShell.sections;
     const layoutPreset = normalizeLayoutPreset(source.layoutPreset || (typeof source.layout === "string" ? source.layout : ""));
     const modules = normalizeModuleVariants(source);
-    const shouldUseExplicitLayout = Array.isArray(source.layout) && (source.generationMode === "brick-v2" || (!source.sections && !legacySections));
+    const hasExplicitLayout = Array.isArray(source.layout);
+    const explicitLayoutCoversSections = hasExplicitLayout && layoutCoversSections(source.layout, sections);
+    const shouldUseExplicitLayout =
+      hasExplicitLayout &&
+      (source.generationMode === "brick-v2" || (!source.sections && !legacySections)) &&
+      (!source.sections || explicitLayoutCoversSections);
     const normalizedLayout = normalizeHomepageLayout(shouldUseExplicitLayout ? source.layout : null, sections);
     const moduleStyles = normalizeModuleStyles(source.moduleStyles, modules);
     const themePreset = normalizeThemeId(source.themePreset || source.theme);
@@ -5987,6 +6085,7 @@
       layout: layout.map((block) => attachModuleMetadata(block, modules)),
       themePreset,
       theme: themePreset,
+      themeCustom: normalizeThemeCustom(source.themeCustom || source.customTheme || source.themeCustomInput),
       personalizationStrength,
       modules,
       moduleVariants: Object.keys(modules).reduce((variants, moduleId) => {
@@ -6415,11 +6514,11 @@
     }
 
     if (includesAny(signal, ["只要真实", "只看真实", "隐藏模拟", "不要模拟", "live only"])) {
-      mergeModuleSettings(config, { tradingAccounts: { realEnabled: true, demoEnabled: false } });
+      mergeModuleSettings(config, { tradingAccounts: { enabled: true, realEnabled: true, demoEnabled: true } });
     }
 
     if (includesAny(signal, ["只要模拟", "只看模拟", "demo only", "模拟优先"])) {
-      mergeModuleSettings(config, { tradingAccounts: { realEnabled: false, demoEnabled: true } });
+      mergeModuleSettings(config, { tradingAccounts: { enabled: true, realEnabled: true, demoEnabled: true } });
     }
 
     if (
@@ -7064,15 +7163,10 @@
     const safeProps = sanitizeComponentProps("welcome_header", props, []);
     feature.innerHTML = `
       <div>
-        <span>${escapeHtml(t(safeProps.actionKey))}</span>
         <h1 data-home-title>${escapeHtml(t(safeProps.titleKey))}</h1>
         <p data-home-subtitle>${escapeHtml(t(safeProps.subtitleKey))}</p>
       </div>
       <div class="welcome-actions">
-        <a class="dashboard-customize-link" href="./home-layout-admin.html">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" /><path d="M4 12h2" /><path d="M18 12h2" /><path d="m6.3 6.3 1.4 1.4" /><path d="m16.3 16.3 1.4 1.4" /><path d="M12 4v2" /><path d="M12 18v2" /><path d="m17.7 6.3-1.4 1.4" /><path d="m7.7 16.3-1.4 1.4" /></svg>
-          ${escapeHtml(t(safeProps.actionKey))}
-        </a>
         <span>${escapeHtml(t(safeProps.dateKey))}</span>
       </div>
     `;
@@ -7115,6 +7209,23 @@
     return marks[code] || code.slice(0, 1) || "?";
   }
 
+  function assetLabelWithCurrency(labelKey, fallbackLabel = "", currency = "USD") {
+    const label = fallbackLabel || t(labelKey);
+    return `${label} (${currency})`;
+  }
+
+  function assetBreakdownCard({ label, value = "--", valueAttr = "", iconText = "$", kind = "" }) {
+    const safeAttr = valueAttr ? ` ${valueAttr}` : "";
+    const kindAttr = kind ? ` data-balance-kind="${escapeHtml(kind)}"` : "";
+    return `
+      <span class="ai-balance-metric-card"${kindAttr}>
+        <i class="ai-balance-metric-icon" aria-hidden="true">${escapeHtml(iconText)}</i>
+        <small>${escapeHtml(label)}</small>
+        <b${safeAttr}>${escapeHtml(value)}</b>
+      </span>
+    `;
+  }
+
   function renderBalanceTotal(doc, config, props = {}) {
     const feature = wrapFeature(doc, "asset_overview", "ai-balance-feature", config);
     const safeProps = sanitizeComponentProps("asset_overview", props, []);
@@ -7134,60 +7245,61 @@
       ? { label: safeProps.walletLabelKey, target: "data-summary-wallets" }
       : { label: safeProps.accountsLabelKey, target: "data-summary-accounts" };
     const accountMarkup = visibleFields.includes("tradingAccount") && assetSettings.showAccountBreakdown
-      ? `
-        <span>
-          <small>${escapeHtml(t(safeProps.accountsLabelKey))}</small>
-          <b data-summary-accounts>--</b>
-        </span>
-      `
+      ? assetBreakdownCard({
+          label: assetLabelWithCurrency(safeProps.accountsLabelKey, "交易账号余额"),
+          valueAttr: "data-summary-accounts",
+          iconText: walletCurrencyMark("USD"),
+          kind: "trading-account",
+        })
       : "";
     const walletMarkup = visibleFields.includes("wallet") && walletMerged
-      ? `
-        <span>
-          <small>${escapeHtml(t(safeProps.walletLabelKey))}</small>
-          <b data-summary-wallets>--</b>
-        </span>
-      `
+      ? assetBreakdownCard({
+          label: assetLabelWithCurrency(safeProps.walletLabelKey, "钱包余额"),
+          valueAttr: "data-summary-wallets",
+          iconText: walletCurrencyMark("USD"),
+          kind: "wallet",
+        })
       : "";
     const walletCodeMarkup = visibleFields.includes("wallet") && assetSettings.wallets.length
       ? walletMetricRows(assetSettings.wallets)
           .slice(0, 4)
-          .map(
-            (wallet) => `
-              <span>
-                <small>${escapeHtml(wallet.label)} Wallet</small>
-                <b>${escapeHtml(wallet.balance)}</b>
-              </span>
-            `,
+          .map((wallet) =>
+            assetBreakdownCard({
+              label: `${wallet.label} Wallet`,
+              value: wallet.balance,
+              iconText: walletCurrencyMark(wallet.label),
+              kind: "wallet-currency",
+            }),
           )
           .join("")
       : "";
     const availableMarkup = assetSettings.showAvailable
-      ? `
-        <span>
-          <small>可用资金</small>
-          <b>${costWorkbench ? "$10,316.40" : "--"}</b>
-        </span>
-      `
+      ? assetBreakdownCard({
+          label: "可用资金",
+          value: costWorkbench ? "$10,316.40" : "--",
+          iconText: "$",
+          kind: "available",
+        })
       : "";
     const marginMarkup = assetSettings.showMargin
-      ? `
-        <span>
-          <small>保证金占用</small>
-          <b>${costWorkbench ? "$2,410.00" : "--"}</b>
-        </span>
-      `
+      ? assetBreakdownCard({
+          label: "保证金占用",
+          value: costWorkbench ? "$2,410.00" : "--",
+          iconText: "M",
+          kind: "margin",
+        })
       : "";
     const riskMarkup = assetSettings.showRiskLevel
-      ? `
-        <span>
-          <small>风险等级</small>
-          <b>${costWorkbench ? "可用 81.1%" : "--"}</b>
-        </span>
-      `
+      ? assetBreakdownCard({
+          label: "风险等级",
+          value: costWorkbench ? "可用 81.1%" : "--",
+          iconText: "%",
+          kind: "risk",
+        })
       : "";
     const detailMarkup = [accountMarkup, walletMarkup, walletCodeMarkup, availableMarkup, marginMarkup, riskMarkup].filter(Boolean).join("");
     const hasBreakdown = Boolean(detailMarkup);
+    feature.dataset.balanceDensity = hasBreakdown ? "with-breakdown" : "summary-only";
     const trustMarkup = isTrustHomepage
       ? `
         <div class="ai-trust-status" aria-label="资金安全状态">
@@ -7197,27 +7309,71 @@
         </div>
       `
       : "";
-    const noteMarkup = !hasBreakdown
-      ? `<p>${escapeHtml(t("home.asset.totalOnly"))}</p>`
+    const noteText = !hasBreakdown
+      ? t("home.asset.totalOnly")
       : walletMerged
-      ? `<p data-summary-wallet-note>${escapeHtml(t(safeProps.walletNoteKey))}</p>`
-      : `<p>${escapeHtml(config.moduleSettings.wallet.enabled ? t("home.asset.walletStandalone") : t("home.asset.accountsOnly"))}</p>`;
+      ? t(safeProps.walletNoteKey)
+      : config.moduleSettings.wallet.enabled
+      ? t("home.asset.walletStandalone")
+      : t("home.asset.accountsOnly");
+    const noteMarkup = noteText
+      ? `<button class="ai-balance-info" type="button" aria-label="${escapeHtml(noteText)}" data-tooltip="${escapeHtml(noteText)}">i</button>`
+      : "";
     const fundMarkup = assetSettings.showFundActions && !hasStandaloneFundActions(config)
       ? `<div class="ai-inline-fund-actions">${actionLinks(config)}</div>`
+      : "";
+    const insightMarkup = hasBreakdown
+      ? `
+        <div class="ai-balance-insight" aria-label="资金构成摘要">
+          <div>
+            <small>资金构成</small>
+            <b>交易账号 65% · 钱包 35%</b>
+          </div>
+          <div class="ai-balance-composition" aria-hidden="true">
+            <span style="width:65%"></span>
+            <i style="width:35%"></i>
+          </div>
+          <div class="ai-balance-meta-row">
+            <span>基准币种 USD</span>
+            <span>实时汇率折算</span>
+          </div>
+        </div>
+      `
+      : "";
+    const summaryOnlyMarkup = !hasBreakdown
+      ? `
+        <div class="ai-balance-summary-panel" aria-label="账户资产摘要状态">
+          <div class="ai-balance-health">
+            <span class="ai-balance-health-ring" aria-hidden="true"></span>
+            <div>
+              <b>资金状态正常</b>
+              <small>总览口径已同步，保持首页信息轻量。</small>
+            </div>
+          </div>
+          <div class="ai-balance-status-grid">
+            <span><small>折算口径</small><b>USD</b></span>
+            <span><small>数据状态</small><b>实时</b></span>
+            <span><small>展示范围</small><b>总览</b></span>
+          </div>
+        </div>
+      `
       : "";
 
     feature.innerHTML = `
       <div class="ai-orbit-label">
-        <span>${escapeHtml(t(safeProps.eyebrowKey))}</span>
-        <b>${escapeHtml(t(safeProps.titleKey))}</b>
+        <div class="ai-orbit-title">
+          <b>${escapeHtml(t(safeProps.titleKey))}</b>
+          ${noteMarkup}
+        </div>
       </div>
 	      <div class="ai-balance-amount">
-	        <small>${escapeHtml(t(primaryMetric.label))}</small>
+	        <small>${escapeHtml(assetLabelWithCurrency(primaryMetric.label, primaryMetric.target === "data-summary-total" ? "余额合计" : ""))}</small>
 	        <strong ${primaryMetric.target}>--</strong>
 	      </div>
 	      ${trustMarkup}
+	      ${summaryOnlyMarkup}
 	      ${hasBreakdown ? `<div class="ai-balance-breakdown">${detailMarkup}</div>` : ""}
-      ${noteMarkup}
+      ${insightMarkup}
       ${fundMarkup}
     `;
 
@@ -7233,7 +7389,6 @@
 
     feature.innerHTML = `
       <div class="ai-feature-title">
-        <span>${escapeHtml(t(safeProps.eyebrowKey))}</span>
         <strong>${escapeHtml(t(safeProps.titleKey))}</strong>
       </div>
       <div class="ai-wallet-amount">
@@ -7268,7 +7423,6 @@
     const choices = openAccountChoices(config);
     feature.innerHTML = `
       <div class="ai-feature-title">
-        <span>${escapeHtml(t("home.action.openAccount"))}</span>
         <strong>${escapeHtml(t("home.action.openAccount"))}</strong>
       </div>
       <div class="ai-open-actions">
@@ -7324,9 +7478,17 @@
         href: "#accounts",
       };
     const kycDone = kycStatus === "verified";
+    const progressPercent =
+      {
+        pending: "18%",
+        reviewing: "38%",
+        verified: "66%",
+        rejected: "18%",
+      }[kycStatus] || "66%";
+    feature.dataset.kycStatus = kycStatus;
+    feature.style.setProperty("--journey-progress", progressPercent);
     feature.innerHTML = `
       <div class="ai-feature-title">
-        <span>${escapeHtml(t("home.onboarding.eyebrow"))}</span>
         <strong>${escapeHtml(t("home.onboarding.title"))}</strong>
       </div>
       <div class="ai-path-summary" data-kyc-status="${escapeHtml(kycStatus)}">
@@ -7334,7 +7496,15 @@
         <p>${escapeHtml(kycMeta.copy)}</p>
         <a data-home-action="${escapeHtml(kycMeta.action)}" href="${escapeHtml(kycMeta.href)}">${escapeHtml(kycMeta.cta)}</a>
       </div>
-      <div class="ai-path-meter"><span></span></div>
+      <div class="ai-path-meter"><span style="width:${escapeHtml(progressPercent)}"></span></div>
+      <div class="ai-progress-journey" aria-label="开户进度">
+        <div class="ai-progress-rail"><span style="width:${escapeHtml(progressPercent)}"></span></div>
+        <div class="ai-progress-nodes">
+          <a class="${kycDone ? "done" : "active"}" data-home-action="kyc" href="#accounts"><b>01</b><span>KYC</span><small>${escapeHtml(kycMeta.label)}</small></a>
+          <a class="${kycDone ? "active" : ""}" data-home-action="openAccount" href="#accounts"><b>02</b><span>开真实账户</span><small>${kycDone ? "下一步" : "待解锁"}</small></a>
+          <a data-home-action="deposit" href="#fund-actions"><b>03</b><span>首次入金</span><small>待完成</small></a>
+        </div>
+      </div>
       <div class="ai-path-steps">
         <a class="${kycDone ? "done" : "active"}" data-home-action="kyc" href="#accounts"><b>01</b><span>KYC</span><small>${escapeHtml(kycMeta.label)}</small></a>
         <a class="${kycDone ? "active" : ""}" data-home-action="openAccount" href="#accounts"><b>02</b><span>开真实账户</span><small>${kycDone ? "下一步" : "待解锁"}</small></a>
@@ -7356,7 +7526,6 @@
       ];
       feature.innerHTML = `
         <div class="ai-deposit-ladder-copy">
-          <span>${escapeHtml(t("home.depositBonus.eyebrow"))}</span>
           <strong>${escapeHtml(t("home.depositBonus.title"))}</strong>
           <p>${escapeHtml(t("home.depositBonus.meta"))}</p>
         </div>
@@ -7594,6 +7763,7 @@
     const safeProps = sanitizeComponentProps("trading_accounts_list", props, []);
     const accountSettings = config.moduleSettings.tradingAccounts;
     const isSeparated = accountSettings.grouping === "separated" && accountSettings.realEnabled && accountSettings.demoEnabled;
+    const hasBothAccountTypes = accountSettings.realEnabled && accountSettings.demoEnabled;
     const realViewMode = accountSettings.realViewMode || (accountSettings.viewMode === "list" ? "list" : "card");
     const demoViewMode = accountSettings.demoViewMode || (accountSettings.viewMode === "card" ? "card" : "list");
     const realOrder = accountSettings.demoFirst ? 2 : 1;
@@ -7606,7 +7776,6 @@
       feature.innerHTML = `
         <div class="ai-accounts-command split">
           <div>
-            <span>${escapeHtml(t(safeProps.eyebrowKey))}</span>
             <strong>${escapeHtml(t(safeProps.titleKey))}</strong>
           </div>
         </div>
@@ -7614,7 +7783,6 @@
           <section class="account-split-module account-split-module-real" data-account-section="real" data-account-view="${escapeHtml(realViewMode)}" style="order:${realOrder}">
             <header>
               <div>
-                <span class="section-kicker">真实账号</span>
                 <strong>真实交易账号列表</strong>
               </div>
               <div class="account-section-tools">
@@ -7630,7 +7798,6 @@
           <section class="account-split-module account-split-module-demo" data-account-section="demo" data-account-view="${escapeHtml(demoViewMode)}" style="order:${demoOrder}">
             <header>
               <div>
-                <span class="section-kicker">模拟账号</span>
                 <strong>模拟交易账号列表</strong>
               </div>
               <b data-demo-account-count>0</b>
@@ -7645,11 +7812,20 @@
       return feature;
     }
 
-    const filterButtons = [
-      accountSettings.realEnabled && accountSettings.demoEnabled ? '<button class="active" data-account-filter="all" type="button">全部</button>' : "",
-      accountSettings.realEnabled ? '<button data-account-filter="real" type="button">真实</button>' : "",
-      accountSettings.demoEnabled ? '<button data-account-filter="demo" type="button">模拟</button>' : "",
-    ].join("");
+    const filterButtons = hasBothAccountTypes
+      ? [
+          '<button class="active" data-account-filter="all" type="button">全部</button>',
+          '<button data-account-filter="real" type="button">真实</button>',
+          '<button data-account-filter="demo" type="button">模拟</button>',
+        ].join("")
+      : "";
+    const filterMarkup = hasBothAccountTypes
+      ? `
+          <div class="account-filter" role="tablist" aria-label="账号类型筛选">
+            ${filterButtons}
+          </div>
+        `
+      : `<span class="account-kind-pill">${accountSettings.demoEnabled ? "模拟账号" : "真实账号"}</span>`;
     const viewToggle =
       accountSettings.viewMode === "switchable"
         ? `
@@ -7668,13 +7844,10 @@
     feature.innerHTML = `
       <div class="ai-accounts-command">
         <div>
-          <span>${escapeHtml(t(safeProps.eyebrowKey))}</span>
           <strong>${escapeHtml(t(safeProps.titleKey))}</strong>
         </div>
         <div class="account-toolbar">
-          <div class="account-filter" role="tablist" aria-label="账号类型筛选">
-            ${filterButtons}
-          </div>
+          ${filterMarkup}
           <div class="account-open-menu" data-account-open-menu></div>
           ${viewToggle}
         </div>
@@ -7705,7 +7878,6 @@
         : "KYC 尚未提交，请先完成认证资料。";
     feature.innerHTML = `
       <div class="ai-feature-title">
-        <span>${escapeHtml(t(safeProps.eyebrowKey))}</span>
         <strong>${escapeHtml(t(safeProps.titleKey))}</strong>
       </div>
       <div class="ai-user-card">
@@ -7732,7 +7904,6 @@
       feature.innerHTML = `
         <div class="ai-trader-cost-head">
           <div>
-            <span>Execution Desk</span>
             <strong>交易成本与执行效率</strong>
           </div>
           <b>MT5 Live2 · ECN</b>
@@ -7781,10 +7952,25 @@
       return feature;
     }
 
+    const accountMetrics = [
+      { label: "Floating P/L", value: "+$1,280.60", tone: "positive" },
+      { label: "Margin Ratio", value: "81.1%", tone: "" },
+      { label: "Credit", value: "$0.00", tone: "" },
+      { label: "Leverage", value: "1:100", tone: "" },
+    ]
+      .map(
+        (metric) => `
+          <span>
+            <small>${escapeHtml(metric.label)}</small>
+            <b class="${escapeHtml(metric.tone)}">${escapeHtml(metric.value)}</b>
+          </span>
+        `,
+      )
+      .join("");
+
     feature.innerHTML = `
       <div class="ai-performance-head">
         <div>
-          <span>${escapeHtml(t(safeProps.eyebrowKey)) || "Account Performance"}</span>
           <strong>${escapeHtml(t(safeProps.titleKey))}</strong>
         </div>
         <div class="ai-performance-period" data-chart-period-switch aria-label="账号表现周期">
@@ -7796,15 +7982,18 @@
         <div class="ai-performance-summary">
           <div class="ai-performance-account-line">
             <span class="account-status">Live</span>
-            <b>Trading Account</b>
+            <b>80010 · Live Trading Account</b>
             <small>MT5 · HCHoldings-Live2</small>
           </div>
           <div class="ai-performance-primary">
-            <span>Equity</span>
-            <strong>--</strong>
-            <b>Balance --</b>
+            <span>Equity (USD)</span>
+            <strong>12,726.40</strong>
+            <b>Balance 12,480.50</b>
           </div>
-          <p>当前账号表现以净值走势和持仓 PnL 为主，辅助指标保持轻量展示。</p>
+          <div class="ai-performance-account-metrics" aria-label="账号关键指标">
+            ${accountMetrics}
+          </div>
+          <p>演示数据用于预览真实账号的净值、浮动盈亏和保证金状态。</p>
         </div>
         <div class="ai-performance-chart" aria-label="7日或30日账号净值和PnL折线图">
           <div class="ai-chart-meta">
@@ -7829,12 +8018,6 @@
           </div>
         </div>
       </div>
-      <div class="ai-performance-metrics" aria-label="账号关键指标">
-        <span><small>Floating P/L</small><b>--</b></span>
-        <span><small>Margin Ratio</small><b>--</b></span>
-        <span><small>Credit</small><b>--</b></span>
-        <span><small>Leverage</small><b>--</b></span>
-      </div>
     `;
     return feature;
   }
@@ -7845,7 +8028,6 @@
     const rows = walletMetricRows(config.moduleSettings.assets.wallets);
     feature.innerHTML = `
       <div class="ai-feature-title">
-        <span>${escapeHtml(t(safeProps.eyebrowKey))}</span>
         <strong>${escapeHtml(t(safeProps.titleKey))}</strong>
       </div>
       <div class="ai-wallet-card-list" role="list" aria-label="${escapeHtml(t(safeProps.titleKey))}">
@@ -7873,7 +8055,6 @@
     const safeProps = sanitizeComponentProps("create_account_form", props, []);
     feature.innerHTML = `
       <div class="ai-feature-title">
-        <span>${escapeHtml(t(safeProps.eyebrowKey))}</span>
         <strong>${escapeHtml(t(safeProps.titleKey))}</strong>
       </div>
       <p>${escapeHtml(t(safeProps.summaryKey))}</p>
@@ -7892,7 +8073,6 @@
     const safeProps = sanitizeComponentProps("market_news", props, []);
     feature.innerHTML = `
       <div class="ai-feature-title">
-        <span>${escapeHtml(t(safeProps.eyebrowKey))}</span>
         <strong>${escapeHtml(t(safeProps.titleKey))}</strong>
       </div>
       <p>${escapeHtml(t(safeProps.summaryKey))}</p>
@@ -7910,7 +8090,6 @@
     feature.id = "risk";
     feature.innerHTML = `
       <div class="ai-feature-title">
-        <span>${escapeHtml(t(safeProps.eyebrowKey))}</span>
         <strong>${escapeHtml(t(safeProps.titleKey))}</strong>
       </div>
       <p>${escapeHtml(t(safeProps.summaryKey))}</p>
@@ -8062,7 +8241,6 @@
   function renderAiRecommendation(feature, safeProps, item) {
     const chart = trendChartPaths(item.curve);
     const currentIndex = chart.points.length - 1;
-    const eyebrow = t(safeProps.eyebrowKey).trim();
     const chartMarkers = chart.points
       .map((point, index) => {
         const markerClasses = [];
@@ -8076,7 +8254,6 @@
     feature.id = item.id;
     feature.innerHTML = `
       <div class="ai-feature-title">
-        ${eyebrow ? `<span>${escapeHtml(eyebrow)}</span>` : ""}
         <strong>${escapeHtml(t(safeProps.titleKey))}</strong>
       </div>
       <p>${escapeHtml(t(safeProps.summaryKey))}</p>
@@ -8360,6 +8537,60 @@
     });
   }
 
+  const CUSTOM_THEME_STYLE_PROPS = [
+    "--tenant-primaryColor",
+    "--tenant-primary-color",
+    "--home-primary",
+    "--home-primary-strong",
+    "--home-primary-text",
+    "--home-primary-soft",
+    "--home-primary-faint",
+    "--home-primary-border",
+    "--home-primary-border-strong",
+    "--home-primary-surface",
+    "--home-button-border",
+    "--home-button-bg",
+    "--home-button-secondary-text",
+    "--home-progress-accent",
+    "--home-action-priority-bg",
+    "--home-icon-tile-bg",
+    "--home-banner-border",
+  ];
+
+  function applyThemeCustomVars(target, custom) {
+    const nodes = [target.documentElement, target.body].filter(Boolean);
+    nodes.forEach((node) => {
+      CUSTOM_THEME_STYLE_PROPS.forEach((prop) => node.style.removeProperty(prop));
+    });
+
+    const color = normalizeThemeCustom(custom)?.primaryColor;
+    if (!color) return;
+
+    const vars = {
+      "--tenant-primaryColor": color,
+      "--tenant-primary-color": color,
+      "--home-primary": color,
+      "--home-primary-strong": color,
+      "--home-primary-text": color,
+      "--home-primary-soft": `color-mix(in srgb, ${color} 12%, #ffffff)`,
+      "--home-primary-faint": `color-mix(in srgb, ${color} 8%, #ffffff)`,
+      "--home-primary-border": `color-mix(in srgb, ${color} 36%, #ffffff)`,
+      "--home-primary-border-strong": `color-mix(in srgb, ${color} 52%, #ffffff)`,
+      "--home-primary-surface": `linear-gradient(135deg, color-mix(in srgb, ${color} 12%, #ffffff), color-mix(in srgb, ${color} 6%, #ffffff))`,
+      "--home-button-border": color,
+      "--home-button-bg": `linear-gradient(135deg, ${color}, color-mix(in srgb, ${color} 78%, #111827))`,
+      "--home-button-secondary-text": color,
+      "--home-progress-accent": `linear-gradient(135deg, ${color}, var(--home-accent))`,
+      "--home-action-priority-bg": `linear-gradient(135deg, color-mix(in srgb, ${color} 12%, #ffffff), color-mix(in srgb, var(--home-accent) 12%, #ffffff))`,
+      "--home-icon-tile-bg": `color-mix(in srgb, ${color} 10%, #ffffff)`,
+      "--home-banner-border": color,
+    };
+
+    nodes.forEach((node) => {
+      Object.entries(vars).forEach(([prop, value]) => node.style.setProperty(prop, value));
+    });
+  }
+
   function applyConfig(config, root) {
     const target = root || document;
     const body = target.body || document.body;
@@ -8403,6 +8634,7 @@
     } else if (target.documentElement) {
       target.documentElement.dataset.tenantTheme = normalized.themePreset;
     }
+    applyThemeCustomVars(target, normalized.themeCustom);
 
     target.querySelectorAll(".is-home-spotlight").forEach((node) => node.classList.remove("is-home-spotlight"));
     target.querySelectorAll(`[data-home-feature="${normalized.heroFocus}"]`).forEach((node) => {

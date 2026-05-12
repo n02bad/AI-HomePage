@@ -350,6 +350,14 @@ body[data-home-layout="traderConsole"] .ai-section-rail .ai-quick-feature {
   min-width: 0;
 }
 
+.ai-orbit-title {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .ai-orbit-label span,
 .ai-feature-title span,
 .ai-accounts-command span {
@@ -421,6 +429,271 @@ body[data-home-layout="traderConsole"] .ai-section-rail .ai-quick-feature {
 
 .ai-balance-feature p {
   margin: 0;
+}
+
+.ai-balance-info {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid color-mix(in srgb, var(--home-primary) 28%, transparent);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--home-primary) 8%, #ffffff);
+  color: var(--home-primary);
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.ai-balance-info::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 8;
+  width: max-content;
+  max-width: 260px;
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--home-primary) 26%, transparent);
+  border-radius: var(--home-radius-sm);
+  background: var(--home-tooltip-bg);
+  color: var(--home-tooltip-text);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.45;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.ai-balance-info:hover::after,
+.ai-balance-info:focus-visible::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.ai-balance-feature[data-balance-density="with-breakdown"] {
+  min-height: 184px;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(260px, 1.2fr);
+  align-content: center;
+  align-items: stretch;
+  gap: 14px;
+}
+
+.ai-balance-feature[data-balance-density="with-breakdown"] .ai-orbit-label {
+  grid-column: 1 / -1;
+  justify-content: flex-start;
+}
+
+.ai-balance-feature[data-balance-density="with-breakdown"] .ai-orbit-title {
+  justify-content: flex-start;
+}
+
+.ai-balance-feature[data-balance-density="with-breakdown"] .ai-balance-amount {
+  align-content: center;
+  padding: 12px 0;
+}
+
+.ai-balance-feature[data-balance-density="with-breakdown"] .ai-balance-breakdown {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ai-balance-feature[data-balance-density="with-breakdown"] .ai-balance-breakdown span {
+  position: relative;
+  min-height: 72px;
+  padding: 14px;
+  border-color: color-mix(in srgb, var(--home-primary) 22%, var(--home-border));
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--home-primary) 7%, #ffffff), #ffffff 66%),
+    var(--home-surface);
+}
+
+.ai-balance-feature[data-balance-density="with-breakdown"] .ai-balance-metric-card {
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 4px 10px;
+}
+
+.ai-balance-metric-icon {
+  width: 36px;
+  height: 36px;
+  grid-row: 1 / 3;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--home-primary) 20%, transparent);
+  border-radius: var(--home-radius-sm);
+  background: color-mix(in srgb, var(--home-primary) 9%, #ffffff);
+  color: var(--home-primary);
+  font-size: 15px;
+  font-style: normal;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.ai-balance-metric-card[data-balance-kind="wallet-currency"] .ai-balance-metric-icon {
+  background: color-mix(in srgb, var(--home-accent) 9%, #ffffff);
+  color: var(--home-text-strong);
+}
+
+.ai-balance-metric-card[data-balance-kind="risk"] .ai-balance-metric-icon {
+  background: color-mix(in srgb, var(--home-warning) 10%, #ffffff);
+  color: var(--home-warning);
+}
+
+.ai-balance-feature[data-balance-density="with-breakdown"] .ai-balance-breakdown b {
+  font-size: 20px;
+}
+
+.ai-balance-insight {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--home-primary) 16%, var(--home-border));
+  border-radius: var(--home-radius-sm);
+  background: color-mix(in srgb, var(--home-primary) 5%, var(--home-surface));
+}
+
+.ai-balance-insight > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ai-balance-insight small,
+.ai-balance-meta-row {
+  color: var(--home-text-muted);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.ai-balance-insight b {
+  color: var(--home-text-strong);
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.ai-balance-composition {
+  height: 8px;
+  display: flex;
+  overflow: hidden;
+  border-radius: var(--home-radius-pill);
+  background: var(--home-progress-track);
+}
+
+.ai-balance-composition span,
+.ai-balance-composition i {
+  display: block;
+  height: 100%;
+}
+
+.ai-balance-composition span {
+  background: var(--home-primary);
+}
+
+.ai-balance-composition i {
+  background: var(--home-accent);
+}
+
+.ai-balance-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ai-balance-feature[data-balance-density="summary-only"] {
+  position: relative;
+  min-height: 184px;
+  grid-template-columns: minmax(190px, 0.74fr) minmax(220px, 1fr);
+  align-items: start;
+  background:
+    radial-gradient(circle at 86% 18%, color-mix(in srgb, var(--home-primary) 13%, transparent), transparent 30%),
+    var(--home-panel-bg);
+}
+
+.ai-balance-feature[data-balance-density="summary-only"] .ai-orbit-label {
+  grid-column: 1 / -1;
+}
+
+.ai-balance-summary-panel {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--home-primary-border) 72%, transparent);
+  border-radius: var(--home-radius-md);
+  background: color-mix(in srgb, var(--home-primary-soft) 46%, var(--home-surface));
+}
+
+.ai-balance-health {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.ai-balance-health-ring {
+  width: 44px;
+  height: 44px;
+  display: block;
+  border-radius: 50%;
+  background:
+    conic-gradient(var(--home-primary) 0 76%, color-mix(in srgb, var(--home-primary) 15%, #ffffff) 76% 100%);
+  box-shadow: inset 0 0 0 7px color-mix(in srgb, var(--home-surface) 82%, #ffffff);
+}
+
+.ai-balance-health b {
+  display: block;
+  color: var(--home-text-strong);
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.ai-balance-health small {
+  display: block;
+  margin-top: 3px;
+  color: var(--home-text-muted);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.ai-balance-status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ai-balance-status-grid span {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--home-primary-border) 52%, transparent);
+  border-radius: var(--home-radius-sm);
+  background: color-mix(in srgb, var(--home-surface) 88%, #ffffff);
+}
+
+.ai-balance-status-grid small {
+  color: var(--home-text-muted);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.ai-balance-status-grid b {
+  color: var(--home-text-strong);
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.ai-balance-feature[data-balance-density="summary-only"] > p {
+  grid-column: 1 / -1;
 }
 
 .ai-wallet-amount {
@@ -711,6 +984,84 @@ body[data-home-layout="traderConsole"] .ai-section-rail .ai-quick-feature {
   color: var(--home-text-muted);
   font-size: 11px;
   font-weight: 850;
+}
+
+.ai-progress-journey {
+  display: none;
+}
+
+.ai-progress-rail {
+  position: relative;
+  height: 7px;
+  overflow: hidden;
+  border-radius: var(--home-radius-pill);
+  background: color-mix(in srgb, var(--home-primary) 12%, var(--home-progress-track));
+}
+
+.ai-progress-rail span {
+  display: block;
+  width: var(--journey-progress, 18%);
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--home-success), var(--home-primary));
+}
+
+.ai-progress-nodes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ai-progress-nodes a {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--home-progress-step-border);
+  border-radius: var(--home-radius-sm);
+  background: var(--home-soft-panel-bg);
+  color: var(--home-text-strong);
+}
+
+.ai-progress-nodes b {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--home-radius-sm);
+  background: var(--home-primary-faint);
+  color: var(--home-primary);
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.ai-progress-nodes span {
+  min-width: 0;
+  color: var(--home-text-strong);
+  font-size: 13px;
+  font-weight: 950;
+  line-height: 1.2;
+}
+
+.ai-progress-nodes small {
+  color: var(--home-text-muted);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.ai-progress-nodes .done {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.ai-progress-nodes .done b {
+  background: var(--home-success);
+  color: #fff;
+}
+
+.ai-progress-nodes .active {
+  border-color: var(--home-primary);
+  background: var(--home-primary-soft);
 }
 
 .ai-promo-feature {
@@ -1158,7 +1509,8 @@ body[data-home-layout="traderConsole"] .ai-section-rail .ai-quick-feature {
 }
 
 .ai-status-list,
-.ai-performance-metrics {
+.ai-performance-metrics,
+.ai-performance-account-metrics {
   display: grid;
   gap: 10px;
 }
@@ -1230,7 +1582,12 @@ body[data-home-layout="traderConsole"] .ai-section-rail .ai-quick-feature {
   display: grid;
   gap: 13px;
   align-content: start;
-  padding: 8px 0;
+  padding: 14px;
+  border: 1px solid var(--home-border);
+  border-radius: var(--home-radius-md);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--home-primary) 7%, #ffffff), #ffffff 58%),
+    var(--home-surface);
 }
 
 .ai-performance-account-line {
@@ -1305,8 +1662,24 @@ body[data-home-layout="traderConsole"] .ai-section-rail .ai-quick-feature {
   border-top: 1px solid var(--home-border);
 }
 
+.ai-performance-account-metrics {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ai-performance-account-metrics span {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--home-border) 84%, transparent);
+  border-radius: var(--home-radius-sm);
+  background: var(--home-surface-soft);
+}
+
 .ai-status-list small,
 .ai-performance-metrics small,
+.ai-performance-account-metrics small,
 .ai-wallet-table div:first-child span,
 .ai-create-form span {
   color: var(--home-text-muted);
@@ -1316,6 +1689,7 @@ body[data-home-layout="traderConsole"] .ai-section-rail .ai-quick-feature {
 
 .ai-status-list b,
 .ai-performance-metrics b,
+.ai-performance-account-metrics b,
 .ai-wallet-table b,
 .ai-wallet-table span {
   min-width: 0;
@@ -1327,6 +1701,10 @@ body[data-home-layout="traderConsole"] .ai-section-rail .ai-quick-feature {
   text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.ai-performance-account-metrics b.positive {
+  color: var(--home-success);
 }
 
 .ai-status-list[data-kyc-status="pending"] span:first-child,
@@ -1813,7 +2191,19 @@ body[data-home-layout="traderConsole"] .ai-section-rail .ai-quick-feature {
     grid-template-columns: 1fr;
   }
 
-  .ai-performance-metrics {
+  .ai-performance-metrics,
+  .ai-performance-account-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .ai-balance-feature[data-balance-density="summary-only"],
+  .ai-balance-feature[data-balance-density="with-breakdown"] {
+    grid-template-columns: 1fr;
+  }
+
+  .ai-balance-status-grid,
+  .ai-balance-feature[data-balance-density="with-breakdown"] .ai-balance-breakdown,
+  .ai-progress-nodes {
     grid-template-columns: 1fr;
   }
 
@@ -2200,6 +2590,19 @@ body[data-home-layout="traderConsole"] .ai-section-rail .ai-quick-feature {
 }
 
 .ai-fixed-view-label {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid #dce6f4;
+  border-radius: 8px;
+  background: #f8fbff;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.account-kind-pill {
   min-height: 34px;
   display: inline-flex;
   align-items: center;
@@ -3414,6 +3817,46 @@ body[data-layout-page="home-layout-admin"] .personalization-page {
   border-radius: 999px;
   background: var(--swatch);
   box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.06);
+}
+
+.guided-subpanel {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.guided-subpanel[hidden] {
+  display: none;
+}
+
+.guided-options.mini {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.guided-freeform-field {
+  margin-top: 8px;
+}
+
+.guided-freeform-field input {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 11px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 800;
+  outline: none;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+}
+
+.guided-freeform-field input:focus {
+  border-color: rgba(37, 99, 235, 0.46);
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 .guided-dual-grid {
@@ -6346,15 +6789,20 @@ body[data-home-layout="accountOpsConsole"] .ai-balance-feature[data-module-style
 }
 
 .ai-onboarding-feature[data-module-style="journey-timeline"] .ai-path-steps {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: stretch;
+  display: none;
 }
 
-.ai-onboarding-feature[data-module-style="journey-timeline"] .ai-path-steps a {
-  min-height: 96px;
-  align-items: flex-start;
-  flex-direction: column;
-  justify-content: center;
+.ai-onboarding-feature[data-module-style="journey-timeline"] .ai-path-meter {
+  display: none;
+}
+
+.ai-onboarding-feature[data-module-style="journey-timeline"] .ai-progress-journey {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--home-primary-border);
+  border-radius: var(--home-radius-md);
+  background: color-mix(in srgb, var(--home-primary-soft) 54%, var(--home-surface));
 }
 
 .ai-performance-feature[data-module-style="sparkline-board"] .ai-performance-metrics {
@@ -6640,6 +7088,7 @@ body[data-home-layout="accountOpsConsole"] .ai-balance-feature[data-module-style
   }
 
   .guided-options.three,
+  .guided-options.mini,
   .guided-options.cta {
     grid-template-columns: 1fr;
   }

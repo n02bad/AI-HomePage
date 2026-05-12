@@ -145,6 +145,8 @@ async function waitForServer(child, port) {
 
 async function run() {
   const home = loadHomeEngine();
+  const homeSource = fs.readFileSync(path.join(ROOT, "home-personalization.js"), "utf8");
+  const clientSourceForTitles = fs.readFileSync(path.join(ROOT, "client-home.js"), "utf8");
 
   assertOnlyAllowedBlocks(home.DEFAULT_CONFIG);
   assert.strictEqual(hasBlock(home.DEFAULT_CONFIG, "referral_link_card"), false);
@@ -206,6 +208,35 @@ async function run() {
   assert.strictEqual(guidedModules.moduleStyles.risk_disclosure, "legal-strip");
   assert.strictEqual(guidedModules.sections.at(-1).slots.includes("risk_disclosure"), true);
 
+  const guidedStaleLayout = home.normalizeConfig({
+    schemaVersion: 4,
+    blueprintVersion: 5,
+    generationMode: "brick-v2",
+    sections: [
+      { id: "guided-welcome", type: "hero", slots: ["welcome_header"] },
+      { id: "guided-hero", type: "split", slots: ["copytrading_signals", "onboarding_guide"] },
+      { id: "guided-products", type: "split", slots: ["pamm_products", "quick_actions"] },
+      { id: "guided-accounts", type: "full", slots: ["trading_accounts_list"] },
+      { id: "guided-risk", type: "full", slots: ["risk_disclosure"] },
+    ],
+    layout: [
+      { id: "welcome-header", component: "welcome_header", slot: "hero", priority: 0 },
+      { id: "risk-disclosure-footer", component: "risk_disclosure", slot: "full", priority: 100 },
+    ],
+    moduleSettings: {
+      quickActions: { enabled: true, count: 5 },
+      pamm: { enabled: true },
+      copytrading: { enabled: true },
+      riskDisclosure: { enabled: true },
+    },
+  });
+  assertOnlyAllowedBlocks(guidedStaleLayout);
+  assert.strictEqual(hasBlock(guidedStaleLayout, "copytrading_signals"), true);
+  assert.strictEqual(hasBlock(guidedStaleLayout, "pamm_products"), true);
+  assert.strictEqual(hasBlock(guidedStaleLayout, "quick_actions"), true);
+  assert.strictEqual(hasBlock(guidedStaleLayout, "trading_accounts_list"), true);
+  assert(guidedStaleLayout.layout.some((block) => block.component === "copytrading_signals"), "stale explicit layout must not hide guided sections");
+
   const localOrdinary = home.promptToConfig("普通客户首页，展示资产概览、快捷入口和交易账号列表，不要代理数据、KYC 风控或客服帮助。");
   assertOnlyAllowedBlocks(localOrdinary);
   assert.strictEqual(hasBlock(localOrdinary, "referral_link_card"), false);
@@ -242,6 +273,11 @@ async function run() {
   assert.strictEqual(home.t("home.copytrading.eyebrow"), "");
   assert.strictEqual(home.t("home.onboarding.eyebrow"), "");
   assert.strictEqual(home.t("home.copytrading.title"), "适合新手的信号源");
+  assert.strictEqual(homeSource.includes("showEyebrow"), false);
+  assert.strictEqual(homeSource.includes('class="section-kicker">真实账号'), false);
+  assert.strictEqual(homeSource.includes('class="section-kicker">模拟账号'), false);
+  assert.strictEqual(clientSourceForTitles.includes('class="section-kicker">真实账号'), false);
+  assert.strictEqual(clientSourceForTitles.includes('class="section-kicker">模拟账号'), false);
 
   const proTraderCostPrompt =
     "独立生成目标：专业交易客户首页，突出交易成本和执行效率：EURUSD 点差 0.2 起、佣金 $7/手、持仓 PnL、保证金占用、MT5 快捷操作；真实账号和模拟账号分开，整体像专业交易工作台。保留这些价格、金额和指标作为页面内容，整体要明显区别于默认首页。不沿用上一版模块顺序和布局骨架。本轮推荐编号 pro-trader-cost-3-1，避免重复上一轮方案。";
@@ -366,6 +402,42 @@ async function run() {
 	    assert.strictEqual(guidedCoreResponse.config.moduleSettings.riskDisclosure.enabled, false);
 	    assert(["workbench", "calm-table", "ops-table"].includes(guidedCoreResponse.config.moduleStyles.tradingAccounts));
 	    assert.strictEqual(guidedCoreResponse.config.moduleSettings.tradingAccounts.viewMode, "list");
+
+	    const guidedAccountOverviewResponse = await postJson(port, {
+	      inputMode: "guided",
+	      prompt:
+	        "请生成开户引导首页，必须可见模块：账户概览、新手引导、交易账号。账户概览字段仅展示余额总额和交易账号余额。视觉自定义色值 #0EA5E9。",
+	      guidedIntake: {
+	        source: "guided-builder",
+	        theme: { id: "blueFinance", label: "蓝色金融", customInput: "#0EA5E9 国际科技蓝" },
+	        canonical: {
+	          primaryIntent: "onboarding",
+	          layoutPreset: "onboardingJourney",
+	          heroFocus: "onboarding_guide",
+	          mustHave: ["asset_overview", "onboarding_guide", "trading_accounts_list"],
+	        },
+	        moduleSettings: {
+	          assets: {
+	            enabled: true,
+	            visibleFields: ["total", "tradingAccount"],
+	          },
+	        },
+	        modules: [
+	          { id: "accountOverview", label: "账户概览", canonicalTargets: ["asset_overview"] },
+	          { id: "openingFlow", label: "新手引导", canonicalTargets: ["onboarding_guide"] },
+	          { id: "tradingAccounts", label: "交易账号", canonicalTargets: ["trading_accounts_list"] },
+	        ],
+	      },
+	      modelConfig: { provider: "openai" },
+	    });
+	    assert.strictEqual(guidedAccountOverviewResponse.ok, true);
+	    assertOnlyAllowedBlocks(guidedAccountOverviewResponse.config);
+	    assert.strictEqual(hasBlock(guidedAccountOverviewResponse.config, "asset_overview"), true);
+	    assert.deepStrictEqual(guidedAccountOverviewResponse.config.moduleSettings.assets.visibleFields, ["total", "tradingAccount"]);
+	    assert.strictEqual(guidedAccountOverviewResponse.config.moduleSettings.assets.showAccountBreakdown, true);
+	    assert.strictEqual(guidedAccountOverviewResponse.config.moduleSettings.assets.showWalletBreakdown, false);
+	    assert.strictEqual(guidedAccountOverviewResponse.config.moduleSettings.wallet.enabled, false);
+	    assert.deepStrictEqual(guidedAccountOverviewResponse.config.themeCustom, { input: "#0EA5E9 国际科技蓝" });
 
 	    const guidedResponse = await postJson(port, {
       inputMode: "guided",
