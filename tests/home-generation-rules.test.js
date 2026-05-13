@@ -9,6 +9,7 @@ const ROOT = path.resolve(__dirname, "..");
 const ALLOWED_BLOCKS = new Set([
   "welcome_header",
   "asset_overview",
+  "wallet_list",
   "quick_actions",
   "onboarding_guide",
   "trading_account_highlight",
@@ -36,6 +37,28 @@ const FORBIDDEN_BLOCKS = new Set([
   "riskNotice",
   "risk_notice",
 ]);
+const CORE_MORPH_MODULES = [
+  "AssetOverview",
+  "WalletList",
+  "QuickActions",
+  "TradingAccounts",
+  "OnboardingProgress",
+  "AccountPerformance",
+  "PromotionBanner",
+  "ReferralLinkCard",
+  "RiskDisclosure",
+];
+const BLOCK_TO_MORPH_MODULE = {
+  asset_overview: "AssetOverview",
+  wallet_list: "WalletList",
+  quick_actions: "QuickActions",
+  onboarding_guide: "OnboardingProgress",
+  trading_account_highlight: "AccountPerformance",
+  trading_accounts_list: "TradingAccounts",
+  promo_banner: "PromotionBanner",
+  referral_link_card: "ReferralLinkCard",
+  risk_disclosure: "RiskDisclosure",
+};
 
 function loadHomeEngine() {
   const code = fs.readFileSync(path.join(ROOT, "home-personalization.js"), "utf8");
@@ -89,6 +112,28 @@ function assertOnlyAllowedBlocks(config) {
 
 function hasBlock(config, blockId) {
   return collectBlocks(config).includes(blockId);
+}
+
+function visibleCoreMorphModules(config) {
+  return [...new Set(collectBlocks(config).map((block) => BLOCK_TO_MORPH_MODULE[block]).filter(Boolean))];
+}
+
+function assertCoreMorphRegistry(home) {
+  assert(home.COMPONENT_MORPH_REGISTRY, "component morph registry must be exported");
+  CORE_MORPH_MODULES.forEach((moduleId) => {
+    const morphs = home.COMPONENT_MORPH_REGISTRY[moduleId];
+    assert(Array.isArray(morphs), `${moduleId} morph pool must be an array`);
+    assert(morphs.length >= 10, `${moduleId} must expose at least 10 DOM morphs`);
+    assert.strictEqual(new Set(morphs.map((item) => item.id)).size, morphs.length, `${moduleId} morph ids must be unique`);
+  });
+}
+
+function assertVisibleModulesHaveMorph(config) {
+  const morphs = config.componentMorphs || {};
+  visibleCoreMorphModules(config).forEach((moduleId) => {
+    assert(morphs[moduleId], `${moduleId} must include componentMorphs contract`);
+    assert(morphs[moduleId].morph || morphs[moduleId].morphId, `${moduleId} must include morph/morphId`);
+  });
 }
 
 function postJson(port, payload) {
@@ -148,11 +193,23 @@ async function run() {
   const homeSource = fs.readFileSync(path.join(ROOT, "home-personalization.js"), "utf8");
   const clientSourceForTitles = fs.readFileSync(path.join(ROOT, "client-home.js"), "utf8");
 
+  assertCoreMorphRegistry(home);
   assertOnlyAllowedBlocks(home.DEFAULT_CONFIG);
+  assertVisibleModulesHaveMorph(home.DEFAULT_CONFIG);
   assert.strictEqual(hasBlock(home.DEFAULT_CONFIG, "referral_link_card"), false);
   assert.deepStrictEqual(JSON.parse(JSON.stringify(home.DEFAULT_CONFIG.moduleSettings.quickActions.actions)), []);
   assert.deepStrictEqual(JSON.parse(JSON.stringify(home.DEFAULT_CONFIG.moduleSettings.assets.visibleFields)), ["total", "wallet", "tradingAccount"]);
   assert.strictEqual(home.DEFAULT_CONFIG.moduleSettings.referralLinkCard.enabled, false);
+  assert.strictEqual(home.t("home.asset.title"), "资产概览");
+  assert.strictEqual(home.t("home.asset.totalLabel"), "余额合计");
+
+  const normalizedAssetTriplet = home.normalizeConfig({
+    schemaVersion: 4,
+    moduleSettings: {
+      assets: { visibleFields: ["total", "tradingAccount"] },
+    },
+  });
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(normalizedAssetTriplet.moduleSettings.assets.visibleFields)), ["total", "wallet", "tradingAccount"]);
 
   const normalized = home.normalizeConfig({
     schemaVersion: 4,
@@ -255,6 +312,13 @@ async function run() {
   assert.strictEqual(localReferral.moduleSettings.referralLinkCard.showInviteCode, true);
   assert.strictEqual(localReferral.moduleSettings.referralLinkCard.showStats, false);
 
+  const localAnnouncementTicker = home.promptToConfig("首页第一栏展示跑马灯公告，滚动系统公告、活动公告和维护通知，交易账号列表放下方。");
+  assertOnlyAllowedBlocks(localAnnouncementTicker);
+  assert.strictEqual(hasBlock(localAnnouncementTicker, "announcements"), true);
+  assert.strictEqual(localAnnouncementTicker.moduleSettings.announcements.enabled, true);
+  assert.strictEqual(localAnnouncementTicker.moduleStyles.announcements, "ticker-strip");
+  assert.strictEqual(localAnnouncementTicker.sections[0].slots.includes("announcements"), true);
+
   const targetPrompt =
     "新用户开户引导、真实交易账号卡片、模拟账号卡片、Copytrading推荐：要显示信号源名字、收益率、总收益、还有收益率的曲线。、5个快捷入口。淡蓝色扁平化。圆角10，字体pingfangsc。";
   const localCopytrading = home.promptToConfig(targetPrompt);
@@ -270,10 +334,17 @@ async function run() {
   assert.strictEqual(localCopytrading.moduleSettings.tradingAccounts.demoViewMode, "card");
   assert.strictEqual(localCopytrading.moduleStyles.copytrading_signals, "curve-cards");
   assert.strictEqual(hasBlock(localCopytrading, "copytrading_signals"), true);
-  assert.strictEqual(home.t("home.copytrading.eyebrow"), "");
-  assert.strictEqual(home.t("home.onboarding.eyebrow"), "");
-  assert.strictEqual(home.t("home.copytrading.title"), "适合新手的信号源");
-  assert.strictEqual(homeSource.includes("showEyebrow"), false);
+	  assert.strictEqual(home.t("home.copytrading.eyebrow"), "");
+	  assert.strictEqual(home.t("home.onboarding.eyebrow"), "");
+	  assert.strictEqual(home.t("home.copytrading.title"), "适合新手的信号源");
+
+	  const localOnboardingThreeStep = home.promptToConfig("新用户 Onboarding：KYC、创建真实账户、首次入金三步旅程，做成开户进度首页。");
+	  assert.strictEqual(localOnboardingThreeStep.brickTrace.intent, "onboarding");
+	  assert.strictEqual(localOnboardingThreeStep.pageIntent.primaryIntent, "onboarding");
+	  assert.strictEqual(localOnboardingThreeStep.layoutPreset, "onboardingJourney");
+	  assert.strictEqual(localOnboardingThreeStep.brickPlan.some((brick) => brick.brickId === "promoBanner.depositLadder"), false);
+
+	  assert.strictEqual(homeSource.includes("showEyebrow"), false);
   assert.strictEqual(homeSource.includes('class="section-kicker">真实账号'), false);
   assert.strictEqual(homeSource.includes('class="section-kicker">模拟账号'), false);
   assert.strictEqual(clientSourceForTitles.includes('class="section-kicker">真实账号'), false);
@@ -284,6 +355,7 @@ async function run() {
   const localProTraderCost = home.promptToConfig(proTraderCostPrompt);
   assert.deepStrictEqual(JSON.parse(JSON.stringify(localProTraderCost.validationErrors)), []);
   assertOnlyAllowedBlocks(localProTraderCost);
+  assertVisibleModulesHaveMorph(localProTraderCost);
   assert.strictEqual(localProTraderCost.name, "AI pro-trader-cost-3-1");
   assert.strictEqual(localProTraderCost.layoutPreset, "tradingCommand");
   assert.strictEqual(localProTraderCost.themePreset, "darkTech");
@@ -299,10 +371,51 @@ async function run() {
   assert.strictEqual(hasBlock(localProTraderCost, "trading_account_highlight"), true);
   assert.strictEqual(hasBlock(localProTraderCost, "quick_actions"), true);
 
+  const professionalTraderWorkbenchPrompt =
+    "请生成一个专业交易客户首页，首屏突出交易账号状态、账户表现图表、持仓入口和 MT5 操作入口；所有交易成本、PnL、保证金和图表数据都必须来自接口，缺失时用占位，不要写死具体数值。交易账号要用卡片的方案，并且真实账号、模拟账号要在一起。让首屏、操作区和账号区有清晰层级；真实数值必须来自后台或接口。推荐编号 professional-trader-workbench-prompt-1-0，生成页面时需避免重复上一版模块顺序和布局骨架。需要补充FAQ的模块，要简约大气。希望是商务风的淡蓝色的色调。";
+  const localProfessionalTrader = home.promptToConfig(professionalTraderWorkbenchPrompt);
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(localProfessionalTrader.validationErrors)), []);
+  assertOnlyAllowedBlocks(localProfessionalTrader);
+  assertVisibleModulesHaveMorph(localProfessionalTrader);
+  assert.strictEqual(localProfessionalTrader.name, "AI professional-trader-workb");
+  assert.strictEqual(localProfessionalTrader.layoutPreset, "tradingCommand");
+  assert.strictEqual(localProfessionalTrader.themePreset, "blueFinance");
+  assert.notStrictEqual(localProfessionalTrader.themePreset, "darkTech");
+  assert.strictEqual(localProfessionalTrader.heroFocus, "trading_accounts_list");
+  assert.strictEqual(localProfessionalTrader.moduleStyles.accountPerformance, "pro-chart");
+  assert.notStrictEqual(localProfessionalTrader.moduleStyles.accountPerformance, "cost-board");
+  assert.strictEqual(localProfessionalTrader.moduleStyles.tradingAccounts, "account-wall");
+  assert.strictEqual(localProfessionalTrader.moduleSettings.tradingAccounts.grouping, "combined");
+  assert.strictEqual(localProfessionalTrader.moduleSettings.tradingAccounts.viewMode, "card");
+  assert.strictEqual(localProfessionalTrader.moduleSettings.tradingAccounts.realViewMode, "card");
+  assert.strictEqual(localProfessionalTrader.moduleSettings.tradingAccounts.demoViewMode, "card");
+  assert.strictEqual(hasBlock(localProfessionalTrader, "trading_accounts_list"), true);
+  assert.strictEqual(hasBlock(localProfessionalTrader, "trading_account_highlight"), true);
+  assert.strictEqual(hasBlock(localProfessionalTrader, "quick_actions"), true);
+  assert.strictEqual(hasBlock(localProfessionalTrader, "faq_section"), true);
+  assert.strictEqual(hasBlock(localProfessionalTrader, "asset_overview"), false);
+  assert.strictEqual(localProfessionalTrader.moduleSettings.faq.enabled, true);
+  assert(["accordion", "compact-list"].includes(localProfessionalTrader.moduleStyles.faq_section));
+  assert.strictEqual(localProfessionalTrader.dataContract.previewSample, true);
+  assert.strictEqual(localProfessionalTrader.dataContract.dataBindingRequired, true);
+  assert.strictEqual(localProfessionalTrader.dataContract.fields.tradingCost.dataBindingRequired, true);
+  assert.strictEqual(localProfessionalTrader.dataContract.fields.pnl.fallback, "--");
+  assert.strictEqual(localProfessionalTrader.dataContract.fields.margin.previewSample, true);
+  assert.strictEqual(localProfessionalTrader.dataContract.fields.charts.binding, "api.trading.performanceSeries");
+  assert.strictEqual(localProfessionalTrader.brickPlan.some((brick) => String(brick.brickId).includes("costBoard")), false);
+  assert.strictEqual(localProfessionalTrader.sections[0].slots.includes("trading_accounts_list"), true);
+  assert.strictEqual(localProfessionalTrader.sections[0].slots.includes("trading_account_highlight"), true);
+  const localProfessionalChecks = Object.fromEntries((localProfessionalTrader.pageGovernance?.checks || []).map((item) => [item.id, item.passed]));
+  assert.strictEqual(localProfessionalChecks["professional-theme"], true);
+  assert.strictEqual(localProfessionalChecks["combined-card-accounts"], true);
+  assert.strictEqual(localProfessionalChecks["no-cost-board"], true);
+  assert.strictEqual(localProfessionalChecks["data-contract"], true);
+
   const accountPerformancePrompt =
     "账号表现模块要展示 7日 或 30日 的账号净值和持仓 PnL 折线图，交易账号卡片不要乱摆指标，真实账号和模拟账号用列表。";
   const localAccountPerformance = home.promptToConfig(accountPerformancePrompt);
   assertOnlyAllowedBlocks(localAccountPerformance);
+  assertVisibleModulesHaveMorph(localAccountPerformance);
   assert.strictEqual(hasBlock(localAccountPerformance, "trading_account_highlight"), true);
   assert.strictEqual(localAccountPerformance.moduleStyles.accountPerformance, "pro-chart");
   assert(["calm-table", "ops-table"].includes(localAccountPerformance.moduleStyles.tradingAccounts));
@@ -313,9 +426,17 @@ async function run() {
     "账号表现的数据指标排版需要更简洁扁平，不要模块内还有好多模块；交易账号卡片排版做视觉优化，单个小卡片里面模块太多、重点太多。";
   const localFlatAccounts = home.promptToConfig(flatAccountPrompt);
   assertOnlyAllowedBlocks(localFlatAccounts);
+  assertVisibleModulesHaveMorph(localFlatAccounts);
   assert.strictEqual(localFlatAccounts.moduleStyles.accountPerformance, "pro-chart");
   assert.strictEqual(localFlatAccounts.moduleStyles.tradingAccounts, "dense-cards");
   assert.strictEqual(localFlatAccounts.moduleSettings.tradingAccounts.viewMode, "card");
+
+  const compactOnboardingPrompt = "开户引导首页，样式需要优化，大面积空白区域是可以舍去的，注意空间利用。";
+  const localCompactOnboarding = home.promptToConfig(compactOnboardingPrompt);
+  assertOnlyAllowedBlocks(localCompactOnboarding);
+  assertVisibleModulesHaveMorph(localCompactOnboarding);
+  assert.strictEqual(localCompactOnboarding.density, "compact");
+  assert.strictEqual(localCompactOnboarding.moduleStyles.onboardingProgress, "compact");
 
   const personalizationSource = fs.readFileSync(path.join(ROOT, "home-personalization.js"), "utf8");
   assert(!personalizationSource.includes('<i style="height: 34%"'), "account performance must not render decorative bar placeholders");
@@ -326,14 +447,20 @@ async function run() {
   assert(!personalizationSource.includes("<span>D1</span>"), "trend chart visible labels must not use D1/D7 placeholders");
   assert(personalizationSource.includes('data-chart-axis-mode="xy"'), "analytical account charts must support an XY axis mode");
   assert(personalizationSource.includes('data-chart-axis-mode="minimal"'), "recommendation charts must support a minimal axis mode");
-  assert(personalizationSource.includes("ai-performance-summary"), "account performance should use a flat account summary");
-  assert(!personalizationSource.includes("ai-performance-ledger"), "account performance must not nest balance/equity ledger cards");
+	  assert(personalizationSource.includes("ai-performance-summary"), "account performance should use a flat account summary");
+	  assert(personalizationSource.includes("ai-chart-insights"), "account performance charts must reserve the lower chart area for compact trend insights");
+	  assert(personalizationSource.includes("ai-support-bar"), "support contact must render as a compact service bar");
+	  assert(personalizationSource.includes("ai-balance-metric-row"), "asset overview should render multi-field balances in one metric row");
+	  assert(!personalizationSource.includes("ai-performance-ledger"), "account performance must not nest balance/equity ledger cards");
   const clientHomeSource = fs.readFileSync(path.join(ROOT, "client-home.js"), "utf8");
   assert(clientHomeSource.includes("account-card-flat-meta"), "trading account cards must use a flat metadata strip");
   assert(!clientHomeSource.includes("account-value-grid"), "trading account cards must not render a nested metric grid");
   const personalizationCss = fs.readFileSync(path.join(ROOT, "home-personalization.css"), "utf8");
+  const serverSource = fs.readFileSync(path.join(ROOT, "server.js"), "utf8");
+  assert(serverSource.includes("空间利用是硬约束"), "AI prompt must treat space utilization as a hard constraint");
   assert(!/\.ai-copy-signal-metrics span\s*\{[\s\S]{0,220}border-left:\s*1px/.test(personalizationCss), "recommendation metric rows should not be divided by heavy vertical lines");
   assert(!/\.ai-copy-curve\s*\{[\s\S]{0,260}repeating-linear-gradient/.test(personalizationCss), "recommendation charts should not default to dense grid backgrounds");
+  assert(/\.ai-guide-card\s*\{[\s\S]{0,220}min-height:\s*96px/.test(personalizationCss), "onboarding guide cards should avoid tall empty cards");
   const componentLibrary = JSON.parse(fs.readFileSync(path.join(ROOT, "home-component-library.json"), "utf8"));
   const accountPerformanceBrick = componentLibrary.components.find((component) => component.id === "account-performance-pro-chart");
   assert(accountPerformanceBrick.html.includes("data-home-echart"), "account performance demo must use an ECharts chart container");
@@ -358,6 +485,7 @@ async function run() {
     });
     assert.strictEqual(response.ok, true);
     assertOnlyAllowedBlocks(response.config);
+    assertVisibleModulesHaveMorph(response.config);
     assert.deepStrictEqual(response.config.moduleSettings.assets.visibleFields, ["wallet", "tradingAccount"]);
     assert.strictEqual(response.config.moduleSettings.quickActions.count, 5);
     assert.deepStrictEqual(response.config.moduleSettings.quickActions.actions, []);
@@ -369,6 +497,36 @@ async function run() {
 	    assert.strictEqual(response.config.moduleSettings.supportContact.enabled, false);
 	    assert.strictEqual(hasBlock(response.config, "referral_link_card"), false);
 	    assert.strictEqual(hasBlock(response.config, "support_contact"), false);
+
+	    const tickerResponse = await postJson(port, {
+	      prompt: "生成首页，顶部第一栏展示跑马灯公告，滚动系统公告、活动公告和维护通知；下方保留资产概览、快捷入口和交易账号列表。",
+	      modelConfig: { provider: "openai" },
+	    });
+	    assert.strictEqual(tickerResponse.ok, true);
+	    assertOnlyAllowedBlocks(tickerResponse.config);
+	    assert.strictEqual(hasBlock(tickerResponse.config, "announcements"), true);
+	    assert.strictEqual(tickerResponse.config.moduleSettings.announcements.enabled, true);
+	    assert.strictEqual(tickerResponse.config.moduleStyles.announcements, "ticker-strip");
+	    assert.strictEqual(tickerResponse.config.sections[0].slots.includes("announcements"), true);
+
+	    const walletListResponse = await postJson(port, {
+	      prompt:
+	        "生成资产管理首页，首屏资产概览只展示余额合计、交易账号余额、钱包余额。多币种钱包用钱包列表模块展示，不要把各钱包卡片放在资产概览。",
+	      modelConfig: { provider: "openai" },
+	    });
+	    assert.strictEqual(walletListResponse.ok, true);
+	    assertOnlyAllowedBlocks(walletListResponse.config);
+	    assertVisibleModulesHaveMorph(walletListResponse.config);
+	    assert.strictEqual(hasBlock(walletListResponse.config, "asset_overview"), true);
+	    assert.strictEqual(hasBlock(walletListResponse.config, "quick_actions"), true);
+	    assert.strictEqual(hasBlock(walletListResponse.config, "wallet_list"), true);
+	    assert.deepStrictEqual(walletListResponse.config.moduleSettings.assets.visibleFields, ["total", "wallet", "tradingAccount"]);
+	    assert.strictEqual(walletListResponse.config.moduleSettings.assets.showAccountBreakdown, true);
+	    assert.strictEqual(walletListResponse.config.moduleSettings.assets.showWalletBreakdown, true);
+	    assert.strictEqual(walletListResponse.config.moduleSettings.assets.showAvailable, false);
+	    assert.strictEqual(walletListResponse.config.moduleSettings.assets.showMargin, false);
+	    assert.strictEqual(walletListResponse.config.moduleSettings.assets.showRiskLevel, false);
+	    assert.strictEqual(walletListResponse.config.moduleSettings.wallet.placement, "standalone");
 
 	    const guidedCoreResponse = await postJson(port, {
 	      inputMode: "guided",
@@ -392,6 +550,7 @@ async function run() {
 	    });
 	    assert.strictEqual(guidedCoreResponse.ok, true);
 	    assertOnlyAllowedBlocks(guidedCoreResponse.config);
+	    assertVisibleModulesHaveMorph(guidedCoreResponse.config);
 	    assert.strictEqual(hasBlock(guidedCoreResponse.config, "support_contact"), false);
 	    assert.strictEqual(hasBlock(guidedCoreResponse.config, "faq_section"), false);
 	    assert.strictEqual(hasBlock(guidedCoreResponse.config, "app_download"), false);
@@ -432,12 +591,15 @@ async function run() {
 	    });
 	    assert.strictEqual(guidedAccountOverviewResponse.ok, true);
 	    assertOnlyAllowedBlocks(guidedAccountOverviewResponse.config);
+	    assertVisibleModulesHaveMorph(guidedAccountOverviewResponse.config);
 	    assert.strictEqual(hasBlock(guidedAccountOverviewResponse.config, "asset_overview"), true);
-	    assert.deepStrictEqual(guidedAccountOverviewResponse.config.moduleSettings.assets.visibleFields, ["total", "tradingAccount"]);
-	    assert.strictEqual(guidedAccountOverviewResponse.config.moduleSettings.assets.showAccountBreakdown, true);
-	    assert.strictEqual(guidedAccountOverviewResponse.config.moduleSettings.assets.showWalletBreakdown, false);
-	    assert.strictEqual(guidedAccountOverviewResponse.config.moduleSettings.wallet.enabled, false);
-	    assert.deepStrictEqual(guidedAccountOverviewResponse.config.themeCustom, { input: "#0EA5E9 国际科技蓝" });
+		    assert.deepStrictEqual(guidedAccountOverviewResponse.config.moduleSettings.assets.visibleFields, ["total", "wallet", "tradingAccount"]);
+		    assert.strictEqual(guidedAccountOverviewResponse.config.moduleSettings.assets.showAccountBreakdown, true);
+		    assert.strictEqual(guidedAccountOverviewResponse.config.moduleSettings.assets.showWalletBreakdown, true);
+		    assert.strictEqual(guidedAccountOverviewResponse.config.moduleSettings.wallet.enabled, true);
+		    assert.strictEqual(guidedAccountOverviewResponse.config.themeCustom.input, "#0EA5E9 国际科技蓝");
+		    assert.strictEqual(guidedAccountOverviewResponse.config.themeCustom.primaryColor, "#0ea5e9");
+		    assert(guidedAccountOverviewResponse.config.themeCustom.backgroundStyle, "custom theme text should expand into a palette");
 
 	    const guidedResponse = await postJson(port, {
       inputMode: "guided",
@@ -479,6 +641,7 @@ async function run() {
     });
     assert.strictEqual(copytradingResponse.ok, true);
     assertOnlyAllowedBlocks(copytradingResponse.config);
+    assertVisibleModulesHaveMorph(copytradingResponse.config);
     assert.strictEqual(copytradingResponse.config.layoutPreset, "onboardingJourney");
     assert.strictEqual(copytradingResponse.config.themePreset, "blueFinance");
     assert.strictEqual(copytradingResponse.config.heroFocus, "copytrading_signals");
@@ -497,6 +660,7 @@ async function run() {
     });
     assert.strictEqual(proTraderCostResponse.ok, true);
     assertOnlyAllowedBlocks(proTraderCostResponse.config);
+    assertVisibleModulesHaveMorph(proTraderCostResponse.config);
     assert.strictEqual(proTraderCostResponse.config.name, "AI pro-trader-cost-3-1");
     assert.strictEqual(proTraderCostResponse.config.layoutPreset, "tradingCommand");
     assert.strictEqual(proTraderCostResponse.config.themePreset, "darkTech");
@@ -511,6 +675,42 @@ async function run() {
     assert.strictEqual(hasBlock(proTraderCostResponse.config, "onboarding_guide"), false);
     assert.strictEqual(hasBlock(proTraderCostResponse.config, "trading_account_highlight"), true);
     assert.strictEqual(hasBlock(proTraderCostResponse.config, "quick_actions"), true);
+
+    const professionalTraderResponse = await postJson(port, {
+      prompt: professionalTraderWorkbenchPrompt,
+      modelConfig: { provider: "openai" },
+    });
+    assert.strictEqual(professionalTraderResponse.ok, true);
+    assertOnlyAllowedBlocks(professionalTraderResponse.config);
+    assertVisibleModulesHaveMorph(professionalTraderResponse.config);
+    assert.strictEqual(professionalTraderResponse.config.name, "AI professional-trader-workb");
+    assert.strictEqual(professionalTraderResponse.config.layoutPreset, "tradingCommand");
+    assert.strictEqual(professionalTraderResponse.config.themePreset, "blueFinance");
+    assert.notStrictEqual(professionalTraderResponse.config.themePreset, "darkTech");
+    assert.strictEqual(professionalTraderResponse.config.heroFocus, "trading_accounts_list");
+    assert.strictEqual(professionalTraderResponse.config.moduleStyles.accountPerformance, "pro-chart");
+    assert.notStrictEqual(professionalTraderResponse.config.moduleStyles.accountPerformance, "cost-board");
+    assert.strictEqual(professionalTraderResponse.config.moduleStyles.tradingAccounts, "account-wall");
+    assert.strictEqual(professionalTraderResponse.config.moduleSettings.tradingAccounts.grouping, "combined");
+    assert.strictEqual(professionalTraderResponse.config.moduleSettings.tradingAccounts.viewMode, "card");
+    assert.strictEqual(professionalTraderResponse.config.moduleSettings.tradingAccounts.realViewMode, "card");
+    assert.strictEqual(professionalTraderResponse.config.moduleSettings.tradingAccounts.demoViewMode, "card");
+    assert.strictEqual(hasBlock(professionalTraderResponse.config, "trading_accounts_list"), true);
+    assert.strictEqual(hasBlock(professionalTraderResponse.config, "trading_account_highlight"), true);
+    assert.strictEqual(hasBlock(professionalTraderResponse.config, "quick_actions"), true);
+    assert.strictEqual(hasBlock(professionalTraderResponse.config, "faq_section"), true);
+    assert.strictEqual(hasBlock(professionalTraderResponse.config, "asset_overview"), false);
+    assert.strictEqual(professionalTraderResponse.config.moduleSettings.faq.enabled, true);
+    assert(["accordion", "compact-list"].includes(professionalTraderResponse.config.moduleStyles.faq_section));
+    assert.strictEqual(professionalTraderResponse.config.dataContract.previewSample, true);
+    assert.strictEqual(professionalTraderResponse.config.dataContract.dataBindingRequired, true);
+    assert.strictEqual(professionalTraderResponse.config.dataContract.fields.tradingCost.dataBindingRequired, true);
+    assert.strictEqual(professionalTraderResponse.config.dataContract.fields.pnl.fallback, "--");
+    assert.strictEqual(professionalTraderResponse.config.dataContract.fields.margin.previewSample, true);
+    assert.strictEqual(professionalTraderResponse.config.dataContract.fields.charts.binding, "api.trading.performanceSeries");
+    assert.strictEqual(professionalTraderResponse.config.brickPlan.some((brick) => String(brick.brickId).includes("costBoard")), false);
+    assert.strictEqual(professionalTraderResponse.config.sections[0].slots.includes("trading_accounts_list"), true);
+    assert.strictEqual(professionalTraderResponse.config.sections[0].slots.includes("trading_account_highlight"), true);
 
     const accountPerformanceResponse = await postJson(port, {
       prompt: accountPerformancePrompt,
@@ -539,6 +739,7 @@ async function run() {
     });
     assert.strictEqual(referralCoreResponse.ok, true);
     assertOnlyAllowedBlocks(referralCoreResponse.config);
+    assertVisibleModulesHaveMorph(referralCoreResponse.config);
     assert.strictEqual(hasBlock(referralCoreResponse.config, "referral_link_card"), true);
     assert.strictEqual(referralCoreResponse.config.moduleSettings.referralLinkCard.enabled, true);
     assert.strictEqual(referralCoreResponse.config.moduleSettings.referralLinkCard.showPromoLink, true);

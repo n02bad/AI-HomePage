@@ -26,6 +26,7 @@ If a phrase has an implied meaning, make it explicit before generation:
 - "Account performance" means one selected trading account plus a 7-day or 30-day equity/PnL trend. It is not a generic metric dump, and it must not use bars, capsule columns, or decorative histograms.
 - "Trading account card" means account identity first, one dominant money value, one PnL/risk status, and quiet secondary metadata. Do not render every field as an equal colored tile.
 - "Simpler", "flat", "too many modules inside a module", or "too many focal points" means reduce nested panels first. Do not answer this by only shrinking gaps or changing colors.
+- "Mobile adaptation", "small screen", "autolayout", or "responsive" means the blueprint must include an `autoLayout` contract. Paired desktop modules should collapse to one module per row when the content area gets narrow, and each module must have its own internal stack/wrap rule.
 - Metric labels such as total return, 30-day return, total profit, max drawdown, and risk level do not always need individual bordered cards. Prefer compact stat rows or quiet inline groups when the module already has a framed chart or recommendation card. Avoid heavy vertical dividers that make the metric row feel like a spreadsheet.
 - Avoid decorative English eyebrow labels such as "AI Copytrading Match" when the title already explains the module. Show the business title directly unless the small label adds necessary product meaning.
 
@@ -70,6 +71,14 @@ Component-library freedom rule:
 - A generated module should be traceable to an existing parent module, field set, size token, or component interaction pattern.
 - Do not copy a saved brick verbatim or only recolor it; the new result should change layout, density, hierarchy, or composition in a way that supports the prompt intent.
 - Do not embed component-library HTML/CSS into homepage blueprints. Homepage output still uses `sections`, `brickPlan`, `moduleStyles`, and `moduleSettings`.
+
+Responsive auto layout rule:
+
+- Every generated blueprint should include `autoLayout` with `desktop`, `tablet`, `mobile`, and `moduleRules`.
+- `desktop` uses a 12-column grid and equal-height paired rows. Stable row recipes are `3x` full row, `2x+1x`, and `2x+2x`.
+- `tablet` collapses paired rows when the content container is narrow, not only when the browser viewport is narrow. Default collapse threshold is `1040px`.
+- `mobile` is single column. Internal module layouts must stack: promotion ladders become copy above tiers, onboarding steps become a vertical journey or checklist, quick actions become two or one columns, and account-performance summary/chart stack vertically.
+- If a module would be cramped in a half-width row, prefer internal wrapping or a different compact presentation before letting text overflow or creating a fake empty area.
 
 ## 3. Chart and Layout Semantics
 
@@ -145,6 +154,8 @@ The generated homepage must pass these checks before delivery:
 - Recommendation modules put the chart and metrics ahead of decorative backgrounds, oversized empty banners, or heavy CTA blocks.
 - Account performance modules include a selected account context, 7D/30D period semantics, and an ECharts line/area line chart.
 - Trading account cards have one dominant value and restrained secondary metrics; they do not show four to six equally loud metric tiles.
+- `autoLayout` is present and the result has a credible tablet/mobile fallback for every paired row and crowded module.
+- Paired modules are visually equal height on desktop, and they collapse into one module per row on narrow content containers.
 
 If any hard constraint fails, regenerate or repair the blueprint before preview.
 
@@ -168,7 +179,8 @@ Understanding protocol:
 6. For account performance, use a selected account context, 7D/30D period semantics, and an ECharts line/area line chart.
 7. Trading account cards must have one dominant value and restrained secondary metadata; use lists/tables when field density is high.
 8. Put risk disclosure at the bottom, FAQ as accordion, and account lists in the most suitable account presentation.
-9. Self-check the result against hard constraints before returning JSON.
+9. Include autoLayout with desktop/tablet/mobile rules; paired rows must be equal height on desktop and stack on narrow content containers.
+10. Self-check the result against hard constraints before returning JSON.
 
 Output:
 Return only a JSON object that can be parsed by JSON.parse.

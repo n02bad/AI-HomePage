@@ -4,11 +4,19 @@ const accounts = [
   { id: "90021", kind: "demo", balance: "50000.00", equity: "51280.60", currency: "USD", platform: "MT5", broker: "HCHoldings-Demo", type: "Demo ECN", credit: "0.00", leverage: "1:500", pnl: "+428.20", margin: "1,180.00", marginLevel: "4345%", positions: "5", usages: ["Practice", "Strategy Test"] },
 ];
 
-const demoPracticeAccount = {
-  id: "D-202605",
-  balance: "100000.00",
-  platform: "MT5 Web Demo",
-  purpose: "新手练习 / 跟单前策略测试",
+const performanceSeriesByAccount = {
+  80010: {
+    7: { equity: [100, 108, 104, 118, 126, 130, 116], pnl: [80, 89, 86, 96, 104, 109, 98], delta: "+16.8%", peak: "13,120.00", drawdown: "-3.2%" },
+    30: { equity: [100, 104, 101, 112, 121, 126, 118], pnl: [80, 86, 84, 92, 101, 104, 96], delta: "+13.4%", peak: "13,120.00", drawdown: "-5.1%" },
+  },
+  80011: {
+    7: { equity: [96, 94, 97, 95, 93, 92, 94], pnl: [76, 75, 77, 76, 73, 72, 74], delta: "-0.6%", peak: "8,320.00", drawdown: "-2.4%" },
+    30: { equity: [98, 97, 99, 96, 94, 92, 94], pnl: [78, 77, 79, 75, 73, 71, 74], delta: "-1.8%", peak: "8,460.00", drawdown: "-4.8%" },
+  },
+  90021: {
+    7: { equity: [100, 101, 103, 102, 104, 106, 105], pnl: [70, 72, 73, 73, 75, 77, 76], delta: "+2.6%", peak: "51,620.80", drawdown: "-0.8%" },
+    30: { equity: [100, 101, 102, 104, 103, 105, 106], pnl: [70, 71, 72, 74, 73, 76, 77], delta: "+4.1%", peak: "52,140.00", drawdown: "-1.2%" },
+  },
 };
 
 const wallets = [
@@ -28,6 +36,8 @@ const usdRates = {
 let activeFilter = "all";
 let activeView = "card";
 let accountEntryExpanded = false;
+let activePerformanceAccountId = accounts[0]?.id || "";
+let activePerformanceMetric = "pnl";
 
 let els = {};
 
@@ -91,12 +101,12 @@ function collectElements() {
     splitView: document.querySelector("[data-accounts-split-view]"),
     realAccountCards: document.querySelector("[data-real-account-cards]"),
     demoAccountList: document.querySelector("[data-demo-account-list]"),
-    demoPracticeCard: document.querySelector("[data-demo-practice-card]"),
     realAccountCount: document.querySelector("[data-real-account-count]"),
     demoAccountCount: document.querySelector("[data-demo-account-count]"),
     accountOpenMenu: document.querySelector("[data-account-open-menu]"),
     filterButtons: [...document.querySelectorAll("[data-account-filter]")],
     viewButtons: [...document.querySelectorAll("[data-view-mode]")],
+    performanceWidgets: [...document.querySelectorAll("[data-account-performance]")],
     summaryTotal: document.querySelector("[data-summary-total]"),
     summaryAccounts: document.querySelector("[data-summary-accounts]"),
     summaryWallets: document.querySelector("[data-summary-wallets]"),
@@ -116,6 +126,14 @@ function escapeHtml(value) {
 
 function kindLabel(account) {
   return account.kind === "demo" ? "模拟交易" : "真实交易";
+}
+
+function accountStatusLabel(account) {
+  return account.kind === "demo" ? "Demo" : "Live";
+}
+
+function performanceAccountLabel(account) {
+  return `${account.id}-${account.broker}`;
 }
 
 function visibleAccounts() {
@@ -148,10 +166,9 @@ function ensureSplitAccountShell() {
           <strong>真实交易账号列表</strong>
         </div>
         <div class="account-section-tools">
-          <b data-real-account-count>0</b>
           <button class="account-create-button" data-home-action="openAccount" data-account-entry-kind="real" type="button">
             <span>${icon("plus")}</span>
-            创建真实交易账号
+            创建账号
           </button>
         </div>
       </header>
@@ -162,10 +179,14 @@ function ensureSplitAccountShell() {
         <div>
           <strong>模拟交易账号列表</strong>
         </div>
-        <b data-demo-account-count>0</b>
+        <div class="account-section-tools">
+          <button class="account-create-button" data-home-action="openAccount" data-account-entry-kind="demo" type="button">
+            <span>${icon("demo")}</span>
+            创建账号
+          </button>
+        </div>
       </header>
       <div data-demo-account-list></div>
-      <div data-demo-practice-card></div>
     </section>
   `;
 
@@ -189,6 +210,13 @@ function formatUsdNumber(amount) {
   }).format(amount);
 }
 
+function formatSignedUsd(value) {
+  const raw = String(value || "0").trim();
+  const amount = Number(raw.replace(/[+,$\s]/g, ""));
+  const sign = raw.startsWith("-") ? "-" : "+";
+  return `${sign}$${formatUsdNumber(Math.abs(Number.isFinite(amount) ? amount : 0))}`;
+}
+
 function renderBalanceOverview() {
   const accountTotal = accounts
     .filter((account) => account.kind === "real")
@@ -206,6 +234,80 @@ function renderBalanceOverview() {
       ? "非基础币种已按汇率统一折算"
       : "钱包币种已统一折算";
   }
+}
+
+function setText(root, selector, value) {
+  const node = root.querySelector(selector);
+  if (node) node.textContent = value;
+}
+
+function currentPerformancePeriod(widget) {
+  const activeButton = widget.querySelector("[data-chart-period].active");
+  const chart = widget.querySelector("[data-home-echart]");
+  return activeButton?.dataset.chartPeriod === "30" || chart?.dataset.chartPeriod === "30" ? "30" : "7";
+}
+
+function performanceSeries(account, period) {
+  return performanceSeriesByAccount[account.id]?.[period] || performanceSeriesByAccount[accounts[0]?.id]?.[period] || { equity: [], pnl: [], delta: "--", peak: "--", drawdown: "--" };
+}
+
+function hydratePerformanceSelect(select, selectedValue) {
+  if (!select) return;
+  const nextOptions = accounts
+    .map((account) => `<option value="${escapeHtml(account.id)}">${escapeHtml(performanceAccountLabel(account))}</option>`)
+    .join("");
+
+  if (select.dataset.optionsHydrated !== "true" || select.innerHTML !== nextOptions) {
+    select.innerHTML = nextOptions;
+    select.dataset.optionsHydrated = "true";
+  }
+  select.value = selectedValue;
+}
+
+function renderAccountPerformanceWidgets() {
+  if (!els.performanceWidgets?.length) return;
+
+  const selectedAccount = accounts.find((account) => account.id === activePerformanceAccountId) || accounts[0];
+  if (!selectedAccount) return;
+  activePerformanceAccountId = selectedAccount.id;
+
+  els.performanceWidgets.forEach((widget) => {
+    const period = currentPerformancePeriod(widget);
+    const series = performanceSeries(selectedAccount, period);
+    const isLoss = String(selectedAccount.pnl || "").startsWith("-");
+
+    hydratePerformanceSelect(widget.querySelector("[data-performance-account-select]"), selectedAccount.id);
+    const metricSelect = widget.querySelector("[data-performance-metric-select]");
+    if (metricSelect) metricSelect.value = activePerformanceMetric;
+
+    const status = widget.querySelector("[data-performance-status]");
+    if (status) {
+      status.textContent = accountStatusLabel(selectedAccount);
+      status.classList.toggle("demo", selectedAccount.kind === "demo");
+    }
+
+    setText(widget, "[data-performance-account-label]", performanceAccountLabel(selectedAccount));
+    setText(widget, "[data-performance-account-meta]", `${selectedAccount.platform} · ${selectedAccount.type}`);
+    setText(widget, "[data-performance-equity]", formatUsdNumber(toUsd(selectedAccount.equity || selectedAccount.balance, selectedAccount.currency)));
+    setText(widget, "[data-performance-balance]", `Balance ${formatUsdNumber(toUsd(selectedAccount.balance, selectedAccount.currency))}`);
+    setText(widget, '[data-performance-metric-value="pnl"]', formatSignedUsd(selectedAccount.pnl));
+    setText(widget, '[data-performance-metric-value="margin"]', selectedAccount.marginLevel || "--");
+    setText(widget, '[data-performance-metric-value="credit"]', `$${formatUsdNumber(toUsd(selectedAccount.credit || 0, selectedAccount.currency))}`);
+    setText(widget, '[data-performance-metric-value="leverage"]', selectedAccount.leverage || "--");
+    widget.querySelector('[data-performance-metric-value="pnl"]')?.classList.toggle("positive", !isLoss);
+    widget.querySelector('[data-performance-metric-value="pnl"]')?.classList.toggle("negative", isLoss);
+
+    setText(widget, "[data-performance-delta-label]", `${period}D Equity`);
+    setText(widget, "[data-performance-delta]", series.delta);
+    setText(widget, "[data-performance-peak]", series.peak);
+    setText(widget, "[data-performance-drawdown]", series.drawdown);
+
+    widget.querySelectorAll("[data-home-echart]").forEach((chart) => {
+      chart.dataset.chartKind = activePerformanceMetric === "pnl" ? "account-performance" : "account-performance-equity";
+      chart.dataset.chartValues = JSON.stringify(series.equity);
+      chart.dataset.chartPnlValues = activePerformanceMetric === "pnl" ? JSON.stringify(series.pnl) : "[]";
+    });
+  });
 }
 
 function icon(name) {
@@ -323,26 +425,6 @@ function renderAccountCard(account) {
       <div class="account-card-actions compact">
         <button type="button" data-home-action="${escapeHtml(primaryAction.action)}">${escapeHtml(primaryAction.label)}</button>
         <button type="button" data-home-action="${escapeHtml(secondaryAction.action)}">${escapeHtml(secondaryAction.label)}</button>
-      </div>
-    </article>
-  `;
-}
-
-function renderDemoPracticeCard() {
-  return `
-    <article class="demo-practice-card">
-      <div>
-        <strong>${escapeHtml(demoPracticeAccount.id)}</strong>
-        <p>${escapeHtml(demoPracticeAccount.purpose)}</p>
-      </div>
-      <div class="demo-practice-metrics">
-        <span><small>模拟余额</small><b>$${escapeHtml(formatUsdNumber(demoPracticeAccount.balance))}</b></span>
-        <span><small>平台</small><b>${escapeHtml(demoPracticeAccount.platform)}</b></span>
-      </div>
-      <div class="demo-practice-actions">
-        <button type="button" data-home-action="demoTopUp">入金</button>
-        <button type="button" data-home-action="resetDemo">重置</button>
-        <button type="button" data-home-action="trade">交易</button>
       </div>
     </article>
   `;
@@ -507,9 +589,6 @@ function renderSplitAccounts() {
       : '<div class="account-empty-state">暂无模拟交易账号</div>';
   }
 
-  if (els.demoPracticeCard) {
-    els.demoPracticeCard.innerHTML = renderDemoPracticeCard();
-  }
 }
 
 function bindAccountEntry() {
@@ -601,6 +680,17 @@ function showToast(message) {
   }, 1800);
 }
 
+function markCopied(control) {
+  if (!control) return;
+  control.classList.add("is-copied");
+  control.setAttribute("data-copy-status", "success");
+  window.clearTimeout(control.copyStatusTimer);
+  control.copyStatusTimer = window.setTimeout(() => {
+    control.classList.remove("is-copied");
+    control.removeAttribute("data-copy-status");
+  }, 1400);
+}
+
 function homeActionMessage(action, element) {
   if (action === "openAccount") {
     const kind = element?.dataset?.accountEntryKind;
@@ -657,6 +747,28 @@ function bindHomeActions() {
 function bindPageActions() {
   bindHomeActions();
 
+  els.performanceWidgets.forEach((widget) => {
+    const accountSelect = widget.querySelector("[data-performance-account-select]");
+    if (accountSelect && !accountSelect.dataset.boundPerformanceAccount) {
+      accountSelect.dataset.boundPerformanceAccount = "true";
+      accountSelect.addEventListener("change", () => {
+        activePerformanceAccountId = accountSelect.value;
+        renderAccountPerformanceWidgets();
+        window.HomePersonalization?.refreshCharts?.(document);
+      });
+    }
+
+    const metricSelect = widget.querySelector("[data-performance-metric-select]");
+    if (metricSelect && !metricSelect.dataset.boundPerformanceMetric) {
+      metricSelect.dataset.boundPerformanceMetric = "true";
+      metricSelect.addEventListener("change", () => {
+        activePerformanceMetric = metricSelect.value === "equity" ? "equity" : "pnl";
+        renderAccountPerformanceWidgets();
+        window.HomePersonalization?.refreshCharts?.(document);
+      });
+    }
+  });
+
   els.filterButtons.forEach((button) => {
     if (button.dataset.boundAccountFilter) return;
     button.dataset.boundAccountFilter = "true";
@@ -676,7 +788,8 @@ function bindPageActions() {
       const value = button.dataset.copyValue || "";
       try {
         await navigator.clipboard.writeText(value);
-        showToast("已复制");
+        markCopied(button);
+        showToast("复制成功，已保存到剪贴板");
       } catch (error) {
         showToast("复制内容：" + value);
       }
@@ -732,6 +845,7 @@ function refreshClientHome() {
   collectElements();
   syncConfiguredState();
   renderAccounts();
+  renderAccountPerformanceWidgets();
   renderBalanceOverview();
   bindPageActions();
 }

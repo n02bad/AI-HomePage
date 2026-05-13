@@ -142,7 +142,7 @@ AI 的作用不是直接生成页面代码，而是根据租户描述、品牌�
 | `welcome_header` | `minimal` / `personal` / `brand-line` | 可选轻量欢迎语，放顶部，不承载复杂业务数据 |
 | `asset_overview` | `metric-strip` / `quiet-card` / `split-card` / `ticker-strip` | 展示 `total`、`wallet`、`tradingAccount` 中任意 1-3 项 |
 | `quick_actions` | `icon-grid` / `action-dock` / `compact-menu` / `command-bar` | 后台配置入口的展示容器，AI 不写死入口内容 |
-| `onboarding_guide` | `path` / `checklist` / `guide-cards` / `compact` | 新用户或未完成关键流程时的轻量引导 |
+| `onboarding_guide` | `path` / `checklist` / `guide-cards` / `compact` / `journey-timeline` | 新用户或未完成关键流程时的三步旅程引导 |
 | `trading_account_highlight` | `clean-snapshot` / `sparkline-board` / `split-performance` | 一个重点交易账号的余额、净值、收益率、浮动盈亏和折线图 |
 | `trading_accounts_list` | `workbench` / `dense-cards` / `calm-table` / `horizontal-cards` | 多个交易账号的列表、卡片组或横滑卡片 |
 | `promo_banner` | `banner` / `editorial-cover` / `compact-strip` / `split-visual` | 租户已配置活动时展示的活动 Banner |
@@ -219,7 +219,7 @@ AI 在选择图表前必须先判断数据类型，再选择组件形态，不�
 1x1: 小卡片、小指标、紧凑资讯
 1x2: 右侧侧栏、轻量引导、榜单摘要
 2x1: 主内容横卡、资产概览、快捷入口
-2x2: 资产驾驶舱、账号工作台、图表模块
+2x2: 资产概览、账号工作台、图表模块
 3x1: 整行横幅、工具条、公告/资讯条
 3x2: 长表格、交易账号列表、产品/信号源列表
 ```
@@ -272,9 +272,13 @@ AI 生成首页时必须把 `home-module-bricks.md` 当成模块参考，而不�
 - 用户要求“钱包列表”时，默认由 `asset_overview` 的 `wallet` 字段或后台返回的钱包摘要承接，不能新增独立钱包业务模块。
 - 用户要求代理推广链接、邀请码时，只能在代理/IB/合作伙伴或租户开启推广链接功能的前提下使用 `referral_link_card`；不得生成返佣、团队层级、下级客户列表或完整 `ib_dashboard`。
 - 用户同时要求新用户开户引导和 CopyTrading 推荐时，应走“新客跟单驾驶舱”结构：首屏放 `copytrading_signals` + `onboarding_guide`，快捷入口控制数量，真实账号卡片和模拟账号卡片在账号区明显分开。
+- 新客引导不要固定写成“新手引导路径”；可以大胆包装成“3步成为交易大师”“成为交易大师”等三步旅程，但核心仍只能是 KYC、创建真实账户、首次入金。
+- 真实/模拟账号分区时不要在标题右侧显示数量徽标；真实和模拟区都保留同级 `创建账号` 按钮，模拟练习卡应表达练习计划、模拟金、平台和开始练习动作，不要退回普通余额卡。
 - 积木组合可以参考已保存 AI 组件，但正式首页仍必须通过白名单模块渲染；未进入白名单的数据结构只能作为布局和样式参考。
 - `sections` 不能有空数组，`layout` 不能包含禁用或不可渲染模块；如果某个功能关闭，生成器和标准化层必须把对应 slot 移除，而不是留一个空白模块。
 - 小尺寸积木（`1x1`、`1x2`）不能孤立占据整行，必须和资产、账号、快捷入口、公告/资讯等相关积木成组排布；`3x1`、`3x2` 才适合整行视觉或长列表。
+- 每次生成首页都必须补充 `autoLayout`：桌面按 12 栅格成组并等高，内容区变窄时 paired row 自动变成一栏一个模块，手机端模块内部也要换行或纵向堆叠。
+- `autoLayout.moduleRules` 至少覆盖 `promo_banner`、`onboarding_guide`、`quick_actions`、`trading_account_highlight`：入金阶梯可上下堆叠，三步引导可由横排改竖排，快捷入口可从多列改两列/单列，账号表现图表左右同高并在手机端上下堆叠。
 - 预览页和正式首页都不能展示 `brickName`、`brickSize`、`brickReason` 等积木说明条；管理员要看这些信息时，应在方案摘要、调用记录或 DOM 调试属性里查看。
 
 ## 页面治理契约
@@ -401,11 +405,23 @@ AI 生成首页不能只靠 prompt 自觉遵守结构。每个结果都要先经
   theme: "classic | aurum | ocean | energy",
   density: "compact | balanced | spacious",
   personalizationStrength: "subtle | medium | strong",
-  sections: [
-    { id: "overview", type: "hero", title: "资产概览", slots: ["asset_overview", "quick_actions"] },
-    { id: "accounts", type: "split", title: "交易账户", slots: ["trading_account_highlight", "trading_accounts_list"] }
-  ],
-  moduleStyles: {
+	  sections: [
+	    { id: "overview", type: "hero", title: "资产概览", slots: ["asset_overview", "quick_actions"] },
+	    { id: "accounts", type: "split", title: "交易账户", slots: ["trading_account_highlight", "trading_accounts_list"] }
+	  ],
+	  autoLayout: {
+	    strategy: "responsive-grid",
+	    desktop: { columns: 12, collapseAt: 1040, rowMode: "fill-paired-rows", equalHeight: true },
+	    tablet: { columns: 1, collapseAt: 1040, rowMode: "stack-paired-rows" },
+	    mobile: { columns: 1, collapseAt: 720, rowMode: "single-column", moduleFlow: "stack-module-internals" },
+	    moduleRules: {
+	      promo_banner: { desktop: "split-copy-tiers", tablet: "stack-copy-tiers", mobile: "single-column-tiers" },
+	      onboarding_guide: { desktop: "three-step-row", tablet: "vertical-journey", mobile: "checklist" },
+	      quick_actions: { desktop: "auto-grid", tablet: "two-column-grid", mobile: "one-or-two-column-grid" },
+	      trading_account_highlight: { desktop: "split-equal-height", tablet: "stack-chart-after-summary", mobile: "single-column-chart" }
+	    }
+	  },
+	  moduleStyles: {
     asset_overview: "metric-strip | quiet-card | split-card",
     quick_actions: "matrix | toolbar | compact-menu",
     trading_account_highlight: "clean-snapshot | sparkline-board",

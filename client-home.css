@@ -464,24 +464,26 @@
 .quick-actions {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
   margin-top: 18px;
 }
 
 .quick-action {
-  min-height: 68px;
+  min-height: 76px;
   display: grid;
   place-items: center;
   align-content: center;
   gap: 7px;
   padding: 10px 8px;
-  border: 1px solid var(--home-border);
+  border: 1px solid var(--home-border-soft);
   border-radius: var(--home-radius-sm);
-  background: var(--home-surface);
+  background: var(--home-surface-soft);
   color: var(--home-text-strong);
   text-align: center;
   font-size: 12px;
   font-weight: 900;
+  box-shadow: var(--home-button-subtle-shadow);
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
 }
 
 .quick-action:hover,
@@ -494,6 +496,13 @@
 .account-card-actions button:hover,
 .demo-practice-actions button:hover {
   transform: translateY(-1px);
+}
+
+.quick-action:hover,
+.quick-action:focus-visible {
+  border-color: var(--home-primary-border);
+  background: var(--home-action-priority-bg);
+  box-shadow: var(--home-panel-shadow);
 }
 
 .quick-icon {
@@ -1183,14 +1192,32 @@
 
 .demo-practice-card {
   display: grid;
-  gap: 13px;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.2fr) auto;
+  align-items: center;
+  gap: 16px;
   margin-top: 12px;
-  padding: 14px;
-  border: 1px solid var(--home-primary-border);
+  padding: 16px;
+  border: 1px solid var(--home-card-border-strong);
   border-radius: var(--home-radius-md);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(239, 246, 255, 0.82)),
-    var(--home-surface);
+  background: color-mix(in srgb, var(--home-primary-soft) 22%, var(--home-surface));
+}
+
+.demo-practice-copy {
+  min-width: 0;
+}
+
+.demo-practice-copy span {
+  width: fit-content;
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 0 9px;
+  border-radius: var(--home-radius-pill);
+  background: var(--home-surface);
+  color: var(--home-primary);
+  font-size: 12px;
+  font-weight: 950;
 }
 
 .demo-practice-card strong {
@@ -1210,12 +1237,16 @@
 .demo-practice-metrics,
 .demo-practice-actions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
-.demo-practice-actions {
+.demo-practice-metrics {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.demo-practice-actions {
+  min-width: 150px;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .demo-practice-metrics span {
@@ -1525,6 +1556,12 @@ button.account-entry-action {
   box-shadow: var(--home-toast-shadow);
 }
 
+[data-copy-value].is-copied {
+  border-color: #16a34a !important;
+  background: #16a34a !important;
+  color: #fff !important;
+}
+
 .welcome-actions svg,
 .overview-info svg,
 .fund-icon svg,
@@ -1609,6 +1646,15 @@ button.account-entry-action {
     flex-wrap: wrap;
   }
 
+  .demo-practice-card {
+    grid-template-columns: 1fr;
+  }
+
+  .demo-practice-actions {
+    min-width: 0;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .progress-tasks,
   .overview-head,
   .balance-metrics,
@@ -1655,7 +1701,9 @@ button.account-entry-action {
   }
 
   .accounts-card-view,
-  .account-meta {
+  .account-meta,
+  .demo-practice-metrics,
+  .demo-practice-actions {
     grid-template-columns: 1fr;
   }
 

@@ -85,6 +85,21 @@
   };
   const root = document.documentElement;
 
+  function isTenantHomeScope() {
+    const body = document.body;
+    if (body?.dataset?.layoutPage === "client-home" || body?.dataset?.homePreview === "content-only") return true;
+
+    const path = String(window.location?.pathname || "");
+    if (/\/client-home\.html$/i.test(path)) return true;
+
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return params.has("preview") && /\/client-home\.html$/i.test(path);
+    } catch (error) {
+      return false;
+    }
+  }
+
   function readTheme() {
     try {
       const stored = window.localStorage.getItem(STORAGE_KEY);
@@ -141,7 +156,8 @@
   }
 
   function applyTheme(theme) {
-    const nextTheme = THEMES.has(theme) ? theme : "light";
+    const requestedTheme = THEMES.has(theme) ? theme : "light";
+    const nextTheme = isTenantHomeScope() ? "light" : requestedTheme;
     root.dataset.theme = nextTheme;
     root.style.colorScheme = nextTheme;
 

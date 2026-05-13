@@ -1,0 +1,13 @@
+{
+  "info": {
+    "style": "guide-cards",
+    "variant": "guideCards",
+    "cards": 3,
+    "visibleText": "3步成为交易大师 KYC 通过 未提交 01 创建真实账户 通过后解锁 02 首次入金 待完成 03 KYC 未提交 当前 CRM 账户尚未提交 KYC，完成认证后才能继续开真实账户。 下一步：提交 KYC",
+    "width": 1320,
+    "height": 357
+  },
+  "errors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ]
+}

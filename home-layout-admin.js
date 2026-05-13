@@ -432,9 +432,9 @@
   }
 
   const AI_SUGGESTION_SCENES = [
-    { id: "new-user-onboarding-prompt", label: "新手引导提示语", summary: "适合不知道怎么描述开户旅程的客户", prompt: "请生成一个新用户 Onboarding 首页，主线是 KYC 状态、开真实账户、首次入金；KYC 只展示当前 CRM 账户状态，状态可能是未提交、待审、通过、拒绝。请用任务流或路径卡呈现下一步，不要编造金额、收益或活动奖励。", tags: ["kyc", "conversion"] },
+    { id: "new-user-onboarding-prompt", label: "新客三步提示语", summary: "适合不知道怎么描述开户旅程的客户", prompt: "请生成一个新用户 Onboarding 首页，主线是 KYC 状态、创建真实账户、首次入金三步；标题和视觉可以大胆包装成“3步成为交易大师”或类似新客旅程。KYC 只展示当前 CRM 账户状态，状态可能是未提交、待审、通过、拒绝。请让 AI 按意图选择任务流、精美路径卡、原路径条或横向旅程，图标要精致、有完成下一步的欲望，不要固定成三等分方格，也不要编造金额、收益或活动奖励。", tags: ["kyc", "conversion"] },
     { id: "account-type-benefit-prompt", label: "账户类型与优势提示语", summary: "把真实账户、模拟账户和账户权益说清楚", prompt: "请生成一个账户类型与优势首页，说明真实账户、模拟账户和绑定账号各自适合什么场景；账户优势只使用后台已配置字段，例如账户类型、点差、杠杆、平台、入金门槛或服务权益，没有数据就用占位或隐藏。", tags: ["account", "trade"] },
-    { id: "ib-referral-card-prompt", label: "推广链接卡片提示语", summary: "推广链接、邀请码、复制动作和基础统计", prompt: "请生成一个代理/IB 用户首页，重点使用 referral_link_card 积木；推广链接模块要参考积木块已有字段，再引申出自己的样式，例如链接优先、邀请码优先、分享按钮或基础统计。不要生成返佣、团队层级、下级客户或完整代理中心。", tags: ["ib", "referral"] },
+    { id: "ib-referral-card-prompt", label: "推广链接提示语", summary: "推广链接、邀请码、复制动作和基础统计", prompt: "请生成一个代理/IB 用户首页，重点使用 referral_link_card 积木；推广链接模块要参考积木块已有字段，再引申出自己的样式，例如链接优先、邀请码优先、分享按钮或基础统计。不要生成返佣、团队层级、下级客户或完整代理中心。", tags: ["ib", "referral"] },
     { id: "professional-trader-workbench-prompt", label: "专业交易工作台提示语", summary: "适合交易型客户的账户与持仓入口", prompt: "请生成一个专业交易客户首页，首屏突出交易账号状态、账户表现图表、持仓入口和 MT5 操作入口；所有交易成本、PnL、保证金和图表数据都必须来自接口，缺失时用占位，不要写死具体数值。", tags: ["trade", "account"] },
     { id: "asset-overview-prompt", label: "资产概览提示语", summary: "适合以资产、钱包和交易账号为主的首页", prompt: "请生成一个资产概览首页，首屏展示总资产、钱包和交易账号摘要；模块顺序要像成熟券商客户端，资产概览、快捷入口、交易账号列表层级清楚。不要新增后台没有的资产字段。", tags: ["asset", "wallet"] },
     { id: "deposit-conversion-prompt", label: "首次入金提示语", summary: "适合已开户但还没有入金的客户", prompt: "请生成一个首次入金转化首页，目标是让已开户未入金客户看清下一步；可以用入金引导、资金状态、客服协助和交易账号承接，但奖励、手续费、到账时间必须来自后台活动或支付通道数据。", tags: ["deposit", "conversion"] },
@@ -487,7 +487,7 @@
       pammProducts: "PAMM 产品推荐区，使用独立的 pamm_products 模块，仅在租户开启 PAMM 且接口返回产品时展示",
       copyTrading: "CopyTrading 信号源推荐区，使用独立的 copytrading_signals 模块，仅在租户开启 CopyTrading 且接口返回信号源时展示",
       rewardActivity: "奖励活动专题区，使用活动 Banner、奖励权益、参与步骤和活动 CTA 承接转化",
-      referralLink: "推广链接卡片：参考 ReferralLinkCard 积木字段，引申链接优先、邀请码优先、分享或基础统计样式",
+      referralLink: "推广链接：参考 ReferralLinkCard 积木字段，引申链接优先、邀请码优先、分享或基础统计样式",
       appDownload: "APP 下载、MT5 下载或移动端交易入口",
       tradingAccounts: "交易账号列表、真实账号和模拟账号状态",
       customerService: "在线客服、客户经理或一对一协助入口",
@@ -732,7 +732,7 @@
     return {
       accountOpening: "版式自由度：采用开户旅程、路径或任务流骨架，开户清单、开户面板和 KYC 下一步优先，资产概览不要抢首屏。",
       promotionConversion: "版式自由度：采用增长专题或活动封面骨架，首屏可以更像营销落地页，权益、主 CTA 和转化按钮优先。",
-      newUserOnboarding: "版式自由度：采用新用户旅程、路径或任务流骨架，用步骤化结构替代标准资产工作台。",
+      newUserOnboarding: "版式自由度：采用新用户旅程、精美路径卡、原路径条或任务流骨架，用步骤化结构替代标准资产工作台，AI 按意图决定形态，不固定成方格。",
       marketingCampaign: "版式自由度：采用活动封面、专题或大视觉骨架，活动 Banner、权益和参与动作优先，账号信息下移。",
       rewardActivity: "版式自由度：采用活动封面、专题或大视觉骨架，奖励规则、参与步骤、倒计时和领取奖励按钮优先。",
       ibRecruitment: "版式自由度：采用渠道增长专题骨架，推广链接、邀请码、复制动作和客户经理入口靠前。",
@@ -995,8 +995,8 @@
 
     if (slot === "onboarding_guide") {
       mergeGuidedSetting(config, "openAccount", { enabled: true, real: true, demo: true, bind: false, placement: "insideTradingAccounts" });
-      modules.OnboardingProgress = modules.OnboardingProgress || { variant: "journeyTimeline" };
-      styles.onboardingProgress = styles.onboardingProgress || "journey-timeline";
+      modules.OnboardingProgress = modules.OnboardingProgress || { variant: "missionBoard" };
+      styles.onboardingProgress = styles.onboardingProgress || "mission-board";
     }
 
     if (slot === "trading_account_highlight") {
@@ -2450,7 +2450,7 @@
       { id: "classic", label: "标准工作台", prompt: "标准工作台首页，资产模块、快捷入口、广告、交易账号、邀请链接按常规顺序展示，视觉强度中等。" },
       { id: "asset", label: "资产优先", prompt: "资产优先首页，首屏突出总资产、钱包余额、入金出金和账户安全感，整体专业清晰。" },
       { id: "vip", label: "高净值黑金", prompt: "高净值 VIP 黑金风格，首屏突出资产、入金和广告轮播图，交易账号列表放下方，整体更大气。" },
-      { id: "growth", label: "活动增长", prompt: "活动增长首页，首屏突出交易大赛；欢迎模块独占第一栏但要轻量，广告轮播做成首屏核心并独占一整栏，快捷入口保留 8 个，整体扁平化、轻快清晰，色调淡金色。真实交易账号列表用卡片形式，并在真实账号分区提供创建真实交易账号按钮；模拟账号列表用列表形式。不要把开户做成右侧大面板。" },
+      { id: "growth", label: "活动增长", prompt: "活动增长首页，首屏突出交易大赛；欢迎模块独占第一栏但要轻量，广告轮播做成首屏核心并独占一整栏，快捷入口保留 8 个，整体扁平化、轻快清晰，色调淡金色。真实交易账号列表用卡片形式，并在真实账号分区提供创建账号按钮；模拟账号列表用列表形式并提供同级创建账号按钮。不要把开户做成右侧大面板。" },
       { id: "trader", label: "专业交易", prompt: "专业交易客户首页，突出交易账号、持仓订单、MT5 和账户状态，信息密度更高。" },
       { id: "newbie", label: "新客开户", prompt: "新客户开户引导，突出开户进度、KYC、首次入金和开真实账号、开模拟账号、绑定账号。" },
     ];
@@ -2641,7 +2641,7 @@
       </article>
 
       <article class="module-setting-card">
-        <header><span>推广链接卡片</span><b>${settings.referralLinkCard.enabled ? "代理可见" : "默认隐藏"}</b></header>
+        <header><span>推广链接</span><b>${settings.referralLinkCard.enabled ? "代理可见" : "默认隐藏"}</b></header>
         ${settingRow("模块状态", renderToggleButton("referralLinkCard.enabled", settings.referralLinkCard.enabled))}
         ${settingRow("推广链接", renderToggleButton("referralLinkCard.showPromoLink", settings.referralLinkCard.showPromoLink, "显示", "隐藏"))}
         ${settingRow("邀请码", renderToggleButton("referralLinkCard.showInviteCode", settings.referralLinkCard.showInviteCode, "显示", "隐藏"))}
@@ -2762,7 +2762,7 @@
 
   els.publish?.addEventListener("click", () => {
     currentConfig = home.saveConfig(currentConfig);
-    home.saveDraft(currentConfig);
+    home.clearDraft();
     renderSummary();
     renderIntelligenceSummary();
     renderDecisionReasons();
@@ -2774,6 +2774,11 @@
     applyPreview(true);
     updateStatus("已发布到首页", true);
     showToast("首页配置已发布");
+    if (els.previewPage) {
+      window.setTimeout(() => {
+        window.location.href = `./client-home.html?published=${Date.now()}`;
+      }, 160);
+    }
   });
 
   els.reset?.addEventListener("click", () => {
