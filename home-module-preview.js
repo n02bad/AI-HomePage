@@ -6,6 +6,9 @@
   const MINIMAX_CN_TYPED_ALIAS_BASE_URL = "https://api.minimaxi.cn/v1";
   const MINIMAX_GLOBAL_BASE_URL = "https://api.minimax.io/v1";
   const MINIMAX_MAX_COMPLETION_TOKENS = 2048;
+  const KIMI_BASE_URL = "https://api.moonshot.ai/v1";
+  const KIMI_CN_BASE_URL = "https://api.moonshot.cn/v1";
+  const KIMI_DEFAULT_MODEL = "kimi-k2.6";
   const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
   const AI_MODEL_PRESETS = {
     openai: {
@@ -42,19 +45,19 @@
       endpoint: "/chat/completions",
       apiMode: "openai-chat",
       apiKeyLabel: "MINIMAX_API_KEY",
-      note: `适合中文业务语境。CN 站点官方 API Base URL 是 ${MINIMAX_CN_BASE_URL}，不是 ${MINIMAX_CN_TYPED_ALIAS_BASE_URL}；国际账号可改为 ${MINIMAX_GLOBAL_BASE_URL}。输出上限按 MiniMax Chat Completions 控制为 ${MINIMAX_MAX_COMPLETION_TOKENS}。`,
+      note: `适合中文业务语境。CN 站点官方 API Base URL 是 ${MINIMAX_CN_BASE_URL}，不是 ${MINIMAX_CN_TYPED_ALIAS_BASE_URL}；国际账号可改为 ${MINIMAX_GLOBAL_BASE_URL}。MiniMax OpenAI 兼容接口输出上限为 ${MINIMAX_MAX_COMPLETION_TOKENS}，首页蓝图会使用短 prompt 和紧凑 JSON。`,
     },
     kimi: {
       provider: "kimi",
       name: "Kimi",
       badge: "OpenAI Compatible",
-      model: "kimi-k2.5",
-      models: ["kimi-k2.5", "kimi-k2-thinking", "moonshot-v1-128k"],
-      baseUrl: "https://api.moonshot.ai/v1",
+      model: KIMI_DEFAULT_MODEL,
+      models: [KIMI_DEFAULT_MODEL, "kimi-k2.5", "kimi-k2-thinking", "moonshot-v1-128k"],
+      baseUrl: KIMI_BASE_URL,
       endpoint: "/chat/completions",
       apiMode: "openai-chat",
       apiKeyLabel: "MOONSHOT_API_KEY",
-      note: "适合中文长文本理解、运营需求摘要和大上下文首页方案整理。",
+      note: `适合中文长文本理解、运营需求摘要和组件方案整理；默认使用 ${KIMI_DEFAULT_MODEL}，国内控制台可改为 ${KIMI_CN_BASE_URL}。代理会使用 max_completion_tokens 降低截断和超时概率。`,
     },
     deepseek: {
       provider: "deepseek",

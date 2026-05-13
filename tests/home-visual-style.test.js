@@ -79,6 +79,31 @@ async function waitForHttp(port, requestPath = "/", timeoutMs = 10000) {
   throw new Error(`server did not respond on ${port}`);
 }
 
+function stopChild(child, signal = "SIGTERM", timeoutMs = 1200) {
+  return new Promise((resolve) => {
+    if (!child || child.exitCode !== null || child.killed) {
+      resolve();
+      return;
+    }
+
+    const timer = setTimeout(resolve, timeoutMs);
+    child.once("exit", () => {
+      clearTimeout(timer);
+      resolve();
+    });
+    child.kill(signal);
+  });
+}
+
+function cleanupTempDir(dir) {
+  try {
+    fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 120 });
+  } catch (error) {
+    if (["ENOENT", "EACCES", "ENOTEMPTY", "EBUSY"].includes(error.code)) return;
+    throw error;
+  }
+}
+
 function findChrome() {
   const chrome = CHROME_CANDIDATES.find((candidate) => fs.existsSync(candidate));
   if (!chrome) throw new Error("Chrome executable not found; set CHROME_PATH to run visual style checks.");
@@ -519,9 +544,8 @@ async function run() {
     console.log("home visual style checks passed");
   } finally {
     if (client) client.close();
-    chrome.kill();
-    server.kill();
-    fs.rmSync(userDataDir, { recursive: true, force: true });
+    await Promise.all([stopChild(chrome), stopChild(server)]);
+    cleanupTempDir(userDataDir);
   }
 }
 

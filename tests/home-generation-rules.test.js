@@ -458,6 +458,10 @@ async function run() {
   const personalizationCss = fs.readFileSync(path.join(ROOT, "home-personalization.css"), "utf8");
   const serverSource = fs.readFileSync(path.join(ROOT, "server.js"), "utf8");
   assert(serverSource.includes("空间利用是硬约束"), "AI prompt must treat space utilization as a hard constraint");
+  assert(serverSource.includes("const MINIMAX_MAX_COMPLETION_TOKENS = 2048"), "MiniMax should keep the documented OpenAI-compatible completion token cap");
+  assert(serverSource.includes('const KIMI_DEFAULT_MODEL = "kimi-k2.6"'), "Kimi preset should use the current default model");
+  assert(serverSource.includes("body.max_completion_tokens = config.maxOutputTokens"), "Kimi chat requests should use max_completion_tokens instead of deprecated max_tokens");
+  assert(serverSource.includes("buildLowLatencyHomepagePrompt"), "MiniMax and Kimi should use a short homepage prompt to avoid provider timeouts");
   assert(!/\.ai-copy-signal-metrics span\s*\{[\s\S]{0,220}border-left:\s*1px/.test(personalizationCss), "recommendation metric rows should not be divided by heavy vertical lines");
   assert(!/\.ai-copy-curve\s*\{[\s\S]{0,260}repeating-linear-gradient/.test(personalizationCss), "recommendation charts should not default to dense grid backgrounds");
   assert(/\.ai-guide-card\s*\{[\s\S]{0,220}min-height:\s*96px/.test(personalizationCss), "onboarding guide cards should avoid tall empty cards");

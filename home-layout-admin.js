@@ -15,6 +15,8 @@
   const MINIMAX_GLOBAL_BASE_URL = "https://api.minimax.io/v1";
   const MINIMAX_MAX_COMPLETION_TOKENS = 2048;
   const KIMI_BASE_URL = "https://api.moonshot.ai/v1";
+  const KIMI_CN_BASE_URL = "https://api.moonshot.cn/v1";
+  const KIMI_DEFAULT_MODEL = "kimi-k2.6";
   const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
   const PREVIEW_SIZE_PRESETS = {
     mobile: { label: "手机", meta: "390x844" },
@@ -65,19 +67,19 @@
       endpoint: "/chat/completions",
       apiMode: "openai-chat",
       apiKeyLabel: "MINIMAX_API_KEY",
-      note: `适合中文业务语境。CN 站点官方 API Base URL 是 ${MINIMAX_CN_BASE_URL}，不是 ${MINIMAX_CN_TYPED_ALIAS_BASE_URL}；国际账号可改为 ${MINIMAX_GLOBAL_BASE_URL}。输出上限按 MiniMax Chat Completions 控制为 ${MINIMAX_MAX_COMPLETION_TOKENS}。`,
+      note: `适合中文业务语境。CN 站点官方 API Base URL 是 ${MINIMAX_CN_BASE_URL}，不是 ${MINIMAX_CN_TYPED_ALIAS_BASE_URL}；国际账号可改为 ${MINIMAX_GLOBAL_BASE_URL}。MiniMax OpenAI 兼容接口输出上限为 ${MINIMAX_MAX_COMPLETION_TOKENS}，首页蓝图会使用短 prompt 和紧凑 JSON。`,
     },
     kimi: {
       provider: "kimi",
       name: "Kimi",
       badge: "OpenAI Compatible",
-      model: "kimi-k2.5",
-      models: ["kimi-k2.5", "kimi-k2-thinking", "moonshot-v1-128k"],
+      model: KIMI_DEFAULT_MODEL,
+      models: [KIMI_DEFAULT_MODEL, "kimi-k2.5", "kimi-k2-thinking", "moonshot-v1-128k"],
       baseUrl: KIMI_BASE_URL,
       endpoint: "/chat/completions",
       apiMode: "openai-chat",
       apiKeyLabel: "MOONSHOT_API_KEY",
-      note: "适合中文长文本理解、运营需求摘要和大上下文首页方案整理。",
+      note: `适合中文长文本理解、运营需求摘要和首页方案整理；默认使用 ${KIMI_DEFAULT_MODEL}，国内控制台可改为 ${KIMI_CN_BASE_URL}。代理会使用 max_completion_tokens 与短 prompt 降低超时概率。`,
     },
     deepseek: {
       provider: "deepseek",
@@ -1538,7 +1540,7 @@
     }
 
     if (/valid homepage JSON|不是首页\s*JSON|JSON/i.test(source) && /AI response|homepage|首页|JSON/i.test(source)) {
-      return "处理建议：模型有响应，但没有按首页配置 JSON 返回；已自动回退本地方案。可以重试一次、降低 Temperature，或切到更稳定的结构化输出模型。";
+      return "处理建议：模型有响应，但没有按首页配置 JSON 返回；已自动回退本地方案。代理会对 MiniMax/Kimi 使用短 prompt 和正确的 completion token 参数，仍失败时可以降低 Temperature 后重试。";
     }
 
     if (/无法连接本地后端代理|Failed to fetch|NetworkError|fetch/i.test(source)) {
@@ -2095,7 +2097,7 @@
       return "处理建议：DeepSeek API Key 无效或未配置，请在模型配置里填写 DEEPSEEK_API_KEY 对应密钥；Base URL 使用 https://api.deepseek.com。";
     }
     if (details.provider === "kimi" || /Kimi|Moonshot|moonshot/i.test(identity)) {
-      return `处理建议：Kimi / Moonshot API Key 无效或未配置，请在模型配置里填写 MOONSHOT_API_KEY 或 KIMI_API_KEY 对应密钥；Base URL 使用 ${KIMI_BASE_URL}。`;
+      return `处理建议：Kimi / Moonshot API Key 无效或未配置，请在模型配置里填写 MOONSHOT_API_KEY 或 KIMI_API_KEY 对应密钥；国际控制台使用 ${KIMI_BASE_URL}，国内控制台使用 ${KIMI_CN_BASE_URL}。`;
     }
     if (details.provider === "minimax" || /MiniMax/i.test(identity)) {
       return `处理建议：API Key 无效或账号区域不匹配，请在模型配置里重新填写 MiniMax API Key；CN 账号使用 ${MINIMAX_CN_BASE_URL}，国际账号使用 ${MINIMAX_GLOBAL_BASE_URL}。`;
@@ -2112,13 +2114,16 @@
 
     if (/valid homepage JSON|AI response did not contain valid homepage JSON/i.test(source)) {
       if (details.likelyTruncated || /length|max_tokens/i.test(String(details.finishReason || ""))) {
-        return "处理建议：模型返回了 JSON 开头，但输出可能被截断；已自动回退本地方案。请把 Max output tokens 提高到 6000 以上，或切到更快/更稳定的结构化输出模型。";
+        if (details.provider === "minimax") {
+          return "处理建议：MiniMax 输出达到 2048 上限导致截断；代理已改用短 prompt 和紧凑 JSON。仍失败时请降低 Temperature 或切到 Kimi/DeepSeek 这类更高输出上限模型。";
+        }
+        return "处理建议：模型返回了 JSON 开头，但输出可能被截断；已自动回退本地方案。Kimi 会使用 max_completion_tokens；仍失败时请把 Max output tokens 保持在 6000 以上并降低 Temperature。";
       }
       return "处理建议：模型有响应，但没有按首页配置 JSON 返回；已自动回退本地方案。可以重试一次、降低 Temperature，或切到更稳定的结构化输出模型。";
     }
 
     if (/timed out|timeout|超时/i.test(source)) {
-      return "处理建议：模型连通正常，但首页蓝图生成超过代理等待时间；DeepSeek Pro 会先自动降级到 Flash 重试，仍失败时再回退本地方案。可以保留 V4-Flash 默认模型，或使用更短的结构化 prompt。";
+      return "处理建议：模型连通正常，但首页蓝图生成超过代理等待时间；MiniMax/Kimi 已改用短 prompt，Kimi 旧模型会自动尝试当前默认模型，DeepSeek Pro 会自动降级到 Flash。仍失败时再回退本地方案。";
     }
 
     return "";

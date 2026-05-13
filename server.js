@@ -46,11 +46,15 @@ const MINIMAX_CN_TYPED_ALIAS_BASE_URL = "https://api.minimaxi.cn/v1";
 const MINIMAX_GLOBAL_BASE_URL = "https://api.minimax.io/v1";
 const MINIMAX_OFFICIAL_BASE_URLS = [MINIMAX_CN_BASE_URL, MINIMAX_GLOBAL_BASE_URL];
 const MINIMAX_MAX_COMPLETION_TOKENS = 2048;
+const KIMI_GLOBAL_BASE_URL = "https://api.moonshot.ai/v1";
+const KIMI_DEFAULT_MODEL = "kimi-k2.6";
+const KIMI_LEGACY_MODELS = new Set(["kimi-k2.5"]);
 const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
 const DEEPSEEK_PRO_MODEL = "deepseek-v4-pro";
 const DEEPSEEK_FLASH_MODEL = "deepseek-v4-flash";
 const DEEPSEEK_PRO_TIMEOUT_MS = 75_000;
 const DEEPSEEK_FLASH_TIMEOUT_MS = 120_000;
+const KIMI_TIMEOUT_MS = 75_000;
 
 const PROVIDERS = {
   openai: {
@@ -82,10 +86,12 @@ const PROVIDERS = {
   kimi: {
     name: "Kimi",
     apiMode: "openai-chat",
-    model: "kimi-k2.5",
-    baseUrl: "https://api.moonshot.ai/v1",
+    model: KIMI_DEFAULT_MODEL,
+    baseUrl: KIMI_GLOBAL_BASE_URL,
     endpoint: "/chat/completions",
     keyEnv: ["MOONSHOT_API_KEY", "KIMI_API_KEY"],
+    baseUrlEnv: ["KIMI_BASE_URL", "MOONSHOT_BASE_URL"],
+    modelEnv: ["KIMI_MODEL", "MOONSHOT_MODEL"],
   },
   deepseek: {
     name: "DeepSeek",
@@ -1010,13 +1016,26 @@ function providerUrl(config) {
 
 function providerBaseUrlCandidates(config) {
   const current = normalizeBaseUrl(config.baseUrl);
-  if (config.provider !== "minimax" || /^https?:\/\//i.test(config.endpoint || "")) return [current];
-  if (!MINIMAX_OFFICIAL_BASE_URLS.includes(current)) return [current];
-  return [current, ...MINIMAX_OFFICIAL_BASE_URLS.filter((baseUrl) => baseUrl !== current)];
+  if (/^https?:\/\//i.test(config.endpoint || "")) return [current];
+
+  if (config.provider === "minimax") {
+    if (!MINIMAX_OFFICIAL_BASE_URLS.includes(current)) return [current];
+    return [current, ...MINIMAX_OFFICIAL_BASE_URLS.filter((baseUrl) => baseUrl !== current)];
+  }
+
+  return [current];
+}
+
+function providerModelCandidates(config) {
+  if (config.provider !== "kimi") return [config];
+  if (!KIMI_LEGACY_MODELS.has(config.model) || /^https?:\/\//i.test(config.endpoint || "")) return [config];
+  return [config, { ...config, model: KIMI_DEFAULT_MODEL, fallbackFromModel: config.model }];
 }
 
 function providerRequestCandidates(config) {
-  const candidates = providerBaseUrlCandidates(config).map((baseUrl) => ({ ...config, baseUrl }));
+  const candidates = providerBaseUrlCandidates(config)
+    .map((baseUrl) => ({ ...config, baseUrl }))
+    .flatMap((candidate) => providerModelCandidates(candidate));
   if (config.provider !== "deepseek" || config.model !== DEEPSEEK_PRO_MODEL || /^https?:\/\//i.test(config.endpoint || "")) {
     return candidates;
   }
@@ -1024,7 +1043,8 @@ function providerRequestCandidates(config) {
 }
 
 function providerRequestTimeoutMs(config) {
-  if (config.provider === "minimax") return 90_000;
+  if (config.provider === "minimax") return 120_000;
+  if (config.provider === "kimi") return KIMI_TIMEOUT_MS;
   if (config.provider === "deepseek" && config.model === DEEPSEEK_PRO_MODEL) return DEEPSEEK_PRO_TIMEOUT_MS;
   if (config.provider === "deepseek") return DEEPSEEK_FLASH_TIMEOUT_MS;
   return 120_000;
@@ -1121,6 +1141,13 @@ function shouldRetryProviderRequest(config, error, attemptNumber, totalAttempts)
     if ([401, 403, 404].includes(status)) return true;
     if (status === 400 && /key|token|model|plan|endpoint|base|region|not found/i.test(error.message || "")) return true;
     return !Number.isFinite(status);
+  }
+
+  if (config.provider === "kimi") {
+    const status = Number(error.providerStatus);
+    if ([401, 403, 404].includes(status)) return true;
+    if (status === 400 && /key|token|model|endpoint|base|region|not found|invalid/i.test(error.message || "")) return true;
+    return isTransientProviderError(error);
   }
 
   if (config.provider === "deepseek" && config.model === DEEPSEEK_PRO_MODEL) {
@@ -2532,8 +2559,192 @@ function buildMiniMaxPrompt(payload) {
   return { system, user };
 }
 
+function compactComponentLibraryPromptReference(options = {}) {
+  const components = readComponentLibrary().components;
+  return rankComponentReferences(components, { ...options, limit: Math.min(Number(options.limit) || 4, 4) }).map((component) => ({
+    name: cleanText(component.name, "", 40),
+    family: cleanText(component.family, "", 40),
+    size: cleanText(component.size, "", 12),
+    description: cleanText(component.description, "", 90),
+    tags: Array.isArray(component.tags) ? component.tags.slice(0, 4) : [],
+  }));
+}
+
+function compactCurrentConfigReference(config = {}) {
+  const source = config && typeof config === "object" ? config : {};
+  return {
+    name: cleanText(source.name, "", 40),
+    layoutPreset: cleanText(source.layoutPreset || source.layout, "", 40),
+    themePreset: cleanText(source.themePreset || source.theme, "", 40),
+    density: cleanText(source.density, "", 20),
+    heroFocus: cleanText(source.heroFocus, "", 40),
+    sections: (Array.isArray(source.sections) ? source.sections : []).slice(0, 4).map((section) => ({
+      type: cleanText(section?.type, "", 20),
+      slots: (Array.isArray(section?.slots) ? section.slots : []).slice(0, 4),
+    })),
+  };
+}
+
+function compactHomepageIntentProfile(profile = {}) {
+  return {
+    primaryIntent: profile.primaryIntent,
+    secondaryIntents: Array.isArray(profile.secondaryIntents) ? profile.secondaryIntents : [],
+    confidence: profile.confidence,
+    label: profile.label,
+    layoutPreset: profile.layoutPreset,
+    themePreset: profile.themePreset,
+    density: profile.density,
+    heroFocus: profile.heroFocus,
+    primaryGoal: profile.primaryGoal,
+    mustHave: Array.isArray(profile.mustHave) ? profile.mustHave : [],
+    avoid: Array.isArray(profile.avoid) ? profile.avoid : [],
+    matchedSignals: Array.isArray(profile.matchedSignals) ? profile.matchedSignals.slice(0, 8) : [],
+  };
+}
+
+function compactHomepageContract(intentProfile, prompt) {
+  const compactIntent = compactHomepageIntentProfile(intentProfile);
+  return {
+    allowedBlocks: CANONICAL_HOME_BLOCKS,
+    forbiddenBlocks: ["reward_tasks", "kyc_risk_notice", "ib_dashboard", "referralLink", "userKycRail", "riskNotice", "support_help"],
+    layoutPreset: ["standardDashboard", "conversionFirst", "assetFirst", "tradingPro", "vipService", "magazineCampaign", "tradingCommand", "onboardingJourney", "privateWealthDesk", "accountOpsConsole"],
+    themePreset: ["default", "blackGold", "lightGold", "blueFinance", "darkTech", "minimalWhite"],
+    density: ["compact", "balanced", "spacious"],
+    sectionType: ["hero", "split", "full", "rail"],
+    brickSize: ["3x1", "3x2", "2x1", "2x2", "1x1", "1x2"],
+    brickZone: ["hero", "main", "rail", "full"],
+    blockFamily: {
+      welcome_header: "WelcomeHeader",
+      asset_overview: "AssetOverview",
+      wallet_list: "WalletList",
+      quick_actions: "QuickActions",
+      onboarding_guide: "OnboardingProgress",
+      trading_account_highlight: "AccountPerformance",
+      trading_accounts_list: "TradingAccounts",
+      promo_banner: "PromotionBanner",
+      pamm_products: "PammProducts",
+      copytrading_signals: "CopytradingSignals",
+      referral_link_card: "ReferralLinkCard",
+      announcements: "Announcements",
+      market_news: "MarketNews",
+      risk_disclosure: "RiskDisclosure",
+      faq_section: "FaqSection",
+      support_contact: "SupportContact",
+      app_download: "AppDownload",
+    },
+    moduleStyles: {
+      asset_overview: ["command", "metric-strip", "quiet-card", "ticker-strip", "split-card"],
+      quick_actions: ["matrix", "toolbar", "compact-grid", "command-bar", "compact-menu", "task-rail", "tile-board", "accent-cards", "segmented-panel"],
+      onboarding_guide: ["path", "checklist", "compact", "guide-cards", "journey-timeline", "mission-board", "ribbon-rail", "next-step-hero"],
+      trading_account_highlight: ["pro-chart", "clean-snapshot", "sparkline-board", "split-performance"],
+      trading_accounts_list: ["workbench", "dense-cards", "calm-table", "horizontal-cards", "compact-list"],
+      promo_banner: ["banner", "clean", "editorial-cover", "compact-strip"],
+      pamm_products: ["cards", "ranking", "horizontal-cards", "yield-chart-cards"],
+      copytrading_signals: ["signal-cards", "ranking", "horizontal-cards", "curve-cards"],
+      announcements: ["list", "priority-notice", "compact-feed", "ticker-strip"],
+      risk_disclosure: ["compact-notice", "margin-guard", "legal-strip"],
+    },
+    outputFields: [
+      "schemaVersion",
+      "blueprintVersion",
+      "generationMode",
+      "pageIntent",
+      "designGenome",
+      "pageStory",
+      "name",
+      "layoutPreset",
+      "themePreset",
+      "personalizationStrength",
+      "density",
+      "heroFocus",
+      "sections",
+      "brickPlan",
+      "modules",
+      "moduleStyles",
+      "moduleSettings",
+      "dataContract",
+      "emphasis",
+      "aiSummary",
+    ],
+    intentMustHave: compactIntent.mustHave,
+    intentAvoid: compactIntent.avoid,
+    componentReferences: compactComponentLibraryPromptReference({ prompt, limit: 4 }),
+  };
+}
+
+function buildLowLatencyHomepagePrompt(payload, config = {}) {
+  const context = payload.context || {};
+  const prompt = String(payload.prompt || "").trim();
+  const variant = Number(payload.variant || 0);
+  const guidedIntake = guidedAiIntakeFromPayload(payload);
+  const intentProfile = applyGuidedIntentProfile(buildHomepageIntentProfile(prompt), guidedIntake);
+  const compactIntent = compactHomepageIntentProfile(intentProfile);
+  const design = homepageDesignForIntent(intentProfile.primaryIntent);
+  const providerName = config.name || PROVIDERS[config.provider]?.name || "AI";
+
+  const system = [
+    "你是 ForexCRM 首页蓝图生成器。",
+    "只输出一个能被 JSON.parse 解析的紧凑 JSON object，不要 markdown、解释、注释、HTML、CSS、JS 或 <think>。",
+    "输出必须短：sections 3-4 个，brickPlan 4-6 个，reason 不超过 28 个中文字符，aiSummary 不超过 60 个中文字符。",
+    "必须返回 generationMode=\"brick-v2\"、blueprintVersion=5，并只使用 allowedBlocks 里的 snake_case 内容块。",
+    "禁止旧模块和禁用模块：balanceTotal、fundActions、walletList、referralLink、userKycRail、riskNotice、support_help、reward_tasks、kyc_risk_notice、ib_dashboard。",
+    "quick_actions.actions 必须返回 []；入口内容来自后台配置或接口，AI 只决定数量、布局和样式。",
+    "asset_overview 只做 total、wallet、tradingAccount 汇总；多币种明细只能用 wallet_list。",
+    "PAMM 和 CopyTrading 必须分别用 pamm_products 与 copytrading_signals，不能合并。",
+    "连续收益、净值、PnL、回撤等趋势数据必须表达为折线或面积折线，真实数据在 dataContract 标记接口绑定和 fallback。",
+    "空间利用是硬约束：桌面 12 栅格紧凑填充，优先 3x 独占、2x+1x、2x+2x；移动端自然单列。",
+    `${providerName} 请求会走短上下文模式；不要复述规则，只返回最终 JSON。`,
+  ].join("\n");
+
+  const user = [
+    `生成轮次: ${Number.isFinite(variant) ? variant : 0}`,
+    "",
+    ...guidedIntakePromptLines(guidedIntake),
+    "管理员需求:",
+    prompt || "生成一个适合默认客户的平衡首页。",
+    "",
+    "服务端意图与设计默认值:",
+    compactJson({ pageIntent: compactIntent, design }),
+    "",
+    "当前草稿摘要:",
+    compactJson(compactCurrentConfigReference(context.currentConfig)),
+    "",
+    "紧凑输出契约:",
+    compactJson(compactHomepageContract(intentProfile, prompt)),
+    "",
+    "返回 JSON 示例结构只需同等字段，不要照抄内容:",
+    compactJson({
+      schemaVersion: 4,
+      blueprintVersion: 5,
+      generationMode: "brick-v2",
+      pageIntent: compactIntent,
+      designGenome: design.designGenome,
+      pageStory: design.pageStory,
+      name: "AI 首页方案",
+      layoutPreset: design.layoutPreset,
+      themePreset: compactIntent.themePreset,
+      personalizationStrength: "strong",
+      density: compactIntent.density,
+      heroFocus: compactIntent.heroFocus,
+      sections: [{ id: "hero", type: "hero", title: "首屏", slots: [compactIntent.heroFocus, "quick_actions"].filter((slot, index, arr) => slot && arr.indexOf(slot) === index) }],
+      brickPlan: [{ brickId: "assetOverview.flexible", brickName: "资产概览区", family: "AssetOverview", feature: "asset_overview", component: "asset_overview", size: "2x1", zone: "hero", reason: "承接首屏资金状态。" }],
+      modules: { AssetOverview: { variant: "standard" }, QuickActions: { variant: "gridCards" } },
+      moduleStyles: { asset_overview: "command", quick_actions: "matrix" },
+      moduleSettings: { quickActions: { enabled: true, count: 4, display: "iconText", actions: [] }, assets: { enabled: true, visibleFields: ["total", "wallet", "tradingAccount"] } },
+      dataContract: { mode: "api-bound-preview", previewSample: true, dataBindingRequired: true, fallback: "--" },
+      emphasis: { deposit: "medium", openAccount: "medium", promo: "low", accounts: "medium" },
+      aiSummary: "一句话说明方案。",
+    }),
+    "",
+    "现在只返回最终 JSON object。",
+  ].join("\n");
+
+  return { system, user, promptMode: "low-latency-homepage" };
+}
+
 function buildPrompt(payload, config = {}) {
-  if (config.provider === "minimax" || config.apiMode === "openai-chat") return buildMiniMaxPrompt(payload);
+  if (["minimax", "kimi"].includes(config.provider)) return buildLowLatencyHomepagePrompt(payload, config);
+  if (config.apiMode === "openai-chat") return buildMiniMaxPrompt(payload);
 
   const context = payload.context || {};
   const prompt = String(payload.prompt || "").trim();
@@ -2709,9 +2920,10 @@ function buildAnthropicBody(config, promptParts) {
 }
 
 function buildOpenAiChatBody(config, promptParts) {
+  const structuredJsonRequest = config.responseFormat !== "text";
   const body = {
     model: config.model,
-    temperature: config.temperature,
+    temperature: structuredJsonRequest && ["minimax", "kimi"].includes(config.provider) ? Math.min(config.temperature, 0.6) : config.temperature,
     max_tokens: config.maxOutputTokens,
     messages: [
       { role: "system", content: promptParts.system },
@@ -2723,12 +2935,18 @@ function buildOpenAiChatBody(config, promptParts) {
     delete body.max_tokens;
     body.max_completion_tokens = Math.min(config.maxOutputTokens, MINIMAX_MAX_COMPLETION_TOKENS);
     body.reasoning_split = true;
-  } else if (config.provider === "deepseek") {
-    body.thinking = { type: "disabled" };
-    if (config.responseFormat !== "text") {
+  } else if (config.provider === "kimi") {
+    delete body.max_tokens;
+    body.max_completion_tokens = config.maxOutputTokens;
+    if (structuredJsonRequest) {
       body.response_format = { type: "json_object" };
     }
-  } else if (config.responseFormat !== "text") {
+  } else if (config.provider === "deepseek") {
+    body.thinking = { type: "disabled" };
+    if (structuredJsonRequest) {
+      body.response_format = { type: "json_object" };
+    }
+  } else if (structuredJsonRequest) {
     body.response_format = { type: "json_object" };
   }
 
