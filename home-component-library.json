@@ -203,7 +203,7 @@
       "id": "announcements-compact-feed",
       "type": "ai-generated",
       "name": "公告通知列表",
-      "family": "Announcements",
+      "family": "ClientHomeAtoms",
       "size": "2x1",
       "description": "系统公告、活动公告和维护通知以列表、重点公告或首页跑马灯展示。",
       "tags": [
@@ -246,8 +246,7 @@
         "edited",
         "progressive",
         "mission-board",
-        "next-step-hero",
-        "ribbon-rail"
+        "next-step-hero"
       ],
       "html": "\n    <section class=\"brick-onboarding\">\n      <span>Master Journey</span>\n      <strong>3步成为交易大师</strong>\n      <ol class=\"onboarding-progress-steps\">\n        <li class=\"active\">\n          <i>✓</i>\n          <b>01</b>\n          <span>KYC 通过</span>\n          <small>未提交/待审/通过/拒绝</small>\n        </li>\n      \n        <li class=\"pending\">\n          <i>↗</i>\n          <b>02</b>\n          <span>创建真实账户</span>\n          <small>通过后解锁</small>\n        </li>\n      \n        <li class=\"pending\">\n          <i>↓</i>\n          <b>03</b>\n          <span>首次入金</span>\n          <small>待完成</small>\n        </li>\n      </ol>\n    </section>\n  ",
       "css": ".brick-onboarding{display:grid;gap:14px;padding:18px;border:1px solid var(--home-primary-border);border-radius:var(--home-radius-sm,8px);background:var(--home-progress-card-bg);color:var(--home-text)}\n    .brick-onboarding *{box-sizing:border-box}\n    .brick-onboarding>span{color:var(--home-primary);font-size:12px;font-weight:900}\n    .brick-onboarding>strong{font-size:22px;letter-spacing:0}\n    .brick-onboarding .onboarding-progress-steps{display:grid;grid-template-columns:minmax(260px,1.18fr) repeat(2,minmax(0,1fr));gap:10px;margin:0;padding:0;list-style:none}\n    .brick-onboarding .onboarding-progress-steps li{position:relative;display:grid;grid-template-columns:auto 1fr auto;gap:8px 10px;align-items:end;min-height:132px;padding:14px;border:1px solid var(--home-primary-border);border-radius:var(--home-radius-sm,8px);background:var(--home-card-bg);box-shadow:0 12px 28px color-mix(in srgb,var(--home-primary) 10%,transparent)}\n    .brick-onboarding .onboarding-progress-steps li:first-child{min-height:176px;background:var(--home-primary-surface)}\n    .brick-onboarding .onboarding-progress-steps i{width:42px;height:42px;display:grid;place-items:center;border-radius:var(--home-radius-sm,8px);background:var(--home-button-bg);color:var(--home-button-text);font-style:normal;font-weight:950}\n    .brick-onboarding .onboarding-progress-steps b{align-self:start;padding:4px 8px;border-radius:999px;background:var(--home-primary-faint);color:var(--home-primary);font-size:11px}\n    .brick-onboarding .onboarding-progress-steps span{color:var(--home-text);font-size:15px;font-weight:950}\n    .brick-onboarding .onboarding-progress-steps small{grid-column:2;color:var(--home-text-muted);font-size:11px;font-weight:800}\n    .brick-onboarding .onboarding-progress-steps .active{border-color:var(--home-primary-border-strong);background:var(--home-primary-soft);box-shadow:0 14px 32px color-mix(in srgb,var(--home-primary) 14%,transparent)}\n    @media(max-width:720px){.brick-onboarding .onboarding-progress-steps{grid-template-columns:1fr}.brick-onboarding .onboarding-progress-steps li:first-child{min-height:130px}}",
@@ -349,8 +348,7 @@
         "credit",
         "pnlCurve",
         "equityCurve",
-        "performancePeriod",
-        "chartEngine"
+        "performancePeriod"
       ],
       "sourcePrompt": "",
       "createdAt": "2026-05-08T09:18:13.977Z",
@@ -468,34 +466,6 @@
       ],
       "sourcePrompt": "钱包列表，做一个多币种卡片；每张卡只包含钱包货币、对应国家或币种圆形图标、钱包余额。",
       "createdAt": "2026-05-08T14:25:26.000Z",
-      "updatedAt": "2026-05-09T03:44:17.720Z"
-    },
-    {
-      "id": "walletlist-mox0vhpd",
-      "type": "ai-generated",
-      "name": "多币种钱包卡片",
-      "family": "WalletList",
-      "size": "3x2",
-      "description": "多币种钱包卡片，仅包含钱包货币、对应国家/币种圆形图标和钱包余额。",
-      "tags": [
-        "钱包",
-        "余额",
-        "多币种"
-      ],
-      "html": "<section class=\"wallet-card-group\"><header><span>Wallet List</span><strong>多币种钱包</strong></header><div class=\"wallets\"><article><span><i>🇺🇸</i><b>USD</b></span><strong>99,999.99</strong></article><article><span><i>🇦🇺</i><b>AUD</b></span><strong>10.48</strong></article><article><span><i>₮</i><b>USDT</b></span><strong>6,280.00</strong></article></div></section>",
-      "css": ".wallet-card-group{min-height:220px;display:grid;gap:14px;padding:18px;border:1px solid var(--home-border);border-radius:var(--home-radius-sm,8px);background:var(--home-card-bg);color:var(--home-text);font-family:Inter,system-ui,sans-serif}.wallet-card-group *{box-sizing:border-box}.wallet-card-group header{display:flex;align-items:center;justify-content:space-between;gap:10px}.wallet-card-group header span{color:var(--home-text-muted);font-size:12px;font-weight:850}.wallet-card-group header strong{color:var(--home-text-strong);font-size:22px;font-weight:950}.wallet-card-group .wallets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.wallet-card-group article{display:grid;gap:12px;padding:14px;border:1px solid var(--home-border);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft)}.wallet-card-group article span{display:flex;align-items:center;gap:9px;min-width:0}.wallet-card-group article i{width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--home-border);border-radius:999px;background:var(--home-card-bg);color:var(--home-text);font-size:15px;font-style:normal;font-weight:950}.wallet-card-group article b{color:var(--home-text);font-size:15px;font-weight:950}.wallet-card-group article strong{color:var(--home-text-strong);font-size:24px;font-weight:950;font-variant-numeric:tabular-nums;letter-spacing:0}@media(max-width:720px){.wallet-card-group .wallets{grid-template-columns:1fr}}",
-      "layoutHints": [
-        "3x2",
-        "仅展示币种和余额"
-      ],
-      "dataRequirements": [
-        "walletRows",
-        "currency",
-        "balance",
-        "currencyIcon"
-      ],
-      "sourcePrompt": "钱包列表，做一个多币种卡片；每张卡只包含钱包货币、对应国家或币种圆形图标、钱包余额。",
-      "createdAt": "2026-05-08T14:40:39.266Z",
       "updatedAt": "2026-05-09T03:44:17.720Z"
     },
     {

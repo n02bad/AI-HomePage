@@ -39,7 +39,7 @@
       "themeAdvice": "使用 blackGold 主题，资产和广告权重最高，账号列表保持安静表格。",
       "polishInstructions": "首屏保持宽松，右侧只放开户和资金动作，不再堆叠过多小卡片。",
       "createdAt": "2026-05-07T00:00:00.000Z",
-      "updatedAt": "2026-05-10T05:56:19.007Z"
+      "updatedAt": "2026-05-13T10:10:23.319Z"
     },
     {
       "id": "trader-console-brick-flow",
@@ -74,7 +74,7 @@
       "themeAdvice": "使用 default 或 darkTech，信息密度 compact，账号列表固定 list。",
       "polishInstructions": "账号表现使用主账号摘要 + 7D/30D 净值或 PnL 折线图，底部只保留少量关键指标；交易账号高密度时默认列表/表格，卡片必须突出一个主金额和一个盈亏状态。",
       "createdAt": "2026-05-07T00:00:00.000Z",
-      "updatedAt": "2026-05-10T05:56:19.007Z"
+      "updatedAt": "2026-05-13T10:10:23.319Z"
     },
     {
       "id": "onboarding-conversion-brick-flow",
@@ -115,7 +115,7 @@
       "themeAdvice": "使用 blueFinance，开户路径清晰，按钮权重要高于广告。",
       "polishInstructions": "首屏不要堆太多资产数字，优先把开户步骤、开户动作和表单连起来。",
       "createdAt": "2026-05-07T00:00:00.000Z",
-      "updatedAt": "2026-05-10T05:56:19.007Z"
+      "updatedAt": "2026-05-13T10:10:23.319Z"
     },
     {
       "id": "mowlkigr",
@@ -169,7 +169,7 @@
       "polishInstructions": "确保所有卡片圆角一致（8px），行间距12px，列间距16px；资产总览添加悬浮微动效；工具条按钮高对比度，悬停时金色描边；开户面板增加步骤引导指示器；账号列表隔行浅色区分；轮播图保证4:1宽高比，切换平滑。",
       "sourcePrompt": "用已保存组件组合一个专业首页。",
       "createdAt": "2026-05-08T07:32:12.795Z",
-      "updatedAt": "2026-05-10T05:56:19.007Z"
+      "updatedAt": "2026-05-13T10:10:23.319Z"
     },
     {
       "id": "professional-trader-dashboard-mowlltek",
@@ -217,7 +217,7 @@
       "polishInstructions": "Use a flat selected-account summary, an ECharts-powered 7D/30D equity or PnL line chart, and one quiet 3-4 item metric strip in AccountPerformance. Trading account cards need one dominant value, one PnL/risk state, 2-3 quiet metadata rows, and no nested metric grid; use tables for dense account data.",
       "sourcePrompt": "用已保存组件组合一个专业首页。",
       "createdAt": "2026-05-08T07:33:13.628Z",
-      "updatedAt": "2026-05-10T05:56:19.007Z"
+      "updatedAt": "2026-05-13T10:10:23.319Z"
     }
   ]
 }

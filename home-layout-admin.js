@@ -14,6 +14,7 @@
   const MINIMAX_CN_TYPED_ALIAS_BASE_URL = "https://api.minimaxi.cn/v1";
   const MINIMAX_GLOBAL_BASE_URL = "https://api.minimax.io/v1";
   const MINIMAX_MAX_COMPLETION_TOKENS = 2048;
+  const KIMI_BASE_URL = "https://api.moonshot.ai/v1";
   const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
   const PREVIEW_SIZE_PRESETS = {
     mobile: { label: "手机", meta: "390x844" },
@@ -72,7 +73,7 @@
       badge: "OpenAI Compatible",
       model: "kimi-k2.5",
       models: ["kimi-k2.5", "kimi-k2-thinking", "moonshot-v1-128k"],
-      baseUrl: "https://api.moonshot.ai/v1",
+      baseUrl: KIMI_BASE_URL,
       endpoint: "/chat/completions",
       apiMode: "openai-chat",
       apiKeyLabel: "MOONSHOT_API_KEY",
@@ -2088,17 +2089,25 @@
     return String(error?.message || error || "大模型调用失败").slice(0, limit);
   }
 
+  function providerAuthAdvice(details = {}, message = "") {
+    const identity = `${details.provider || ""} ${details.providerName || ""} ${details.model || ""} ${message || ""}`;
+    if (details.provider === "deepseek" || /DeepSeek/i.test(identity)) {
+      return "处理建议：DeepSeek API Key 无效或未配置，请在模型配置里填写 DEEPSEEK_API_KEY 对应密钥；Base URL 使用 https://api.deepseek.com。";
+    }
+    if (details.provider === "kimi" || /Kimi|Moonshot|moonshot/i.test(identity)) {
+      return `处理建议：Kimi / Moonshot API Key 无效或未配置，请在模型配置里填写 MOONSHOT_API_KEY 或 KIMI_API_KEY 对应密钥；Base URL 使用 ${KIMI_BASE_URL}。`;
+    }
+    if (details.provider === "minimax" || /MiniMax/i.test(identity)) {
+      return `处理建议：API Key 无效或账号区域不匹配，请在模型配置里重新填写 MiniMax API Key；CN 账号使用 ${MINIMAX_CN_BASE_URL}，国际账号使用 ${MINIMAX_GLOBAL_BASE_URL}。`;
+    }
+    return "处理建议：API Key 无效或账号区域不匹配，请检查当前厂商的 API Key、Base URL 和账号区域。";
+  }
+
   function modelProxyAdvice(message, details = {}) {
     const source = `${message || ""} ${details.providerStatus || ""} ${details.providerCode || ""}`;
 
     if (Number(details.providerStatus) === 401 || /HTTP\s*401|invalid api key|unauthorized|\b2049\b/i.test(source)) {
-      if (details.provider === "deepseek" || /DeepSeek/i.test(`${details.providerName || ""} ${details.model || ""}`)) {
-        return "处理建议：DeepSeek API Key 无效或未配置，请在模型配置里填写 DEEPSEEK_API_KEY 对应密钥；Base URL 使用 https://api.deepseek.com。";
-      }
-      if (details.provider === "minimax" || /MiniMax/i.test(`${details.providerName || ""} ${details.model || ""}`)) {
-        return `处理建议：API Key 无效或账号区域不匹配，请在模型配置里重新填写 MiniMax API Key；CN 账号使用 ${MINIMAX_CN_BASE_URL}，国际账号使用 ${MINIMAX_GLOBAL_BASE_URL}。`;
-      }
-      return `处理建议：API Key 无效或账号区域不匹配，请在模型配置里重新填写 MiniMax API Key；CN 账号使用 ${MINIMAX_CN_BASE_URL}，国际账号使用 ${MINIMAX_GLOBAL_BASE_URL}。`;
+      return providerAuthAdvice(details, source);
     }
 
     if (/valid homepage JSON|AI response did not contain valid homepage JSON/i.test(source)) {
