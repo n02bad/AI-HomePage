@@ -3832,7 +3832,8 @@
     config.heroFocus = "trading_account_highlight";
     config.pageIntent = normalizePageIntent({ ...(config.pageIntent || {}), primaryIntent: "trader" }, "trader");
     config.sections = [
-      { id: "cost-execution-hero", type: "hero", title: "交易成本与执行", slots: ["trading_account_highlight", "quick_actions"] },
+      { id: "cost-execution-chart", type: "full", title: "交易成本与执行", slots: ["trading_account_highlight"] },
+      { id: "cost-execution-actions", type: "split", title: "MT5 操作", slots: ["quick_actions"] },
       { id: "cost-margin-strip", type: "full", title: "持仓与保证金", slots: ["asset_overview"] },
       { id: "cost-account-ledger", type: "full", title: "真实与模拟账号", slots: ["trading_accounts_list"] },
     ];
@@ -3890,7 +3891,7 @@
     });
 
     config.brickPlan = [
-      { brickId: "accountPerformance.costBoard", brickName: "交易成本与执行看板", family: "AccountPerformance", feature: "trading_account_highlight", component: "trading_account_highlight", size: "2x2", zone: "hero", reason: "首屏直接保留 EURUSD 点差 0.2 起、佣金 $7/手、持仓 PnL、保证金占用和执行效率。" },
+      { brickId: "accountPerformance.costBoard", brickName: "交易成本与执行看板", family: "AccountPerformance", feature: "trading_account_highlight", component: "trading_account_highlight", size: "3x2", zone: "full", reason: "交易成本与账号表现属于大图表模块，用整横栏承载 PnL、保证金占用和执行效率。" },
       { brickId: "quickActions.mt5CommandBar", brickName: "MT5 快捷命令栏", family: "QuickActions", feature: "quick_actions", component: "quick_actions", size: "1x2", zone: "rail", reason: "MT5、持仓、订单和切换账号作为专业交易高频操作。" },
       { brickId: "assetOverview.marginTicker", brickName: "保证金与资产 Ticker", family: "AssetOverview", feature: "asset_overview", component: "asset_overview", size: "3x1", zone: "full", reason: "把保证金占用和可用资金压缩为行情式横向指标，不复用新手路径。" },
       { brickId: "tradingAccounts.separatedList", brickName: "真实/模拟账号双列表", family: "TradingAccounts", feature: "trading_accounts_list", component: "trading_accounts_list", size: "3x2", zone: "full", reason: "真实账号和模拟账号分区列表展示，适合专业交易排查与切换。" },
@@ -4278,7 +4279,7 @@
       const flatSignal = String(prompt || "").toLowerCase() + String(prompt || "");
       if (wantsAccountPerformanceLinePrompt(prompt) || includesAny(flatSignal, ["账号表现", "账户表现", "数据指标", "指标排版", "持仓 pnl", "pnl"])) {
         if (!slotVisibleInConfig(config, "accountPerformance") && !slotVisibleInConfig(config, "trading_account_highlight")) {
-          ensureSectionContains(config, { id: "flat-account-performance", type: "split", title: "账号表现" }, "accountPerformance");
+          ensureSectionContains(config, { id: "flat-account-performance", type: "full", title: "账号表现" }, "trading_account_highlight");
         }
       }
     }
@@ -4493,8 +4494,8 @@
       { brickId: "fundActions.priorityDock", brickName: "资金操作 Dock", family: "FundActions", feature: "fundActions", component: "fund_actions", size: "1x1", zone: "rail", reason: "主入金动作只在首屏操作区放大一次。" },
       { brickId: "openAccount.conversionPanel", brickName: "开户转化面板", family: "OpenAccount", feature: "openAccountActions", component: "open_account_panel", size: "1x2", zone: "rail", reason: "开真实账号作为入金前置动作，而不是散落在页面各处。" },
       { brickId: "quickActions.taskRail", brickName: "快捷入口", family: "QuickActions", feature: "quickActions", component: "quick_actions", size: "2x1", zone: "main", reason: "快捷入口紧跟首屏，承接转账、订单、持仓和客服，不重复主入金按钮。" },
-      { brickId: "accountPerformance.proChart", brickName: "账号轻趋势", family: "AccountPerformance", feature: "accountPerformance", component: "account_performance", size: "2x2", zone: "main", reason: "账号区保留轻量趋势，复杂图表下移并降噪。" },
-      { brickId: "tradingAccounts.cardProof", brickName: "紧凑账号证明卡", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "2x2", zone: "full", reason: "账号信息作为整栏证明区承接，不抢首屏入金主线。" },
+      { brickId: "accountPerformance.proChart", brickName: "账号轻趋势", family: "AccountPerformance", feature: "trading_account_highlight", component: "trading_account_highlight", size: "3x2", zone: "full", reason: "账号表现图表独占整横栏，兼顾趋势、账号上下文和指标带。" },
+      { brickId: "tradingAccounts.cardProof", brickName: "紧凑账号证明卡", family: "TradingAccounts", feature: "trading_accounts_list", component: "trading_accounts_list", size: "3x2", zone: "full", reason: "交易账号信息作为整横栏账号区承接，不抢首屏入金主线。" },
     ];
   }
 
@@ -5497,7 +5498,7 @@
       }
 
       if (item.component === "account_performance" && /^1x/.test(size)) {
-        return brickPlanItemWithBrick(item, "accountPerformance.proChart", "main", "账号表现图表需要主栏宽度承载趋势信息。");
+        return brickPlanItemWithBrick(item, "accountPerformance.proChart", "full", "账号表现图表属于大模块，至少使用整横栏承载趋势信息。");
       }
 
       return item;
@@ -6077,6 +6078,7 @@
 	    }
 	    if (type === "hero") return "hero";
 	    if (type === "full") return "full";
+	    if (LARGE_FULL_ROW_HOME_BLOCKS.has(component)) return "full";
 	    if (["trading_accounts_list", "asset_overview", "quick_actions", "promo_banner", "onboarding_guide", "trading_account_highlight", "pamm_products", "copytrading_signals", "referral_link_card", "announcements", "market_news", "risk_disclosure", "faq_section", "support_contact", "app_download"].includes(component)) return "main";
 	    if (type === "rail") return "rail";
 	    if (["onboarding_guide", "referral_link_card", "announcements", "market_news", "risk_disclosure", "faq_section", "support_contact", "app_download", "pamm_products", "copytrading_signals"].includes(component)) return "rail";

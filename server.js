@@ -940,11 +940,13 @@ const HOMEPAGE_INTENT_SECTIONS = {
     { id: "vip-accounts", type: "full", title: "交易账号", slots: ["trading_accounts_list"] },
   ],
   insight: [
-    { id: "insight-hero", type: "hero", title: "账户表现", slots: ["trading_account_highlight", "market_news"] },
-    { id: "insight-assets", type: "split", title: "资产与账号", slots: ["asset_overview", "trading_accounts_list"] },
+    { id: "insight-performance", type: "full", title: "账户表现", slots: ["trading_account_highlight"] },
+    { id: "insight-assets", type: "split", title: "资产与资讯", slots: ["asset_overview", "market_news"] },
+    { id: "insight-accounts", type: "full", title: "交易账号", slots: ["trading_accounts_list"] },
   ],
   risk: [
-    { id: "risk-hero", type: "hero", title: "风险提示", slots: ["risk_disclosure", "trading_account_highlight"] },
+    { id: "risk-hero", type: "hero", title: "风险提示", slots: ["risk_disclosure"] },
+    { id: "risk-performance", type: "full", title: "账户表现", slots: ["trading_account_highlight"] },
     { id: "risk-context", type: "split", title: "账户上下文", slots: ["asset_overview", "support_contact"] },
     { id: "risk-accounts", type: "full", title: "交易账号", slots: ["trading_accounts_list"] },
   ],
@@ -959,7 +961,8 @@ const HOMEPAGE_INTENT_SECTIONS = {
   ],
   brand: [
     { id: "brand-trust-hero", type: "hero", title: "资金安全", slots: ["asset_overview", "quick_actions"] },
-    { id: "brand-conversion", type: "split", title: "账号与活动", slots: ["trading_account_highlight", "promo_banner"] },
+    { id: "brand-performance", type: "full", title: "账号表现", slots: ["trading_account_highlight"] },
+    { id: "brand-campaign", type: "split", title: "品牌活动", slots: ["promo_banner"] },
     { id: "brand-accounts", type: "full", title: "交易账号", slots: ["trading_accounts_list"] },
   ],
 };
@@ -3700,7 +3703,7 @@ function buildMiniMaxPrompt(payload) {
           promo_banner: { desktop: "split-copy-tiers", tablet: "stack-copy-tiers", mobile: "single-column-tiers" },
           onboarding_guide: { desktop: "three-step-row", tablet: "vertical-journey", mobile: "checklist" },
           quick_actions: { desktop: "auto-grid", tablet: "two-column-grid", mobile: "one-or-two-column-grid" },
-          trading_account_highlight: { desktop: "split-equal-height", tablet: "stack-chart-after-summary", mobile: "single-column-chart" },
+          trading_account_highlight: { desktop: "full-row-chart", tablet: "stack-chart-after-summary", mobile: "single-column-chart" },
         },
         notes: ["内容区低于 1040px 时，成对模块自动改为一栏一个模块。"],
       },
@@ -4634,19 +4637,19 @@ function mockHomepageConfig(payload, providerConfig) {
     { brickId: "assetOverview.tickerStrip", brickName: "三项资产汇总", family: "AssetOverview", feature: "asset_overview", component: "asset_overview", size: "2x1", zone: "main", reason: "资产概览只展示余额合计、交易账号余额和钱包余额汇总。" },
     { brickId: "quickActions.taskRail", brickName: "快捷入口侧栏", family: "QuickActions", feature: "quick_actions", component: "quick_actions", size: "1x1", zone: "rail", reason: "快捷入口与资产概览同行，减少右侧空白。" },
     { brickId: "walletList.tiles", brickName: "钱包磁贴组", family: "WalletList", feature: "wallet_list", component: "wallet_list", size: "3x2", zone: "full", reason: "多币种钱包卡片只在钱包列表模块展示。" },
-    { brickId: "accountPerformance.proChart", brickName: "账号表现图表", family: "AccountPerformance", feature: "accountPerformance", component: "account_performance", size: "2x2", zone: "main", reason: "账户表现图表需要主栏宽度承载趋势信息。" },
+    { brickId: "accountPerformance.proChart", brickName: "账号表现图表", family: "AccountPerformance", feature: "trading_account_highlight", component: "trading_account_highlight", size: "3x2", zone: "full", reason: "账户表现图表独占整横栏承载账号上下文、趋势和指标。" },
     { brickId: "riskDisclosure.marginGuard", brickName: "保证金风险提示", family: "RiskDisclosure", feature: "risk_disclosure", component: "risk_disclosure", size: "1x2", zone: "rail", reason: "把保证金、杠杆和风险提示放到侧栏提醒。" },
     { brickId: "tradingAccounts.separatedList", brickName: "真实/模拟账号双列表", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "3x2", zone: "full", reason: "交易账号列表作为下方管理区完整承接。" },
     ],
     trader: [
       { brickId: "quickActions.commandBar", brickName: "交易命令栏", family: "QuickActions", feature: "quickActions", component: "quick_actions", size: "3x1", zone: "hero", reason: "专业交易首页先给订单、持仓和 MT5 高频入口。" },
-      { brickId: "accountPerformance.sparklineBoard", brickName: "Sparkline 指挥看板", family: "AccountPerformance", feature: "accountPerformance", component: "account_performance", size: "2x2", zone: "main", reason: "权益和 PnL 曲线作为交易判断依据。" },
+      { brickId: "accountPerformance.sparklineBoard", brickName: "Sparkline 指挥看板", family: "AccountPerformance", feature: "trading_account_highlight", component: "trading_account_highlight", size: "3x2", zone: "full", reason: "权益和 PnL 曲线作为交易判断依据，需要整横栏展示。" },
       { brickId: "userKycRail.profileWallet", brickName: "用户/KYC 钱包侧栏", family: "UserKycRail", feature: "userKycRail", component: "user_kyc_rail", size: "1x2", zone: "rail", reason: "右侧保留状态和钱包摘要。" },
       { brickId: "assetOverview.compactMetrics", brickName: "紧凑资产指标条", family: "AssetOverview", feature: "balanceTotal", component: "asset_summary", size: "3x1", zone: "full", reason: "资产指标压缩成横条，避免抢交易账号区域。" },
       { brickId: "tradingAccounts.separatedList", brickName: "真实/模拟账号双列表", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "3x2", zone: "full", reason: "账号列表完整展示。" },
     ],
     insight: [
-      { brickId: "accountPerformance.sparklineBoard", brickName: "Sparkline 指挥看板", family: "AccountPerformance", feature: "accountPerformance", component: "account_performance", size: "2x2", zone: "hero", reason: "数据洞察首页先看账户表现和 PnL。" },
+      { brickId: "accountPerformance.sparklineBoard", brickName: "Sparkline 指挥看板", family: "AccountPerformance", feature: "trading_account_highlight", component: "trading_account_highlight", size: "3x2", zone: "full", reason: "数据洞察首页先看账户表现和 PnL，图表独占整横栏。" },
       { brickId: "marketInsight.healthPanel", brickName: "账户健康洞察", family: "MarketInsight", feature: "marketInsight", component: "market_insight", size: "1x2", zone: "rail", reason: "右侧放账户健康、资金流和市场状态。" },
       { brickId: "assetOverview.compactMetrics", brickName: "紧凑资产指标条", family: "AssetOverview", feature: "balanceTotal", component: "asset_summary", size: "3x1", zone: "full", reason: "总资产作为辅助指标条。" },
       { brickId: "riskDisclosure.marginGuard", brickName: "保证金风险提示", family: "RiskDisclosure", feature: "risk_disclosure", component: "risk_disclosure", size: "1x2", zone: "rail", reason: "风险和保证金作为洞察结论。" },
@@ -4659,11 +4662,11 @@ function mockHomepageConfig(payload, providerConfig) {
       { brickId: "fundActions.priorityDock", brickName: "资金操作 Dock", family: "FundActions", feature: "fundActions", component: "fund_actions", size: "1x1", zone: "rail", reason: "主入金动作只在首屏操作区放大一次。" },
       { brickId: "openAccount.conversionPanel", brickName: "开户转化面板", family: "OpenAccount", feature: "openAccountActions", component: "open_account_panel", size: "1x2", zone: "rail", reason: "开真实账号作为入金前置动作，而不是散落在页面各处。" },
       { brickId: "quickActions.taskRail", brickName: "快捷入口", family: "QuickActions", feature: "quickActions", component: "quick_actions", size: "2x1", zone: "main", reason: "快捷入口紧跟首屏，承接转账、订单、持仓和客服，不重复主入金按钮。" },
-      { brickId: "accountPerformance.proChart", brickName: "账号轻趋势", family: "AccountPerformance", feature: "accountPerformance", component: "account_performance", size: "2x2", zone: "main", reason: "账号区保留轻量趋势，复杂图表下移并降噪。" },
-      { brickId: "tradingAccounts.cardProof", brickName: "紧凑账号证明卡", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "2x2", zone: "full", reason: "账号信息作为整栏证明区承接，不抢首屏入金主线。" },
+      { brickId: "accountPerformance.proChart", brickName: "账号轻趋势", family: "AccountPerformance", feature: "trading_account_highlight", component: "trading_account_highlight", size: "3x2", zone: "full", reason: "账号区保留轻量趋势，独占整横栏并降噪。" },
+      { brickId: "tradingAccounts.cardProof", brickName: "紧凑账号证明卡", family: "TradingAccounts", feature: "trading_accounts_list", component: "trading_accounts_list", size: "3x2", zone: "full", reason: "账号信息作为整栏证明区承接，不抢首屏入金主线。" },
     ],
     risk: [
-      { brickId: "accountPerformance.sparklineBoard", brickName: "Sparkline 指挥看板", family: "AccountPerformance", feature: "accountPerformance", component: "account_performance", size: "2x2", zone: "hero", reason: "风险首页先展示权益和 PnL 波动。" },
+      { brickId: "accountPerformance.sparklineBoard", brickName: "Sparkline 指挥看板", family: "AccountPerformance", feature: "trading_account_highlight", component: "trading_account_highlight", size: "3x2", zone: "full", reason: "风险首页先展示权益和 PnL 波动，图表独占整横栏。" },
       { brickId: "riskDisclosure.marginGuard", brickName: "保证金风险提示", family: "RiskDisclosure", feature: "risk_disclosure", component: "risk_disclosure", size: "1x2", zone: "rail", reason: "保证金和风险提示需要首屏提醒。" },
       { brickId: "marketInsight.healthPanel", brickName: "账户健康洞察", family: "MarketInsight", feature: "marketInsight", component: "market_insight", size: "1x2", zone: "rail", reason: "补充市场和账户健康指标。" },
       { brickId: "assetOverview.compactMetrics", brickName: "紧凑资产指标条", family: "AssetOverview", feature: "balanceTotal", component: "asset_summary", size: "3x1", zone: "full", reason: "资产指标保留但降权。" },
@@ -6174,7 +6177,7 @@ const GUIDED_SLOT_SECTIONS = {
   faq_section: { id: "guided-help", type: "split", title: "帮助与下载" },
   support_contact: { id: "guided-help", type: "split", title: "帮助与下载" },
   app_download: { id: "guided-help", type: "split", title: "帮助与下载" },
-  trading_account_highlight: { id: "guided-account-performance", type: "split", title: "账户表现" },
+  trading_account_highlight: { id: "guided-account-performance", type: "full", title: "账户表现" },
   trading_accounts_list: { id: "guided-trading-accounts", type: "full", title: "交易账号" },
   risk_disclosure: { id: "guided-risk-disclosure", type: "full", title: "风险提示" },
 };
@@ -6397,13 +6400,14 @@ function applyTradingCostWorkbenchServerConfig(next, settings, understanding = {
   next.heroFocus = "trading_account_highlight";
   next.pageIntent = { ...ensureObject(next.pageIntent), primaryIntent: "trader" };
   next.sections = [
-    { id: "cost-execution-hero", type: "hero", title: "交易成本与执行", slots: ["trading_account_highlight", "quick_actions"] },
+    { id: "cost-execution-chart", type: "full", title: "交易成本与执行", slots: ["trading_account_highlight"] },
+    { id: "cost-execution-actions", type: "split", title: "MT5 操作", slots: ["quick_actions"] },
     { id: "cost-margin-strip", type: "full", title: "持仓与保证金", slots: ["asset_overview"] },
     { id: "cost-account-ledger", type: "full", title: "真实与模拟账号", slots: ["trading_accounts_list"] },
   ];
   delete next.layout;
   next.brickPlan = [
-    { brickId: "accountPerformance.costBoard", brickName: "交易成本与执行看板", family: "AccountPerformance", feature: "trading_account_highlight", component: "trading_account_highlight", size: "2x2", zone: "hero", reason: "首屏直接保留 EURUSD 点差 0.2 起、佣金 $7/手、持仓 PnL、保证金占用和执行效率。" },
+    { brickId: "accountPerformance.costBoard", brickName: "交易成本与执行看板", family: "AccountPerformance", feature: "trading_account_highlight", component: "trading_account_highlight", size: "3x2", zone: "full", reason: "交易成本与账号表现属于大图表模块，用整横栏承载 PnL、保证金占用和执行效率。" },
     { brickId: "quickActions.mt5CommandBar", brickName: "MT5 快捷命令栏", family: "QuickActions", feature: "quick_actions", component: "quick_actions", size: "1x2", zone: "rail", reason: "MT5、持仓、订单和切换账号作为专业交易高频操作。" },
     { brickId: "assetOverview.marginTicker", brickName: "保证金与资产 Ticker", family: "AssetOverview", feature: "asset_overview", component: "asset_overview", size: "3x1", zone: "full", reason: "把保证金占用和可用资金压缩为行情式横向指标，不复用新手路径。" },
     { brickId: "tradingAccounts.separatedList", brickName: "真实/模拟账号双列表", family: "TradingAccounts", feature: "trading_accounts_list", component: "trading_accounts_list", size: "3x2", zone: "full", reason: "真实账号和模拟账号分区列表展示，适合专业交易排查与切换。" },
