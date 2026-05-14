@@ -324,8 +324,8 @@
       "type": "ai-generated",
       "name": "账号表现图表",
       "family": "AccountPerformance",
-      "size": "2x2",
-      "description": "专业交易客户首屏查看单个账号摘要、由 ECharts 渲染的 7日/30日净值或 PnL 折线图，X 轴使用日期；账号上下文和指标采用单层扁平排版，图表底部用走势摘要补足视觉重心，避免卡片内再套小卡片。",
+      "size": "3x2",
+      "description": "专业交易客户用整横栏查看单个账号摘要、由 ECharts 渲染的 7日/30日净值或 PnL 折线图，X 轴使用日期；账号上下文和指标采用单层扁平排版，图表底部用走势摘要补足视觉重心，避免卡片内再套小卡片，也不要与交易账号列表左右分栏互相挤压。",
       "tags": [
         "trader",
         "performance",
@@ -339,8 +339,8 @@
       "html": "<section class=\"brick-performance\"><header><div><span>Account Performance</span><strong>账号表现</strong></div><nav><button>7D</button><button>30D</button></nav></header><main><aside><small>Live · MT5 · HCHoldings-Live2</small><b>Equity --</b><p>Floating P/L -- · Margin Ratio -- · Leverage --</p></aside><div class=\"curve\"><div class=\"echart-canvas\" data-home-echart data-chart-kind=\"account-performance\" data-chart-axis-mode=\"xy\" data-chart-period=\"7\" role=\"img\" aria-label=\"ECharts 账号净值和PnL日期折线图\"></div><p>05/05 · 05/08 · 05/11</p><footer><span>7D Equity +16.8%</span><span>Peak 13,120</span><span>Drawdown -3.2%</span></footer></div></main></section>",
       "css": ".brick-performance{min-height:280px;display:grid;gap:14px;padding:18px;border:1px solid var(--home-border);border-radius:var(--home-radius-sm,8px);background:var(--home-card-bg);color:var(--home-text)}.brick-performance header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.brick-performance header div{display:grid;gap:6px}.brick-performance span,.brick-performance small,.brick-performance p{color:var(--home-text-muted);font-size:12px;font-weight:850}.brick-performance strong{font-size:22px;font-weight:950}.brick-performance nav{display:flex;gap:4px;padding:4px;border:1px solid var(--home-border);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft)}.brick-performance button{min-height:28px;border:0;border-radius:6px;background:var(--home-button-bg);color:var(--home-button-text);font-size:12px;font-weight:950}.brick-performance main{display:grid;grid-template-columns:.7fr 1.5fr;gap:18px;padding-top:10px;border-top:1px solid #e5edf8}.brick-performance aside{display:grid;gap:8px;align-content:start;padding:4px 0}.brick-performance aside b{font-size:32px;font-weight:950}.brick-performance aside p,.brick-performance .curve p{margin:0}.brick-performance .curve{display:grid;grid-template-rows:minmax(160px,1fr) auto auto;gap:8px}.brick-performance .echart-canvas{min-height:160px}.brick-performance footer{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding-top:8px;border-top:1px solid #e5edf8}.brick-performance footer span{color:var(--home-text);font-weight:950}@media(max-width:720px){.brick-performance main,.brick-performance footer{grid-template-columns:1fr}}",
       "layoutHints": [
-        "main",
-        "2x2"
+        "full",
+        "3x2"
       ],
       "dataRequirements": [
         "accountBalance",
@@ -360,14 +360,14 @@
       "name": "真实/模拟账号双列表",
       "family": "TradingAccounts",
       "size": "3x2",
-      "description": "交易账号卡片或列表只展示账号类型、平台/服务器、账号、余额、净值、信用金、账户类型、杠杆和保证金比例，不自行补充 PnL、用途、持仓、操作等字段；同一模块只能选择卡片、列表或表格一种主视图，不允许摘要卡片和完整表格上下重复。",
+      "description": "交易账号卡片或列表只展示账号类型、交易环境值、账号、余额、净值、信用金、账户类型、杠杆和保证金比例；交易环境由 platform+server 合并为 MT5 · HCHoldings-Live2 这类值，卡片里不要露出“平台/服务器”字段名；不自行补充 PnL、用途、持仓、操作等字段；同一模块只能选择卡片、列表或表格一种主视图，不允许摘要卡片和完整表格上下重复。",
       "tags": [
         "accounts",
         "live",
         "demo",
         "list"
       ],
-      "html": "<section class=\"brick-account-list\"><span>交易账号</span><strong>Live / Demo</strong><p>字段：账号类型、平台/服务器、账号、余额、净值、信用金、账户类型、杠杆、保证金比例。</p></section>",
+      "html": "<section class=\"brick-account-list\"><span>交易账号</span><strong>Live / Demo</strong><p>字段：账号类型、交易环境值、账号、余额、净值、信用金、账户类型、杠杆、保证金比例。</p></section>",
       "css": ".brick-account-list{min-height:220px;display:grid;gap:10px;padding:18px;border:1px solid var(--home-border);border-radius:var(--home-radius-sm,8px);background:var(--home-card-bg)}.brick-account-list span{color:var(--home-primary);font-size:12px;font-weight:900}.brick-account-list strong{font-size:24px}.brick-account-list p{margin:0;color:var(--home-text-muted)}",
       "layoutHints": [
         "full",
@@ -385,7 +385,7 @@
         "leverage",
         "marginRatio"
       ],
-      "sourcePrompt": "交易账号卡片和列表字段契约：账号类型 Demo/Live、平台/服务器、账号、余额、净值、信用金、账户类型、杠杆、保证金比例；其他字段不要自行补充；账号类型=Live/Demo，账户类型=ECN Standard/Demo ECN，不得混用；同一模块只保留卡片、列表或表格一种主视图，不能上方摘要卡片下方再重复完整表格。",
+      "sourcePrompt": "交易账号卡片和列表字段契约：账号类型 Demo/Live、交易环境值、账号、余额、净值、信用金、账户类型、杠杆、保证金比例；交易环境由 platform+server 合并直接显示为 MT5 · HCHoldings-Live2 这类值，卡片里不要露出“平台/服务器”字段名；其他字段不要自行补充；账号类型=Live/Demo，账户类型=ECN Standard/Demo ECN，不得混用；同一模块只保留卡片、列表或表格一种主视图，不能上方摘要卡片下方再重复完整表格。",
       "createdAt": "2026-05-08T09:18:13.977Z",
       "updatedAt": "2026-05-09T03:44:17.720Z"
     },

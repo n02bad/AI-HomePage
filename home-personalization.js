@@ -70,6 +70,8 @@
     "app_download",
   ];
 
+  const LARGE_FULL_ROW_HOME_BLOCKS = new Set(["trading_account_highlight", "trading_accounts_list", "wallet_list"]);
+
   const FORBIDDEN_HOME_BLOCKS = [
     "reward_tasks",
     "kyc_risk_notice",
@@ -212,16 +214,16 @@
       bannerStyle: "neon-campaign",
     },
     minimalWhite: {
-      primaryColor: "#111827",
+      primaryColor: "#475569",
       accentColor: "#64748b",
       backgroundStyle: "minimal-white",
       cardStyle: "flat-white",
       cardRadius: "4px",
       cardShadow: "none",
-      buttonStyle: "ink-gradient",
+      buttonStyle: "quiet-outline",
       fontDensity: 0.96,
       numberStyle: "quiet",
-      bannerStyle: "ink-band",
+      bannerStyle: "paper-band",
     },
   };
 
@@ -991,6 +993,7 @@
       componentMorphs: { type: "object" },
       themePreset: { enum: Object.keys(THEMES) },
       theme: { enum: Object.keys(THEMES) },
+      colorMode: { enum: ["auto", "light", "dark"] },
       themeCustom: {
         type: "object",
         properties: {
@@ -3133,13 +3136,15 @@
       family: "AccountPerformance",
       feature: "accountPerformance",
       component: "account_performance",
-      size: "2x2",
-      defaultZone: "main",
+      size: "3x2",
+      defaultZone: "full",
       intents: ["trader", "asset"],
       tags: ["交易", "图表", "表现", "pnl", "权益", "余额"],
       moduleId: "AccountPerformance",
       variant: "proChart",
-      reason: "活跃交易客户需要在首页直接看到账号表现和权益走势。",
+      moduleStyleFeature: "accountPerformance",
+      moduleStyle: "pro-chart",
+      reason: "账号表现包含账号上下文、主数值和趋势图，默认独占整横栏获得更好的展示空间。",
     },
     {
       id: "accountPerformance.sparklineBoard",
@@ -3147,8 +3152,8 @@
       family: "AccountPerformance",
       feature: "accountPerformance",
       component: "account_performance",
-      size: "2x2",
-      defaultZone: "main",
+      size: "3x2",
+      defaultZone: "full",
       intents: ["trader", "insight", "risk"],
       tags: ["sparkline", "交易", "表现", "指挥中心", "pnl"],
       moduleId: "AccountPerformance",
@@ -3741,6 +3746,7 @@
       includesAny(text, ["胶囊", "筛选", "快速筛选", "按钮"]);
     const wantsMatureBrokerTrust = includesAny(text, ["成熟券商", "资金安全", "品牌可信", "资金可信", "白标品牌", "白标首页", "隔离资金"]);
     const wantsLightBlue = includesAny(text, ["淡蓝", "浅蓝", "蓝色金融", "light blue"]);
+    const wantsMinimalLight = includesAny(text, ["极简", "极简白", "淡色", "浅色", "简洁白", "minimal", "white", "留白", "克制"]);
     const wantsFreshLayout = includesAny(text, ["不沿用上一版", "不要沿用上一版", "布局骨架", "耳目一新", "不要只换颜色", "不能只是换颜色"]);
     const wantsSpaceEfficiency = includesAny(text, ["大面积空白", "空白区域", "大空白", "少留白", "减少留白", "不要留白", "压缩留白", "空间利用", "利用空间", "空间利用率", "省空间", "压缩高度"]);
     const wantsCopyTrading = includesAny(text, ["copytrading", "copy trading", "跟单", "信号源", "推荐交易员", "交易员推荐"]);
@@ -3756,12 +3762,14 @@
     const wantsFaqSection = /faq|常见问题|问题解答|帮助中心/i.test(source);
 
     return {
+      sourcePrompt: source,
       quickActionCount,
       quickActionExact,
       visibleMetricCount,
       wantsCombinedAccountFilter,
       wantsMatureBrokerTrust,
       wantsLightBlue,
+      wantsMinimalLight,
       wantsFreshLayout,
       wantsSpaceEfficiency,
       wantsCopyTrading,
@@ -3905,8 +3913,9 @@
     config.layoutPreset = "tradingCommand";
     config.designGenome = "tradingCommand";
     config.pageStory = "tradingEfficiency";
-    config.themePreset = understanding.wantsLightBlue ? "blueFinance" : "blueFinance";
+    config.themePreset = understanding.wantsMinimalLight ? "minimalWhite" : "blueFinance";
     config.theme = config.themePreset;
+    config.colorMode = colorModeFromPromptText(understanding.sourcePrompt || config.sourcePrompt, config.colorMode);
     config.personalizationStrength = "strong";
     config.density = "balanced";
     config.heroFocus = "trading_accounts_list";
@@ -3920,7 +3929,8 @@
       "trader",
     );
     config.sections = [
-      { id: "trader-account-status-hero", type: "hero", title: "账号状态与账户表现", slots: ["trading_accounts_list", "trading_account_highlight"] },
+      { id: "trader-account-status-row", type: "full", title: "交易账号", slots: ["trading_accounts_list"] },
+      { id: "trader-performance-row", type: "full", title: "账户表现", slots: ["trading_account_highlight"] },
       { id: "trader-operation-layer", type: "split", title: "持仓与 MT5 操作", slots: ["quick_actions"] },
       ...(understanding.wantsFaqSection ? [{ id: "trader-faq", type: "full", title: "FAQ", slots: ["faq_section"] }] : []),
     ];
@@ -3978,8 +3988,8 @@
     });
     config.dataContract = homepageDataContractFromUnderstanding(understanding);
     config.brickPlan = [
-      { brickId: "tradingAccounts.cardProof", brickName: "Live / Demo 合并账号卡片", family: "TradingAccounts", feature: "trading_accounts_list", component: "trading_accounts_list", size: "2x2", zone: "hero", reason: "真实账号和模拟账号在同一账号卡片区，用 Live / Demo 标识展示账号状态。" },
-      { brickId: "accountPerformance.proChart", brickName: "账户表现趋势图", family: "AccountPerformance", feature: "trading_account_highlight", component: "trading_account_highlight", size: "2x2", zone: "hero", reason: "首屏第二优先级展示账户表现图表，交易成本、PnL、保证金只作为接口绑定数据，不升级为成本看板。" },
+      { brickId: "tradingAccounts.cardProof", brickName: "Live / Demo 合并账号卡片", family: "TradingAccounts", feature: "trading_accounts_list", component: "trading_accounts_list", size: "3x2", zone: "full", reason: "真实账号和模拟账号在同一账号卡片区，用整横栏展示账号状态，避免与图表互相挤压。" },
+      { brickId: "accountPerformance.proChart", brickName: "账户表现趋势图", family: "AccountPerformance", feature: "trading_account_highlight", component: "trading_account_highlight", size: "3x2", zone: "full", reason: "账户表现图表需要完整横向空间展示账号上下文、主数值、趋势图和指标带。" },
       { brickId: "quickActions.segmentedPanel", brickName: "持仓与 MT5 操作入口", family: "QuickActions", feature: "quick_actions", component: "quick_actions", size: "2x1", zone: "main", reason: "持仓入口和 MT5 操作入口作为操作层，不抢账号状态主层级。" },
       ...(understanding.wantsFaqSection
         ? [{ brickId: "faqSection.topQuestions", brickName: "简约 FAQ", family: "FaqSection", feature: "faq_section", component: "faq_section", size: "3x1", zone: "full", reason: "FAQ 使用简约折叠或紧凑列表，作为低干扰解释区。" }]
@@ -4006,10 +4016,15 @@
       understanding.wantsMatureBrokerTrust ||
       understanding.wantsCombinedAccountFilter;
 
-    if (understanding.wantsLightBlue) {
+    if (understanding.wantsMinimalLight) {
+      config.themePreset = "minimalWhite";
+      config.theme = "minimalWhite";
+    } else if (understanding.wantsLightBlue) {
       config.themePreset = "blueFinance";
       config.theme = "blueFinance";
     }
+
+    config.colorMode = colorModeFromPromptText(prompt, config.colorMode);
 
     if (understanding.wantsFreshLayout) {
       config.personalizationStrength = "strong";
@@ -4530,11 +4545,12 @@
         openAccount: { enabled: true, real: true, demo: false, bind: false, placement: "standalone" },
         riskNotice: { enabled: false },
       }));
-      next.sections = [
-        { id: "deposit-hero", type: "hero", title: "入金奖励", slots: ["promoHighlight", "walletBalance", "fundActions", "openAccountActions"] },
-        { id: "deposit-actions", type: "split", title: "快捷入口", slots: ["quickActions"] },
-        { id: "deposit-accounts", type: "full", title: "账号与趋势", slots: ["accountPerformance", "tradingAccounts"] },
-      ];
+	      next.sections = [
+	        { id: "deposit-hero", type: "hero", title: "入金奖励", slots: ["promoHighlight", "walletBalance", "fundActions", "openAccountActions"] },
+	        { id: "deposit-actions", type: "split", title: "快捷入口", slots: ["quickActions"] },
+	        { id: "deposit-performance", type: "full", title: "账号表现", slots: ["accountPerformance"] },
+	        { id: "deposit-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
+	      ];
       next.brickPlan = depositGovernedBrickPlan();
       next.layout = enforceHomepageLayoutSafety(
         applyBrickMetadataToLayout(normalizeHomepageLayout(layoutFromSections(next.sections), next.sections).layout, next.brickPlan, next.modules),
@@ -4691,6 +4707,24 @@
     return ["config", "aiHtml", "compare"].includes(raw) ? raw : fallback;
   }
 
+  function normalizeHomeColorMode(value, fallback = "auto") {
+    const raw = cleanMetaText(value, fallback, 24).toLowerCase();
+    if (["dark", "night", "night-mode", "暗夜", "夜间", "黑夜"].includes(raw)) return "dark";
+    if (["light", "day", "day-mode", "白天", "日间", "亮色"].includes(raw)) return "light";
+    return "auto";
+  }
+
+  function colorModeFromPromptText(prompt, fallback = "auto") {
+    const source = String(prompt || "");
+    const text = source.toLowerCase() + source;
+    const wantsDark = includesAny(text, ["暗夜", "夜间", "黑夜", "夜色", "dark mode", "night mode", "暗色模式"]);
+    const wantsLight = includesAny(text, ["白天", "日间", "亮色", "浅色模式", "light mode", "day mode"]);
+    if (wantsDark && !wantsLight) return "dark";
+    if (wantsLight && !wantsDark) return "light";
+    if (wantsDark && wantsLight) return "auto";
+    return normalizeHomeColorMode(fallback);
+  }
+
   function renderModeWantsAiHtml(mode) {
     return mode === "aiHtml" || mode === "compare";
   }
@@ -4721,17 +4755,90 @@
     const html = sanitizeAiHtmlMarkup(scheme.html);
     const css = sanitizeAiHtmlCss(scheme.css);
     const hasHtml = Boolean(html && css);
+    const qualityScore = Number.isFinite(Number(scheme.qualityScore))
+      ? Math.max(0, Math.min(100, Math.round(Number(scheme.qualityScore))))
+      : null;
+    const normalizeTextList = (value, limit = 8, itemLimit = 140) =>
+      (Array.isArray(value) ? value : [])
+        .map((item) => cleanMetaText(item, "", itemLimit))
+        .filter(Boolean)
+        .slice(0, limit);
+    const normalizeTextMap = (value, entryLimit = 12, valueLimit = 180) => {
+      if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+      return Object.fromEntries(
+        Object.entries(value)
+          .map(([key, item]) => [cleanMetaText(key, "", 64), cleanMetaText(typeof item === "string" ? item : JSON.stringify(item), "", valueLimit)])
+          .filter(([key, item]) => key && item)
+          .slice(0, entryLimit),
+      );
+    };
+    const normalizeReferences = (value) =>
+      (Array.isArray(value) ? value : [])
+        .map((item) => {
+          if (typeof item === "string") return { componentId: cleanMetaText(item, "", 80), family: "", module: "", reason: "" };
+          if (!item || typeof item !== "object") return null;
+          return {
+            componentId: cleanMetaText(item.componentId || item.id || item.name, "", 80),
+            family: cleanMetaText(item.family, "", 60),
+            module: cleanMetaText(item.module || item.block || item.component, "", 60),
+            reason: cleanMetaText(item.reason || item.usedFor || item.inspiration, "", 180),
+          };
+        })
+        .filter((item) => item && (item.componentId || item.family || item.module || item.reason))
+        .slice(0, 12);
+    const normalizeImplementationContract = (value) =>
+      (Array.isArray(value) ? value : [])
+        .map((item) => {
+          if (!item || typeof item !== "object") return null;
+          const list = (sourceValue, limit = 8, itemLimit = 90) =>
+            (Array.isArray(sourceValue) ? sourceValue : [])
+              .map((entry) => cleanMetaText(entry, "", itemLimit))
+              .filter(Boolean)
+              .slice(0, limit);
+          return {
+            module: cleanMetaText(item.module || item.component || item.block || item.id, "", 80),
+            label: cleanMetaText(item.label || item.name || item.title, "", 80),
+            family: cleanMetaText(item.family || item.componentFamily, "", 80),
+            dataFields: list(item.dataFields || item.fields || item.dataBindings, 10, 72),
+            states: list(item.states || item.stateCoverage || item.requiredStates, 8, 72),
+            actions: list(item.actions || item.actionCoverage || item.requiredActions, 8, 72),
+            interactions: list(item.interactions || item.behaviors || item.userFlows, 8, 100),
+            renderEvidence: list(item.renderEvidence || item.evidence || item.htmlEvidence, 8, 120),
+            emptyShellRisk: Boolean(item.emptyShellRisk || item.fakeComponentRisk || item.staticShellRisk),
+            note: cleanMetaText(item.note || item.implementationNote || item.rationale, "", 160),
+          };
+        })
+        .filter((item) => item && (item.module || item.label || item.family))
+        .slice(0, 12);
     return {
       enabled: Boolean(enabled || scheme.enabled) && hasHtml,
       name: cleanMetaText(scheme.name, "AI HTML 视觉方案", 56),
       summary: cleanMetaText(scheme.summary, "AI 生成 HTML/CSS 视觉草稿，已进行安全清洗。", 220),
       visualBrief: cleanMetaText(scheme.visualBrief, "用更自由的排版、留白和视觉层级提升页面美感。", 260),
+      moduleUnderstanding:
+        scheme.moduleUnderstanding && typeof scheme.moduleUnderstanding === "object" && !Array.isArray(scheme.moduleUnderstanding)
+          ? {
+              pageIntent: cleanMetaText(scheme.moduleUnderstanding.pageIntent || scheme.moduleUnderstanding.intent, "", 80),
+              visualGoal: cleanMetaText(scheme.moduleUnderstanding.visualGoal || scheme.moduleUnderstanding.visualTone, "", 160),
+              layoutDirection: cleanMetaText(scheme.moduleUnderstanding.layoutDirection || scheme.moduleUnderstanding.layoutIdea, "", 200),
+              moduleStrategy: cleanMetaText(scheme.moduleUnderstanding.moduleStrategy || scheme.moduleUnderstanding.strategy, "", 220),
+            }
+          : {},
+      requiredModules: normalizeTextList(scheme.requiredModules, 12, 80),
+      moduleMapping: normalizeTextMap(scheme.moduleMapping),
+      implementationContract: normalizeImplementationContract(scheme.implementationContract || scheme.moduleImplementation || scheme.capabilityContract),
+      componentReferences: normalizeReferences(scheme.componentReferences),
+      designNotes: normalizeTextList(scheme.designNotes, 8, 180),
       html,
       css,
       dataBindings: (Array.isArray(scheme.dataBindings) ? scheme.dataBindings : [])
         .map((item) => cleanMetaText(item, "", 80))
         .filter(Boolean)
         .slice(0, 12),
+      qualityScore,
+      qualityStatus: cleanMetaText(scheme.qualityStatus, qualityScore === null ? "" : qualityScore >= 82 ? "passed" : "needs-polish", 40),
+      qualityIssues: normalizeTextList(scheme.qualityIssues, 8, 180),
+      aestheticChecks: normalizeTextList(scheme.aestheticChecks, 10, 160),
       safetyStatus: cleanMetaText(scheme.safetyStatus, hasHtml ? "sanitized" : "empty", 32),
       safetyNotes: (Array.isArray(scheme.safetyNotes) ? scheme.safetyNotes : ["已移除脚本、内联事件和危险 URL。"])
         .map((item) => cleanMetaText(item, "", 120))
@@ -4740,6 +4847,14 @@
       provider: cleanMetaText(scheme.provider, "", 48),
       model: cleanMetaText(scheme.model, "", 80),
       generatedAt: cleanMetaText(scheme.generatedAt, "", 48),
+      generationPipeline: cleanMetaText(scheme.generationPipeline, "", 48),
+      correctionStatus: cleanMetaText(scheme.correctionStatus, hasHtml ? "sanitized" : "empty", 48),
+      sourceType: cleanMetaText(scheme.sourceType, "", 36),
+      isFallback: Boolean(scheme.isFallback),
+      correctionNotes: (Array.isArray(scheme.correctionNotes) ? scheme.correctionNotes : [])
+        .map((item) => cleanMetaText(item, "", 140))
+        .filter(Boolean)
+        .slice(0, 8),
     };
   }
 
@@ -5294,7 +5409,7 @@
     const size = String(block.brickSize || "").toLowerCase();
     const quickCount = Number(moduleSettings?.quickActions?.count || 0);
 
-    if (component === "account_list") {
+    if (component === "account_list" || component === "trading_accounts_list") {
       if (accountListNeedsFullRow(moduleSettings)) {
         return layoutBlockWithBrick(block, "tradingAccounts.separatedList", "full", "账号分区或列表视图强制整行，避免表格压缩和侧栏留白。");
       }
@@ -5309,16 +5424,27 @@
       return layoutBlockWithBrick(block, walletBrick, "full", "钱包列表属于多币种内容，强制整行展示。");
     }
 
+    if (component === "account_performance" || component === "trading_account_highlight") {
+      const isCostBoard = String(block.brickId || "").includes("costBoard");
+      if (block.slot !== "full" || !/^3x/.test(size)) {
+        return isCostBoard
+          ? {
+              ...block,
+              slot: "full",
+              brickSize: "3x2",
+              brickZone: "full",
+              brickReason: block.brickReason || "账号表现/交易成本图表属于大模块，独占整横栏提升趋势展示体验。",
+            }
+          : layoutBlockWithBrick(block, "accountPerformance.proChart", "full", "账号表现图表属于大模块，独占整横栏展示账号上下文、趋势和指标。");
+      }
+    }
+
     if (component === "quick_actions" && quickCount >= 8 && (/^1x/.test(size) || block.slot === "rail")) {
       return layoutBlockWithBrick(block, "quickActions.priorityMatrix", "main", "8 个快捷入口使用主栏矩阵，避免侧栏拥挤。");
     }
 
     if (component === "ad_carousel" && (/^1x/.test(size) || block.slot === "rail")) {
       return layoutBlockWithBrick(block, "adCarousel.heroCampaign", "hero", "广告轮播至少使用主视觉宽度，避免侧栏裁切。");
-    }
-
-    if (component === "account_performance" && /^1x/.test(size)) {
-      return layoutBlockWithBrick(block, "accountPerformance.proChart", "main", "账号表现图表需要主栏宽度承载趋势信息。");
     }
 
     return block;
@@ -5334,7 +5460,7 @@
     return plan.map((item) => {
       const size = String(item.size || "").toLowerCase();
 
-      if (item.component === "account_list") {
+      if (item.component === "account_list" || item.component === "trading_accounts_list") {
         if (accountListNeedsFullRow(moduleSettings)) {
           return brickPlanItemWithBrick(item, "tradingAccounts.separatedList", "full", "账号分区或列表视图强制整行，避免表格压缩和侧栏留白。");
         }
@@ -5347,6 +5473,19 @@
       if (item.component === "wallet_list") {
         const walletBrick = item.brickId === "walletList.tiles" ? "walletList.tiles" : "walletList.currencyTable";
         return brickPlanItemWithBrick(item, walletBrick, "full", "钱包列表属于多币种内容，强制整行展示。");
+      }
+
+      if (item.component === "account_performance" || item.component === "trading_account_highlight") {
+        if (item.zone !== "full" || !/^3x/.test(size)) {
+          return String(item.brickId || "").includes("costBoard")
+            ? {
+                ...item,
+                size: "3x2",
+                zone: "full",
+                reason: item.reason || "账号表现/交易成本图表属于大模块，独占整横栏提升趋势展示体验。",
+              }
+            : brickPlanItemWithBrick(item, "accountPerformance.proChart", "full", "账号表现图表属于大模块，独占整横栏展示账号上下文、趋势和指标。");
+        }
       }
 
       if (item.component === "quick_actions" && quickCount >= 8 && (/^1x/.test(size) || item.zone === "rail")) {
@@ -5383,7 +5522,8 @@
 	  function isHomepageFullRowBlock(block) {
 	    if (block.component === "welcome_header") return true;
 	    if (block.component === "risk_disclosure") return true;
-	    return ["account_list", "trading_accounts_list"].includes(block.component) && /^3x/i.test(String(block.brickSize || ""));
+	    if (block.slot === "full" && LARGE_FULL_ROW_HOME_BLOCKS.has(canonicalHomeBlock(block.component) || block.component)) return true;
+	    return ["account_list", "trading_accounts_list", "account_performance", "trading_account_highlight", "wallet_list"].includes(block.component) && /^3x/i.test(String(block.brickSize || ""));
 	  }
 
   function isHomepageCompactBlock(block) {
@@ -5768,6 +5908,7 @@
         pageStory: story.id,
 	      themePreset,
 	      theme: themePreset,
+	      colorMode: colorModeFromPromptText(prompt),
 	      personalizationStrength: inferPersonalizationStrength(prompt, { personalizationStrength: genomeMeta.strength }),
 	      density: genomeMeta.density,
 	      heroFocus: heroBlock?.component || componentFromFeature(activePlan[0]?.feature),
@@ -5929,27 +6070,28 @@
     return normalized;
   }
 
-  function slotFromSectionType(type, component, slotIndex = 0) {
-    if (component === "welcome_header") return "hero";
-    if (type === "hero" && slotIndex > 0) {
-      return ["quick_actions", "onboarding_guide", "referral_link_card", "announcements", "market_news", "risk_disclosure", "faq_section", "support_contact", "app_download", "pamm_products", "copytrading_signals"].includes(component) ? "rail" : "main";
-    }
-    if (type === "hero") return "hero";
-    if (["trading_accounts_list", "asset_overview", "quick_actions", "promo_banner", "onboarding_guide", "trading_account_highlight", "pamm_products", "copytrading_signals", "referral_link_card", "announcements", "market_news", "risk_disclosure", "faq_section", "support_contact", "app_download"].includes(component)) return "main";
-    if (type === "rail") return "rail";
-    if (["onboarding_guide", "referral_link_card", "announcements", "market_news", "risk_disclosure", "faq_section", "support_contact", "app_download", "pamm_products", "copytrading_signals"].includes(component)) return "rail";
-    return "main";
+	  function slotFromSectionType(type, component, slotIndex = 0) {
+	    if (component === "welcome_header") return "hero";
+	    if (type === "hero" && slotIndex > 0) {
+	      return ["quick_actions", "onboarding_guide", "referral_link_card", "announcements", "market_news", "risk_disclosure", "faq_section", "support_contact", "app_download", "pamm_products", "copytrading_signals"].includes(component) ? "rail" : "main";
+	    }
+	    if (type === "hero") return "hero";
+	    if (type === "full") return "full";
+	    if (["trading_accounts_list", "asset_overview", "quick_actions", "promo_banner", "onboarding_guide", "trading_account_highlight", "pamm_products", "copytrading_signals", "referral_link_card", "announcements", "market_news", "risk_disclosure", "faq_section", "support_contact", "app_download"].includes(component)) return "main";
+	    if (type === "rail") return "rail";
+	    if (["onboarding_guide", "referral_link_card", "announcements", "market_news", "risk_disclosure", "faq_section", "support_contact", "app_download", "pamm_products", "copytrading_signals"].includes(component)) return "rail";
+	    return "main";
   }
 
-  function defaultHomepageLayout() {
-    return [
-      { id: "assets", component: "asset_overview", slot: "main", priority: 20, props: clone(COMPONENT_PROPS_SCHEMA.asset_overview) },
-      { id: "quick", component: "quick_actions", slot: "rail", priority: 30, props: clone(COMPONENT_PROPS_SCHEMA.quick_actions) },
-      { id: "highlight", component: "trading_account_highlight", slot: "main", priority: 40, props: clone(COMPONENT_PROPS_SCHEMA.trading_account_highlight) },
-      { id: "accounts", component: "trading_accounts_list", slot: "main", priority: 50, props: clone(COMPONENT_PROPS_SCHEMA.trading_accounts_list) },
-      { id: "updates", component: "market_news", slot: "main", priority: 60, props: clone(COMPONENT_PROPS_SCHEMA.market_news) },
-    ];
-  }
+	  function defaultHomepageLayout() {
+	    return [
+	      { id: "assets", component: "asset_overview", slot: "main", priority: 20, props: clone(COMPONENT_PROPS_SCHEMA.asset_overview) },
+	      { id: "quick", component: "quick_actions", slot: "rail", priority: 30, props: clone(COMPONENT_PROPS_SCHEMA.quick_actions) },
+	      { id: "highlight", component: "trading_account_highlight", slot: "full", priority: 40, props: clone(COMPONENT_PROPS_SCHEMA.trading_account_highlight) },
+	      { id: "accounts", component: "trading_accounts_list", slot: "full", priority: 50, props: clone(COMPONENT_PROPS_SCHEMA.trading_accounts_list) },
+	      { id: "updates", component: "market_news", slot: "main", priority: 60, props: clone(COMPONENT_PROPS_SCHEMA.market_news) },
+	    ];
+	  }
 
   function layoutFromSections(sections) {
     const blocks = [];
@@ -6052,23 +6194,69 @@
     };
   }
 
-  function uniqueValidSlots(slots) {
-    const next = [];
+	  function uniqueValidSlots(slots) {
+	    const next = [];
 
     (Array.isArray(slots) ? slots : []).forEach((slot) => {
       const canonical = canonicalHomeBlock(slot);
       if (canonical && FEATURES[canonical] && !next.includes(canonical)) next.push(canonical);
     });
 
-    return next;
+	    return next;
+	  }
+
+  function sectionTitleForSlot(slot, fallback = "") {
+    if (slot === "trading_account_highlight") return "账号表现";
+    if (slot === "trading_accounts_list") return "交易账号";
+    if (slot === "wallet_list") return "钱包列表";
+    return FEATURES[slot] || fallback || slot;
   }
 
-  function normalizeSections(sections) {
-    const source = Array.isArray(sections) && sections.length ? sections : DEFAULT_CONFIG.sections;
-    return source
-      .map((section, index) => {
-        const slots = uniqueValidSlots(section.slots);
-        if (!slots.length) return null;
+  function splitLargeFullRowSections(sections) {
+    return sections.flatMap((section) => {
+      const slots = Array.isArray(section.slots) ? section.slots : [];
+      const largeSlots = slots.filter((slot) => LARGE_FULL_ROW_HOME_BLOCKS.has(slot));
+      if (!largeSlots.length) return [section];
+      if (slots.length === 1) {
+        return [
+          {
+            ...section,
+            type: "full",
+            title: sectionTitleForSlot(largeSlots[0], section.title),
+          },
+        ];
+      }
+
+      const splitSections = [];
+      const compactSlots = slots.filter((slot) => !LARGE_FULL_ROW_HOME_BLOCKS.has(slot));
+      if (compactSlots.length) {
+        splitSections.push({
+          ...section,
+          slots: compactSlots,
+          type: section.type === "full" ? "split" : section.type,
+        });
+      }
+
+      largeSlots.forEach((slot, index) => {
+        splitSections.push({
+          ...section,
+          id: `${section.id || "section"}-${slot}`.slice(0, 32) || `full-row-${index + 1}`,
+          type: "full",
+          title: sectionTitleForSlot(slot, section.title),
+          slots: [slot],
+        });
+      });
+
+      return splitSections;
+    });
+  }
+
+	  function normalizeSections(sections) {
+	    const source = Array.isArray(sections) && sections.length ? sections : DEFAULT_CONFIG.sections;
+	    const normalized = source
+	      .map((section, index) => {
+	        const slots = uniqueValidSlots(section.slots);
+	        if (!slots.length) return null;
 
         return {
           id: String(section.id || `section-${index + 1}`).slice(0, 32),
@@ -6076,10 +6264,11 @@
           title: String(section.title || "").slice(0, 28),
           variant: String(section.variant || "").slice(0, 24),
           slots,
-        };
-      })
-      .filter(Boolean);
-  }
+	        };
+	      })
+	      .filter(Boolean);
+    return splitLargeFullRowSections(normalized);
+	  }
 
   function normalizeAutoLayoutBreakpoint(source, fallback) {
     const value = source && typeof source === "object" ? source : {};
@@ -6092,15 +6281,20 @@
     };
   }
 
-  function normalizeAutoLayoutModuleRules(source) {
-    const rules = source && typeof source === "object" ? source : {};
-    return AUTO_LAYOUT_MODULES.reduce((next, moduleId) => {
-      const rule = rules[moduleId] && typeof rules[moduleId] === "object" ? rules[moduleId] : {};
-      next[moduleId] = {
-        desktop: cleanMetaText(rule.desktop, moduleId === "trading_account_highlight" ? "split-equal-height" : "natural-grid", 48),
-        tablet: cleanMetaText(rule.tablet, "stack-or-two-column", 48),
-        mobile: cleanMetaText(rule.mobile, "single-column", 48),
-      };
+	  function normalizeAutoLayoutModuleRules(source) {
+	    const rules = source && typeof source === "object" ? source : {};
+	    return AUTO_LAYOUT_MODULES.reduce((next, moduleId) => {
+	      const rule = rules[moduleId] && typeof rules[moduleId] === "object" ? rules[moduleId] : {};
+	      const defaultDesktop = LARGE_FULL_ROW_HOME_BLOCKS.has(moduleId)
+	        ? moduleId === "trading_account_highlight"
+	          ? "full-row-chart"
+	          : "full-row-module"
+	        : "natural-grid";
+	      next[moduleId] = {
+	        desktop: cleanMetaText(rule.desktop, defaultDesktop, 48),
+	        tablet: cleanMetaText(rule.tablet, "stack-or-two-column", 48),
+	        mobile: cleanMetaText(rule.mobile, "single-column", 48),
+	      };
       return next;
     }, {});
   }
@@ -6272,7 +6466,7 @@
 	          }
 	        : includesAny(text, ["极简", "minimal", "白", "留白", "克制"])
 	        ? {
-	            primaryColor: "#111827",
+	            primaryColor: "#475569",
 	            accentColor: "#64748b",
 	            backgroundStyle: "linear-gradient(180deg, #ffffff 0%, #f7f8fa 100%)",
 	            cardStyle: "#ffffff",
@@ -6285,8 +6479,8 @@
 	            textMuted: "#64748b",
 	            borderColor: "#e5e7eb",
 	            borderSoft: "#edf2f7",
-	            buttonStyle: "linear-gradient(135deg, #111827, #334155)",
-	            buttonText: "#ffffff",
+	            buttonStyle: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
+	            buttonText: "#111827",
 	            cardShadow: "none",
 	          }
 	        : explicitPrimaryColor
@@ -7393,6 +7587,7 @@
       themePreset,
       theme: themePreset,
       themeCustom: normalizeThemeCustom(source.themeCustom || source.customTheme || source.themeCustomInput),
+      colorMode: normalizeHomeColorMode(source.colorMode || source.themeMode || source.appearanceMode || source.homeColorMode),
       personalizationStrength,
       modules,
       moduleVariants: Object.keys(modules).reduce((variants, moduleId) => {
@@ -7440,6 +7635,7 @@
       layoutPreset: preset.layout,
       themePreset: preset.themePreset || preset.theme,
       theme: preset.themePreset || preset.theme,
+      colorMode: colorModeFromPromptText(prompt),
       personalizationStrength: preset.personalizationStrength || inferPersonalizationStrength(prompt, preset),
       density: preset.density,
       heroFocus: preset.heroFocus,
@@ -7506,6 +7702,8 @@
     if (includesAny(lower + text, ["淡金", "浅金", "轻金", "香槟金", "金色", "金色调", "gold"])) setTheme("lightGold");
     if (includesAny(lower + text, ["高净值", "vip", "黑金", "尊贵", "机构"])) setTheme("blackGold");
     if (includesAny(lower + text, ["极简", "白色", "极简白", "minimal"])) setTheme("minimalWhite");
+
+    config.colorMode = colorModeFromPromptText(prompt, config.colorMode);
 
     config.personalizationStrength = inferPersonalizationStrength(prompt, config);
 
@@ -9517,12 +9715,12 @@
 	        <div class="account-card-head">
 	          <span class="account-status">Live</span>
 	          <span class="account-number">80010</span>
+	          <span class="account-environment" title="MT5 · HCHoldings-Live2">MT5 · HCHoldings-Live2</span>
 	        </div>
 	        <div class="account-card-hero">
 	          <div><span>净值(USD)</span><strong>12,726.40</strong></div>
 	        </div>
 	        <div class="account-card-flat-meta" aria-label="账号概要">
-	          <span><small>平台 / 服务器</small><b>MT5 · HCHoldings-Live2</b></span>
 	          <span><small>余额</small><b>12,480.50</b></span>
 	          <span><small>信用金</small><b>500.00</b></span>
 	          <span><small>账户类型</small><b>ECN Standard</b></span>
@@ -9534,12 +9732,12 @@
 	        <div class="account-card-head">
 	          <span class="account-status demo">Demo</span>
 	          <span class="account-number">90021</span>
+	          <span class="account-environment" title="MT5 · HCHoldings-Demo">MT5 · HCHoldings-Demo</span>
 	        </div>
 	        <div class="account-card-hero">
 	          <div><span>净值(USD)</span><strong>51,280.60</strong></div>
 	        </div>
 	        <div class="account-card-flat-meta" aria-label="账号概要">
-	          <span><small>平台 / 服务器</small><b>MT5 · HCHoldings-Demo</b></span>
 	          <span><small>余额</small><b>50,000.00</b></span>
 	          <span><small>信用金</small><b>0.00</b></span>
 	          <span><small>账户类型</small><b>Demo ECN</b></span>
@@ -9607,7 +9805,7 @@
 	      feature.innerHTML = `
 	        <div class="ai-accounts-command"><strong>${escapeHtml(t(safeProps.titleKey))}</strong></div>
 	        <div class="ai-account-ops-table" role="table" aria-label="${escapeHtml(t(safeProps.titleKey))}">
-	          <div role="row"><b role="columnheader">账号类型</b><b role="columnheader">账号</b><b role="columnheader">平台 / 服务器</b><b role="columnheader">余额</b><b role="columnheader">净值</b><b role="columnheader">信用金</b><b role="columnheader">账户类型</b><b role="columnheader">杠杆</b><b role="columnheader">保证金比例</b></div>
+	          <div role="row"><b role="columnheader">账号类型</b><b role="columnheader">账号</b><b role="columnheader">交易环境</b><b role="columnheader">余额</b><b role="columnheader">净值</b><b role="columnheader">信用金</b><b role="columnheader">账户类型</b><b role="columnheader">杠杆</b><b role="columnheader">保证金比例</b></div>
 	          ${accountRowsMarkup}
 	        </div>
         <div class="accounts-card-view" data-accounts-card-view hidden>${previewAccountCards}</div>
@@ -10855,6 +11053,19 @@
 	    });
 	  }
 
+  function effectiveHomeColorMode(target, colorMode) {
+    const normalized = normalizeHomeColorMode(colorMode);
+    if (normalized !== "auto") return normalized;
+
+    const view = target.defaultView || window;
+    const themeMode =
+      view.NXBrokerTheme?.getHomeColorMode?.() ||
+      target.body?.dataset?.homeColorMode ||
+      target.documentElement?.dataset?.theme ||
+      "light";
+    return themeMode === "dark" ? "dark" : "light";
+  }
+
   function applyConfig(config, root) {
     const target = root || document;
     const body = target.body || document.body;
@@ -10864,6 +11075,7 @@
 
     body.dataset.homeTheme = normalized.themePreset;
     body.dataset.tenantTheme = normalized.themePreset;
+    body.dataset.homeColorMode = effectiveHomeColorMode(target, normalized.colorMode);
     body.dataset.homeDensity = normalized.density;
     body.dataset.homeLayout = normalized.layoutPreset;
     body.dataset.homeRenderMode = normalized.activeRenderMode || "config";

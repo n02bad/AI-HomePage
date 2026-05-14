@@ -6,8 +6,9 @@
   const MINIMAX_CN_TYPED_ALIAS_BASE_URL = "https://api.minimaxi.cn/v1";
   const MINIMAX_GLOBAL_BASE_URL = "https://api.minimax.io/v1";
   const MINIMAX_MAX_COMPLETION_TOKENS = 2048;
-  const KIMI_BASE_URL = "https://api.moonshot.ai/v1";
   const KIMI_CN_BASE_URL = "https://api.moonshot.cn/v1";
+  const KIMI_GLOBAL_BASE_URL = "https://api.moonshot.ai/v1";
+  const KIMI_BASE_URL = KIMI_CN_BASE_URL;
   const KIMI_DEFAULT_MODEL = "kimi-k2.6";
   const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
   const AI_MODEL_PRESETS = {
@@ -45,7 +46,7 @@
       endpoint: "/chat/completions",
       apiMode: "openai-chat",
       apiKeyLabel: "MINIMAX_API_KEY",
-      note: `适合中文业务语境。CN 站点官方 API Base URL 是 ${MINIMAX_CN_BASE_URL}，不是 ${MINIMAX_CN_TYPED_ALIAS_BASE_URL}；国际账号可改为 ${MINIMAX_GLOBAL_BASE_URL}。MiniMax OpenAI 兼容接口输出上限为 ${MINIMAX_MAX_COMPLETION_TOKENS}，首页蓝图会使用短 prompt 和紧凑 JSON。`,
+      note: `适合中文业务语境。CN 站点官方 API Base URL 是 ${MINIMAX_CN_BASE_URL}，不是 ${MINIMAX_CN_TYPED_ALIAS_BASE_URL}；如旧配置填了 ${MINIMAX_GLOBAL_BASE_URL} 会自动切回国内入口。MiniMax OpenAI 兼容接口输出上限为 ${MINIMAX_MAX_COMPLETION_TOKENS}，首页蓝图会使用短 prompt 和紧凑 JSON。`,
     },
     kimi: {
       provider: "kimi",
@@ -57,7 +58,7 @@
       endpoint: "/chat/completions",
       apiMode: "openai-chat",
       apiKeyLabel: "MOONSHOT_API_KEY",
-      note: `适合中文长文本理解、运营需求摘要和组件方案整理；默认使用 ${KIMI_DEFAULT_MODEL}，国内控制台可改为 ${KIMI_CN_BASE_URL}。代理会使用 max_completion_tokens 降低截断和超时概率。`,
+      note: `适合中文长文本理解、运营需求摘要和组件方案整理；默认使用 ${KIMI_DEFAULT_MODEL} 与国内入口 ${KIMI_CN_BASE_URL}。K2.6/K2.5 关闭 thinking 时固定使用 temperature=0.6，避免参数冲突。`,
     },
     deepseek: {
       provider: "deepseek",
@@ -140,8 +141,16 @@
     return AI_MODEL_PRESETS[provider] || AI_MODEL_PRESETS.openai;
   }
 
-  function normalizeModelTemperature(provider, value) {
-    if (provider === "kimi") return 1;
+  function isKimiFixedTemperatureModel(model) {
+    return /^kimi-k2\.(?:6|5)\b/i.test(String(model || ""));
+  }
+
+  function kimiTemperatureForModel(model) {
+    return isKimiFixedTemperatureModel(model) ? 0.6 : 1;
+  }
+
+  function normalizeModelTemperature(provider, value, model = "") {
+    if (provider === "kimi") return kimiTemperatureForModel(model);
     if (!Number.isFinite(value)) return DEFAULT_MODEL_CONFIG.temperature;
     if (provider === "minimax") return Math.min(Math.max(value, 0.01), 1);
     return Math.min(Math.max(value, 0), 2);
@@ -149,16 +158,18 @@
 
   function normalizeModelBaseUrl(provider, value) {
     const baseUrl = String(value || "").trim().replace(/\/+$/, "");
-    if (provider !== "minimax") return baseUrl;
+    if (!["minimax", "kimi"].includes(provider)) return baseUrl;
 
     try {
       const target = new URL(baseUrl);
-      if (target.hostname === "api.minimaxi.cn") return MINIMAX_CN_BASE_URL;
+      if (provider === "minimax" && ["api.minimaxi.cn", "api.minimax.io"].includes(target.hostname)) return MINIMAX_CN_BASE_URL;
+      if (provider === "kimi" && target.hostname === "api.moonshot.ai") return KIMI_CN_BASE_URL;
     } catch (error) {
       return baseUrl;
     }
 
-    return baseUrl === MINIMAX_CN_TYPED_ALIAS_BASE_URL ? MINIMAX_CN_BASE_URL : baseUrl;
+    if (provider === "minimax") return [MINIMAX_CN_TYPED_ALIAS_BASE_URL, MINIMAX_GLOBAL_BASE_URL].includes(baseUrl) ? MINIMAX_CN_BASE_URL : baseUrl;
+    return baseUrl === KIMI_GLOBAL_BASE_URL ? KIMI_CN_BASE_URL : baseUrl;
   }
 
   function sanitizeModelConfig(config) {
@@ -199,7 +210,7 @@
       apiMode: String(merged.apiMode || preset.apiMode).slice(0, 40),
       callMode: "serverProxy",
       proxyEndpoint: proxyEndpoint || DEFAULT_MODEL_CONFIG.proxyEndpoint,
-      temperature: normalizeModelTemperature(preset.provider, temperature),
+      temperature: normalizeModelTemperature(preset.provider, temperature, model),
       maxOutputTokens: Number.isFinite(maxOutputTokens)
         ? Math.min(Math.max(Math.round(maxOutputTokens), preset.provider === "minimax" ? 512 : 6000), preset.provider === "minimax" ? MINIMAX_MAX_COMPLETION_TOKENS : 12000)
         : preset.provider === "minimax"
@@ -563,9 +574,10 @@
     optionList.innerHTML = preset.models.map((model) => `<option value="${escapeHtml(model)}"></option>`).join("");
     const temperatureField = modal.querySelector('[data-model-config-field="temperature"]');
     if (temperatureField) {
-      temperatureField.min = config.provider === "minimax" ? "0.01" : config.provider === "kimi" ? "1" : "0";
-      temperatureField.max = ["minimax", "kimi"].includes(config.provider) ? "1" : "2";
-      temperatureField.step = config.provider === "minimax" ? "0.01" : config.provider === "kimi" ? "1" : "0.1";
+      const kimiTemperature = config.provider === "kimi" ? kimiTemperatureForModel(config.model) : null;
+      temperatureField.min = config.provider === "minimax" ? "0.01" : config.provider === "kimi" ? String(kimiTemperature) : "0";
+      temperatureField.max = config.provider === "minimax" ? "1" : config.provider === "kimi" ? String(kimiTemperature) : "2";
+      temperatureField.step = config.provider === "minimax" ? "0.01" : "0.1";
     }
     const maxTokensField = modal.querySelector('[data-model-config-field="maxOutputTokens"]');
     if (maxTokensField) {

@@ -114,6 +114,14 @@ function hasBlock(config, blockId) {
   return collectBlocks(config).includes(blockId);
 }
 
+function sectionForSlot(config, blockId) {
+  return (config.sections || []).find((section) => Array.isArray(section.slots) && section.slots.includes(blockId));
+}
+
+function brickForComponent(config, blockId) {
+  return (config.brickPlan || []).find((brick) => brick.component === blockId || brick.feature === blockId);
+}
+
 function visibleCoreMorphModules(config) {
   return [...new Set(collectBlocks(config).map((block) => BLOCK_TO_MORPH_MODULE[block]).filter(Boolean))];
 }
@@ -211,8 +219,32 @@ async function run() {
       name: "Admin HTML Draft",
       html: '<section onclick="alert(1)"><script>alert(1)</script><a href="javascript:alert(1)">入金</a></section>',
       css: '@import "https://example.com/a.css"; .hero{position:fixed;background:url(javascript:alert(1));color:red}',
-    },
-  });
+	      generationPipeline: "free-html-first",
+	      correctionStatus: "sanitized-and-corrected",
+	      sourceType: "model-free",
+	      correctionNotes: ["补齐动作"],
+	      requiredModules: ["资产概览", "交易账号"],
+	      moduleMapping: { 资产概览: "首屏主金额区域", 交易账号: "账号卡片列表" },
+	      implementationContract: [
+	        {
+	          module: "asset_overview",
+	          label: "资产概览",
+	          family: "AssetOverview",
+	          dataFields: ["totalAssets", "walletBalance"],
+	          states: ["normal"],
+	          actions: ["deposit"],
+	          interactions: ["主金额区接入入金动作"],
+	          renderEvidence: ["首屏主金额和钱包余额可见"],
+	        },
+	      ],
+	      componentReferences: [{ componentId: "asset-overview-vip-hero", family: "AssetOverview", module: "asset_overview", reason: "参考主金额层级" }],
+	      designNotes: ["保留自由 HTML，但参考组件库。"],
+	      qualityScore: 88,
+	      qualityStatus: "passed",
+	      qualityIssues: [],
+	      aestheticChecks: ["使用首页主题 token。"],
+	    },
+	  });
   assert.strictEqual(normalizedAiHtml.renderMode, "aiHtml");
   assert.strictEqual(normalizedAiHtml.activeRenderMode, "aiHtml");
   assert.strictEqual(normalizedAiHtml.htmlScheme.enabled, true);
@@ -221,6 +253,19 @@ async function run() {
   assert(!normalizedAiHtml.htmlScheme.html.includes("javascript:"), "AI HTML scheme must strip javascript links");
   assert(!normalizedAiHtml.htmlScheme.css.includes("@import"), "AI HTML CSS must strip imports");
   assert(!normalizedAiHtml.htmlScheme.css.includes("position:fixed"), "AI HTML CSS must strip fixed positioning");
+  assert.strictEqual(normalizedAiHtml.htmlScheme.generationPipeline, "free-html-first");
+	  assert.strictEqual(normalizedAiHtml.htmlScheme.correctionStatus, "sanitized-and-corrected");
+	  assert.strictEqual(normalizedAiHtml.htmlScheme.sourceType, "model-free");
+	  assert.deepStrictEqual(normalizedAiHtml.htmlScheme.correctionNotes, ["补齐动作"]);
+	  assert.deepStrictEqual(normalizedAiHtml.htmlScheme.requiredModules, ["资产概览", "交易账号"]);
+	  assert.strictEqual(normalizedAiHtml.htmlScheme.moduleMapping["资产概览"], "首屏主金额区域");
+	  assert.strictEqual(normalizedAiHtml.htmlScheme.implementationContract[0].module, "asset_overview");
+	  assert.deepStrictEqual(normalizedAiHtml.htmlScheme.implementationContract[0].dataFields, ["totalAssets", "walletBalance"]);
+	  assert.strictEqual(normalizedAiHtml.htmlScheme.componentReferences[0].componentId, "asset-overview-vip-hero");
+	  assert.deepStrictEqual(normalizedAiHtml.htmlScheme.designNotes, ["保留自由 HTML，但参考组件库。"]);
+	  assert.strictEqual(normalizedAiHtml.htmlScheme.qualityScore, 88);
+	  assert.strictEqual(normalizedAiHtml.htmlScheme.qualityStatus, "passed");
+	  assert.deepStrictEqual(normalizedAiHtml.htmlScheme.aestheticChecks, ["使用首页主题 token。"]);
 
   const normalizedAssetTriplet = home.normalizeConfig({
     schemaVersion: 4,
@@ -229,6 +274,21 @@ async function run() {
     },
   });
   assert.deepStrictEqual(JSON.parse(JSON.stringify(normalizedAssetTriplet.moduleSettings.assets.visibleFields)), ["total", "wallet", "tradingAccount"]);
+
+  const normalizedLargeRows = home.normalizeConfig({
+    schemaVersion: 4,
+    sections: [
+      { id: "dense-accounts", type: "full", title: "账号与表现", slots: ["trading_account_highlight", "trading_accounts_list"] },
+    ],
+    moduleSettings: {
+      tradingAccounts: { enabled: true },
+    },
+  });
+  assert.strictEqual(sectionForSlot(normalizedLargeRows, "trading_account_highlight").type, "full");
+  assert.strictEqual(sectionForSlot(normalizedLargeRows, "trading_accounts_list").type, "full");
+  assert.notStrictEqual(sectionForSlot(normalizedLargeRows, "trading_account_highlight").id, sectionForSlot(normalizedLargeRows, "trading_accounts_list").id);
+  assert.strictEqual(normalizedLargeRows.layout.find((block) => block.component === "trading_account_highlight").slot, "full");
+  assert.strictEqual(normalizedLargeRows.layout.find((block) => block.component === "trading_accounts_list").slot, "full");
 
   const normalized = home.normalizeConfig({
     schemaVersion: 4,
@@ -425,13 +485,28 @@ async function run() {
   assert.strictEqual(localProfessionalTrader.dataContract.fields.margin.previewSample, true);
   assert.strictEqual(localProfessionalTrader.dataContract.fields.charts.binding, "api.trading.performanceSeries");
   assert.strictEqual(localProfessionalTrader.brickPlan.some((brick) => String(brick.brickId).includes("costBoard")), false);
-  assert.strictEqual(localProfessionalTrader.sections[0].slots.includes("trading_accounts_list"), true);
-  assert.strictEqual(localProfessionalTrader.sections[0].slots.includes("trading_account_highlight"), true);
+  assert.strictEqual(sectionForSlot(localProfessionalTrader, "trading_accounts_list").type, "full");
+  assert.strictEqual(sectionForSlot(localProfessionalTrader, "trading_account_highlight").type, "full");
+  assert.notStrictEqual(sectionForSlot(localProfessionalTrader, "trading_accounts_list").id, sectionForSlot(localProfessionalTrader, "trading_account_highlight").id);
+  assert.strictEqual(localProfessionalTrader.layout.find((block) => block.component === "trading_accounts_list").slot, "full");
+  assert.strictEqual(localProfessionalTrader.layout.find((block) => block.component === "trading_account_highlight").slot, "full");
+  assert.strictEqual(brickForComponent(localProfessionalTrader, "trading_account_highlight").size, "3x2");
+  assert.strictEqual(brickForComponent(localProfessionalTrader, "trading_account_highlight").zone, "full");
   const localProfessionalChecks = Object.fromEntries((localProfessionalTrader.pageGovernance?.checks || []).map((item) => [item.id, item.passed]));
   assert.strictEqual(localProfessionalChecks["professional-theme"], true);
   assert.strictEqual(localProfessionalChecks["combined-card-accounts"], true);
   assert.strictEqual(localProfessionalChecks["no-cost-board"], true);
   assert.strictEqual(localProfessionalChecks["data-contract"], true);
+
+  const localMinimalLightTrader = home.promptToConfig(
+    "极简的淡色风格，生成专业交易客户首页，首屏展示交易账号状态、账户表现图表和快捷入口，要考虑白天模式跟暗夜模式。",
+  );
+  assertOnlyAllowedBlocks(localMinimalLightTrader);
+  assertVisibleModulesHaveMorph(localMinimalLightTrader);
+  assert.strictEqual(localMinimalLightTrader.layoutPreset, "tradingCommand");
+  assert.strictEqual(localMinimalLightTrader.themePreset, "minimalWhite");
+  assert.notStrictEqual(localMinimalLightTrader.themePreset, "darkTech");
+  assert.strictEqual(localMinimalLightTrader.colorMode, "auto");
 
   const accountPerformancePrompt =
     "账号表现模块要展示 7日 或 30日 的账号净值和持仓 PnL 折线图，交易账号卡片不要乱摆指标，真实账号和模拟账号用列表。";
@@ -439,6 +514,8 @@ async function run() {
   assertOnlyAllowedBlocks(localAccountPerformance);
   assertVisibleModulesHaveMorph(localAccountPerformance);
   assert.strictEqual(hasBlock(localAccountPerformance, "trading_account_highlight"), true);
+  assert.strictEqual(sectionForSlot(localAccountPerformance, "trading_account_highlight").type, "full");
+  assert.strictEqual(localAccountPerformance.layout.find((block) => block.component === "trading_account_highlight").slot, "full");
   assert.strictEqual(localAccountPerformance.moduleStyles.accountPerformance, "pro-chart");
   assert(["calm-table", "ops-table"].includes(localAccountPerformance.moduleStyles.tradingAccounts));
   assert.strictEqual(localAccountPerformance.moduleSettings.tradingAccounts.grouping, "separated");
@@ -491,13 +568,20 @@ async function run() {
   assert(tradingAccountsBrick.sourcePrompt.includes("不能上方摘要卡片下方再重复完整表格"), "TradingAccounts library contract must forbid duplicate summary/table views");
   assert(serverSource.includes("const MINIMAX_MAX_COMPLETION_TOKENS = 2048"), "MiniMax should keep the documented OpenAI-compatible completion token cap");
   assert(serverSource.includes('const KIMI_DEFAULT_MODEL = "kimi-k2.6"'), "Kimi preset should use the current default model");
+  assert(serverSource.includes('const KIMI_CN_BASE_URL = "https://api.moonshot.cn/v1"'), "Kimi should default to the China API domain");
   assert(serverSource.includes("body.max_completion_tokens = config.maxOutputTokens"), "Kimi chat requests should use max_completion_tokens instead of deprecated max_tokens");
-  assert(serverSource.includes('if (/^kimi-k2\\.6\\b/i.test(config.model))'), "Kimi thinking controls should only be sent to K2.6 models");
-  assert(serverSource.includes('body.thinking = { type: "disabled" }'), "Kimi K2.6 JSON requests should disable thinking to avoid homepage generation timeouts");
-  assert(serverSource.includes('if (providerId === "kimi") return 1'), "Kimi requests should force the only allowed temperature");
+  assert(serverSource.includes("function isKimiFixedTemperatureModel"), "Kimi K2.6/K2.5 requests should use model-specific fixed parameters");
+  assert(serverSource.includes('body.thinking = { type: "disabled" }'), "Kimi K2.6/K2.5 JSON requests should disable thinking to avoid homepage generation timeouts");
+  assert(serverSource.includes("return isKimiFixedTemperatureModel(model) ? 0.6 : 1"), "Kimi K2.6/K2.5 non-thinking requests should force temperature 0.6");
   assert(!serverSource.includes('["minimax", "kimi"].includes(config.provider) ? Math.min(config.temperature, 0.6)'), "Kimi structured JSON requests must not be clamped below its required temperature");
-  assert(serverSource.includes("buildLowLatencyHomepagePrompt"), "MiniMax and Kimi should use a short homepage prompt to avoid provider timeouts");
-  assert(!/\.ai-copy-signal-metrics span\s*\{[\s\S]{0,220}border-left:\s*1px/.test(personalizationCss), "recommendation metric rows should not be divided by heavy vertical lines");
+	  assert(serverSource.includes("buildLowLatencyHomepagePrompt"), "MiniMax and Kimi should use a short homepage prompt to avoid provider timeouts");
+	  assert(serverSource.includes("质量门禁"), "AI HTML generation must include an aesthetic quality gate");
+	  assert(serverSource.includes("componentReferenceHints"), "AI HTML generation must use component-library reference hints");
+	  assert(serverSource.includes("implementationContract"), "AI HTML generation must require per-module implementation contracts");
+	  assert(serverSource.includes("无法证明 AI HTML 不是静态外观空壳"), "AI HTML quality gate must reject static shell drafts");
+	  assert(serverSource.includes("质量返修得分"), "AI HTML quality repair must not replace a higher-scoring free HTML draft");
+	  assert(serverSource.includes("aiHtmlResponsiveFallbackCss"), "AI HTML repair must add a responsive fallback when the model omits media rules");
+	  assert(!/\.ai-copy-signal-metrics span\s*\{[\s\S]{0,220}border-left:\s*1px/.test(personalizationCss), "recommendation metric rows should not be divided by heavy vertical lines");
   assert(!/\.ai-copy-curve\s*\{[\s\S]{0,260}repeating-linear-gradient/.test(personalizationCss), "recommendation charts should not default to dense grid backgrounds");
   assert(/\.ai-guide-card\s*\{[\s\S]{0,220}min-height:\s*96px/.test(personalizationCss), "onboarding guide cards should avoid tall empty cards");
   const accountPerformanceBrick = componentLibrary.components.find((component) => component.id === "account-performance-pro-chart");
@@ -750,8 +834,11 @@ async function run() {
     assert.strictEqual(professionalTraderResponse.config.dataContract.fields.margin.previewSample, true);
     assert.strictEqual(professionalTraderResponse.config.dataContract.fields.charts.binding, "api.trading.performanceSeries");
     assert.strictEqual(professionalTraderResponse.config.brickPlan.some((brick) => String(brick.brickId).includes("costBoard")), false);
-    assert.strictEqual(professionalTraderResponse.config.sections[0].slots.includes("trading_accounts_list"), true);
-    assert.strictEqual(professionalTraderResponse.config.sections[0].slots.includes("trading_account_highlight"), true);
+    assert.strictEqual(sectionForSlot(professionalTraderResponse.config, "trading_accounts_list").type, "full");
+    assert.strictEqual(sectionForSlot(professionalTraderResponse.config, "trading_account_highlight").type, "full");
+    assert.notStrictEqual(sectionForSlot(professionalTraderResponse.config, "trading_accounts_list").id, sectionForSlot(professionalTraderResponse.config, "trading_account_highlight").id);
+    assert.strictEqual(brickForComponent(professionalTraderResponse.config, "trading_account_highlight").size, "3x2");
+    assert.strictEqual(brickForComponent(professionalTraderResponse.config, "trading_account_highlight").zone, "full");
 
     const accountPerformanceResponse = await postJson(port, {
       prompt: accountPerformancePrompt,
@@ -760,6 +847,7 @@ async function run() {
     assert.strictEqual(accountPerformanceResponse.ok, true);
     assertOnlyAllowedBlocks(accountPerformanceResponse.config);
     assert.strictEqual(hasBlock(accountPerformanceResponse.config, "trading_account_highlight"), true);
+    assert.strictEqual(sectionForSlot(accountPerformanceResponse.config, "trading_account_highlight").type, "full");
     assert.strictEqual(accountPerformanceResponse.config.moduleStyles.accountPerformance, "pro-chart");
     assert(["calm-table", "ops-table"].includes(accountPerformanceResponse.config.moduleStyles.tradingAccounts));
 
@@ -785,9 +873,18 @@ async function run() {
     assert.strictEqual(aiHtmlResponse.activeRenderMode, "aiHtml");
     assert.strictEqual(aiHtmlResponse.config.renderMode, "aiHtml");
     assert.strictEqual(aiHtmlResponse.config.activeRenderMode, "aiHtml");
-    assert.strictEqual(aiHtmlResponse.config.htmlScheme.enabled, true);
-    assert.strictEqual(aiHtmlResponse.htmlScheme.enabled, true);
-    assert(!aiHtmlResponse.htmlScheme.html.includes("<script"), "server AI HTML scheme must not contain script tags");
+	    assert.strictEqual(aiHtmlResponse.config.htmlScheme.enabled, true);
+	    assert.strictEqual(aiHtmlResponse.htmlScheme.enabled, true);
+	    assert.strictEqual(aiHtmlResponse.htmlScheme.generationPipeline, "mock-free-html");
+	    assert.strictEqual(aiHtmlResponse.htmlScheme.isFallback, true);
+	    assert(Number.isFinite(aiHtmlResponse.htmlScheme.qualityScore), "server AI HTML scheme must expose quality score");
+	    assert(aiHtmlResponse.htmlScheme.qualityScore >= 70, "mock AI HTML should pass the basic aesthetic floor");
+	    assert(aiHtmlResponse.htmlScheme.requiredModules.includes("资产概览"), "server AI HTML scheme must expose required module contract");
+	    assert(Array.isArray(aiHtmlResponse.htmlScheme.implementationContract), "server AI HTML scheme must expose implementation contracts");
+	    assert(aiHtmlResponse.htmlScheme.implementationContract.some((contract) => contract.module === "asset_overview"), "server AI HTML implementation contract must include asset overview");
+	    assert(aiHtmlResponse.htmlScheme.qualityIssues.every((issue) => !issue.includes("静态外观空壳")), "mock AI HTML must satisfy the anti-shell quality gate");
+	    assert(Array.isArray(aiHtmlResponse.htmlScheme.componentReferences), "server AI HTML scheme must expose component references");
+	    assert(!aiHtmlResponse.htmlScheme.html.includes("<script"), "server AI HTML scheme must not contain script tags");
     assert(!aiHtmlResponse.htmlScheme.html.includes("javascript:"), "server AI HTML scheme must not contain javascript URLs");
 
     const referralCoreResponse = await postJson(port, {

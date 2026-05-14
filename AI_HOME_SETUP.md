@@ -52,6 +52,7 @@ export MINIMAX_API_KEY="..."
 export MINIMAX_BASE_URL="https://api.minimaxi.com/v1"
 export MINIMAX_MODEL="MiniMax-M2.7"
 export MOONSHOT_API_KEY="..."
+export KIMI_BASE_URL="https://api.moonshot.cn/v1"
 export KIMI_MODEL="kimi-k2.6"
 export DEEPSEEK_API_KEY="..."
 export DEEPSEEK_MODEL="deepseek-v4-flash"
@@ -59,8 +60,8 @@ npm start
 ```
 
 页面里的「大模型配置」可以选择 OpenAI、Claude、MiniMax、Kimi、DeepSeek，以及模型 ID、Base URL、接口路径和调用方式。
-MiniMax CN 站点的 OpenAI 兼容 Base URL 是 `https://api.minimaxi.com/v1`，不是 `https://api.minimaxi.cn/v1`；国际账号可改为 `https://api.minimax.io/v1`。如果表单里误填 `.cn`，前后端都会按 CN 官方 API Host 自动纠正到 `.com`。MiniMax OpenAI 兼容接口的 `max_completion_tokens` 上限按 2048 处理，首页蓝图生成会使用短 prompt 和紧凑 JSON，避免完整配置被截断。
-Kimi / Moonshot 默认使用 `kimi-k2.6` 与 `https://api.moonshot.ai/v1`；国内控制台可把 Base URL 改为 `https://api.moonshot.cn/v1`。代理会向 Kimi 发送 `max_completion_tokens`，首页 JSON 生成会显式关闭 `thinking` 来避免慢思考拖到代理超时，旧的 `kimi-k2.5` 超时或不可用时会自动尝试当前默认模型。
+MiniMax CN 站点的 OpenAI 兼容 Base URL 是 `https://api.minimaxi.com/v1`，不是 `https://api.minimaxi.cn/v1`；如果表单里误填 `.cn` 或旧的国际入口 `.io`，前后端都会按 CN 官方 API Host 自动纠正到 `.com`。MiniMax OpenAI 兼容接口的 `max_completion_tokens` 上限按 2048 处理，首页蓝图生成会使用短 prompt 和紧凑 JSON，避免完整配置被截断。
+Kimi / Moonshot 默认使用 `kimi-k2.6` 与国内入口 `https://api.moonshot.cn/v1`；如果旧配置里还保存着 `https://api.moonshot.ai/v1`，前后端会自动纠正到 `.cn`。代理会向 Kimi 发送 `max_completion_tokens`，首页 JSON 生成会显式关闭 `thinking` 来避免慢思考拖到代理超时；K2.6/K2.5 在关闭 thinking 时会固定 `temperature=0.6`，避免 `only 0.6 is allowed` 的 400 错误。
 DeepSeek V4 使用 OpenAI 兼容接口，Base URL 是 `https://api.deepseek.com`，当前预设包含 `deepseek-v4-flash` 和 `deepseek-v4-pro`。首页/组件生成默认使用 `deepseek-v4-flash`；如果手动选择 `deepseek-v4-pro`，代理会关闭 thinking mode，并在 Pro 超时或返回不可解析 JSON 时自动降级重试 Flash。
 
 ## 开发自测

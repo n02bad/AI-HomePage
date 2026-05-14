@@ -493,6 +493,63 @@ async function assertBlackGoldPromptReadability(client) {
   assert.strictEqual(snapshot.badContrast.length, 0, `blackGold prompt has low contrast text: ${JSON.stringify(snapshot.badContrast)}`);
 }
 
+async function assertMinimalWhiteLightAndDarkModes(client) {
+  await evaluate(
+    client,
+    `(() => {
+      const config = window.HomePersonalization.promptToConfig("极简的淡色风格，生成专业交易客户首页，首屏展示交易账号状态、账户表现图表和快捷入口，要考虑白天模式跟暗夜模式。", 1);
+      config.colorMode = "light";
+      window.HomePersonalization.applyConfig(config, document);
+      return true;
+    })()`,
+  );
+  await delay(250);
+  const lightSnapshot = await evaluate(
+    client,
+    `(() => {
+      const parse = (value) => {
+        const match = String(value || "").match(/rgba?\\(([^)]+)\\)/i);
+        if (!match) return null;
+        const parts = match[1].trim().split(/[\\s,\\/]+/).filter(Boolean).slice(0, 3).map(Number);
+        return parts.length === 3 ? { r: parts[0], g: parts[1], b: parts[2] } : null;
+      };
+      const isDark = (value) => {
+        const color = parse(value);
+        return color ? color.r < 45 && color.g < 55 && color.b < 70 : /#0[0-9a-f]{5}|#111827|#0f172a|#020617/i.test(String(value || ""));
+      };
+      const nodes = [...document.querySelectorAll(".ai-welcome-feature, .ai-performance-feature, .ai-accounts-feature, .ai-balance-feature, .ai-quick-feature, .ai-promo-feature")];
+      return {
+        tenantTheme: document.body.dataset.tenantTheme || "",
+        colorMode: document.body.dataset.homeColorMode || "",
+        darkPanels: nodes
+          .map((node) => {
+            const style = getComputedStyle(node);
+            return { selector: node.dataset.homeComponent || node.className, backgroundColor: style.backgroundColor, backgroundImage: style.backgroundImage };
+          })
+          .filter((item) => isDark(item.backgroundColor) || /#0[0-9a-f]{5}|#111827|#0f172a|#020617/i.test(item.backgroundImage))
+      };
+    })()`,
+  );
+  assert.strictEqual(lightSnapshot.tenantTheme, "minimalWhite");
+  assert.strictEqual(lightSnapshot.colorMode, "light");
+  assert.strictEqual(lightSnapshot.darkPanels.length, 0, `minimalWhite light mode must not render dark panels: ${JSON.stringify(lightSnapshot.darkPanels)}`);
+
+  await evaluate(
+    client,
+    `(() => {
+      const config = window.HomePersonalization.promptToConfig("极简的淡色风格，生成专业交易客户首页，首屏展示交易账号状态、账户表现图表和快捷入口，要考虑白天模式跟暗夜模式。", 1);
+      config.colorMode = "dark";
+      window.HomePersonalization.applyConfig(config, document);
+      return true;
+    })()`,
+  );
+  await delay(250);
+  const darkSnapshot = await evaluate(client, `(() => ({ tenantTheme: document.body.dataset.tenantTheme || "", colorMode: document.body.dataset.homeColorMode || "", pageBg: getComputedStyle(document.querySelector(".client-home-page")).backgroundImage }))()`);
+  assert.strictEqual(darkSnapshot.tenantTheme, "minimalWhite");
+  assert.strictEqual(darkSnapshot.colorMode, "dark");
+  assert(/0f172a|7,\s*17,\s*31|11,\s*18,\s*32/i.test(darkSnapshot.pageBg), `minimalWhite dark mode should switch to an intentional dark palette: ${darkSnapshot.pageBg}`);
+}
+
 async function run() {
   const appPort = await getFreePort();
   const debugPort = await getFreePort();
@@ -540,6 +597,7 @@ async function run() {
     await assertServerOnboardingIntent(appPort);
     await navigate(client, `${baseUrl}/client-home.html?preview=1&tenantTheme=blackGold`);
     await assertBlackGoldPromptReadability(client);
+    await assertMinimalWhiteLightAndDarkModes(client);
 
     console.log("home visual style checks passed");
   } finally {

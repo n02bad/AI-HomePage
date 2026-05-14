@@ -130,59 +130,76 @@
                 <section class="guided-section">
                   <div class="guided-section-head">
                     <span>页面模块</span>
-                    <strong>自动推荐，可调整</strong>
                   </div>
-                  <div class="guided-options modules" data-guided-group="modules">
-                    <button class="active" type="button" data-guided-choice data-guided-multiple data-guided-group="modules" data-guided-value="heroBanner" data-guided-label="首屏 Banner">首屏 Banner</button>
-                    <button class="active" type="button" data-guided-choice data-guided-multiple data-guided-group="modules" data-guided-value="accountOverview" data-guided-label="账户概览">账户概览</button>
-                    <button class="active" type="button" data-guided-choice data-guided-multiple data-guided-group="modules" data-guided-value="openingFlow" data-guided-label="新手引导（KYC→开真实账户→首次入金）">新手引导</button>
-                    <button class="active" type="button" data-guided-choice data-guided-multiple data-guided-group="modules" data-guided-value="accountBenefits" data-guided-label="账户类型与优势（真实/模拟账户）">账户类型与优势</button>
-                    <button class="active" type="button" data-guided-choice data-guided-multiple data-guided-group="modules" data-guided-value="kycGuide" data-guided-label="KYC 状态（未提交/待审/通过/拒绝）">KYC 状态</button>
-                    <button type="button" data-guided-choice data-guided-multiple data-guided-group="modules" data-guided-value="depositBonus" data-guided-label="入金奖励">入金奖励</button>
-                    <button type="button" data-guided-choice data-guided-multiple data-guided-group="modules" data-guided-value="rewardRules" data-guided-label="活动规则">活动规则</button>
-                    <button type="button" data-guided-choice data-guided-multiple data-guided-group="modules" data-guided-value="pammProducts" data-guided-label="PAMM">PAMM</button>
-                    <button type="button" data-guided-choice data-guided-multiple data-guided-group="modules" data-guided-value="copyTrading" data-guided-label="CopyTrading">CopyTrading</button>
-                    <button type="button" data-guided-choice data-guided-multiple data-guided-group="modules" data-guided-value="rewardActivity" data-guided-label="奖励活动">奖励活动</button>
-                    <button type="button" data-guided-choice data-guided-multiple data-guided-group="modules" data-guided-value="referralLink" data-guided-label="推广链接卡片（链接/邀请码/复制/基础统计）">推广链接卡片</button>
-                    <button type="button" data-guided-choice data-guided-multiple data-guided-group="modules" data-guided-value="appDownload" data-guided-label="APP 下载">APP 下载</button>
-                    <button type="button" data-guided-choice data-guided-multiple data-guided-group="modules" data-guided-value="tradingAccounts" data-guided-label="交易账号">交易账号</button>
-                    <button type="button" data-guided-choice data-guided-multiple data-guided-group="modules" data-guided-value="customerService" data-guided-label="在线客服">在线客服</button>
-                    <button type="button" data-guided-choice data-guided-multiple data-guided-group="modules" data-guided-value="faq" data-guided-label="FAQ">FAQ</button>
-                    <button type="button" data-guided-choice data-guided-multiple data-guided-group="modules" data-guided-value="riskDisclosure" data-guided-label="风险提示">风险提示</button>
+                  <div class="guided-module-block">
+                    <div class="guided-module-label">
+                      <span>必选模块</span>
+                      <small>生成首页时固定保留，不能撤销</small>
+                    </div>
+                    <div class="guided-options modules required" data-guided-group="modules" data-guided-module-tier="required">
+                      <button class="active" type="button" data-guided-choice data-guided-multiple data-guided-required="true" data-guided-group="modules" data-guided-value="accountOverview" data-guided-label="账户概览" aria-disabled="true" title="必选模块，不可撤销">账户概览</button>
+                      <button class="active" type="button" data-guided-choice data-guided-multiple data-guided-required="true" data-guided-group="modules" data-guided-value="quickActions" data-guided-label="快捷入口" aria-disabled="true" title="必选模块，不可撤销">快捷入口</button>
+                      <button class="active" type="button" data-guided-choice data-guided-multiple data-guided-required="true" data-guided-group="modules" data-guided-value="tradingAccounts" data-guided-label="交易账号（真实交易账号/模拟交易账号）" aria-disabled="true" title="必选模块，不可撤销">交易账号</button>
+                    </div>
+                  </div>
+                  <div class="guided-module-block">
+                    <div class="guided-module-label">
+                      <span>选填模块</span>
+                      <small>欢迎模块优先，其余模块按需要增减</small>
+                    </div>
+                    <div class="guided-options modules optional" data-guided-group="modules" data-guided-module-tier="optional">
+                      <button class="active" type="button" data-guided-choice data-guided-multiple data-guided-group="modules" data-guided-value="welcomeModule" data-guided-label="欢迎模块">欢迎模块</button>
+                      <button class="active" type="button" data-guided-choice data-guided-multiple data-guided-group="modules" data-guided-value="heroBanner" data-guided-label="首屏 Banner">首屏 Banner</button>
+                      <button class="active" type="button" data-guided-choice data-guided-multiple data-guided-group="modules" data-guided-value="openingFlow" data-guided-label="新手引导（KYC→开真实账户→首次入金）">新手引导</button>
+                      <button class="active" type="button" data-guided-choice data-guided-multiple data-guided-group="modules" data-guided-value="accountBenefits" data-guided-label="账户类型与优势（真实/模拟账户）">账户类型与优势</button>
+                      <button class="active" type="button" data-guided-choice data-guided-multiple data-guided-group="modules" data-guided-value="kycGuide" data-guided-label="KYC 状态（未提交/待审/通过/拒绝）">KYC 状态</button>
+                      <button type="button" data-guided-choice data-guided-multiple data-guided-group="modules" data-guided-value="depositBonus" data-guided-label="入金奖励">入金奖励</button>
+                      <button type="button" data-guided-choice data-guided-multiple data-guided-group="modules" data-guided-value="rewardRules" data-guided-label="活动规则">活动规则</button>
+                      <button type="button" data-guided-choice data-guided-multiple data-guided-group="modules" data-guided-value="pammProducts" data-guided-label="PAMM">PAMM</button>
+                      <button type="button" data-guided-choice data-guided-multiple data-guided-group="modules" data-guided-value="copyTrading" data-guided-label="CopyTrading">CopyTrading</button>
+                      <button type="button" data-guided-choice data-guided-multiple data-guided-group="modules" data-guided-value="rewardActivity" data-guided-label="奖励活动">奖励活动</button>
+                      <button type="button" data-guided-choice data-guided-multiple data-guided-group="modules" data-guided-value="referralLink" data-guided-label="推广链接卡片（链接/邀请码/复制/基础统计）">推广链接卡片</button>
+                      <button type="button" data-guided-choice data-guided-multiple data-guided-group="modules" data-guided-value="appDownload" data-guided-label="APP 下载">APP 下载</button>
+                      <button type="button" data-guided-choice data-guided-multiple data-guided-group="modules" data-guided-value="customerService" data-guided-label="在线客服">在线客服</button>
+                      <button type="button" data-guided-choice data-guided-multiple data-guided-group="modules" data-guided-value="faq" data-guided-label="FAQ">FAQ</button>
+                      <button type="button" data-guided-choice data-guided-multiple data-guided-group="modules" data-guided-value="riskDisclosure" data-guided-label="风险提示">风险提示</button>
+                    </div>
                   </div>
                 </section>
 
                 <section class="guided-section">
                   <div class="guided-section-head">
-                    <span>视觉和语气</span>
+                    <span>视觉主题</span>
                     <strong>品牌倾向</strong>
                   </div>
-                  <div class="guided-dual-grid">
-                    <div>
-                      <label>主题颜色</label>
-                      <div class="guided-options swatches" data-guided-group="theme">
-                        <button class="active" type="button" data-guided-choice data-guided-group="theme" data-guided-value="blueFinance" data-guided-label="蓝色金融"><i style="--swatch:#2563eb"></i>蓝色金融</button>
-                        <button type="button" data-guided-choice data-guided-group="theme" data-guided-value="blackGold" data-guided-label="黑金高净值"><i style="--swatch:#b7791f"></i>黑金高净值</button>
-                        <button type="button" data-guided-choice data-guided-group="theme" data-guided-value="lightGold" data-guided-label="浅金活动"><i style="--swatch:#d97706"></i>浅金活动</button>
-                        <button type="button" data-guided-choice data-guided-group="theme" data-guided-value="minimalWhite" data-guided-label="极简白"><i style="--swatch:#94a3b8"></i>极简白</button>
-                        <button type="button" data-guided-choice data-guided-group="theme" data-guided-value="darkTech" data-guided-label="暗色科技"><i style="--swatch:#111827"></i>暗色科技</button>
-                      </div>
-                      <div class="guided-freeform-field">
-                        <label class="visually-hidden" for="guidedThemeCustom">自定义色值或文案</label>
-                        <input id="guidedThemeCustom" data-guided-theme-custom type="text" maxlength="96" placeholder="#2563EB / 品牌主色偏青蓝" />
-                      </div>
+                  <div class="guided-field-block">
+                    <label class="guided-field-label">主题颜色</label>
+                    <div class="guided-options swatches" data-guided-group="theme">
+                      <button class="active" type="button" data-guided-choice data-guided-group="theme" data-guided-value="blueFinance" data-guided-label="蓝色金融"><i style="--swatch:#2563eb"></i>蓝色金融</button>
+                      <button type="button" data-guided-choice data-guided-group="theme" data-guided-value="blackGold" data-guided-label="黑金高净值"><i style="--swatch:#b7791f"></i>黑金高净值</button>
+                      <button type="button" data-guided-choice data-guided-group="theme" data-guided-value="lightGold" data-guided-label="浅金活动"><i style="--swatch:#d97706"></i>浅金活动</button>
+                      <button type="button" data-guided-choice data-guided-group="theme" data-guided-value="minimalWhite" data-guided-label="极简白"><i style="--swatch:#94a3b8"></i>极简白</button>
+                      <button type="button" data-guided-choice data-guided-group="theme" data-guided-value="darkTech" data-guided-label="暗色科技"><i style="--swatch:#111827"></i>暗色科技</button>
                     </div>
-                    <div>
-                      <label>内容语气</label>
-                      <div class="guided-options compact" data-guided-group="tone">
-                        <button class="active" type="button" data-guided-choice data-guided-group="tone" data-guided-value="professional" data-guided-label="专业稳健">专业稳健</button>
-                        <button type="button" data-guided-choice data-guided-group="tone" data-guided-value="conversion" data-guided-label="营销转化">营销转化</button>
-                        <button type="button" data-guided-choice data-guided-group="tone" data-guided-value="beginner" data-guided-label="新手友好">新手友好</button>
-                        <button type="button" data-guided-choice data-guided-group="tone" data-guided-value="campaign" data-guided-label="活动促销">活动促销</button>
-                        <button type="button" data-guided-choice data-guided-group="tone" data-guided-value="premium" data-guided-label="高净值导向">高净值导向</button>
-                        <button type="button" data-guided-choice data-guided-group="tone" data-guided-value="ib" data-guided-label="代理招募导向">代理招募导向</button>
-                      </div>
+                    <div class="guided-freeform-field">
+                      <label class="visually-hidden" for="guidedThemeCustom">自定义色值或文案</label>
+                      <input id="guidedThemeCustom" data-guided-theme-custom type="text" maxlength="96" placeholder="#2563EB / 品牌主色偏青蓝" />
                     </div>
+                  </div>
+                </section>
+
+                <section class="guided-section guided-tone-section">
+                  <div class="guided-section-head">
+                    <span>内容语气</span>
+                    <strong>文案表达倾向</strong>
+                  </div>
+                  <div class="guided-options compact" data-guided-group="tone">
+                    <button class="active" type="button" data-guided-choice data-guided-group="tone" data-guided-value="professional" data-guided-label="专业稳健">专业稳健</button>
+                    <button type="button" data-guided-choice data-guided-group="tone" data-guided-value="conversion" data-guided-label="营销转化">营销转化</button>
+                    <button type="button" data-guided-choice data-guided-group="tone" data-guided-value="beginner" data-guided-label="新手友好">新手友好</button>
+                    <button type="button" data-guided-choice data-guided-group="tone" data-guided-value="campaign" data-guided-label="活动促销">活动促销</button>
+                    <button type="button" data-guided-choice data-guided-group="tone" data-guided-value="premium" data-guided-label="高净值导向">高净值导向</button>
+                    <button type="button" data-guided-choice data-guided-group="tone" data-guided-value="ib" data-guided-label="代理招募导向">代理招募导向</button>
                   </div>
                 </section>
               </div>
@@ -197,15 +214,6 @@
 
                 <label class="guided-note-label" for="guidedIntentNote">补充要求</label>
                 <textarea id="guidedIntentNote" data-guided-note rows="4" placeholder="例如：突出 100 美元体验金，风格更像专业客户端。"></textarea>
-
-                <div class="guided-options cta" data-guided-group="cta">
-                  <button class="active" type="button" data-guided-choice data-guided-group="cta" data-guided-value="openAccount" data-guided-label="立即开户">立即开户</button>
-                  <button type="button" data-guided-choice data-guided-group="cta" data-guided-value="claimReward" data-guided-label="领取奖励">领取奖励</button>
-                  <button type="button" data-guided-choice data-guided-group="cta" data-guided-value="depositNow" data-guided-label="立即入金">立即入金</button>
-                  <button type="button" data-guided-choice data-guided-group="cta" data-guided-value="contactManager" data-guided-label="联系客户经理">联系客户经理</button>
-                  <button type="button" data-guided-choice data-guided-group="cta" data-guided-value="joinCampaign" data-guided-label="参与活动">参与活动</button>
-                  <button type="button" data-guided-choice data-guided-group="cta" data-guided-value="downloadApp" data-guided-label="下载 APP">下载 APP</button>
-                </div>
 
                 <div class="guided-actions">
                   <button class="guided-sync-button" type="button" data-guided-sync>写入快速输入</button>

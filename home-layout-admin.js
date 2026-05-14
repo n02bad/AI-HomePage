@@ -5,6 +5,7 @@
 
   const PROMPT_KEY = "forexcrm.home.personalization.prompt";
   const PREVIEW_SIZE_KEY = "forexcrm.home.preview.size";
+  const PREVIEW_COLOR_MODE_KEY = "forexcrm.home.preview.colorMode";
   const RENDER_MODE_KEY = "forexcrm.home.ai.render.mode";
   const MODEL_CONFIG_KEY = "forexcrm.home.ai.model.config";
   const MODEL_HISTORY_KEY = "forexcrm.home.ai.call.history";
@@ -15,8 +16,9 @@
   const MINIMAX_CN_TYPED_ALIAS_BASE_URL = "https://api.minimaxi.cn/v1";
   const MINIMAX_GLOBAL_BASE_URL = "https://api.minimax.io/v1";
   const MINIMAX_MAX_COMPLETION_TOKENS = 2048;
-  const KIMI_BASE_URL = "https://api.moonshot.ai/v1";
   const KIMI_CN_BASE_URL = "https://api.moonshot.cn/v1";
+  const KIMI_GLOBAL_BASE_URL = "https://api.moonshot.ai/v1";
+  const KIMI_BASE_URL = KIMI_CN_BASE_URL;
   const KIMI_DEFAULT_MODEL = "kimi-k2.6";
   const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
   const PREVIEW_SIZE_PRESETS = {
@@ -39,7 +41,7 @@
     },
     aiHtml: {
       label: "AI HTML",
-      summary: "自由模式：AI 生成受控 HTML/CSS 草稿，优先追求视觉美感。",
+      summary: "自由模式：模型参考组件库生成 HTML/CSS，系统做安全清洗、质量门禁和动作修正。",
     },
     compare: {
       label: "双方案",
@@ -82,7 +84,7 @@
       endpoint: "/chat/completions",
       apiMode: "openai-chat",
       apiKeyLabel: "MINIMAX_API_KEY",
-      note: `适合中文业务语境。CN 站点官方 API Base URL 是 ${MINIMAX_CN_BASE_URL}，不是 ${MINIMAX_CN_TYPED_ALIAS_BASE_URL}；国际账号可改为 ${MINIMAX_GLOBAL_BASE_URL}。MiniMax OpenAI 兼容接口输出上限为 ${MINIMAX_MAX_COMPLETION_TOKENS}，首页蓝图会使用短 prompt 和紧凑 JSON。`,
+      note: `适合中文业务语境。CN 站点官方 API Base URL 是 ${MINIMAX_CN_BASE_URL}，不是 ${MINIMAX_CN_TYPED_ALIAS_BASE_URL}；如旧配置填了 ${MINIMAX_GLOBAL_BASE_URL} 会自动切回国内入口。MiniMax OpenAI 兼容接口输出上限为 ${MINIMAX_MAX_COMPLETION_TOKENS}，首页蓝图会使用短 prompt 和紧凑 JSON。`,
     },
     kimi: {
       provider: "kimi",
@@ -94,7 +96,7 @@
       endpoint: "/chat/completions",
       apiMode: "openai-chat",
       apiKeyLabel: "MOONSHOT_API_KEY",
-      note: `适合中文长文本理解、运营需求摘要和首页方案整理；默认使用 ${KIMI_DEFAULT_MODEL}，国内控制台可改为 ${KIMI_CN_BASE_URL}。代理会使用 max_completion_tokens 与短 prompt 降低超时概率。`,
+      note: `适合中文长文本理解、运营需求摘要和首页方案整理；默认使用 ${KIMI_DEFAULT_MODEL} 与国内入口 ${KIMI_CN_BASE_URL}。K2.6/K2.5 关闭 thinking 时固定使用 temperature=0.6，避免参数冲突。`,
     },
     deepseek: {
       provider: "deepseek",
@@ -134,6 +136,7 @@
     preview: document.querySelector("[data-home-preview]"),
     previewStage: document.querySelector(".preview-stage-panel"),
     previewSizeButtons: [...document.querySelectorAll("[data-preview-size]")],
+    previewColorModeButtons: [...document.querySelectorAll("[data-preview-color-mode]")],
     previewSizeMeta: document.querySelector("[data-preview-size-meta]"),
     previewFullscreen: document.querySelector("[data-preview-fullscreen]"),
     schemeOptions: document.querySelector("[data-scheme-options]"),
@@ -183,6 +186,7 @@
   let selectedSuggestion = null;
   let interpretationRound = 0;
   let activePreviewSize = "web";
+  let activePreviewColorMode = "light";
   let renderModeSetting = loadRenderModeSetting();
   let aiModelConfig = loadModelConfig();
   let editingModelConfig = null;
@@ -273,7 +277,13 @@
     els.renderModeNotes.forEach((note) => {
       const mode = note.closest("[data-preview-render-mode-controls]") ? activePreviewMode : generationMode;
       const option = RENDER_MODE_OPTIONS[mode] || RENDER_MODE_OPTIONS.config;
-      const htmlSuffix = normalizedConfig.htmlScheme?.enabled ? ` · 已保存 ${normalizedConfig.htmlScheme.name}` : "";
+      const qualitySuffix =
+        normalizedConfig.htmlScheme?.enabled && Number.isFinite(Number(normalizedConfig.htmlScheme.qualityScore))
+          ? ` · 质量 ${normalizedConfig.htmlScheme.qualityScore}/100`
+          : "";
+      const htmlSuffix = normalizedConfig.htmlScheme?.enabled
+        ? ` · 已保存 ${normalizedConfig.htmlScheme.name}${normalizedConfig.htmlScheme.isFallback ? "（Fallback）" : "（已修正）"}${qualitySuffix}`
+        : "";
       note.textContent = `${option.summary}${htmlSuffix}`;
     });
   }
@@ -288,9 +298,68 @@
       name: `${normalized.name || "AI 首页"} HTML 版`.slice(0, 56),
       summary: `${reason}的 AI HTML 视觉草稿，可和组件化方案并存。`.slice(0, 220),
       visualBrief: "更强调首屏视觉焦点、主金额、操作入口和数据模块的层级。",
+      moduleUnderstanding: {
+        pageIntent: normalized.pageIntent?.label || normalized.pageIntent?.primaryIntent || "本地规则生成",
+        visualGoal: "用自由 HTML 草稿验证首屏层级、动作入口和交易数据表达。",
+        layoutDirection: "首屏资产焦点 + 动作入口 + 数据/任务模块。",
+        moduleStrategy: "参考现有首页模块契约生成本地兜底方案。",
+      },
+      requiredModules: ["账户概览", "快捷入口", "交易账号（真实交易账号/模拟交易账号）"],
+      moduleMapping: {
+        账户概览: "首屏右侧主金额摘要。",
+        快捷入口: "四个 data-home-action 动作入口。",
+        交易账号: "Live/Demo 账号列表承接，真实交易账号和模拟交易账号都需要出现。",
+      },
+      componentReferences: [
+        { componentId: "asset-overview-vip-hero", family: "AssetOverview", module: "asset_overview", reason: "参考主金额和指标层级。" },
+        { componentId: "account-performance-pro-chart", family: "AccountPerformance", module: "trading_account_highlight", reason: "参考趋势表现结构。" },
+        { componentId: "trading-accounts-separated-list", family: "TradingAccounts", module: "trading_accounts_list", reason: "参考账号环境值与账号列表字段。" },
+      ],
+      designNotes: ["本地 fallback 只用于兜底，真实 AI HTML 会经过组件库参考和质量门禁。"],
       dataBindings: ["totalAssets", "walletBalance", "tradingAccountBalance", "quickActionList", "tradingAccounts"],
+      implementationContract: [
+        {
+          module: "asset_overview",
+          label: "账户概览",
+          family: "AssetOverview",
+          dataFields: ["totalAssets", "walletBalance", "tradingAccountBalance"],
+          states: ["normal", "hiddenBalance"],
+          actions: ["deposit", "withdraw"],
+          interactions: ["首屏金额和资金动作接入 data-home-action。"],
+          renderEvidence: ["右侧主金额摘要展示余额合计、Wallet 和 TA。"],
+        },
+        {
+          module: "quick_actions",
+          label: "快捷入口",
+          family: "QuickActions",
+          dataFields: ["quickActionList", "actionId"],
+          states: ["enabled"],
+          actions: ["deposit", "openAccount", "orders", "positions"],
+          interactions: ["四个入口都带 data-home-action。"],
+          renderEvidence: ["ai-html-actions 导航区展示入金、开户、订单、持仓。"],
+        },
+        {
+          module: "trading_accounts_list",
+          label: "交易账号",
+          family: "TradingAccounts",
+          dataFields: ["accountNumber", "accountKind", "equity", "server"],
+          states: ["Live", "Demo", "active"],
+          actions: ["accounts", "openAccount"],
+          interactions: ["账号列表承接 Live/Demo 账户状态。"],
+          renderEvidence: ["Trading Accounts 区域展示 Live/Demo、账号号和 Equity。"],
+        },
+      ],
+      qualityScore: 84,
+      qualityStatus: "local-fallback",
+      qualityIssues: [],
+      aestheticChecks: ["使用首页主题 token。", "保留关键动作和交易账号信息。"],
       safetyStatus: "local-sanitized",
       safetyNotes: ["本地 HTML 草稿不包含脚本，只用于验证双模式渲染链路。"],
+      generationPipeline: "local-fallback",
+      correctionStatus: "fallback",
+      sourceType: "local-fallback",
+      isFallback: true,
+      correctionNotes: ["当前是本地 fallback，不代表大模型自由生成结果。"],
       generatedAt: new Date().toISOString(),
       html: `
         <section class="ai-html-page" data-ai-html-theme="${theme}">
@@ -412,6 +481,28 @@
     }
   }
 
+  function normalizePreviewColorMode(mode) {
+    return mode === "dark" ? "dark" : "light";
+  }
+
+  function setPreviewColorMode(mode, options = {}) {
+    if (!els.previewPage) return;
+
+    activePreviewColorMode = normalizePreviewColorMode(mode);
+    els.previewPage.dataset.previewColorMode = activePreviewColorMode;
+    els.previewColorModeButtons.forEach((button) => {
+      const isActive = button.dataset.previewColorMode === activePreviewColorMode;
+      button.classList.toggle("active", isActive);
+      button.setAttribute("aria-pressed", isActive ? "true" : "false");
+    });
+
+    if (options.persist !== false) {
+      window.localStorage.setItem(PREVIEW_COLOR_MODE_KEY, activePreviewColorMode);
+    }
+
+    if (options.apply !== false) applyPreview(false);
+  }
+
   function updateFullscreenButton() {
     if (!els.previewFullscreen) return;
     const isFullscreen = document.fullscreenElement === els.previewStage;
@@ -448,14 +539,26 @@
     }
   }
 
+  function initPreviewColorMode() {
+    if (!els.previewPage || !els.previewColorModeButtons.length) return;
+
+    setPreviewColorMode(window.localStorage.getItem(PREVIEW_COLOR_MODE_KEY) || "light", { persist: false, apply: false });
+    els.previewColorModeButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        setPreviewColorMode(button.dataset.previewColorMode || "light");
+      });
+    });
+  }
+
   function applyPreview(allowReload = false) {
     if (!els.preview) return;
+    const previewConfig = els.previewPage ? { ...currentConfig, colorMode: activePreviewColorMode } : currentConfig;
 
     try {
       const frameWindow = els.preview.contentWindow;
 
       if (frameWindow?.HomePersonalization && frameWindow.document?.body) {
-        frameWindow.HomePersonalization.applyConfig(currentConfig, frameWindow.document);
+        frameWindow.HomePersonalization.applyConfig(previewConfig, frameWindow.document);
         return;
       }
     } catch (error) {
@@ -607,13 +710,24 @@
     intent: "首页目标",
     audience: "目标用户",
     level: "功能分级",
-    modules: "页面模块",
+    requiredModules: "必选模块",
+    optionalModules: "选填模块",
     theme: "视觉主题",
     themeCustom: "自定义主题",
     tone: "内容语气",
     cta: "主 CTA",
     note: "补充要求",
   };
+
+  const GUIDED_REQUIRED_MODULE_IDS = ["accountOverview", "quickActions", "tradingAccounts"];
+
+  function isGuidedRequiredModule(value) {
+    return GUIDED_REQUIRED_MODULE_IDS.includes(value);
+  }
+
+  function ensureGuidedRequiredModules(values) {
+    return uniqueList([GUIDED_REQUIRED_MODULE_IDS, Array.isArray(values) ? values : [values].filter(Boolean)]);
+  }
 
   const GUIDED_PROMPT_COPY = {
     intent: {
@@ -632,8 +746,10 @@
 	      pro: "专业版，加入账号、资产、推广链接、数据指标或更完整的运营模块",
 	    },
     modules: {
-      heroBanner: "首屏 Banner 和主 CTA",
+      welcomeModule: "欢迎模块：放在选填模块第一位，用欢迎区承接客户身份、问候和当前首页主线",
+      heroBanner: "首屏 Banner、活动横幅和主 CTA",
       accountOverview: "账户概览：使用 asset_overview 展示账户摘要",
+      quickActions: "快捷入口：必须展示高频操作入口，承接入金、开户、订单、持仓或客服等动作",
       openingFlow: "新手 Onboarding 引导：KYC -> 开真实账户 -> 首次入金，帮助新用户完成基础流程",
       accountBenefits: "账户类型与优势：说明真实账户、模拟账户和绑定账号的用途、限制和后台已配置权益",
       kycGuide: "CRM 账户 KYC 状态：未提交、待审、通过、拒绝；只展示当前状态和下一步，不做材料说明页",
@@ -644,7 +760,7 @@
       rewardActivity: "奖励活动专题区，使用活动 Banner、奖励权益、参与步骤和活动 CTA 承接转化",
       referralLink: "推广链接：参考 ReferralLinkCard 积木字段，引申链接优先、邀请码优先、分享或基础统计样式",
       appDownload: "APP 下载、MT5 下载或移动端交易入口",
-      tradingAccounts: "交易账号列表、真实账号和模拟账号状态",
+      tradingAccounts: "交易账号列表：必须同时包含真实交易账号和模拟交易账号状态",
       customerService: "在线客服、客户经理或一对一协助入口",
       faq: "FAQ 常见问题",
       riskDisclosure: "风险提示与合规声明，不暗示稳赚",
@@ -675,8 +791,10 @@
   };
 
   const GUIDED_CANONICAL_TARGETS = {
-    heroBanner: ["welcome_header", "promo_banner"],
+    welcomeModule: ["welcome_header"],
+    heroBanner: ["promo_banner"],
     accountOverview: ["asset_overview"],
+    quickActions: ["quick_actions"],
     openingFlow: ["onboarding_guide"],
     accountBenefits: ["onboarding_guide", "trading_accounts_list"],
     kycGuide: ["onboarding_guide"],
@@ -748,7 +866,7 @@
 	    accountOpening: {
 	      audience: ["newVisitor", "registeredNoAccount"],
 	      level: "growth",
-	      modules: ["heroBanner", "accountOverview", "openingFlow", "accountBenefits", "kycGuide", "tradingAccounts"],
+		      modules: ["welcomeModule", "heroBanner", "accountOverview", "quickActions", "tradingAccounts", "openingFlow", "accountBenefits", "kycGuide"],
 	      assetFields: ["total", "wallet", "tradingAccount"],
 	      theme: "blueFinance",
 	      tone: "professional",
@@ -757,7 +875,7 @@
 	    promotionConversion: {
 	      audience: ["newVisitor", "registeredNoAccount", "openedNoDeposit"],
 	      level: "growth",
-	      modules: ["heroBanner", "accountOverview", "accountBenefits", "depositBonus", "rewardRules", "tradingAccounts"],
+		      modules: ["welcomeModule", "heroBanner", "accountOverview", "quickActions", "tradingAccounts", "accountBenefits", "depositBonus", "rewardRules"],
 	      assetFields: ["total", "wallet", "tradingAccount"],
 	      theme: "blueFinance",
 	      tone: "conversion",
@@ -766,7 +884,7 @@
 	    newUserOnboarding: {
 	      audience: ["newVisitor", "registeredNoAccount"],
 	      level: "basic",
-	      modules: ["heroBanner", "accountOverview", "openingFlow", "kycGuide", "tradingAccounts"],
+		      modules: ["welcomeModule", "heroBanner", "accountOverview", "quickActions", "tradingAccounts", "openingFlow", "kycGuide"],
 	      assetFields: ["total", "tradingAccount"],
 	      theme: "minimalWhite",
 	      tone: "beginner",
@@ -775,7 +893,7 @@
 	    marketingCampaign: {
 	      audience: ["newVisitor", "activityUser"],
 	      level: "growth",
-	      modules: ["heroBanner", "rewardActivity", "rewardRules", "depositBonus"],
+		      modules: ["welcomeModule", "heroBanner", "accountOverview", "quickActions", "tradingAccounts", "rewardActivity", "rewardRules", "depositBonus"],
 	      assetFields: ["total", "wallet", "tradingAccount"],
 	      theme: "lightGold",
 	      tone: "campaign",
@@ -784,7 +902,7 @@
 	    rewardActivity: {
 	      audience: ["openedNoDeposit", "fundedUser", "activityUser"],
 	      level: "growth",
-	      modules: ["heroBanner", "rewardActivity", "rewardRules", "depositBonus", "tradingAccounts"],
+		      modules: ["welcomeModule", "heroBanner", "accountOverview", "quickActions", "tradingAccounts", "rewardActivity", "rewardRules", "depositBonus"],
 	      assetFields: ["total", "wallet", "tradingAccount"],
 	      theme: "lightGold",
 	      tone: "campaign",
@@ -793,7 +911,7 @@
 	    ibRecruitment: {
 	      audience: ["ibUser", "highNetWorth"],
 	      level: "pro",
-	      modules: ["heroBanner", "accountOverview", "referralLink", "accountBenefits", "tradingAccounts"],
+		      modules: ["welcomeModule", "heroBanner", "accountOverview", "quickActions", "tradingAccounts", "referralLink", "accountBenefits"],
 	      assetFields: ["total", "tradingAccount"],
 	      theme: "blackGold",
 	      tone: "ib",
@@ -802,7 +920,7 @@
 	    depositConversion: {
 	      audience: ["openedNoDeposit", "fundedUser"],
 	      level: "growth",
-	      modules: ["heroBanner", "depositBonus", "tradingAccounts"],
+		      modules: ["welcomeModule", "heroBanner", "accountOverview", "quickActions", "tradingAccounts", "depositBonus"],
 	      assetFields: ["wallet", "tradingAccount"],
 	      theme: "blueFinance",
 	      tone: "conversion",
@@ -811,7 +929,7 @@
 	    retention: {
 	      audience: ["dormantUser", "fundedUser"],
 	      level: "basic",
-	      modules: ["heroBanner", "accountOverview", "depositBonus", "tradingAccounts"],
+		      modules: ["welcomeModule", "heroBanner", "accountOverview", "quickActions", "tradingAccounts", "depositBonus"],
 	      assetFields: ["total", "wallet", "tradingAccount"],
 	      theme: "minimalWhite",
 	      tone: "professional",
@@ -845,9 +963,11 @@
 
   function setGuidedGroupValues(group, values) {
     const buttons = guidedButtonsFor(group);
-    const nextValues = new Set(Array.isArray(values) ? values : [values].filter(Boolean));
+    const normalizedValues = group === "modules" ? ensureGuidedRequiredModules(values) : Array.isArray(values) ? values : [values].filter(Boolean);
+    const nextValues = new Set(normalizedValues);
     buttons.forEach((button) => {
-      setGuidedActive(button, nextValues.has(button.dataset.guidedValue));
+      const isRequiredModule = group === "modules" && button.dataset.guidedRequired === "true";
+      setGuidedActive(button, isRequiredModule || nextValues.has(button.dataset.guidedValue));
     });
 
     if (!buttons.some((button) => button.classList.contains("active")) && buttons[0]) {
@@ -855,11 +975,19 @@
     }
   }
 
+  function refreshGuidedThemeCustomState() {
+    if (!els.guidedThemeCustom) return;
+    const hasCustomTheme = Boolean((els.guidedThemeCustom.value || "").trim());
+    els.guidedThemeCustom.dataset.guidedCustomActive = hasCustomTheme ? "true" : "false";
+    els.guidedThemeCustom.closest(".guided-freeform-field")?.classList.toggle("active", hasCustomTheme);
+  }
+
   function selectedGuidedValues(group) {
-    return guidedButtonsFor(group)
+    const values = guidedButtonsFor(group)
       .filter((button) => button.classList.contains("active"))
       .map((button) => button.dataset.guidedValue)
       .filter(Boolean);
+    return group === "modules" ? ensureGuidedRequiredModules(values) : values;
   }
 
   function selectedGuidedValue(group) {
@@ -868,7 +996,9 @@
 
   function guidedLabel(group, value) {
     const button = guidedButtonsFor(group).find((item) => item.dataset.guidedValue === value);
-    return button?.dataset.guidedLabel || value || "未选择";
+    if (button?.dataset.guidedLabel) return button.dataset.guidedLabel;
+    if (group === "cta" && GUIDED_PROMPT_COPY.cta?.[value]) return GUIDED_PROMPT_COPY.cta[value];
+    return value || "未选择";
   }
 
   function guidedPromptCopy(group, value) {
@@ -909,8 +1039,9 @@
   }
 
   function readGuidedState() {
+    const intent = selectedGuidedValue("intent");
     const state = {
-      intent: selectedGuidedValue("intent"),
+      intent,
       audience: selectedGuidedValues("audience"),
       level: selectedGuidedValue("level"),
       modules: selectedGuidedValues("modules"),
@@ -918,7 +1049,7 @@
       theme: selectedGuidedValue("theme"),
       themeCustom: (els.guidedThemeCustom?.value || "").trim(),
       tone: selectedGuidedValue("tone"),
-      cta: selectedGuidedValue("cta"),
+      cta: selectedGuidedValue("cta") || GUIDED_INTENT_DEFAULTS[intent]?.cta || "openAccount",
       note: (els.guidedNote?.value || "").trim(),
     };
 
@@ -991,7 +1122,8 @@
 
   function buildGuidedPrompt() {
     const state = readGuidedState();
-    const modules = state.modules.map((value) => guidedPromptCopy("modules", value));
+    const requiredModules = GUIDED_REQUIRED_MODULE_IDS.map((value) => guidedPromptCopy("modules", value));
+    const optionalModules = state.modules.filter((value) => !isGuidedRequiredModule(value)).map((value) => guidedPromptCopy("modules", value));
     const audiences = state.audience.map((value) => guidedLabel("audience", value));
     const visualInstruction = state.themeCustom
       ? `${guidedPromptCopy("theme", state.theme)}；自定义色值或风格文案：${state.themeCustom}`
@@ -1004,9 +1136,11 @@
       `主 CTA：${guidedPromptCopy("cta", state.cta)}`,
       `视觉：${visualInstruction}`,
       `语气：${guidedPromptCopy("tone", state.tone)}`,
-      `必须可见模块：${modules.join("、")}`,
+      `必选模块（不可撤销）：${requiredModules.join("、")}`,
+      "交易账号模块必须同时包含真实交易账号和模拟交易账号",
+      `选填模块：${optionalModules.length ? optionalModules.join("、") : "无"}`,
       "允许在白名单内重排 sections、brickPlan、模块变体和密度，优先让目标决定首屏",
-	      "不要编造收益、下载链接、后台未提供的数据或未选择的辅助模块",
+      "不要编造收益、下载链接、后台未提供的数据或未选择的辅助模块",
     ];
 
     if (state.note) parts.push(`补充要求：${state.note}`);
@@ -1287,6 +1421,7 @@
     if (!els.guidedSummary) return;
 
     const state = readGuidedState();
+    const optionalModules = state.modules.filter((value) => !isGuidedRequiredModule(value));
     const rows = [
       [GUIDED_FIELD_LABELS.intent, guidedLabel("intent", state.intent)],
       [GUIDED_FIELD_LABELS.audience, summarizeGuidedValues("audience", state.audience)],
@@ -1294,7 +1429,8 @@
       [GUIDED_FIELD_LABELS.cta, guidedLabel("cta", state.cta)],
       [GUIDED_FIELD_LABELS.theme, guidedLabel("theme", state.theme)],
       [GUIDED_FIELD_LABELS.tone, guidedLabel("tone", state.tone)],
-      [GUIDED_FIELD_LABELS.modules, summarizeGuidedValues("modules", state.modules)],
+      [GUIDED_FIELD_LABELS.requiredModules, summarizeGuidedValues("modules", GUIDED_REQUIRED_MODULE_IDS)],
+      [GUIDED_FIELD_LABELS.optionalModules, optionalModules.length ? summarizeGuidedValues("modules", optionalModules) : "未选择选填模块"],
     ];
 
     if (state.themeCustom) rows.splice(5, 0, [GUIDED_FIELD_LABELS.themeCustom, state.themeCustom]);
@@ -1333,11 +1469,22 @@
     if (!els.guidedChoices.length) return;
 
     els.guidedChoices.forEach((button) => {
+      if (button.dataset.guidedRequired === "true") {
+        setGuidedActive(button, true);
+        button.setAttribute("aria-disabled", "true");
+      }
       button.setAttribute("aria-pressed", button.classList.contains("active") ? "true" : "false");
       button.addEventListener("click", () => {
         const group = button.dataset.guidedGroup;
         const value = button.dataset.guidedValue;
         const isMultiple = button.hasAttribute("data-guided-multiple");
+
+        if (group === "modules" && button.dataset.guidedRequired === "true") {
+          setGuidedActive(button, true);
+          showToast("必选模块不可撤销");
+          renderGuidedSummary();
+          return;
+        }
 
         if (isMultiple) {
           const willActivate = !button.classList.contains("active");
@@ -1358,7 +1505,10 @@
     });
 
     els.guidedNote?.addEventListener("input", renderGuidedSummary);
-    els.guidedThemeCustom?.addEventListener("input", renderGuidedSummary);
+    els.guidedThemeCustom?.addEventListener("input", () => {
+      refreshGuidedThemeCustomState();
+      renderGuidedSummary();
+    });
     els.guidedSync?.addEventListener("click", () => syncGuidedPromptToQuick({ switchMode: true, toast: true }));
     els.guidedGenerate?.addEventListener("click", async () => {
       interpretationRound += 1;
@@ -1381,6 +1531,7 @@
     });
 
     applyGuidedDefaults(selectedGuidedValue("intent"));
+    refreshGuidedThemeCustomState();
     renderGuidedSummary();
     setGenerationMode("quick");
   }
@@ -1511,8 +1662,16 @@
     return AI_MODEL_PRESETS[provider] || AI_MODEL_PRESETS.openai;
   }
 
-  function normalizeModelTemperature(provider, value) {
-    if (provider === "kimi") return 1;
+  function isKimiFixedTemperatureModel(model) {
+    return /^kimi-k2\.(?:6|5)\b/i.test(String(model || ""));
+  }
+
+  function kimiTemperatureForModel(model) {
+    return isKimiFixedTemperatureModel(model) ? 0.6 : 1;
+  }
+
+  function normalizeModelTemperature(provider, value, model = "") {
+    if (provider === "kimi") return kimiTemperatureForModel(model);
     if (!Number.isFinite(value)) return DEFAULT_MODEL_CONFIG.temperature;
     if (provider === "minimax") return Math.min(Math.max(value, 0.01), 1);
     return Math.min(Math.max(value, 0), 2);
@@ -1520,16 +1679,18 @@
 
   function normalizeModelBaseUrl(provider, value) {
     const baseUrl = String(value || "").trim().replace(/\/+$/, "");
-    if (provider !== "minimax") return baseUrl;
+    if (!["minimax", "kimi"].includes(provider)) return baseUrl;
 
     try {
       const target = new URL(baseUrl);
-      if (target.hostname === "api.minimaxi.cn") return MINIMAX_CN_BASE_URL;
+      if (provider === "minimax" && ["api.minimaxi.cn", "api.minimax.io"].includes(target.hostname)) return MINIMAX_CN_BASE_URL;
+      if (provider === "kimi" && target.hostname === "api.moonshot.ai") return KIMI_CN_BASE_URL;
     } catch (error) {
       return baseUrl;
     }
 
-    return baseUrl === MINIMAX_CN_TYPED_ALIAS_BASE_URL ? MINIMAX_CN_BASE_URL : baseUrl;
+    if (provider === "minimax") return [MINIMAX_CN_TYPED_ALIAS_BASE_URL, MINIMAX_GLOBAL_BASE_URL].includes(baseUrl) ? MINIMAX_CN_BASE_URL : baseUrl;
+    return baseUrl === KIMI_GLOBAL_BASE_URL ? KIMI_CN_BASE_URL : baseUrl;
   }
 
   function sanitizeModelConfig(config) {
@@ -1571,7 +1732,7 @@
       apiMode: String(merged.apiMode || preset.apiMode).slice(0, 40),
       callMode: ["local", "serverProxy"].includes(merged.callMode) ? merged.callMode : "local",
       proxyEndpoint: proxyEndpoint || DEFAULT_MODEL_CONFIG.proxyEndpoint,
-      temperature: normalizeModelTemperature(preset.provider, temperature),
+      temperature: normalizeModelTemperature(preset.provider, temperature, model),
       maxOutputTokens: Number.isFinite(maxOutputTokens)
         ? Math.min(Math.max(Math.round(maxOutputTokens), preset.provider === "minimax" ? 512 : 6000), preset.provider === "minimax" ? MINIMAX_MAX_COMPLETION_TOKENS : 12000)
         : preset.provider === "minimax"
@@ -2087,9 +2248,10 @@
     optionList.innerHTML = preset.models.map((model) => `<option value="${escapeHtml(model)}"></option>`).join("");
     const temperatureField = modal.querySelector('[data-model-config-field="temperature"]');
     if (temperatureField) {
-      temperatureField.min = config.provider === "minimax" ? "0.01" : config.provider === "kimi" ? "1" : "0";
-      temperatureField.max = ["minimax", "kimi"].includes(config.provider) ? "1" : "2";
-      temperatureField.step = config.provider === "minimax" ? "0.01" : config.provider === "kimi" ? "1" : "0.1";
+      const kimiTemperature = config.provider === "kimi" ? kimiTemperatureForModel(config.model) : null;
+      temperatureField.min = config.provider === "minimax" ? "0.01" : config.provider === "kimi" ? String(kimiTemperature) : "0";
+      temperatureField.max = config.provider === "minimax" ? "1" : config.provider === "kimi" ? String(kimiTemperature) : "2";
+      temperatureField.step = config.provider === "minimax" ? "0.01" : "0.1";
     }
     const maxTokensField = modal.querySelector('[data-model-config-field="maxOutputTokens"]');
     if (maxTokensField) {
@@ -2332,10 +2494,10 @@
       return "处理建议：DeepSeek API Key 无效或未配置，请在模型配置里填写 DEEPSEEK_API_KEY 对应密钥；Base URL 使用 https://api.deepseek.com。";
     }
     if (details.provider === "kimi" || /Kimi|Moonshot|moonshot/i.test(identity)) {
-      return `处理建议：Kimi / Moonshot API Key 无效或未配置，请在模型配置里填写 MOONSHOT_API_KEY 或 KIMI_API_KEY 对应密钥；国际控制台使用 ${KIMI_BASE_URL}，国内控制台使用 ${KIMI_CN_BASE_URL}。`;
+      return `处理建议：Kimi / Moonshot API Key 无效或未配置，请在模型配置里填写 MOONSHOT_API_KEY 或 KIMI_API_KEY 对应密钥；Base URL 使用国内入口 ${KIMI_CN_BASE_URL}。`;
     }
     if (details.provider === "minimax" || /MiniMax/i.test(identity)) {
-      return `处理建议：API Key 无效或账号区域不匹配，请在模型配置里重新填写 MiniMax API Key；CN 账号使用 ${MINIMAX_CN_BASE_URL}，国际账号使用 ${MINIMAX_GLOBAL_BASE_URL}。`;
+      return `处理建议：API Key 无效或账号区域不匹配，请在模型配置里重新填写 MiniMax API Key；国内入口使用 ${MINIMAX_CN_BASE_URL}。`;
     }
     return "处理建议：API Key 无效或账号区域不匹配，请检查当前厂商的 API Key、Base URL 和账号区域。";
   }
@@ -2345,6 +2507,10 @@
 
     if (Number(details.providerStatus) === 401 || /HTTP\s*401|invalid api key|unauthorized|\b2049\b/i.test(source)) {
       return providerAuthAdvice(details, source);
+    }
+
+    if (details.provider === "kimi" && /invalid temperature|only\s+0\.6|temperature/i.test(source)) {
+      return `处理建议：Kimi K2.6/K2.5 关闭 thinking 时只能使用 temperature=0.6；当前版本会自动修正，并使用国内入口 ${KIMI_CN_BASE_URL}。`;
     }
 
     if (/valid homepage JSON|AI response did not contain valid homepage JSON/i.test(source)) {
@@ -2530,6 +2696,7 @@
 	      strategy: normalized.brickTrace?.strategy || normalized.compositionStrategy || "",
 	      brickIds: normalized.brickPlan.map((item) => item.brickId || item.feature).filter(Boolean),
 	      sections: normalized.sections.map((section) => `${section.type}:${section.slots.join("+")}`),
+          htmlPipeline: normalized.htmlScheme?.enabled ? normalized.htmlScheme.generationPipeline || normalized.htmlScheme.sourceType || "" : "",
 	    };
 	  }
 
@@ -3104,6 +3271,7 @@
 
   if (els.previewPage) {
     initPreviewSizing();
+    initPreviewColorMode();
     renderSummary();
     renderIntelligenceSummary();
     renderDecisionReasons();

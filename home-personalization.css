@@ -4409,8 +4409,46 @@ body[data-layout-page="home-layout-admin"] .personalization-page {
   grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
 }
 
-.guided-options.cta {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.guided-module-block {
+  display: grid;
+  gap: 8px;
+}
+
+.guided-module-block + .guided-module-block {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.guided-module-label {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.guided-module-label span {
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.guided-module-label small {
+  min-width: 0;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 760;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.guided-options.modules.required {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.guided-tone-section .guided-options {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .guided-options button {
@@ -4445,6 +4483,28 @@ body[data-layout-page="home-layout-admin"] .personalization-page {
   background: #eff6ff;
   color: #1d4ed8;
   box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.08);
+}
+
+.guided-options button[data-guided-required="true"] {
+  cursor: not-allowed;
+}
+
+.guided-options button[data-guided-required="true"].active {
+  border-color: rgba(20, 184, 166, 0.42);
+  background: #ecfeff;
+  color: #0f766e;
+}
+
+.guided-options button[data-guided-required="true"]::after {
+  content: "必选";
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(20, 184, 166, 0.12);
+  color: #0f766e;
+  font-size: 10px;
+  font-weight: 950;
+  line-height: 1;
 }
 
 .guided-options button:disabled {
@@ -4482,7 +4542,13 @@ body[data-layout-page="home-layout-admin"] .personalization-page {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.guided-field-block {
+  display: grid;
+  gap: 8px;
+}
+
 .guided-freeform-field {
+  position: relative;
   margin-top: 8px;
 }
 
@@ -4506,6 +4572,27 @@ body[data-layout-page="home-layout-admin"] .personalization-page {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
+.guided-freeform-field.active input,
+.guided-freeform-field input[data-guided-custom-active="true"] {
+  padding-right: 48px;
+  border-color: rgba(37, 99, 235, 0.5);
+  background: #eff6ff;
+  color: #1d4ed8;
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.08);
+}
+
+.guided-freeform-field.active::after {
+  content: "已选";
+  position: absolute;
+  right: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #1d4ed8;
+  font-size: 11px;
+  font-weight: 950;
+  pointer-events: none;
+}
+
 .guided-dual-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4513,6 +4600,7 @@ body[data-layout-page="home-layout-admin"] .personalization-page {
 }
 
 .guided-dual-grid label,
+.guided-field-label,
 .guided-note-label {
   display: block;
   margin-bottom: 8px;
@@ -5525,6 +5613,37 @@ body[data-layout-page="home-layout-admin"] .personalization-page {
   justify-content: flex-end;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.preview-stage-render-switch {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: auto;
+  padding: 4px;
+  border: 1px solid #dce6f4;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.preview-stage-render-switch > span {
+  padding: 0 6px 0 8px;
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.preview-stage-render-switch .ai-render-mode-options {
+  flex-wrap: nowrap;
+  gap: 4px;
+}
+
+.preview-stage-render-switch .ai-render-mode-options button {
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 7px;
 }
 
 .preview-size-control {
@@ -7076,6 +7195,23 @@ body[data-home-layout="tradingPro"] .ai-blueprint-layout-tradingPro .ai-home-blo
   color: var(--home-terminal-muted);
 }
 
+body:not([data-tenant-theme="darkTech"]):not([data-home-color-mode="dark"]) .ai-balance-feature[data-module-variant="darkTerminal"] {
+  border-color: var(--home-border);
+  background: var(--home-card-bg);
+  color: var(--home-text-strong);
+}
+
+body:not([data-tenant-theme="darkTech"]):not([data-home-color-mode="dark"]) .ai-balance-feature[data-module-variant="darkTerminal"] .ai-balance-breakdown span {
+  border-color: var(--home-border-soft);
+  background: var(--home-surface-soft);
+}
+
+body:not([data-tenant-theme="darkTech"]):not([data-home-color-mode="dark"]) .ai-performance-feature[data-module-style="cost-board"] {
+  border-color: var(--home-border);
+  background: var(--home-card-bg);
+  color: var(--home-text);
+}
+
 .ai-wallet-feature[data-module-variant="splitCurrency"] {
   grid-template-columns: minmax(160px, 0.85fr) minmax(0, 1fr);
   align-items: center;
@@ -7253,28 +7389,28 @@ body[data-home-layout="tradingCommand"] .client-shell.is-blueprint-home {
   gap: 12px;
 }
 
-body[data-home-layout="tradingCommand"] .ai-welcome-feature,
-body[data-home-layout="tradingCommand"] .ai-balance-feature,
-body[data-home-layout="tradingCommand"] .ai-quick-feature,
-body[data-home-layout="tradingCommand"] .ai-performance-feature,
-body[data-home-layout="tradingCommand"] .ai-user-rail-feature,
-body[data-home-layout="tradingCommand"] .ai-risk-feature,
-body[data-home-layout="tradingCommand"] .ai-accounts-feature {
+:is(body[data-home-layout="tradingCommand"][data-tenant-theme="darkTech"], body[data-home-layout="tradingCommand"][data-home-color-mode="dark"]) .ai-welcome-feature,
+:is(body[data-home-layout="tradingCommand"][data-tenant-theme="darkTech"], body[data-home-layout="tradingCommand"][data-home-color-mode="dark"]) .ai-balance-feature,
+:is(body[data-home-layout="tradingCommand"][data-tenant-theme="darkTech"], body[data-home-layout="tradingCommand"][data-home-color-mode="dark"]) .ai-quick-feature,
+:is(body[data-home-layout="tradingCommand"][data-tenant-theme="darkTech"], body[data-home-layout="tradingCommand"][data-home-color-mode="dark"]) .ai-performance-feature,
+:is(body[data-home-layout="tradingCommand"][data-tenant-theme="darkTech"], body[data-home-layout="tradingCommand"][data-home-color-mode="dark"]) .ai-user-rail-feature,
+:is(body[data-home-layout="tradingCommand"][data-tenant-theme="darkTech"], body[data-home-layout="tradingCommand"][data-home-color-mode="dark"]) .ai-risk-feature,
+:is(body[data-home-layout="tradingCommand"][data-tenant-theme="darkTech"], body[data-home-layout="tradingCommand"][data-home-color-mode="dark"]) .ai-accounts-feature {
   border-color: var(--home-terminal-border);
   background: var(--home-terminal-bg);
   color: var(--home-terminal-text);
   box-shadow: none;
 }
 
-body[data-home-layout="tradingCommand"] :is(.ai-feature-title strong, .ai-orbit-label b, .ai-balance-amount strong, .ai-side-metrics b, .ai-accounts-command strong) {
+:is(body[data-home-layout="tradingCommand"][data-tenant-theme="darkTech"], body[data-home-layout="tradingCommand"][data-home-color-mode="dark"]) :is(.ai-feature-title strong, .ai-orbit-label b, .ai-balance-amount strong, .ai-side-metrics b, .ai-accounts-command strong) {
   color: var(--home-terminal-text);
 }
 
-body[data-home-layout="tradingCommand"] :is(.ai-feature-title span, .ai-orbit-label span, .ai-balance-breakdown small, .ai-market-feature p, .ai-risk-feature p) {
+:is(body[data-home-layout="tradingCommand"][data-tenant-theme="darkTech"], body[data-home-layout="tradingCommand"][data-home-color-mode="dark"]) :is(.ai-feature-title span, .ai-orbit-label span, .ai-balance-breakdown small, .ai-market-feature p, .ai-risk-feature p) {
   color: var(--home-terminal-muted);
 }
 
-body[data-home-layout="tradingCommand"] .ai-performance-feature[data-module-style="cost-board"] {
+:is(body[data-home-layout="tradingCommand"][data-tenant-theme="darkTech"], body[data-home-layout="tradingCommand"][data-home-color-mode="dark"]) .ai-performance-feature[data-module-style="cost-board"] {
   border-color: rgba(20, 184, 166, 0.35);
   background:
     linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(17, 24, 39, 0.94)),
@@ -7416,6 +7552,17 @@ body[data-home-layout="accountOpsConsole"] .ai-balance-feature[data-module-style
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+body:not([data-tenant-theme="darkTech"]):not([data-home-color-mode="dark"]) .ai-quick-feature[data-module-style="command-bar"] .ai-shortcut-matrix {
+  border-color: var(--home-border);
+  background: var(--home-surface-soft);
+}
+
+body:not([data-tenant-theme="darkTech"]):not([data-home-color-mode="dark"]) .ai-quick-feature[data-module-style="command-bar"] .ai-shortcut-matrix a {
+  border-color: var(--home-border-soft);
+  background: var(--home-card-bg);
+  color: var(--home-text-strong);
 }
 
 .ai-quick-feature[data-module-style="task-rail"] .ai-shortcut-matrix {
@@ -8317,7 +8464,7 @@ body[data-home-layout="accountOpsConsole"] .ai-balance-feature[data-module-style
 
   .guided-options.three,
   .guided-options.mini,
-  .guided-options.cta {
+  .guided-tone-section .guided-options {
     grid-template-columns: 1fr;
   }
 
@@ -8368,6 +8515,16 @@ body[data-home-layout="accountOpsConsole"] .ai-balance-feature[data-module-style
   .preview-simple-shell .preview-stage-panel .home-preview {
     height: var(--preview-frame-height);
     min-height: var(--preview-frame-height);
+  }
+
+  .preview-stage-render-switch {
+    width: 100%;
+    justify-content: space-between;
+    margin-right: 0;
+  }
+
+  .preview-stage-render-switch .ai-render-mode-options {
+    flex: 0 0 auto;
   }
 
   .ai-model-modal {

@@ -64,16 +64,16 @@
       bannerStyle: "neon-campaign",
     },
     minimalWhite: {
-      primaryColor: "#111827",
+      primaryColor: "#475569",
       accentColor: "#64748b",
       backgroundStyle: "minimal-white",
       cardStyle: "flat-white",
       cardRadius: "4px",
       cardShadow: "none",
-      buttonStyle: "ink-gradient",
+      buttonStyle: "quiet-outline",
       fontDensity: 0.96,
       numberStyle: "quiet",
-      bannerStyle: "ink-band",
+      bannerStyle: "paper-band",
     },
   };
   const TENANT_THEME_IDS = new Set(Object.keys(TENANT_THEMES));
@@ -157,15 +157,21 @@
 
   function applyTheme(theme) {
     const requestedTheme = THEMES.has(theme) ? theme : "light";
-    const nextTheme = isTenantHomeScope() ? "light" : requestedTheme;
+    const tenantHomeScope = isTenantHomeScope();
+    const nextTheme = tenantHomeScope ? "light" : requestedTheme;
     root.dataset.theme = nextTheme;
     root.style.colorScheme = nextTheme;
 
     if (document.body) {
       document.body.dataset.theme = nextTheme;
+      if (tenantHomeScope) {
+        document.body.dataset.homeColorMode = requestedTheme;
+      } else {
+        delete document.body.dataset.homeColorMode;
+      }
     }
 
-    updateControls(nextTheme);
+    updateControls(tenantHomeScope ? requestedTheme : nextTheme);
     return nextTheme;
   }
 
@@ -181,8 +187,9 @@
   }
 
   function setTheme(theme) {
-    const nextTheme = applyTheme(theme);
-    writeTheme(nextTheme);
+    const requestedTheme = THEMES.has(theme) ? theme : "light";
+    const nextTheme = applyTheme(requestedTheme);
+    writeTheme(requestedTheme);
     return nextTheme;
   }
 
@@ -193,7 +200,10 @@
   }
 
   function toggleTheme() {
-    return setTheme(root.dataset.theme === "dark" ? "light" : "dark");
+    const currentTheme = isTenantHomeScope()
+      ? document.body?.dataset?.homeColorMode || readTheme()
+      : root.dataset.theme || readTheme();
+    return setTheme(currentTheme === "dark" ? "light" : "dark");
   }
 
   applyTheme(readTheme());
@@ -214,6 +224,7 @@
     applyTheme,
     applyTenantTheme,
     getTheme: () => root.dataset.theme || readTheme(),
+    getHomeColorMode: () => (isTenantHomeScope() ? document.body?.dataset?.homeColorMode || readTheme() : root.dataset.theme || readTheme()),
     getTenantTheme: () => root.dataset.tenantTheme || readTenantTheme(),
     normalizeTenantTheme,
     setTheme,

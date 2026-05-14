@@ -66,11 +66,17 @@ AI 的作用不是直接生成页面代码，而是根据租户描述、品牌�
 
 当前 MiniMax 如果一直调不成功，优先按接入层问题处理，不要先怀疑首页前端流程。
 
-- MiniMax 有国内和国际两套入口。国内开放平台或国内 Token Plan Key 优先使用 `https://api.minimaxi.com/v1`；国际账号使用 `https://api.minimax.io/v1`。
+- MiniMax 现在默认按国内开放平台入口调用：`https://api.minimaxi.com/v1`。如果旧配置里写了 `https://api.minimax.io/v1` 或误填 `https://api.minimaxi.cn/v1`，前后端都要归一化到国内官方 Host。
 - OpenAI 兼容调用应走 `POST /v1/chat/completions`，也就是 Base URL 加 `/chat/completions`；模型优先用 `MiniMax-M2.7`，需要速度再试 `MiniMax-M2.7-highspeed`。
 - MiniMax M2.x 原生 OpenAI 兼容返回的 `content` 可能包含 `<think>...</think>` 推理内容。只收首页 JSON 时，代理层要先剥离 thinking/markdown，再提取 JSON object，否则会出现“模型有返回，但系统说不是有效 JSON”的假失败。
 - Token Plan Key、按量 API Key、模型 ID、额度和区域入口必须互相匹配。出现 401、403、404、429 或 plan/key 相关报错时，先校验 key 类型、模型名、额度和 Base URL。
 - 如果目标是稳定生成首页配置，MiniMax 暂时只作为可选 provider；默认验收可以先用 mock、OpenAI、Claude、Kimi 或 DeepSeek 跑通完整链路。
+
+## Kimi 调用判断
+
+- Kimi / Moonshot 默认按国内入口调用：`https://api.moonshot.cn/v1`。如果旧配置里写了 `https://api.moonshot.ai/v1`，前后端都要归一化到 `.cn`。
+- `kimi-k2.6` / `kimi-k2.5` 在关闭 thinking 时只能使用 `temperature=0.6`；如果继续发送 `temperature=1`，会返回 `invalid temperature: only 0.6 is allowed for this model`。
+- 首页 JSON 生成会对 K2.6/K2.5 发送 `thinking: {"type":"disabled"}`、`max_completion_tokens` 和短 prompt；不要再用通用 Kimi 温度 1 覆盖这个组合。
 
 ## DeepSeek 调用判断
 

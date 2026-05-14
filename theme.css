@@ -479,16 +479,16 @@ body[data-tenant-theme="darkTech"] {
 
 :root[data-tenant-theme="minimalWhite"],
 body[data-tenant-theme="minimalWhite"] {
-  --tenant-primaryColor: #111827;
+  --tenant-primaryColor: #475569;
   --tenant-accentColor: #64748b;
   --tenant-backgroundStyle: linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
   --tenant-cardStyle: #ffffff;
   --tenant-cardRadius: 4px;
   --tenant-cardShadow: none;
-  --tenant-buttonStyle: linear-gradient(135deg, #111827 0%, #334155 100%);
+  --tenant-buttonStyle: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
   --tenant-fontDensity: 0.96;
   --tenant-numberStyle: quiet;
-  --tenant-bannerStyle: linear-gradient(135deg, #111827, #334155);
+  --tenant-bannerStyle: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
   --tenant-primary-color: var(--tenant-primaryColor);
   --tenant-accent-color: var(--tenant-accentColor);
   --tenant-background-style: var(--tenant-backgroundStyle);
@@ -499,14 +499,15 @@ body[data-tenant-theme="minimalWhite"] {
   --tenant-font-density: var(--tenant-fontDensity);
   --tenant-number-style: var(--tenant-numberStyle);
   --tenant-banner-style: var(--tenant-bannerStyle);
-  --home-primary-strong: #020617;
-  --home-primary-text: #111827;
+  --home-primary-strong: #334155;
+  --home-primary-text: #334155;
   --home-primary-soft: #f8fafc;
   --home-primary-faint: #f1f5f9;
   --home-primary-border: #d1d5db;
   --home-primary-border-strong: #cbd5e1;
   --home-primary-surface: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  --home-accent-contrast: #ffffff;
+  --home-primary-contrast: #111827;
+  --home-accent-contrast: #111827;
   --home-text-strong: #111827;
   --home-text: #172033;
   --home-text-soft: #475569;
@@ -518,6 +519,10 @@ body[data-tenant-theme="minimalWhite"] {
   --home-border-strong: #d1d5db;
   --home-divider: #f1f5f9;
   --home-button-icon-muted-text: #111827;
+  --home-button-border: #cbd5e1;
+  --home-button-text: #111827;
+  --home-button-secondary-bg: #ffffff;
+  --home-button-secondary-text: #334155;
   --home-button-shadow: none;
   --home-button-shadow-soft: none;
   --home-button-hover-shadow: none;
@@ -526,19 +531,32 @@ body[data-tenant-theme="minimalWhite"] {
   --home-popover-shadow: 0 16px 30px rgba(15, 23, 42, 0.08);
   --home-progress-card-bg: #ffffff;
   --home-progress-border: #e5e7eb;
-  --home-banner-border: #334155;
+  --home-banner-border: #e5e7eb;
+  --home-banner-text: #111827;
+  --home-banner-muted: #64748b;
   --home-banner-badge-bg: #f8fafc;
   --home-banner-badge-text: #111827;
   --home-banner-status-bg: #475569;
+  --home-banner-cta-bg: #ffffff;
   --home-banner-cta-text: #111827;
+  --home-hero-text: #111827;
+  --home-hero-muted: #64748b;
   --home-number-weight: 900;
   --home-section-gap: 18px;
   --home-card-inset-shadow: inset 0 0 0 1px var(--home-card-border-strong);
   --home-spotlight-shadow: none;
-  --home-gradient-hero-bg: linear-gradient(135deg, #111827, #334155);
+  --home-gradient-hero-bg: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
   --home-split-visual-bg: #ffffff;
   --home-action-priority-bg: #f8fafc;
   --home-icon-tile-bg: #f1f5f9;
+  --home-vip-hero-bg: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  --home-vip-hero-border: #e5e7eb;
+  --home-vip-hero-text: #111827;
+  --home-vip-glass-bg: rgba(255, 255, 255, 0.76);
+  --home-terminal-bg: #ffffff;
+  --home-terminal-border: #e5e7eb;
+  --home-terminal-text: #111827;
+  --home-terminal-muted: #64748b;
 }
 
 body[data-layout-page="client-home"],
@@ -546,9 +564,80 @@ body[data-home-preview="content-only"] {
   color-scheme: light;
 }
 
+body[data-layout-page="client-home"][data-home-color-mode="dark"],
+body[data-home-preview="content-only"][data-home-color-mode="dark"],
 body[data-layout-page="client-home"][data-tenant-theme="darkTech"],
 body[data-home-preview="content-only"][data-tenant-theme="darkTech"] {
   color-scheme: dark;
+}
+
+body[data-layout-page="client-home"][data-home-color-mode="dark"],
+body[data-home-preview="content-only"][data-home-color-mode="dark"] {
+  --tenant-backgroundStyle:
+    radial-gradient(circle at 78% 8%, rgba(56, 189, 248, 0.16), transparent 30%),
+    linear-gradient(180deg, #07111f 0%, #0b1220 100%);
+  --tenant-background-style: var(--tenant-backgroundStyle);
+  --tenant-cardStyle: rgba(15, 23, 42, 0.96);
+  --tenant-card-style: var(--tenant-cardStyle);
+  --tenant-cardShadow: 0 18px 44px rgba(0, 0, 0, 0.28);
+  --tenant-card-shadow: var(--tenant-cardShadow);
+  --home-bg: var(--tenant-background-style);
+  --home-shell-text: #e5edf8;
+  --home-text-strong: #f8fbff;
+  --home-text: #e5edf8;
+  --home-text-soft: #b8c7d9;
+  --home-text-muted: #92a4ba;
+  --home-text-subtle: #cbd5e1;
+  --home-surface: #0f172a;
+  --home-surface-raised: #111827;
+  --home-surface-soft: #172033;
+  --home-surface-muted: #1b2638;
+  --home-card-bg: var(--tenant-card-style);
+  --home-card-border: rgba(148, 163, 184, 0.24);
+  --home-card-border-strong: rgba(148, 163, 184, 0.32);
+  --home-card-shadow: var(--tenant-card-shadow);
+  --home-border: rgba(148, 163, 184, 0.24);
+  --home-border-soft: rgba(148, 163, 184, 0.18);
+  --home-border-strong: rgba(148, 163, 184, 0.32);
+  --home-divider: rgba(148, 163, 184, 0.2);
+  --home-panel-bg: var(--home-card-bg);
+  --home-panel-border: var(--home-card-border);
+  --home-panel-shadow: var(--home-card-shadow);
+  --home-muted-panel-bg: var(--home-surface-muted);
+  --home-soft-panel-bg: var(--home-surface-soft);
+  --home-hero-text: #f8fbff;
+  --home-hero-muted: #b8c7d9;
+  --home-banner-bg:
+    radial-gradient(circle at 82% 10%, rgba(56, 189, 248, 0.18), transparent 28%),
+    linear-gradient(135deg, #0f172a 0%, #111827 100%);
+  --home-banner-border: rgba(56, 189, 248, 0.28);
+  --home-banner-text: #f8fbff;
+  --home-banner-muted: #b8c7d9;
+  --home-banner-badge-bg: rgba(255, 255, 255, 0.1);
+  --home-banner-badge-text: #e5edf8;
+  --home-banner-cta-bg: #e5edf8;
+  --home-banner-cta-text: #07111f;
+  --home-overlay-card-bg: rgba(15, 23, 42, 0.74);
+  --home-glass-card-bg: rgba(15, 23, 42, 0.78);
+  --home-glass-border: rgba(148, 163, 184, 0.24);
+  --home-gradient-hero-bg:
+    radial-gradient(circle at 78% 12%, rgba(56, 189, 248, 0.18), transparent 28%),
+    linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  --home-vip-hero-bg:
+    radial-gradient(circle at 82% 10%, rgba(250, 204, 21, 0.2), transparent 28%),
+    linear-gradient(135deg, #090b10 0%, #312e20 100%);
+  --home-vip-hero-border: rgba(250, 204, 21, 0.26);
+  --home-vip-hero-text: #fffaf0;
+  --home-terminal-bg: #050b14;
+  --home-terminal-border: rgba(56, 189, 248, 0.28);
+  --home-terminal-text: #dff8ff;
+  --home-terminal-muted: rgba(223, 248, 255, 0.68);
+  --home-table-bg: #111827;
+  --home-table-head-bg: #172033;
+  --home-tooltip-bg: #e5edf8;
+  --home-tooltip-text: #07111f;
+  --home-toast-bg: #e5edf8;
+  --home-toast-text: #07111f;
 }
 
 :root[data-theme="dark"] {

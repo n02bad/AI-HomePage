@@ -1,6 +1,6 @@
 const TRADING_ACCOUNT_FIELDS = [
   { key: "accountKind", label: "账号类型", note: "Demo / Live" },
-  { key: "platformServer", label: "平台 / 服务器", note: "平台为 MT4、MT5、Sirix、XOH 或 Fortex；服务器为交易账号所在服务器" },
+  { key: "platformServer", label: "交易环境", note: "展示如 MT5 · HCHoldings-Live2" },
   { key: "account", label: "账号", note: "交易账号" },
   { key: "balance", label: "余额", note: "账户的余额" },
   { key: "equity", label: "净值", note: "账号的净值" },
@@ -411,6 +411,7 @@ function renderAccountCard(account) {
       <div class="account-card-head">
         <span class="account-status${account.kind === "demo" ? " demo" : ""}">${kindLabel(account)}</span>
         <span class="account-number">${escapeHtml(account.account || account.id)}</span>
+        ${platformServer ? `<span class="account-environment" title="${escapeHtml(platformServer)}">${escapeHtml(platformServer)}</span>` : ""}
       </div>
       <div class="account-card-hero">
         <div>
@@ -419,7 +420,6 @@ function renderAccountCard(account) {
         </div>
       </div>
       <div class="account-card-flat-meta" aria-label="账号概要">
-        <span><small>平台 / 服务器</small><b>${escapeHtml(platformServer)}</b></span>
         <span><small>余额</small><b>${escapeHtml(formatUsdNumber(toUsd(account.balance)))}</b></span>
         <span><small>信用金</small><b>${escapeHtml(formatUsdNumber(toUsd(account.credit || 0)))}</b></span>
         <span><small>账户类型</small><b>${escapeHtml(account.accountType)}</b></span>
@@ -465,8 +465,7 @@ function renderAccountRows(items) {
         <tr>
           <td><span class="account-status${account.kind === "demo" ? " demo" : ""}">${kindLabel(account)}</span></td>
           <td><strong>${escapeHtml(account.account || account.id)}</strong></td>
-          <td>${escapeHtml(account.platform)}</td>
-          <td>${escapeHtml(account.server)}</td>
+          <td>${escapeHtml(platformServerLabel(account))}</td>
           <td><strong>${escapeHtml(formatUsdNumber(toUsd(account.balance)))}</strong></td>
           <td><strong>${escapeHtml(formatUsdNumber(toUsd(account.equity || account.balance)))}</strong></td>
           <td>${escapeHtml(formatUsdNumber(toUsd(account.credit || 0)))}</td>
@@ -506,8 +505,7 @@ function renderAccountTableContent(items) {
           <tr>
             <th>账号类型</th>
             <th>账号</th>
-            <th>平台</th>
-            <th>服务器</th>
+            <th>交易环境</th>
             <th>余额</th>
             <th>净值</th>
             <th>信用金</th>

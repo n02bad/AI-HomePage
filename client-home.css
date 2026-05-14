@@ -918,6 +918,7 @@
 
 .account-card-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }
@@ -939,12 +940,32 @@
 }
 
 .account-number {
+  flex: 0 0 auto;
   color: var(--home-text-strong);
   font-family: var(--home-number-font-family);
   font-size: 16px;
   font-variant-numeric: var(--home-number-feature);
   font-weight: 900;
   letter-spacing: var(--home-number-letter-spacing);
+}
+
+.account-environment {
+  min-width: 0;
+  max-width: min(100%, 220px);
+  min-height: 26px;
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
+  overflow: hidden;
+  padding: 0 9px;
+  border: 1px solid var(--home-border-soft);
+  border-radius: var(--home-radius-sm);
+  background: var(--home-surface-soft);
+  color: var(--home-text-soft);
+  font-size: 12px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .account-menu {
@@ -1103,14 +1124,14 @@
 .account-card-flat-meta {
   min-width: 0;
   display: grid;
-  gap: 8px;
-  padding-top: 2px;
+  gap: 9px;
+  padding-top: 4px;
 }
 
 .account-card-flat-meta span {
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(82px, 0.5fr) minmax(0, 1fr);
+  grid-template-columns: minmax(72px, 0.42fr) minmax(0, 1fr);
   gap: 10px;
   align-items: center;
 }

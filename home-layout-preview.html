@@ -50,24 +50,6 @@
 
               <div class="studio-section">
                 <div class="studio-section-head">
-                  <span class="section-kicker">RENDER</span>
-                  <h2>预览方式</h2>
-                </div>
-                <section class="ai-render-mode-card compact" data-preview-render-mode-controls aria-label="预览渲染方式">
-                  <div>
-                    <span>当前页面</span>
-                    <strong>组件化 / AI HTML</strong>
-                    <small data-render-mode-note>稳定模式：AI 输出配置，由首页组件和积木渲染。</small>
-                  </div>
-                  <div class="ai-render-mode-options" role="group" aria-label="切换预览方式">
-                    <button class="active" type="button" data-render-mode-button="config">组件化</button>
-                    <button type="button" data-render-mode-button="aiHtml">AI HTML</button>
-                  </div>
-                </section>
-              </div>
-
-              <div class="studio-section">
-                <div class="studio-section-head">
                   <span class="section-kicker">MODEL</span>
                   <h2>当前模型</h2>
                 </div>
@@ -90,7 +72,18 @@
                   <span class="section-kicker">CLIENT HOME</span>
                   <h2>用户端首页预览</h2>
                 </div>
+                <section class="preview-stage-render-switch" data-preview-render-mode-controls aria-label="预览渲染方式">
+                  <span>预览方式</span>
+                  <div class="ai-render-mode-options" role="group" aria-label="切换预览方式">
+                    <button class="active" type="button" data-render-mode-button="config">组件化</button>
+                    <button type="button" data-render-mode-button="aiHtml">AI HTML</button>
+                  </div>
+                </section>
                 <div class="preview-stage-tools" aria-label="预览尺寸">
+                  <div class="preview-size-control preview-color-mode-control" role="group" aria-label="选择明暗模式">
+                    <button class="active" type="button" data-preview-color-mode="light" title="白天模式">白天</button>
+                    <button type="button" data-preview-color-mode="dark" title="暗夜模式">暗夜</button>
+                  </div>
                   <div class="preview-size-control" role="group" aria-label="选择预览尺寸">
                     <button type="button" data-preview-size="mobile" title="手机 390x844">手机</button>
                     <button type="button" data-preview-size="tablet" title="平板 768x1024">平板</button>
