@@ -251,12 +251,47 @@
     return normalizeRenderMode(renderModeSetting);
   }
 
-  function activePreviewRenderMode(config = currentConfig) {
-    const normalized = home.normalizeConfig(config);
-    return normalized.activeRenderMode === "aiHtml" && normalized.htmlScheme?.enabled ? "aiHtml" : "config";
-  }
+	  function activePreviewRenderMode(config = currentConfig) {
+	    const normalized = home.normalizeConfig(config);
+	    return normalized.activeRenderMode === "aiHtml" && normalized.htmlScheme?.enabled ? "aiHtml" : "config";
+	  }
 
-  function renderRenderModeControls() {
+	  function aiHtmlSourceInfo(config = currentConfig) {
+	    const normalized = home.normalizeConfig(config);
+	    const scheme = normalized.htmlScheme;
+	    if (!scheme?.enabled) {
+	      return { label: "AI HTML 未启用", tone: "off", detail: "", reason: "" };
+	    }
+	    const reason = scheme.fallbackReason || scheme.correctionNotes?.[0] || "";
+	    if (scheme.mock) return { label: "Mock 预览", tone: "mock", detail: reason || "HOME_AI_MOCK=true 或 mock 预览，未调用真实模型。", reason };
+	    if (scheme.sourceType === "local-fallback") return { label: "本地规则生成", tone: "fallback", detail: reason || "本地规则兜底生成，不是模型真实生成结果。", reason };
+	    if (scheme.isFallback) return { label: "Fallback 预览", tone: "fallback", detail: reason || "模型失败或质量门禁未通过后降级。", reason };
+	    if (scheme.sourceType === "model-repair") return { label: "模型生成", tone: "model", detail: "模型修正版 HTML，已通过安全清洗和质量门禁。", reason };
+	    if (scheme.sourceType === "model/free-html") return { label: "模型生成", tone: "model", detail: "模型自由 HTML，已通过安全清洗和质量门禁。", reason };
+	    return { label: "模型生成", tone: "model", detail: scheme.sourceType || "AI HTML", reason };
+	  }
+
+	  function renderPreviewSourceBadge(config = currentConfig) {
+	    if (!els.previewStage) return;
+	    let badge = els.previewStage.querySelector("[data-ai-html-source-badge]");
+	    if (!badge) {
+	      badge = document.createElement("span");
+	      badge.className = "ai-html-source-badge";
+	      badge.dataset.aiHtmlSourceBadge = "";
+	      const tools = els.previewStage.querySelector(".preview-stage-tools");
+	      if (tools) tools.prepend(badge);
+	    }
+	    const normalized = home.normalizeConfig(config);
+	    const info = aiHtmlSourceInfo(normalized);
+	    const shouldShow = normalized.htmlScheme?.enabled && normalized.activeRenderMode === "aiHtml";
+	    badge.hidden = !shouldShow;
+	    badge.dataset.tone = info.tone;
+	    badge.textContent = info.label;
+	    badge.title = info.detail;
+	    els.previewStage.dataset.aiHtmlSourceTone = shouldShow ? info.tone : "off";
+	  }
+
+	  function renderRenderModeControls() {
     const normalizedConfig = home.normalizeConfig(currentConfig);
     const generationMode = currentGenerationRenderMode();
     const activePreviewMode = activePreviewRenderMode(normalizedConfig);
@@ -281,35 +316,74 @@
         normalizedConfig.htmlScheme?.enabled && Number.isFinite(Number(normalizedConfig.htmlScheme.qualityScore))
           ? ` · 质量 ${normalizedConfig.htmlScheme.qualityScore}/100`
           : "";
-      const htmlSuffix = normalizedConfig.htmlScheme?.enabled
-        ? ` · 已保存 ${normalizedConfig.htmlScheme.name}${normalizedConfig.htmlScheme.isFallback ? "（Fallback）" : "（已修正）"}${qualitySuffix}`
-        : "";
-      note.textContent = `${option.summary}${htmlSuffix}`;
-    });
-  }
+	      const htmlSuffix = normalizedConfig.htmlScheme?.enabled
+	        ? ` · ${aiHtmlSourceInfo(normalizedConfig).label}：${normalizedConfig.htmlScheme.name}${qualitySuffix}`
+	        : "";
+	      note.textContent = `${option.summary}${htmlSuffix}`;
+	    });
+	    renderPreviewSourceBadge(normalizedConfig);
+	  }
 
-  function localAiHtmlScheme(config, prompt, reason = "本地生成") {
-    const normalized = home.normalizeConfig(config);
-    const title = escapeHtml(normalized.name || "AI 首页视觉方案");
-    const promptText = escapeHtml(String(prompt || normalized.aiSummary || "成熟券商客户端首页").slice(0, 220));
-    const theme = escapeHtml(normalized.themePreset || normalized.theme || "default");
-    return {
-      enabled: true,
-      name: `${normalized.name || "AI 首页"} HTML 版`.slice(0, 56),
-      summary: `${reason}的 AI HTML 视觉草稿，可和组件化方案并存。`.slice(0, 220),
-      visualBrief: "更强调首屏视觉焦点、主金额、操作入口和数据模块的层级。",
-      moduleUnderstanding: {
-        pageIntent: normalized.pageIntent?.label || normalized.pageIntent?.primaryIntent || "本地规则生成",
-        visualGoal: "用自由 HTML 草稿验证首屏层级、动作入口和交易数据表达。",
-        layoutDirection: "首屏资产焦点 + 动作入口 + 数据/任务模块。",
-        moduleStrategy: "参考现有首页模块契约生成本地兜底方案。",
-      },
-      requiredModules: ["账户概览", "快捷入口", "交易账号（真实交易账号/模拟交易账号）"],
-      moduleMapping: {
-        账户概览: "首屏右侧主金额摘要。",
-        快捷入口: "四个 data-home-action 动作入口。",
-        交易账号: "Live/Demo 账号列表承接，真实交易账号和模拟交易账号都需要出现。",
-      },
+	  function localAiHtmlScheme(config, prompt, reason = "本地生成") {
+	    const normalized = home.normalizeConfig(config);
+	    const title = escapeHtml(normalized.name || "AI 首页视觉方案");
+	    const theme = escapeHtml(normalized.themePreset || normalized.theme || "default");
+	    const source = String(prompt || "");
+	    const text = `${source.toLowerCase()} ${source}`;
+	    const intent = normalized.pageIntent?.primaryIntent || normalized.brickTrace?.intent || "standard";
+	    const wants = (pattern) => pattern.test(text);
+	    const required = [
+	      ["asset_overview", "资产概览", /asset_overview|资产概览|账户摘要|余额合计|总资产|交易账号余额/],
+	      ["onboarding_guide", "开户引导", /onboarding_guide|开户引导|KYC|kyc|开户流程|创建真实账户|开真实账户|首次入金|新客|已注册未开户/],
+	      ["quick_actions", "快捷入口", /quick_actions|快捷入口|快捷操作|立即开户|入金|联系客服/],
+	      ["trading_accounts_list", "交易账号列表", /trading_accounts_list|交易账号|交易账户|真实账号|模拟账号|MT5|mt5/],
+	      ["promo_banner", "活动权益", /promo_banner|活动权益|活动|入金奖励|权益/],
+	      ["pamm_products", "PAMM 条件", /pamm|PAMM|pamm_products|资管产品/],
+	      ["referral_link_card", "推广链接", /referral_link_card|推广链接|邀请链接|开户链接|注册链接|邀请码|referral/],
+	      ["app_download", "下载入口", /app_download|APP 下载|app下载|下载入口|MT5 下载|mt5 下载/],
+	      ["support_contact", "在线客服", /support_contact|客服|在线客服|客户经理|联系客服/],
+	      ["faq_section", "FAQ", /faq|FAQ|常见问题|问题解答/],
+	      ["risk_disclosure", "风险提示", /risk_disclosure|风险提示|风险披露|合规|杠杆风险/],
+	    ].filter(([id, , pattern]) => wants(pattern) || ["asset_overview", "quick_actions", "trading_accounts_list"].includes(id) || (intent === "onboarding" && id === "onboarding_guide"));
+	    const has = (id) => required.some(([block]) => block === id);
+	    const hero =
+	      intent === "onboarding" || has("onboarding_guide")
+	        ? `<header class="ai-html-local-hero ai-html-local-onboarding"><div><span>开户引导</span><h1>完成真实账户开户准备</h1><p>KYC、开真实账户和首次入金按步骤推进。</p><a data-home-action="openAccount" href="#open-account">立即开户</a></div><ol><li>KYC 状态</li><li>开真实账户</li><li>首次入金准备</li></ol></header>`
+	        : intent === "trader"
+	          ? `<header class="ai-html-local-hero ai-html-local-trader"><div><span>交易工作台</span><h1>${title}</h1><p>账号状态、账户表现、持仓入口和 MT5 操作优先。</p></div><nav><a data-home-action="positions" href="#positions">持仓</a><a data-home-action="orders" href="#orders">订单</a><a data-home-action="downloadMt5" href="#download">MT5</a></nav></header>`
+	          : `<header class="ai-html-local-hero"><div><span>本地规则生成</span><h1>${title}</h1><p>按当前首页意图生成可预览的本地 HTML 兜底方案。</p></div><a data-home-action="deposit" href="#deposit">入金</a></header>`;
+	    const section = (id, label, markup) => (has(id) ? `<section class="ai-html-local-card" data-ai-html-module="${escapeHtml(id)}"><header><span>${escapeHtml(id)}</span><strong>${escapeHtml(label)}</strong></header>${markup}</section>` : "");
+	    const html = `
+	      <section class="ai-html-page ai-html-local-page" data-ai-html-theme="${theme}" data-ai-html-source="local-fallback">
+	        ${hero}
+	        <main class="ai-html-local-flow">
+	          ${section("asset_overview", "账户摘要", `<div class="ai-html-local-metrics"><b>Sample 余额合计 125,430.80 USD</b><b>钱包余额 18,920.00</b><b>交易账号余额 106,510.80</b></div>`)}
+	          ${section("onboarding_guide", "KYC / 开真实账户 / 首次入金", `<ol class="ai-html-local-steps"><li>KYC 状态来自 CRM</li><li>立即开户为主 CTA</li><li>首次入金准备</li></ol><a data-home-action="openAccount" href="#open-account">立即开户</a>`)}
+	          ${section("quick_actions", "下一步操作", `<nav class="ai-html-local-actions"><a data-home-action="openAccount" href="#open-account">立即开户</a><a data-home-action="deposit" href="#deposit">入金</a><a data-home-action="accounts" href="#accounts">交易账号</a><a data-home-action="contactSupport" href="#support">客服</a></nav>`)}
+	          ${section("promo_banner", "活动权益", `<p>Sample 活动权益，正式内容来自后台活动配置。</p><a data-home-action="deposit" href="#deposit">查看权益</a>`)}
+	          ${section("pamm_products", "PAMM 条件展示", `<div class="ai-html-local-list"><b>稳健策略 A · Sample 风险中低</b><b>平衡策略 B · Sample 风险中</b></div>`)}
+	          ${section("trading_accounts_list", "交易账号列表", `<div class="ai-html-local-accounts"><b>Live 80010 · MT5 · Equity Sample 12,726.40</b><b>Demo 90021 · MT5 · Equity Sample 51,280.60</b></div>`)}
+	          ${section("referral_link_card", "推广链接", `<p>https://example.com/register?code=SAMPLE</p><a data-home-action="copyLink" href="#copy">复制推广链接</a>`)}
+	          ${section("app_download", "下载入口", `<p>APP 下载 / MT5 下载入口来自后台配置。</p><a data-home-action="downloadApp" href="#download">打开下载</a>`)}
+	          ${section("support_contact", "在线客服", `<p>服务时间、在线状态和客户经理入口来自后台。</p><a data-home-action="contactSupport" href="#support">联系客服</a>`)}
+	          ${section("faq_section", "FAQ 常见问题", `<details open><summary>如何完成开户？</summary><p>完成 KYC 后创建真实账户，并准备首次入金。</p></details>`)}
+	          ${section("risk_disclosure", "风险提示", `<p>外汇和差价合约交易涉及高风险，杠杆可能放大亏损。</p>`)}
+	        </main>
+	      </section>
+	    `;
+	    return {
+	      enabled: true,
+	      name: `${normalized.name || "AI 首页"} HTML 版`.slice(0, 56),
+	      summary: `${reason}的本地 AI HTML fallback 预览，不代表模型真实生成结果。`.slice(0, 220),
+	      visualBrief: "本地 fallback 会按开户引导、交易工作台或活动增长意图选择不同骨架。",
+	      moduleUnderstanding: {
+	        pageIntent: normalized.pageIntent?.label || normalized.pageIntent?.primaryIntent || "本地规则生成",
+	        visualGoal: "用本地 HTML fallback 验证首屏层级、动作入口和业务模块承接。",
+	        layoutDirection: intent === "onboarding" ? "开户 Banner + KYC / 开户 / 首次入金流程 + 承接模块。" : "按当前意图组织首屏、动作和账号区。",
+	        moduleStrategy: "参考现有首页模块契约生成本地兜底方案。",
+	      },
+	      requiredModules: required.map(([, label]) => label),
+	      moduleMapping: Object.fromEntries(required.map(([id, label]) => [label, `data-ai-html-module="${id}" 区域承接。`])),
       componentReferences: [
         { componentId: "asset-overview-vip-hero", family: "AssetOverview", module: "asset_overview", reason: "参考主金额和指标层级。" },
         { componentId: "account-performance-pro-chart", family: "AccountPerformance", module: "trading_account_highlight", reason: "参考趋势表现结构。" },
@@ -317,85 +391,51 @@
       ],
       designNotes: ["本地 fallback 只用于兜底，真实 AI HTML 会经过组件库参考和质量门禁。"],
       dataBindings: ["totalAssets", "walletBalance", "tradingAccountBalance", "quickActionList", "tradingAccounts"],
-      implementationContract: [
-        {
-          module: "asset_overview",
-          label: "账户概览",
-          family: "AssetOverview",
-          dataFields: ["totalAssets", "walletBalance", "tradingAccountBalance"],
-          states: ["normal", "hiddenBalance"],
-          actions: ["deposit", "withdraw"],
-          interactions: ["首屏金额和资金动作接入 data-home-action。"],
-          renderEvidence: ["右侧主金额摘要展示余额合计、Wallet 和 TA。"],
-        },
-        {
-          module: "quick_actions",
-          label: "快捷入口",
-          family: "QuickActions",
-          dataFields: ["quickActionList", "actionId"],
-          states: ["enabled"],
-          actions: ["deposit", "openAccount", "orders", "positions"],
-          interactions: ["四个入口都带 data-home-action。"],
-          renderEvidence: ["ai-html-actions 导航区展示入金、开户、订单、持仓。"],
-        },
-        {
-          module: "trading_accounts_list",
-          label: "交易账号",
-          family: "TradingAccounts",
-          dataFields: ["accountNumber", "accountKind", "equity", "server"],
-          states: ["Live", "Demo", "active"],
-          actions: ["accounts", "openAccount"],
-          interactions: ["账号列表承接 Live/Demo 账户状态。"],
-          renderEvidence: ["Trading Accounts 区域展示 Live/Demo、账号号和 Equity。"],
-        },
-      ],
-      qualityScore: 84,
-      qualityStatus: "local-fallback",
+	      implementationContract: required.map(([id, label]) => ({
+	        module: id,
+	        label,
+	        family: {
+	          asset_overview: "AssetOverview",
+	          onboarding_guide: "OnboardingProgress",
+	          quick_actions: "QuickActions",
+	          trading_accounts_list: "TradingAccounts",
+	          promo_banner: "PromotionBanner",
+	          pamm_products: "PammProducts",
+	          referral_link_card: "ReferralLinkCard",
+	          app_download: "AppDownload",
+	          support_contact: "SupportContact",
+	          faq_section: "FaqSection",
+	          risk_disclosure: "RiskDisclosure",
+	        }[id] || id,
+	        dataFields: ["sampleData", "backendBinding"],
+	        states: ["demo", "ready"],
+	        actions: id === "onboarding_guide" ? ["openAccount", "deposit"] : id === "quick_actions" ? ["openAccount", "deposit", "accounts", "contactSupport"] : ["view"],
+	        interactions: [`${label} 使用独立区域承接，不只是标题。`],
+	        renderEvidence: [`data-ai-html-module="${id}" 可见。`],
+	      })),
+	      qualityScore: 84,
+	      qualityStatus: "local-fallback",
       qualityIssues: [],
       aestheticChecks: ["使用首页主题 token。", "保留关键动作和交易账号信息。"],
       safetyStatus: "local-sanitized",
       safetyNotes: ["本地 HTML 草稿不包含脚本，只用于验证双模式渲染链路。"],
-      generationPipeline: "local-fallback",
-      correctionStatus: "fallback",
-      sourceType: "local-fallback",
-      isFallback: true,
-      correctionNotes: ["当前是本地 fallback，不代表大模型自由生成结果。"],
-      generatedAt: new Date().toISOString(),
-      html: `
-        <section class="ai-html-page" data-ai-html-theme="${theme}">
-          <header class="ai-html-hero">
-            <div>
-              <span>AI HTML VISUAL DRAFT</span>
-              <h1>${title}</h1>
-              <p>${promptText}</p>
-            </div>
-            <aside><small>余额合计</small><strong>$125,430.80</strong><em>Wallet $18,920 · TA $106,510</em></aside>
-          </header>
-          <nav class="ai-html-actions">
-            <a data-home-action="deposit" href="#deposit">入金</a>
-            <a data-home-action="openAccount" href="#account">开真实账户</a>
-            <a data-home-action="orders" href="#orders">订单</a>
-            <a data-home-action="positions" href="#positions">持仓</a>
-          </nav>
-          <section class="ai-html-grid">
-            <article><span>账户表现</span><strong>7D Equity</strong><div class="ai-html-bars"><i></i><i></i><i></i><i></i><i></i></div><p>真实数据来自接口，预览阶段使用样例趋势。</p></article>
-            <article><span>下一步</span><strong>完成账户路径</strong><ol><li>KYC 状态</li><li>创建真实账户</li><li>首次入金</li></ol></article>
-          </section>
-          <section class="ai-html-table"><span>Trading Accounts</span><div><b>Live</b><strong>80010</strong><em>MT5 · Equity $12,726.40</em></div><div><b>Demo</b><strong>90021</strong><em>MT5 · Equity $51,280.60</em></div></section>
-        </section>
-      `,
-      css: `
-        :host{display:block;color:var(--home-text,#172033);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
-        .ai-html-page{display:grid;gap:14px;padding:16px;background:var(--home-bg,#f6f8fb)}.ai-html-page *{box-sizing:border-box}
-        .ai-html-hero{min-height:250px;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(220px,.65fr);gap:16px;align-items:stretch;padding:22px;border:1px solid var(--home-banner-border,#c7d2fe);border-radius:var(--home-radius-sm,8px);background:linear-gradient(135deg,var(--home-banner-bg,#10213f),color-mix(in srgb,var(--home-primary,#2563eb) 30%,#0f172a));color:var(--home-banner-text,#fff)}
-        .ai-html-hero div{display:grid;align-content:center;gap:12px}.ai-html-hero span,.ai-html-grid span,.ai-html-table span{color:var(--home-primary,#2563eb);font-size:12px;font-weight:950}.ai-html-hero h1{margin:0;font-size:36px;line-height:1.06;font-weight:950}.ai-html-hero p{margin:0;color:var(--home-banner-muted,#dbeafe);font-size:14px;line-height:1.7}.ai-html-hero aside{display:grid;align-content:end;gap:8px;padding:18px;border:1px solid color-mix(in srgb,var(--home-banner-text,#fff) 20%,transparent);border-radius:var(--home-radius-sm,8px);background:color-mix(in srgb,var(--home-banner-text,#fff) 9%,transparent)}.ai-html-hero aside strong{font-size:32px;line-height:1}.ai-html-hero aside small,.ai-html-hero aside em{color:var(--home-banner-muted,#dbeafe);font-style:normal;font-weight:850}
-        .ai-html-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.ai-html-actions a{min-height:54px;display:grid;place-items:center;border:1px solid var(--home-button-border,#1d4ed8);border-radius:var(--home-radius-sm,8px);background:var(--home-button-bg,#2563eb);color:var(--home-button-text,#fff);font-weight:950;text-decoration:none}
-        .ai-html-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:14px}.ai-html-grid article,.ai-html-table{display:grid;gap:12px;padding:18px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-card-bg,#fff);box-shadow:0 16px 40px rgba(15,23,42,.07)}.ai-html-grid strong{font-size:22px}.ai-html-grid p{margin:0;color:var(--home-text-muted,#64748b);line-height:1.6}.ai-html-bars{height:92px;display:grid;grid-template-columns:repeat(5,1fr);gap:7px;align-items:end}.ai-html-bars i{display:block;border-radius:999px 999px 4px 4px;background:linear-gradient(180deg,var(--home-primary,#2563eb),color-mix(in srgb,var(--home-primary,#2563eb) 20%,transparent))}.ai-html-bars i:nth-child(1){height:38%}.ai-html-bars i:nth-child(2){height:58%}.ai-html-bars i:nth-child(3){height:48%}.ai-html-bars i:nth-child(4){height:72%}.ai-html-bars i:nth-child(5){height:88%}.ai-html-grid ol{display:grid;gap:8px;margin:0;padding:0;list-style:none}.ai-html-grid li{padding:11px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft,#f8fbff);font-weight:900}
-        .ai-html-table div{display:grid;grid-template-columns:80px 100px 1fr;gap:10px;align-items:center;padding:12px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft,#f8fbff)}.ai-html-table b{color:var(--home-primary,#2563eb)}.ai-html-table em{color:var(--home-text-muted,#64748b);font-style:normal}
-        @media(max-width:860px){.ai-html-hero,.ai-html-grid{grid-template-columns:1fr}.ai-html-actions{grid-template-columns:repeat(2,minmax(0,1fr))}.ai-html-table div{grid-template-columns:1fr}.ai-html-hero h1{font-size:28px}}
-      `,
-    };
-  }
+	      generationPipeline: "local-fallback",
+	      correctionStatus: "fallback",
+	      sourceType: "local-fallback",
+	      isFallback: true,
+	      fallbackReason: reason,
+	      modelAttempted: false,
+	      mock: false,
+	      correctionNotes: ["当前是本地 fallback，不代表大模型自由生成结果。"],
+	      generatedAt: new Date().toISOString(),
+	      html,
+	      css: `
+	        :host{display:block;color:var(--home-text,#172033);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+	        .ai-html-page{display:grid;gap:14px;padding:16px;background:var(--home-bg,#f6f8fb)}.ai-html-page *{box-sizing:border-box}.ai-html-local-hero{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:end;padding:22px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-card-bg,#fff)}.ai-html-local-onboarding{grid-template-columns:minmax(0,.9fr) minmax(280px,1.1fr)}.ai-html-local-trader{grid-template-columns:minmax(0,1fr) minmax(260px,.8fr);background:var(--home-surface-soft,#f8fbff)}.ai-html-local-hero div,.ai-html-local-hero ol{display:grid;gap:10px}.ai-html-page h1{margin:0;font-size:32px;line-height:1.08}.ai-html-page p{margin:0;color:var(--home-text-muted,#64748b);line-height:1.6}.ai-html-page span{color:var(--home-primary,#2563eb);font-size:12px;font-weight:950}.ai-html-page a{min-height:42px;display:inline-grid;place-items:center;width:max-content;padding:0 14px;border:1px solid var(--home-button-border,#1d4ed8);border-radius:var(--home-radius-sm,8px);background:var(--home-button-bg,#2563eb);color:var(--home-button-text,#fff);font-weight:950;text-decoration:none}.ai-html-local-hero ol,.ai-html-local-steps{grid-template-columns:repeat(3,minmax(0,1fr));margin:0;padding:0;list-style:none}.ai-html-local-hero li,.ai-html-local-steps li{padding:12px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft,#f8fbff);font-weight:900}.ai-html-local-hero nav,.ai-html-local-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.ai-html-local-flow{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px}.ai-html-local-card{grid-column:span 6;display:grid;gap:12px;padding:18px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-card-bg,#fff)}.ai-html-local-card[data-ai-html-module="trading_accounts_list"],.ai-html-local-card[data-ai-html-module="risk_disclosure"]{grid-column:1/-1}.ai-html-local-card header{display:flex;justify-content:space-between;gap:12px}.ai-html-local-metrics,.ai-html-local-list,.ai-html-local-accounts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.ai-html-local-list,.ai-html-local-accounts{grid-template-columns:repeat(2,minmax(0,1fr))}.ai-html-local-card b{padding:10px;border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft,#f8fbff);color:var(--home-text,#172033)}details{padding:10px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft,#f8fbff)}
+	        @media(max-width:860px){.ai-html-local-hero,.ai-html-local-onboarding,.ai-html-local-trader,.ai-html-local-hero ol,.ai-html-local-steps,.ai-html-local-hero nav,.ai-html-local-actions,.ai-html-local-metrics,.ai-html-local-list,.ai-html-local-accounts{grid-template-columns:1fr}.ai-html-local-flow{grid-template-columns:1fr}.ai-html-local-card{grid-column:1/-1}.ai-html-page h1{font-size:28px}.ai-html-page a{width:100%}}
+	      `,
+	    };
+	  }
 
   function attachRenderModeToConfig(config, prompt, options = {}) {
     const mode = normalizeRenderMode(options.renderMode || currentGenerationRenderMode());
@@ -579,10 +619,12 @@
     if (els.summary) els.summary.textContent = config.aiSummary;
     if (els.layout) els.layout.textContent = home.layoutLabel(config.layoutPreset);
     if (els.theme) els.theme.textContent = home.themeLabel(config.themePreset || config.theme);
-    if (els.renderModeSummary) {
-      const suffix = config.htmlScheme?.enabled ? ` / ${config.htmlScheme.name}` : "";
-      els.renderModeSummary.textContent = `${renderModeLabel(config.activeRenderMode || "config")}${suffix}`;
-    }
+	    if (els.renderModeSummary) {
+	      const sourceInfo = aiHtmlSourceInfo(config);
+	      const suffix = config.htmlScheme?.enabled ? ` / ${sourceInfo.label} · ${config.htmlScheme.name}` : "";
+	      els.renderModeSummary.textContent = `${renderModeLabel(config.activeRenderMode || "config")}${suffix}`;
+	      els.renderModeSummary.title = config.htmlScheme?.enabled ? sourceInfo.detail : "";
+	    }
     if (els.density) els.density.textContent = labelDensity(config.density);
     if (els.strength) els.strength.textContent = labelStrength(config.personalizationStrength);
     if (els.hero) els.hero.textContent = home.featureLabel(config.heroFocus);
@@ -603,8 +645,9 @@
         <small>${escapeHtml(issues.length ? `待优化：${issues.slice(0, 2).join(" / ")}` : "主目标、CTA 去重和模块层级通过")}</small>
       `;
     }
-    if (els.json) els.json.textContent = JSON.stringify(config, null, 2);
-  }
+	    if (els.json) els.json.textContent = JSON.stringify(config, null, 2);
+	    renderPreviewSourceBadge(config);
+	  }
 
   function renderIntelligenceSummary() {
     if (!els.intelligenceSummary) return;
@@ -1908,12 +1951,26 @@
     }
   }
 
-  function statusLabel(status, mock) {
-    if (status === "success") return mock ? "Mock 成功" : "调用成功";
-    if (status === "fallback") return "已回退";
-    if (status === "local") return "本地生成";
-    return "调用失败";
-  }
+	  function statusLabel(status, mock) {
+	    if (status === "mock") return "Mock 预览";
+	    if (status === "success") return mock ? "Mock 成功" : "调用成功";
+	    if (status === "fallback") return "已回退";
+	    if (status === "local") return "本地生成";
+	    return "调用失败";
+	  }
+
+	  function historySourceSummary(record) {
+	    const snapshot = record.configSnapshot || {};
+	    const sourceType = record.htmlSourceType || snapshot.htmlSourceType || "";
+	    const pipeline = record.htmlPipeline || snapshot.htmlPipeline || "";
+	    const quality = record.htmlQualityStatus || snapshot.htmlQualityStatus || "";
+	    const reason = record.htmlFallbackReason || snapshot.htmlFallbackReason || "";
+	    const isMock = Boolean(record.mock || record.status === "mock" || snapshot.htmlMock);
+	    const isFallback = Boolean(record.status === "fallback" || snapshot.htmlIsFallback || record.htmlIsFallback);
+	    if (!sourceType && !pipeline && !isMock && !isFallback) return "";
+	    const label = isMock ? "Mock 预览" : sourceType === "local-fallback" ? "本地规则生成" : isFallback ? "Fallback 预览" : "模型生成";
+	    return [label, sourceType, pipeline, quality, reason].filter(Boolean).join(" · ");
+	  }
 
   function inputModeLabel(mode) {
     return mode === "guided" ? "引导式" : "快速输入";
@@ -2011,19 +2068,21 @@
     els.modelCallHistory.innerHTML = previewRecords
 	      .map((record) => {
 	        const display = modelHistoryDisplay(record);
-	        const title = [display.summary, display.advice].filter(Boolean).join(" ");
-	        const snapshot = record.configSnapshot || {};
-	        const structure = [snapshot.intent, snapshot.layoutPreset, snapshot.strategy].filter(Boolean).join(" · ");
-	        return `
-	          <article class="model-call-item" data-call-status="${escapeHtml(record.status || "unknown")}" tabindex="0" title="${escapeHtml(title)}">
+		        const title = [display.summary, display.advice].filter(Boolean).join(" ");
+		        const snapshot = record.configSnapshot || {};
+		        const structure = [snapshot.intent, snapshot.layoutPreset, snapshot.strategy].filter(Boolean).join(" · ");
+		        const htmlSource = historySourceSummary(record);
+		        return `
+		          <article class="model-call-item" data-call-status="${escapeHtml(record.status || "unknown")}" tabindex="0" title="${escapeHtml(title)}">
 	            <div>
 	              <strong>${escapeHtml(record.provider || "本地规则")} / ${escapeHtml(record.model || "--")}</strong>
 	              <span>${escapeHtml(statusLabel(record.status, record.mock))} · ${escapeHtml(inputModeLabel(record.inputMode))} · ${escapeHtml(formatHistoryTime(record.at))}</span>
 	            </div>
 	            <small>${escapeHtml(record.durationMs ? `${record.durationMs}ms` : callModeLabel(record.callMode || "local"))}</small>
-	            <p class="model-call-summary">${escapeHtml(display.summary)}</p>
-	            ${structure ? `<p class="model-call-summary">${escapeHtml(structure)}</p>` : ""}
-	            ${display.advice ? `<p class="model-call-advice">${escapeHtml(display.advice)}</p>` : ""}
+		            <p class="model-call-summary">${escapeHtml(display.summary)}</p>
+		            ${structure ? `<p class="model-call-summary">${escapeHtml(structure)}</p>` : ""}
+		            ${htmlSource ? `<p class="model-call-source">${escapeHtml(htmlSource)}</p>` : ""}
+		            ${display.advice ? `<p class="model-call-advice">${escapeHtml(display.advice)}</p>` : ""}
             ${
               display.detail
                 ? `<details class="model-call-details"><summary>查看模型返回片段</summary><pre>${escapeHtml(display.detail)}</pre></details>`
@@ -2674,13 +2733,14 @@
         attachRenderModeToConfig(aiConfig, prompt, { renderMode, reason: `${usedProvider.name} fallback` }),
       );
 
-    return {
-      config: normalizedConfig,
-      usedModel: true,
-      label: `${usedProvider.name} / ${usedModel}`,
-      mock: Boolean(payload.mock),
-	      callRecord: payload.callRecord || null,
-	    };
+	      return {
+	        config: normalizedConfig,
+	        usedModel: true,
+	        label: `${usedProvider.name} / ${usedModel}`,
+	        mock: Boolean(payload.mock),
+	        htmlScheme: normalizedConfig.htmlScheme?.enabled ? normalizedConfig.htmlScheme : null,
+		      callRecord: payload.callRecord || null,
+		    };
 	  }
 
 	  function summarizeHomepageConfig(config) {
@@ -2691,12 +2751,17 @@
 	      themePreset: normalized.themePreset || normalized.theme,
 		      density: normalized.density,
           renderMode: normalized.activeRenderMode || "config",
-          htmlScheme: normalized.htmlScheme?.enabled ? normalized.htmlScheme.name : "",
-		      intent: normalized.brickTrace?.intent || "",
+	          htmlScheme: normalized.htmlScheme?.enabled ? normalized.htmlScheme.name : "",
+	          htmlSourceType: normalized.htmlScheme?.enabled ? normalized.htmlScheme.sourceType || "" : "",
+	          htmlIsFallback: Boolean(normalized.htmlScheme?.enabled && normalized.htmlScheme.isFallback),
+	          htmlMock: Boolean(normalized.htmlScheme?.enabled && normalized.htmlScheme.mock),
+	          htmlQualityStatus: normalized.htmlScheme?.enabled ? normalized.htmlScheme.qualityStatus || "" : "",
+	          htmlFallbackReason: normalized.htmlScheme?.enabled ? normalized.htmlScheme.fallbackReason || "" : "",
+			      intent: normalized.brickTrace?.intent || "",
 	      strategy: normalized.brickTrace?.strategy || normalized.compositionStrategy || "",
 	      brickIds: normalized.brickPlan.map((item) => item.brickId || item.feature).filter(Boolean),
 	      sections: normalized.sections.map((section) => `${section.type}:${section.slots.join("+")}`),
-          htmlPipeline: normalized.htmlScheme?.enabled ? normalized.htmlScheme.generationPipeline || normalized.htmlScheme.sourceType || "" : "",
+	          htmlPipeline: normalized.htmlScheme?.enabled ? normalized.htmlScheme.generationPipeline || normalized.htmlScheme.sourceType || "" : "",
 	    };
 	  }
 
@@ -2739,10 +2804,17 @@
     const inputMode = options.inputMode === "guided" ? "guided" : "quick";
     const renderMode = normalizeRenderMode(options.renderMode || currentGenerationRenderMode());
 
-	    try {
-	      const result = await generateConfigFromModel(prompt, { ...options, renderMode });
-	      const finalConfig = attachRenderModeToConfig(ensureDistinctHomepageConfig(prompt, result.config, options), prompt, { renderMode, reason: result.label });
-	      addModelHistoryRecord({
+		    try {
+		      const result = await generateConfigFromModel(prompt, { ...options, renderMode });
+		      const finalConfig = attachRenderModeToConfig(ensureDistinctHomepageConfig(prompt, result.config, options), prompt, { renderMode, reason: result.label });
+		      const htmlInfo = aiHtmlSourceInfo(finalConfig);
+		      const serverRecord = result.callRecord || {};
+		      const htmlIsFallback =
+		        typeof serverRecord.htmlIsFallback === "boolean" ? serverRecord.htmlIsFallback : Boolean(finalConfig.htmlScheme?.isFallback);
+		      const historyMock = typeof serverRecord.mock === "boolean" ? serverRecord.mock : Boolean(result.mock);
+		      const historyStatus =
+		        serverRecord.status || (historyMock ? "mock" : htmlIsFallback ? "fallback" : result.usedModel ? "success" : "local");
+		      addModelHistoryRecord({
 	        id: result.callRecord?.id,
         action: "homepage-generate",
         serverCallId: result.callRecord?.id,
@@ -2758,13 +2830,18 @@
         maxOutputTokens: requestConfig.maxOutputTokens,
         inputMode,
         variant: options.variant || 0,
-        status: result.usedModel ? "success" : "local",
-        mock: Boolean(result.mock),
-	        durationMs: Date.now() - startedAt,
-	        prompt: String(prompt || "").slice(0, 1200),
-	        message: finalConfig?.name || result.label,
-		        configSnapshot: { ...summarizeHomepageConfig(finalConfig), renderMode: finalConfig.activeRenderMode, htmlScheme: finalConfig.htmlScheme?.enabled ? finalConfig.htmlScheme.name : "" },
-		      });
+	        status: historyStatus,
+	        mock: historyMock,
+	        htmlSourceType: serverRecord.htmlSourceType || finalConfig.htmlScheme?.sourceType || "",
+	        htmlPipeline: serverRecord.htmlPipeline || finalConfig.htmlScheme?.generationPipeline || "",
+	        htmlIsFallback,
+	        htmlFallbackReason: serverRecord.htmlFallbackReason || finalConfig.htmlScheme?.fallbackReason || "",
+	        htmlQualityStatus: serverRecord.htmlQualityStatus || finalConfig.htmlScheme?.qualityStatus || "",
+		        durationMs: Date.now() - startedAt,
+		        prompt: String(prompt || "").slice(0, 1200),
+		        message: htmlIsFallback || historyMock ? `${finalConfig?.name || result.label} · ${htmlInfo.label}：${htmlInfo.detail}` : finalConfig?.name || result.label,
+			        configSnapshot: { ...summarizeHomepageConfig(finalConfig), renderMode: finalConfig.activeRenderMode, htmlScheme: finalConfig.htmlScheme?.enabled ? finalConfig.htmlScheme.name : "" },
+			      });
 
       if (result.usedModel) {
         showToast(result.mock ? "已通过代理 mock 生成首页方案" : `已通过 ${result.label} 生成首页方案`);
@@ -2772,8 +2849,9 @@
 	      return finalConfig;
 	    } catch (error) {
 		      const fallback = attachRenderModeToConfig(ensureDistinctHomepageConfig(prompt, home.promptToConfig(prompt, options.variant || 0), options), prompt, { renderMode, reason: "大模型失败后本地回退" });
-	      fallback.aiSummary = `大模型调用失败，已使用本地安全方案回退：${errorMessage(error, 220)}`;
-      addModelHistoryRecord({
+		      fallback.aiSummary = `大模型调用失败，已使用本地安全方案回退：${errorMessage(error, 220)}`;
+	      const fallbackInfo = aiHtmlSourceInfo(fallback);
+	      addModelHistoryRecord({
         action: "homepage-generate",
         serverCallId: error.proxyPayload?.callRecord?.id,
         providerId: requestConfig.provider,
@@ -2788,8 +2866,13 @@
         maxOutputTokens: requestConfig.maxOutputTokens,
         inputMode,
         variant: options.variant || 0,
-        status: "fallback",
-	        durationMs: Date.now() - startedAt,
+	        status: "fallback",
+	        htmlSourceType: fallback.htmlScheme?.sourceType || "",
+	        htmlPipeline: fallback.htmlScheme?.generationPipeline || "",
+	        htmlIsFallback: Boolean(fallback.htmlScheme?.isFallback),
+	        htmlFallbackReason: fallback.htmlScheme?.fallbackReason || fallbackInfo.detail || "",
+	        htmlQualityStatus: fallback.htmlScheme?.qualityStatus || "",
+		        durationMs: Date.now() - startedAt,
 	        prompt: String(prompt || "").slice(0, 1200),
 	        message: errorMessage(error, 700),
 		        configSnapshot: { ...summarizeHomepageConfig(fallback), renderMode: fallback.activeRenderMode, htmlScheme: fallback.htmlScheme?.enabled ? fallback.htmlScheme.name : "" },
@@ -3205,8 +3288,24 @@
     }
   });
 
-  els.publish?.addEventListener("click", () => {
-    currentConfig = home.saveConfig(currentConfig);
+	  els.publish?.addEventListener("click", () => {
+	    const publishConfig = home.normalizeConfig(currentConfig);
+	    const sourceInfo = aiHtmlSourceInfo(publishConfig);
+	    const scheme = publishConfig.htmlScheme;
+	    const needsSourceConfirm =
+	      scheme?.enabled &&
+	      publishConfig.renderMode !== "config" &&
+	      (scheme.isFallback || scheme.mock || scheme.sourceType === "local-fallback");
+	    if (needsSourceConfirm) {
+	      const confirmed = window.confirm(
+	        `当前 AI HTML 是「${sourceInfo.label}」，不是模型真实生成结果。\n\n${sourceInfo.detail || "这是 mock/fallback/demo 预览。"}\n\n仍要发布到首页吗？`,
+	      );
+	      if (!confirmed) {
+	        showToast("已取消发布");
+	        return;
+	      }
+	    }
+	    currentConfig = home.saveConfig(currentConfig);
     home.clearDraft();
     renderSummary();
     renderIntelligenceSummary();

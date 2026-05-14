@@ -61,8 +61,8 @@
       recordsById.set(id, { ...current, ...(record || {}), id, source: record?.source || source });
     };
 
-    serverRecords.forEach((record, index) => addRecord(record, "serverProxy", index));
     loadRecords().forEach((record, index) => addRecord(record, "browser", index));
+    serverRecords.forEach((record, index) => addRecord(record, "serverProxy", index));
 
     return [...recordsById.values()].sort((a, b) => new Date(b.at || 0).getTime() - new Date(a.at || 0).getTime());
   }
@@ -90,9 +90,10 @@
     }
   }
 
-  function statusLabel(record) {
-    if (record.status === "success") return record.mock ? "Mock 成功" : "调用成功";
-    if (record.status === "fallback") return "已回退";
+	  function statusLabel(record) {
+	    if (record.status === "mock") return "Mock 预览";
+	    if (record.status === "success") return record.mock ? "Mock 成功" : "调用成功";
+	    if (record.status === "fallback") return "已回退";
     if (record.status === "local") return "本地生成";
     if (record.status === "failed") return "调用失败";
     return "未知";
@@ -151,14 +152,27 @@
     return parsed;
   }
 
-  function displayRecord(record) {
+	  function displayRecord(record) {
     const parsed = parseMarkedHistoryMessage(record.message || record.prompt || "");
     return {
       summary: parsed.summary || compactHistorySummary(record.message || record.prompt || "--") || "--",
       advice: parsed.advice,
       detail: parsed.detail,
     };
-  }
+	  }
+
+	  function htmlSourceSummary(record) {
+	    const snapshot = record.configSnapshot || {};
+	    const sourceType = record.htmlSourceType || snapshot.htmlSourceType || "";
+	    const pipeline = record.htmlPipeline || snapshot.htmlPipeline || "";
+	    const quality = record.htmlQualityStatus || snapshot.htmlQualityStatus || "";
+	    const reason = record.htmlFallbackReason || snapshot.htmlFallbackReason || "";
+	    const isMock = Boolean(record.mock || record.status === "mock" || snapshot.htmlMock);
+	    const isFallback = Boolean(record.status === "fallback" || record.htmlIsFallback || snapshot.htmlIsFallback);
+	    if (!sourceType && !pipeline && !quality && !reason && !isMock && !isFallback) return "";
+	    const label = isMock ? "Mock 预览" : sourceType === "local-fallback" ? "本地规则生成" : isFallback ? "Fallback 预览" : "模型生成";
+	    return [label, sourceType, pipeline, quality, reason].filter(Boolean).join(" · ");
+	  }
 
   function endpointLabel(record) {
     if (record.baseUrl && record.endpoint) return `${record.baseUrl}${record.endpoint}`;
@@ -171,8 +185,9 @@
       record.provider,
       record.providerId,
       record.model,
-      record.status,
-      statusLabel(record),
+	      record.status,
+	      statusLabel(record),
+	      htmlSourceSummary(record),
       actionLabel(record.action),
 	      record.prompt,
 	      record.message,
@@ -193,9 +208,9 @@
     const query = searchText.trim().toLowerCase();
     return records.filter((record) => {
       const filterMatch =
-        activeFilter === "all" ||
-        record.status === activeFilter ||
-        (activeFilter === "mock" && record.mock);
+	        activeFilter === "all" ||
+	        record.status === activeFilter ||
+	        (activeFilter === "mock" && (record.mock || record.status === "mock"));
       const queryMatch = !query || searchableText(record).includes(query);
       return filterMatch && queryMatch;
     });
@@ -239,18 +254,19 @@
         <span>摘要</span>
       </div>
       ${records
-        .map((record) => {
-          const display = displayRecord(record);
-          const active = record.id === activeRecordId;
-          return `
-            <button class="model-call-row${active ? " active" : ""}" type="button" data-call-id="${escapeHtml(record.id || "")}" data-call-status="${escapeHtml(record.status || "unknown")}">
-              <span class="call-status-dot">${escapeHtml(statusLabel(record))}</span>
+	        .map((record) => {
+	          const display = displayRecord(record);
+	          const active = record.id === activeRecordId;
+	          const htmlSource = htmlSourceSummary(record);
+	          return `
+	            <button class="model-call-row${active ? " active" : ""}" type="button" data-call-id="${escapeHtml(record.id || "")}" data-call-status="${escapeHtml(record.status || "unknown")}">
+	              <span class="call-status-dot">${escapeHtml(statusLabel(record))}</span>
               <span>${escapeHtml(formatDate(record.at))}</span>
               <span><b>${escapeHtml(record.provider || "本地规则")}</b><small>${escapeHtml(record.model || "--")}</small></span>
               <span>${escapeHtml(actionLabel(record.action))}</span>
               <span>${escapeHtml(record.durationMs ? `${record.durationMs}ms` : callModeLabel(record.callMode))}</span>
-              <span>${escapeHtml(display.summary)}</span>
-            </button>
+	              <span>${escapeHtml([display.summary, htmlSource].filter(Boolean).join(" · "))}</span>
+	            </button>
           `;
         })
         .join("")}
@@ -276,10 +292,11 @@
       return;
     }
 
-	    const display = displayRecord(record);
-	    const safeRecord = redactRecord(record);
-	    const snapshot = record.configSnapshot || {};
-	    const structureRows = [
+		    const display = displayRecord(record);
+		    const safeRecord = redactRecord(record);
+		    const snapshot = record.configSnapshot || {};
+		    const htmlSource = htmlSourceSummary(record);
+		    const structureRows = [
 	      ["首页名称", snapshot.name],
 	      ["意图", snapshot.intent],
 	      ["布局", snapshot.layoutPreset],
@@ -306,11 +323,16 @@
         ${detailRow("输出上限", record.maxOutputTokens ?? "--")}
         ${detailRow("方案轮次", record.variant ?? "--")}
       </dl>
-      <section>
-        <h3>提示词</h3>
-        <p>${escapeHtml(record.prompt || "--")}</p>
-      </section>
 	      <section>
+	        <h3>提示词</h3>
+	        <p>${escapeHtml(record.prompt || "--")}</p>
+	      </section>
+		      ${
+		        htmlSource
+		          ? `<section class="model-call-warning"><h3>AI HTML 来源</h3><p>${escapeHtml(htmlSource)}</p></section>`
+		          : ""
+		      }
+		      <section>
 	        <h3>结果摘要</h3>
 	        <p>${escapeHtml(display.summary)}</p>
 	      </section>

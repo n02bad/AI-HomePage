@@ -221,7 +221,10 @@ async function run() {
       css: '@import "https://example.com/a.css"; .hero{position:fixed;background:url(javascript:alert(1));color:red}',
 	      generationPipeline: "free-html-first",
 	      correctionStatus: "sanitized-and-corrected",
-	      sourceType: "model-free",
+		      sourceType: "model/free-html",
+		      isFallback: false,
+		      mock: false,
+		      modelAttempted: true,
 	      correctionNotes: ["补齐动作"],
 	      requiredModules: ["资产概览", "交易账号"],
 	      moduleMapping: { 资产概览: "首屏主金额区域", 交易账号: "账号卡片列表" },
@@ -255,7 +258,10 @@ async function run() {
   assert(!normalizedAiHtml.htmlScheme.css.includes("position:fixed"), "AI HTML CSS must strip fixed positioning");
   assert.strictEqual(normalizedAiHtml.htmlScheme.generationPipeline, "free-html-first");
 	  assert.strictEqual(normalizedAiHtml.htmlScheme.correctionStatus, "sanitized-and-corrected");
-	  assert.strictEqual(normalizedAiHtml.htmlScheme.sourceType, "model-free");
+		  assert.strictEqual(normalizedAiHtml.htmlScheme.sourceType, "model/free-html");
+		  assert.strictEqual(normalizedAiHtml.htmlScheme.isFallback, false);
+		  assert.strictEqual(normalizedAiHtml.htmlScheme.mock, false);
+		  assert.strictEqual(normalizedAiHtml.htmlScheme.modelAttempted, true);
 	  assert.deepStrictEqual(normalizedAiHtml.htmlScheme.correctionNotes, ["补齐动作"]);
 	  assert.deepStrictEqual(normalizedAiHtml.htmlScheme.requiredModules, ["资产概览", "交易账号"]);
 	  assert.strictEqual(normalizedAiHtml.htmlScheme.moduleMapping["资产概览"], "首屏主金额区域");
@@ -417,11 +423,19 @@ async function run() {
 	  assert.strictEqual(home.t("home.onboarding.eyebrow"), "");
 	  assert.strictEqual(home.t("home.copytrading.title"), "适合新手的信号源");
 
-	  const localOnboardingThreeStep = home.promptToConfig("新用户 Onboarding：KYC、创建真实账户、首次入金三步旅程，做成开户进度首页。");
-	  assert.strictEqual(localOnboardingThreeStep.brickTrace.intent, "onboarding");
-	  assert.strictEqual(localOnboardingThreeStep.pageIntent.primaryIntent, "onboarding");
-	  assert.strictEqual(localOnboardingThreeStep.layoutPreset, "onboardingJourney");
-	  assert.strictEqual(localOnboardingThreeStep.brickPlan.some((brick) => brick.brickId === "promoBanner.depositLadder"), false);
+		  const localOnboardingThreeStep = home.promptToConfig("新用户 Onboarding：KYC、创建真实账户、首次入金三步旅程，做成开户进度首页。");
+		  assert.strictEqual(localOnboardingThreeStep.brickTrace.intent, "onboarding");
+		  assert.strictEqual(localOnboardingThreeStep.pageIntent.primaryIntent, "onboarding");
+		  assert.strictEqual(localOnboardingThreeStep.layoutPreset, "onboardingJourney");
+		  assert.strictEqual(localOnboardingThreeStep.brickPlan.some((brick) => brick.brickId === "promoBanner.depositLadder"), false);
+
+		  const localOpeningWithTradingTerms = home.promptToConfig(
+		    "开户引导首页，目标是推动真实账户开户、KYC、首次入金准备；必须包含交易账号列表、真实账号、模拟账号和 MT5 下载入口，但主 CTA 是立即开户。",
+		  );
+		  assert.strictEqual(localOpeningWithTradingTerms.pageIntent.primaryIntent, "onboarding");
+		  assert.strictEqual(localOpeningWithTradingTerms.brickTrace.intent, "onboarding");
+		  assert.notStrictEqual(localOpeningWithTradingTerms.layoutPreset, "tradingCommand");
+		  assert.strictEqual(hasBlock(localOpeningWithTradingTerms, "onboarding_guide"), true);
 
 	  assert.strictEqual(homeSource.includes("showEyebrow"), false);
   assert.strictEqual(homeSource.includes('class="section-kicker">真实账号'), false);
@@ -863,29 +877,50 @@ async function run() {
     assert.strictEqual(flatAccountResponse.config.moduleSettings.tradingAccounts.realViewMode, "list");
     assert.strictEqual(flatAccountResponse.config.moduleSettings.tradingAccounts.demoViewMode, "list");
 
-    const aiHtmlResponse = await postJson(port, {
-      prompt: "生成成熟券商客户端首页，希望更有美感，有清晰首屏和数据层级。",
-      renderMode: "aiHtml",
-      modelConfig: { provider: "openai" },
-    });
+	    const onboardingAiHtmlPrompt =
+	      "开户引导类首页：目标是推动真实账户开户、KYC、首次入金准备，主 CTA 是“立即开户”，视觉是极简白，语气专业稳健；必须包含 asset_overview、onboarding_guide、交易账号列表、活动权益、PAMM 条件展示、推广链接、下载入口、客服、FAQ、风险提示等模块。不要编造收益、下载链接、后台未提供的数据。";
+	    const aiHtmlResponse = await postJson(port, {
+	      prompt: onboardingAiHtmlPrompt,
+	      renderMode: "aiHtml",
+	      modelConfig: { provider: "openai" },
+	    });
     assert.strictEqual(aiHtmlResponse.ok, true);
     assert.strictEqual(aiHtmlResponse.renderMode, "aiHtml");
     assert.strictEqual(aiHtmlResponse.activeRenderMode, "aiHtml");
     assert.strictEqual(aiHtmlResponse.config.renderMode, "aiHtml");
     assert.strictEqual(aiHtmlResponse.config.activeRenderMode, "aiHtml");
-	    assert.strictEqual(aiHtmlResponse.config.htmlScheme.enabled, true);
-	    assert.strictEqual(aiHtmlResponse.htmlScheme.enabled, true);
-	    assert.strictEqual(aiHtmlResponse.htmlScheme.generationPipeline, "mock-free-html");
-	    assert.strictEqual(aiHtmlResponse.htmlScheme.isFallback, true);
-	    assert(Number.isFinite(aiHtmlResponse.htmlScheme.qualityScore), "server AI HTML scheme must expose quality score");
-	    assert(aiHtmlResponse.htmlScheme.qualityScore >= 70, "mock AI HTML should pass the basic aesthetic floor");
-	    assert(aiHtmlResponse.htmlScheme.requiredModules.includes("资产概览"), "server AI HTML scheme must expose required module contract");
-	    assert(Array.isArray(aiHtmlResponse.htmlScheme.implementationContract), "server AI HTML scheme must expose implementation contracts");
-	    assert(aiHtmlResponse.htmlScheme.implementationContract.some((contract) => contract.module === "asset_overview"), "server AI HTML implementation contract must include asset overview");
-	    assert(aiHtmlResponse.htmlScheme.qualityIssues.every((issue) => !issue.includes("静态外观空壳")), "mock AI HTML must satisfy the anti-shell quality gate");
-	    assert(Array.isArray(aiHtmlResponse.htmlScheme.componentReferences), "server AI HTML scheme must expose component references");
-	    assert(!aiHtmlResponse.htmlScheme.html.includes("<script"), "server AI HTML scheme must not contain script tags");
-    assert(!aiHtmlResponse.htmlScheme.html.includes("javascript:"), "server AI HTML scheme must not contain javascript URLs");
+		    assert.strictEqual(aiHtmlResponse.config.htmlScheme.enabled, true);
+		    assert.strictEqual(aiHtmlResponse.htmlScheme.enabled, true);
+		    assert.strictEqual(aiHtmlResponse.htmlScheme.generationPipeline, "mock-free-html");
+		    assert.strictEqual(aiHtmlResponse.htmlScheme.sourceType, "mock");
+		    assert.strictEqual(aiHtmlResponse.htmlScheme.isFallback, true);
+		    assert.strictEqual(aiHtmlResponse.htmlScheme.mock, true);
+		    assert.strictEqual(aiHtmlResponse.htmlScheme.modelAttempted, false);
+		    assert(aiHtmlResponse.htmlScheme.fallbackReason.includes("HOME_AI_MOCK"), "mock AI HTML must explain why it is not a model result");
+		    assert.notStrictEqual(aiHtmlResponse.htmlScheme.qualityStatus, "passed");
+			    assert(Number.isFinite(aiHtmlResponse.htmlScheme.qualityScore), "server AI HTML scheme must expose quality score");
+			    assert(aiHtmlResponse.htmlScheme.qualityScore >= 70, "mock AI HTML should pass the basic aesthetic floor");
+			    assert(aiHtmlResponse.htmlScheme.requiredModules.includes("资产概览"), "server AI HTML scheme must expose required module contract");
+			    assert(Array.isArray(aiHtmlResponse.htmlScheme.implementationContract), "server AI HTML scheme must expose implementation contracts");
+			    ["onboarding_guide", "pamm_products", "referral_link_card", "app_download", "faq_section", "support_contact", "risk_disclosure"].forEach((moduleId) => {
+		      assert(
+		        aiHtmlResponse.htmlScheme.implementationContract.some((contract) => contract.module === moduleId),
+		        `AI HTML required module must include ${moduleId}`,
+			      );
+			      assert(aiHtmlResponse.htmlScheme.html.includes(`data-ai-html-module="${moduleId}"`), `AI HTML must visibly render ${moduleId}`);
+			    });
+		    assert(aiHtmlResponse.htmlScheme.implementationContract.some((contract) => contract.module === "asset_overview"), "server AI HTML implementation contract must include asset overview");
+		    assert(aiHtmlResponse.htmlScheme.qualityIssues.every((issue) => !issue.includes("静态外观空壳")), "mock AI HTML must satisfy the anti-shell quality gate");
+		    assert(Array.isArray(aiHtmlResponse.htmlScheme.componentReferences), "server AI HTML scheme must expose component references");
+		    assert(!aiHtmlResponse.htmlScheme.html.includes("<script"), "server AI HTML scheme must not contain script tags");
+	    assert(!aiHtmlResponse.htmlScheme.html.includes("javascript:"), "server AI HTML scheme must not contain javascript URLs");
+	    assert(!aiHtmlResponse.htmlScheme.html.includes("AI HTML VISUAL DRAFT"), "mock AI HTML must not expose internal draft labels");
+	    assert(!aiHtmlResponse.htmlScheme.html.includes(onboardingAiHtmlPrompt.slice(0, 40)), "AI HTML must not paste the administrator prompt into the customer page");
+			    assert(aiHtmlResponse.htmlScheme.html.includes("立即开户"), "onboarding AI HTML must expose the requested primary CTA");
+	    assert.strictEqual(aiHtmlResponse.config.pageIntent.primaryIntent, "onboarding");
+	    assert.strictEqual(aiHtmlResponse.config.brickTrace.intent, "onboarding");
+	    assert.strictEqual(aiHtmlResponse.callRecord.status, "mock");
+	    assert.strictEqual(aiHtmlResponse.callRecord.configSnapshot.htmlMock, true);
 
     const referralCoreResponse = await postJson(port, {
       prompt:

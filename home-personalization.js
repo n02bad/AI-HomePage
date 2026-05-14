@@ -3664,17 +3664,22 @@
     return wantsTogether && wantsCards;
   }
 
-  function wantsProfessionalTraderWorkbenchPrompt(prompt) {
-    const source = String(prompt || "");
-    const text = source.toLowerCase() + source;
-    const traderGoal =
-      includesAny(text, ["专业交易客户首页", "专业交易客户", "交易客户首页", "交易工作台", "专业交易首页"]) ||
-      (includesAny(text, ["首屏", "首页"]) && includesAny(text, ["交易账号状态", "账号状态", "账户表现", "持仓入口", "mt5"]));
-    const firstScreenStack =
-      /首屏[\s\S]{0,90}(交易账(?:号|户)状态|账(?:号|户)状态)[\s\S]{0,90}(账(?:号|户)表现|表现图表)[\s\S]{0,90}(持仓|mt5)/i.test(source) ||
-      includesAny(text, ["交易账号状态", "账户表现图表", "持仓入口", "mt5 操作入口", "mt5操作入口"]);
-    return !wantsTradingCostWorkbenchPrompt(prompt) && (traderGoal || firstScreenStack);
-  }
+	  function wantsProfessionalTraderWorkbenchPrompt(prompt) {
+	    const source = String(prompt || "");
+	    const text = source.toLowerCase() + source;
+	    const strongOnboarding = includesAny(text, ["开户引导", "开户流程", "账户开通", "开通进度", "创建真实账户", "开真实账户", "首次入金", "已注册未开户", "新访客", "新客", "新用户", "kyc", "onboarding"]);
+	    if (strongOnboarding) return false;
+	    const explicitWorkbench = includesAny(text, ["专业交易客户首页", "专业交易客户", "交易客户首页", "交易工作台", "专业交易首页"]);
+	    const accountStatusSignal = includesAny(text, ["交易账号状态", "账号状态", "交易账户状态", "交易账号"]);
+	    const performanceSignal = includesAny(text, ["账户表现图表", "账户表现", "账号表现", "净值曲线", "权益曲线", "pnl"]);
+	    const operationSignal = includesAny(text, ["持仓入口", "持仓", "mt5 操作入口", "mt5操作入口", "mt5"]);
+	    const comboCount = [accountStatusSignal, performanceSignal, operationSignal].filter(Boolean).length;
+	    const traderGoal = explicitWorkbench && comboCount >= 2;
+	    const firstScreenStack =
+	      /首屏[\s\S]{0,90}(交易账(?:号|户)状态|账(?:号|户)状态)[\s\S]{0,90}(账(?:号|户)表现|表现图表)[\s\S]{0,90}(持仓|mt5)/i.test(source) ||
+	      includesAny(text, ["交易账号状态", "账户表现图表", "持仓入口", "mt5 操作入口", "mt5操作入口"]);
+	    return !wantsTradingCostWorkbenchPrompt(prompt) && (traderGoal || (firstScreenStack && comboCount >= 2));
+	  }
 
 	  function homepageDataContractFromUnderstanding(understanding = {}) {
 	    if (!understanding.wantsTradingDataContract && !understanding.wantsProfessionalTraderWorkbench) return null;
@@ -4756,9 +4761,13 @@
     const html = sanitizeAiHtmlMarkup(scheme.html);
     const css = sanitizeAiHtmlCss(scheme.css);
     const hasHtml = Boolean(html && css);
-    const qualityScore = Number.isFinite(Number(scheme.qualityScore))
-      ? Math.max(0, Math.min(100, Math.round(Number(scheme.qualityScore))))
-      : null;
+	    const qualityScore = Number.isFinite(Number(scheme.qualityScore))
+	      ? Math.max(0, Math.min(100, Math.round(Number(scheme.qualityScore))))
+	      : null;
+	    const sourceType = cleanMetaText(scheme.sourceType, "", 48);
+	    const mock = Boolean(scheme.mock || sourceType === "mock" || sourceType.startsWith("fallback/mock"));
+	    const isFallback = Boolean(scheme.isFallback || mock || /fallback/i.test(sourceType) || /fallback/i.test(scheme.generationPipeline || ""));
+	    const rawQualityStatus = cleanMetaText(scheme.qualityStatus, qualityScore === null ? "" : qualityScore >= 82 ? "passed" : "needs-polish", 40);
     const normalizeTextList = (value, limit = 8, itemLimit = 140) =>
       (Array.isArray(value) ? value : [])
         .map((item) => cleanMetaText(item, "", itemLimit))
@@ -4825,19 +4834,19 @@
               moduleStrategy: cleanMetaText(scheme.moduleUnderstanding.moduleStrategy || scheme.moduleUnderstanding.strategy, "", 220),
             }
           : {},
-      requiredModules: normalizeTextList(scheme.requiredModules, 12, 80),
+      requiredModules: normalizeTextList(scheme.requiredModules, 16, 80),
       moduleMapping: normalizeTextMap(scheme.moduleMapping),
       implementationContract: normalizeImplementationContract(scheme.implementationContract || scheme.moduleImplementation || scheme.capabilityContract),
       componentReferences: normalizeReferences(scheme.componentReferences),
       designNotes: normalizeTextList(scheme.designNotes, 8, 180),
       html,
       css,
-      dataBindings: (Array.isArray(scheme.dataBindings) ? scheme.dataBindings : [])
-        .map((item) => cleanMetaText(item, "", 80))
-        .filter(Boolean)
-        .slice(0, 12),
-      qualityScore,
-      qualityStatus: cleanMetaText(scheme.qualityStatus, qualityScore === null ? "" : qualityScore >= 82 ? "passed" : "needs-polish", 40),
+	      dataBindings: (Array.isArray(scheme.dataBindings) ? scheme.dataBindings : [])
+	        .map((item) => cleanMetaText(item, "", 80))
+	        .filter(Boolean)
+	        .slice(0, 12),
+	      qualityScore,
+	      qualityStatus: isFallback ? (mock ? "mock-preview" : "fallback-preview") : rawQualityStatus,
       qualityIssues: normalizeTextList(scheme.qualityIssues, 8, 180),
       aestheticChecks: normalizeTextList(scheme.aestheticChecks, 10, 160),
       safetyStatus: cleanMetaText(scheme.safetyStatus, hasHtml ? "sanitized" : "empty", 32),
@@ -4847,12 +4856,15 @@
         .slice(0, 8),
       provider: cleanMetaText(scheme.provider, "", 48),
       model: cleanMetaText(scheme.model, "", 80),
-      generatedAt: cleanMetaText(scheme.generatedAt, "", 48),
-      generationPipeline: cleanMetaText(scheme.generationPipeline, "", 48),
-      correctionStatus: cleanMetaText(scheme.correctionStatus, hasHtml ? "sanitized" : "empty", 48),
-      sourceType: cleanMetaText(scheme.sourceType, "", 36),
-      isFallback: Boolean(scheme.isFallback),
-      correctionNotes: (Array.isArray(scheme.correctionNotes) ? scheme.correctionNotes : [])
+	      generatedAt: cleanMetaText(scheme.generatedAt, "", 48),
+	      generationPipeline: cleanMetaText(scheme.generationPipeline, "", 48),
+	      correctionStatus: cleanMetaText(scheme.correctionStatus, hasHtml ? "sanitized" : "empty", 48),
+	      sourceType,
+	      isFallback,
+	      fallbackReason: cleanMetaText(scheme.fallbackReason || scheme.reason, "", 220),
+	      modelAttempted: typeof scheme.modelAttempted === "boolean" ? scheme.modelAttempted : /^model/.test(sourceType) || sourceType.startsWith("fallback/"),
+	      mock,
+	      correctionNotes: (Array.isArray(scheme.correctionNotes) ? scheme.correctionNotes : [])
         .map((item) => cleanMetaText(item, "", 140))
         .filter(Boolean)
         .slice(0, 8),
@@ -4869,11 +4881,17 @@
 	    "开户引导",
 	    "开户路径",
 	    "开户流程",
-	    "账户开通",
-	    "开通进度",
-	    "创建真实账户",
-	    "创建账户",
-	    "kyc",
+		    "账户开通",
+		    "开通进度",
+		    "已注册未开户",
+		    "新访客",
+		    "创建真实账户",
+		    "开真实账户",
+		    "真实账户开户",
+		    "立即开户",
+		    "创建账户",
+		    "首次入金",
+		    "kyc",
 	    "未实名",
 	    "未完成实名",
 	    "三步",
@@ -10758,6 +10776,14 @@
 	    return wrapFeature(doc, slot, "ai-empty-feature", config);
 	  }
 
+  function aiHtmlSourceLabel(scheme) {
+    if (!scheme?.enabled) return "";
+    if (scheme.mock) return "Mock 预览";
+    if (scheme.sourceType === "local-fallback") return "本地规则生成";
+    if (scheme.isFallback) return "Fallback 预览";
+    return "模型生成";
+  }
+
   function renderAiHtmlScheme(config, target) {
     const shell = target.querySelector("[data-home-shell]");
     const scheme = normalizeAiHtmlScheme(config.htmlScheme, true);
@@ -10771,11 +10797,16 @@
     shell.classList.add("is-ai-html-home");
     shell.dataset.aiHtmlScheme = scheme.name;
 
-    const host = target.createElement("section");
-    host.className = "ai-html-render-host";
-    host.dataset.aiHtmlRenderHost = "";
-    host.dataset.aiHtmlSafety = scheme.safetyStatus || "sanitized";
-    host.setAttribute("aria-label", scheme.name || "AI HTML 首页预览");
+	    const host = target.createElement("section");
+	    host.className = "ai-html-render-host";
+	    host.dataset.aiHtmlRenderHost = "";
+	    host.dataset.aiHtmlSafety = scheme.safetyStatus || "sanitized";
+	    host.dataset.aiHtmlSource = scheme.sourceType || "";
+	    host.dataset.aiHtmlSourceLabel = aiHtmlSourceLabel(scheme);
+	    host.dataset.aiHtmlFallback = scheme.isFallback ? "true" : "false";
+	    host.dataset.aiHtmlMock = scheme.mock ? "true" : "false";
+	    host.title = [aiHtmlSourceLabel(scheme), scheme.fallbackReason].filter(Boolean).join("：");
+	    host.setAttribute("aria-label", scheme.name || "AI HTML 首页预览");
 
     const shadow = host.attachShadow({ mode: "open" });
     shadow.innerHTML = `
@@ -11255,7 +11286,7 @@
       .join(" / ");
 
 	    choices.push(settings.wallet.enabled && settings.wallet.placement === "standalone" ? "钱包独立展示" : "钱包聚合到资产");
-    choices.push(normalized.htmlScheme?.enabled ? `AI HTML 已生成：${normalized.activeRenderMode === "aiHtml" ? "当前预览 HTML 版" : "当前预览组件版"}` : "AI HTML 未启用");
+	    choices.push(normalized.htmlScheme?.enabled ? `${aiHtmlSourceLabel(normalized.htmlScheme)}：${normalized.activeRenderMode === "aiHtml" ? "当前预览 HTML 版" : "当前预览组件版"}` : "AI HTML 未启用");
 	    choices.push(settings.quickActions.enabled ? `快捷入口保留 ${settings.quickActions.count} 个` : "弱化快捷入口");
     choices.push(settings.adCarousel.enabled ? "保留广告曝光" : "隐藏广告轮播");
     choices.push(settings.referral.enabled ? "保留邀请转化" : "隐藏邀请模块");

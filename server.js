@@ -1,6 +1,7 @@
 const fs = require("fs");
 const http = require("http");
 const https = require("https");
+const os = require("os");
 const path = require("path");
 const { URL } = require("url");
 
@@ -48,6 +49,13 @@ const MINIMAX_OFFICIAL_BASE_URLS = [MINIMAX_CN_BASE_URL];
 const MINIMAX_MAX_COMPLETION_TOKENS = 2048;
 const KIMI_CN_BASE_URL = "https://api.moonshot.cn/v1";
 const KIMI_GLOBAL_BASE_URL = "https://api.moonshot.ai/v1";
+
+function getLanUrls(port) {
+  return Object.values(os.networkInterfaces())
+    .flat()
+    .filter((address) => address && address.family === "IPv4" && !address.internal)
+    .map((address) => `http://${address.address}:${port}/`);
+}
 const KIMI_DEFAULT_MODEL = "kimi-k2.6";
 const KIMI_LEGACY_MODELS = new Set(["kimi-k2.5"]);
 const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
@@ -849,8 +857,14 @@ const STRONG_ONBOARDING_INTENT_SIGNALS = [
   "开户流程",
   "账户开通",
   "开通进度",
+  "已注册未开户",
+  "新访客",
   "创建真实账户",
+  "开真实账户",
+  "真实账户开户",
+  "立即开户",
   "创建账户",
+  "首次入金",
   "kyc",
   "未实名",
   "未完成实名",
@@ -1005,16 +1019,19 @@ const AI_HTML_SCHEME_JSON_SCHEMA = {
     dataBindings: { type: "array", items: { type: "string" } },
     qualityScore: { type: "number" },
     qualityStatus: { type: "string" },
-    qualityIssues: { type: "array", items: { type: "string" } },
-    aestheticChecks: { type: "array", items: { type: "string" } },
-    safetyNotes: { type: "array", items: { type: "string" } },
-    correctionNotes: { type: "array", items: { type: "string" } },
-    generationPipeline: { type: "string" },
-    correctionStatus: { type: "string" },
-    sourceType: { type: "string" },
-    isFallback: { type: "boolean" },
-  },
-};
+	    qualityIssues: { type: "array", items: { type: "string" } },
+	    aestheticChecks: { type: "array", items: { type: "string" } },
+	    safetyNotes: { type: "array", items: { type: "string" } },
+	    correctionNotes: { type: "array", items: { type: "string" } },
+	    generationPipeline: { type: "string" },
+	    correctionStatus: { type: "string" },
+	    sourceType: { type: "string" },
+	    isFallback: { type: "boolean" },
+	    fallbackReason: { type: "string" },
+	    modelAttempted: { type: "boolean" },
+	    mock: { type: "boolean" },
+	  },
+	};
 
 const COMPONENT_COMPOSITION_JSON_SCHEMA = {
   type: "object",
@@ -1376,10 +1393,16 @@ function homepageRecordSnapshot(config) {
     colorMode: safeRecordText(source.colorMode || source.themeMode || source.appearanceMode || source.homeColorMode, 16),
     density: safeRecordText(source.density, 24),
     intent: safeRecordText(trace.intent, 40),
-    strategy: safeRecordText(trace.strategy || source.compositionStrategy, 120),
-    renderMode: safeRecordText(source.activeRenderMode || source.renderMode, 24),
-    htmlScheme: source.htmlScheme?.enabled ? safeRecordText(source.htmlScheme.name || "AI HTML", 80) : "",
-    brickIds: brickPlan.map((item) => safeRecordText(item?.brickId || item?.feature, 80)).filter(Boolean).slice(0, 12),
+	    strategy: safeRecordText(trace.strategy || source.compositionStrategy, 120),
+	    renderMode: safeRecordText(source.activeRenderMode || source.renderMode, 24),
+	    htmlScheme: source.htmlScheme?.enabled ? safeRecordText(source.htmlScheme.name || "AI HTML", 80) : "",
+	    htmlSourceType: source.htmlScheme?.enabled ? safeRecordText(source.htmlScheme.sourceType, 48) : "",
+	    htmlPipeline: source.htmlScheme?.enabled ? safeRecordText(source.htmlScheme.generationPipeline, 48) : "",
+	    htmlIsFallback: Boolean(source.htmlScheme?.enabled && source.htmlScheme.isFallback),
+	    htmlMock: Boolean(source.htmlScheme?.enabled && source.htmlScheme.mock),
+	    htmlQualityStatus: source.htmlScheme?.enabled ? safeRecordText(source.htmlScheme.qualityStatus, 40) : "",
+	    htmlFallbackReason: source.htmlScheme?.enabled ? safeRecordText(source.htmlScheme.fallbackReason, 180) : "",
+	    brickIds: brickPlan.map((item) => safeRecordText(item?.brickId || item?.feature, 80)).filter(Boolean).slice(0, 12),
     sections: sections.map((section) => `${safeRecordText(section?.type, 24)}:${Array.isArray(section?.slots) ? section.slots.join("+") : ""}`).slice(0, 12),
   };
 }
@@ -2085,6 +2108,49 @@ function aiHtmlModuleCapability(block) {
 
 const AI_HTML_REQUIRED_FALLBACK_BLOCKS = ["asset_overview", "quick_actions", "trading_account_highlight", "trading_accounts_list"];
 
+const AI_HTML_PROMPT_MODULE_PATTERNS = [
+  ["welcome_header", /welcome_header|欢迎区|首页欢迎|首屏欢迎|开户\s*banner|开户banner|首屏开户|banner/i],
+  ["asset_overview", /asset_overview|资产概览|账户摘要|账户总览|余额合计|总资产|账户资产/i],
+  ["wallet_list", /wallet_list|钱包列表|多币种钱包|币种钱包|wallet list/i],
+  ["quick_actions", /quick_actions|快捷入口|快捷操作|操作入口|快捷按钮/i],
+  ["onboarding_guide", /onboarding_guide|开户引导|开户流程|开户路径|账户开通|开真实账户|创建真实账户|kyc|首次入金|已注册未开户|新访客|新客|新用户|onboarding/i],
+  ["trading_account_highlight", /trading_account_highlight|账户表现|账号表现|表现图表|净值曲线|equity|pnl|保证金/i],
+  ["trading_accounts_list", /trading_accounts_list|交易账号列表|交易账户列表|交易账号|交易账户|真实账号|真实账户|模拟账号|模拟账户|live\s*account|demo\s*account|mt5/i],
+  ["promo_banner", /promo_banner|活动权益|活动区|活动\s*banner|入金奖励|权益区|bonus|campaign/i],
+  ["pamm_products", /pamm_products|pamm|PAMM|pamm\s*条件|PAMM\s*条件|资管产品|资金管理产品/i],
+  ["copytrading_signals", /copytrading_signals|copy\s*trading|copytrading|跟单|信号源/i],
+  ["referral_link_card", /referral_link_card|推广链接|邀请链接|开户链接|注册链接|邀请码|referral/i],
+  ["announcements", /announcements|公告|通知|维护/i],
+  ["market_news", /market_news|市场资讯|市场新闻|行情资讯|交易教育/i],
+  ["risk_disclosure", /risk_disclosure|风险提示|风险披露|风险声明|合规声明|合规说明|杠杆风险/i],
+  ["faq_section", /faq_section|faq|FAQ|常见问题|问题解答|帮助中心/i],
+  ["support_contact", /support_contact|在线客服|客服|客户经理|联系支持|联系客服|服务入口/i],
+  ["app_download", /app_download|app下载|app\s*下载|下载\s*app|APP\s*下载|下载入口|移动端下载|手机端|mt5\s*下载|下载\s*mt5|download app/i],
+];
+
+function aiHtmlExplicitRequiredBlocksFromPrompt(prompt) {
+  const source = String(prompt || "");
+  const rejects = {
+    promo_banner: /(?:不要|不需要|去掉|移除|关闭|禁用|隐藏|别放).{0,24}(?:活动|广告|banner|权益)/i,
+    pamm_products: /(?:不要|不需要|去掉|移除|关闭|禁用|隐藏|别放).{0,24}(?:pamm|PAMM|资管产品)/i,
+    copytrading_signals: /(?:不要|不需要|去掉|移除|关闭|禁用|隐藏|别放).{0,24}(?:copytrading|跟单|信号源)/i,
+    referral_link_card: /(?:不要|不需要|去掉|移除|关闭|禁用|隐藏|别放).{0,24}(?:推广|邀请|开户链接|注册链接|邀请码|referral|代理)/i,
+    announcements: /(?:不要|不需要|去掉|移除|关闭|禁用|隐藏|别放).{0,24}(?:公告|通知|维护)/i,
+    market_news: /(?:不要|不需要|去掉|移除|关闭|禁用|隐藏|别放).{0,24}(?:市场资讯|市场新闻|行情资讯|交易教育)/i,
+    risk_disclosure: /(?:不要(?!编造)|不需要|去掉|移除|关闭|禁用|隐藏|别放).{0,24}(?:风险提示|风险披露|合规|杠杆风险)/i,
+    faq_section: /(?:不要(?!编造)|不需要|去掉|移除|关闭|禁用|隐藏|别放).{0,24}(?:faq|FAQ|常见问题|问题解答|帮助中心)/i,
+    support_contact: /(?:不要(?!编造)|不需要|去掉|移除|关闭|禁用|隐藏|别放).{0,24}(?:在线客服|客服|客户经理|咨询|服务入口|客服帮助)/i,
+    app_download: /(?:不要(?!编造)|不需要|去掉|移除|关闭|禁用|隐藏|别放).{0,24}(?:app|下载|移动端|手机端|mt5)/i,
+  };
+  const blocks = new Set();
+  AI_HTML_PROMPT_MODULE_PATTERNS.forEach(([block, pattern]) => {
+    pattern.lastIndex = 0;
+    if (rejects[block]?.test(source)) return;
+    if (pattern.test(source) && AI_HTML_MODULE_CONTRACTS[block]) blocks.add(block);
+  });
+  return blocks;
+}
+
 function normalizeAiHtmlTextList(value, limit = 8, itemLimit = 140) {
   return (Array.isArray(value) ? value : [])
     .map((item) => cleanText(item, "", itemLimit))
@@ -2128,7 +2194,7 @@ function normalizeAiHtmlComponentReferences(value, fallback = []) {
       };
     })
     .filter((item) => item && (item.componentId || item.family || item.module || item.reason))
-    .slice(0, 12);
+    .slice(0, 16);
 }
 
 function normalizeAiHtmlImplementationContract(value, requiredModules = []) {
@@ -2206,6 +2272,7 @@ function aiHtmlRequiredModuleContracts(payload = {}, config = {}) {
   const intentProfile = applyGuidedIntentProfile(buildHomepageIntentProfile(prompt), guidedIntake);
   const blocks = new Set();
 
+  aiHtmlExplicitRequiredBlocksFromPrompt(prompt).forEach((block) => blocks.add(block));
   (Array.isArray(intentProfile.mustHave) ? intentProfile.mustHave : []).forEach((item) => {
     const block = canonicalHomeBlock(item) || item;
     if (block && AI_HTML_MODULE_CONTRACTS[block]) blocks.add(block);
@@ -2232,7 +2299,7 @@ function aiHtmlRequiredModuleContracts(payload = {}, config = {}) {
 
   return [...blocks]
     .filter((block) => AI_HTML_MODULE_CONTRACTS[block])
-    .slice(0, 10)
+    .slice(0, 16)
     .map((block) => ({
       component: block,
       label: AI_HTML_MODULE_CONTRACTS[block].label,
@@ -2275,6 +2342,41 @@ function countAiHtmlMatches(text, pattern) {
   return (String(text || "").match(pattern) || []).length;
 }
 
+function compactAiText(value) {
+  return String(value || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, "").trim().toLowerCase();
+}
+
+function aiHtmlLeaksPrompt(visibleText, prompt) {
+  const page = compactAiText(visibleText);
+  const source = compactAiText(prompt);
+  if (source.length < 48 || !page) return false;
+  if (page.includes(source.slice(0, Math.min(100, source.length)))) return true;
+  for (let index = 0; index + 72 <= source.length; index += 36) {
+    if (page.includes(source.slice(index, index + 72))) return true;
+  }
+  return false;
+}
+
+function expectedPrimaryCtaForPrompt(prompt, config = {}) {
+  const source = String(prompt || "");
+  const text = `${source.toLowerCase()} ${source}`;
+  if (/主\s*cta|主按钮|主行动|primary\s*cta/i.test(source)) {
+    if (/立即开户|开(?:真实)?账户|open\s*account/i.test(source)) return { label: "立即开户", action: "openAccount", pattern: /立即开户|开真实账户|开户|open\s*account/i };
+    if (/立即入金|首次入金|入金|deposit/i.test(source)) return { label: "立即入金", action: "deposit", pattern: /立即入金|首次入金|入金|deposit/i };
+  }
+  const intent = config?.pageIntent?.primaryIntent || homepageIntentFromPrompt(prompt);
+  if (intent === "onboarding" || hasStrongOnboardingIntentSignal(text)) {
+    return { label: "立即开户", action: "openAccount", pattern: /立即开户|开真实账户|创建真实账户|开户|open\s*account/i };
+  }
+  if (intent === "deposit" || hasExplicitDepositIntentSignal(text)) {
+    return { label: "立即入金", action: "deposit", pattern: /立即入金|首次入金|入金|deposit/i };
+  }
+  if (intent === "trader") {
+    return { label: "持仓/MT5", action: "", pattern: /持仓|订单|MT5|mt5|positions|orders/i };
+  }
+  return null;
+}
+
 function evaluateAiHtmlQuality(scheme, payload = {}, config = {}) {
   const source = scheme && typeof scheme === "object" ? scheme : {};
   const html = String(source.html || "");
@@ -2311,12 +2413,15 @@ function evaluateAiHtmlQuality(scheme, payload = {}, config = {}) {
   else pass("具备 grid/flex 布局结构。");
   if (!/@media/i.test(css)) miss(8, "缺少响应式规则，大屏/移动端美观性不可控。");
   else pass("包含响应式规则。");
-  if (!/data-home-action=/i.test(html)) miss(8, "缺少 data-home-action，关键按钮无法接入系统动作。");
-  else pass("关键动作带 data-home-action。");
+	  if (!/data-home-action=/i.test(html)) miss(8, "缺少 data-home-action，关键按钮无法接入系统动作。");
+	  else pass("关键动作带 data-home-action。");
+	  if (aiHtmlLeaksPrompt(visibleText, payload.prompt)) {
+	    miss(28, "客户页面疑似渲染了管理员提示词原文，必须改写为面向客户的首页文案。");
+	  }
 
-  const sectionCount = countAiHtmlMatches(html, /<(section|article|header|nav|main)\b/gi);
-  if (sectionCount < 5 && implementationContract.length < 4) miss(10, "页面结构层级太少，像普通 HTML 草稿而不是完整客户端首页。");
-  else pass("页面包含多个业务结构层级。");
+	  const sectionCount = countAiHtmlMatches(html, /<(section|article|header|nav|main)\b/gi);
+	  if (sectionCount < 5 && implementationContract.length < 4) miss(10, "页面结构层级太少，像普通 HTML 草稿而不是完整客户端首页。");
+	  else pass("页面包含多个业务结构层级。");
 
   const visualSignals = /(svg|path|table|thead|tbody|ai-html-(?:chart|curve|bars|metric|kpi|trend|timeline|step|rail|console|account|wallet)|Equity|PnL|净值|曲线|收益率)/i;
   if (!visualSignals.test(`${html} ${css}`)) miss(12, "缺少图表、趋势、指标或状态结构，交易平台质感不足。");
@@ -2325,12 +2430,29 @@ function evaluateAiHtmlQuality(scheme, payload = {}, config = {}) {
   const placeholderCount = countAiHtmlMatches(visibleText, /--/g);
   if (placeholderCount > 5) miss(8, "占位符过多，预览会显得空和基础。");
 
-  const missingModules = requiredModules.filter((item) => !textContainsAnySignal(combinedText, item.signals));
-  if (missingModules.length) {
-    miss(Math.min(34, missingModules.length * 7), `未明显承接要求模块：${missingModules.map((item) => item.label).join("、")}。`);
-  } else {
-    pass("要求模块都能在 HTML 中找到业务表达。");
-  }
+	  const missingModules = requiredModules.filter((item) => !textContainsAnySignal(combinedText, item.signals));
+	  const thinVisibleModules = requiredModules.filter((item) => {
+	    if (missingModules.includes(item)) return false;
+	    const contract = implementationContract.find((entry) => aiHtmlImplementationContractMatches(entry, item));
+	    const evidenceSignals = item.capability?.evidenceSignals || [];
+	    const signalHits = item.signals.filter((signal) => textContainsAnySignal(combinedText, [signal])).length;
+	    const evidenceHits = evidenceSignals.filter((signal) => textContainsAnySignal(combinedText, [signal])).length;
+	    const renderEvidence = Array.isArray(contract?.renderEvidence) ? contract.renderEvidence.filter(Boolean).length : 0;
+	    const hasAction =
+	      Array.isArray(contract?.actions) && contract.actions.some((action) => {
+	        const actionText = String(action || "").toLowerCase();
+	        return actionText && html.toLowerCase().includes(`data-home-action="${actionText}"`);
+	      });
+	    return signalHits + evidenceHits < 2 && renderEvidence < 1 && !hasAction;
+	  });
+	  if (missingModules.length) {
+	    miss(Math.min(34, missingModules.length * 7), `未明显承接要求模块：${missingModules.map((item) => item.label).join("、")}。`);
+	  } else {
+	    pass("要求模块都能在 HTML 中找到业务表达。");
+	  }
+	  if (thinVisibleModules.length) {
+	    miss(Math.min(24, thinVisibleModules.length * 6), `要求模块只有标题或弱露出，缺少可见字段/状态/动作：${thinVisibleModules.map((item) => item.label).slice(0, 4).join("、")}。`);
+	  }
 
   if (!implementationContract.length) {
     miss(18, "缺少 implementationContract，无法证明 AI HTML 不是静态外观空壳。");
@@ -2379,11 +2501,28 @@ function evaluateAiHtmlQuality(scheme, payload = {}, config = {}) {
     if (!missingImplementation.length && !thinImplementation.length) pass("implementationContract 覆盖模块字段、状态、动作和渲染证据。");
   }
 
-  const articleCount = countAiHtmlMatches(html, /<article\b/gi);
-  const distinctClassCount = new Set((html.match(/class=(["'])(.*?)\1/gi) || []).map((item) => item.replace(/^class=(["'])|["']$/g, ""))).size;
-  if (articleCount >= 5 && distinctClassCount < 6) miss(8, "模块可能共用同一种卡片壳，视觉变化不足。");
+	  const articleCount = countAiHtmlMatches(html, /<article\b/gi);
+	  const distinctClassCount = new Set((html.match(/class=(["'])(.*?)\1/gi) || []).map((item) => item.replace(/^class=(["'])|["']$/g, ""))).size;
+	  if (articleCount >= 5 && distinctClassCount < 6) miss(8, "模块可能共用同一种卡片壳，视觉变化不足。");
+	  const genericSkeleton =
+	    /\bai-html-hero\b/i.test(html) &&
+	    /\bai-html-(?:command|actions)\b/i.test(html) &&
+	    /\bai-html-grid\b/i.test(html) &&
+	    /\bai-html-table\b/i.test(html);
+	  if (genericSkeleton && requiredModules.length >= 5) {
+	    miss(16, "命中固定 hero + 四按钮 + 双卡 + 账号表骨架，未按提示词重组信息架构。");
+	  }
+	  const expectedCta = expectedPrimaryCtaForPrompt(payload.prompt, config);
+	  if (expectedCta) {
+	    const actionMatched = expectedCta.action ? new RegExp(`data-home-action=["']${expectedCta.action}["']`, "i").test(html) : true;
+	    if (!expectedCta.pattern.test(combinedText) || !actionMatched) {
+	      miss(16, `主 CTA 未承接提示词，应突出「${expectedCta.label}」。`);
+	    } else {
+	      pass(`主 CTA 承接「${expectedCta.label}」。`);
+	    }
+	  }
 
-  const normalizedScore = Math.max(0, Math.min(100, Math.round(score)));
+	  const normalizedScore = Math.max(0, Math.min(100, Math.round(score)));
   const qualityStatus = issues.length
     ? normalizedScore >= 68
       ? "needs-polish"
@@ -2422,7 +2561,7 @@ function normalizeAiHtmlScheme(scheme, payload = {}, config = {}, providerConfig
     : [];
   const requiredModules = normalizeAiHtmlTextList(
     source.requiredModules,
-    12,
+    16,
     80,
   );
   const expectedImplementationModules = aiHtmlRequiredModuleContracts(payload, config);
@@ -2432,12 +2571,21 @@ function normalizeAiHtmlScheme(scheme, payload = {}, config = {}, providerConfig
   );
   const fallbackReferences = source.componentReferenceHints || [];
   const componentReferences = normalizeAiHtmlComponentReferences(source.componentReferences, fallbackReferences);
-  const designNotes = normalizeAiHtmlTextList(source.designNotes, 8, 180);
-  const qualityIssues = normalizeAiHtmlTextList(source.qualityIssues, 8, 180);
-  const aestheticChecks = normalizeAiHtmlTextList(source.aestheticChecks, 10, 160);
-  const qualityScore = Number.isFinite(Number(source.qualityScore)) ? Math.max(0, Math.min(100, Math.round(Number(source.qualityScore)))) : null;
+	  const designNotes = normalizeAiHtmlTextList(source.designNotes, 8, 180);
+	  const qualityIssues = normalizeAiHtmlTextList(source.qualityIssues, 8, 180);
+	  const aestheticChecks = normalizeAiHtmlTextList(source.aestheticChecks, 10, 160);
+	  const qualityScore = Number.isFinite(Number(source.qualityScore)) ? Math.max(0, Math.min(100, Math.round(Number(source.qualityScore)))) : null;
+	  const sourceType = cleanText(source.sourceType, "", 48);
+	  const mock = Boolean(source.mock || sourceType === "mock" || sourceType.startsWith("fallback/mock"));
+	  const isFallback = Boolean(source.isFallback || mock || /fallback/i.test(sourceType) || /fallback/i.test(source.generationPipeline || ""));
+	  const fallbackReason = cleanText(source.fallbackReason || source.reason || "", "", 220);
+	  const modelAttempted = typeof source.modelAttempted === "boolean"
+	    ? source.modelAttempted
+	    : /^model/.test(sourceType) || sourceType.startsWith("fallback/");
+	  const rawQualityStatus = cleanText(source.qualityStatus, qualityScore === null ? "" : qualityScore >= 82 ? "passed" : "needs-polish", 40);
+	  const qualityStatus = isFallback ? (mock ? "mock-preview" : "fallback-preview") : rawQualityStatus;
 
-  return {
+	  return {
     enabled: Boolean(html && css),
     name: cleanText(source.name, `${fallbackName} HTML 版`, 56),
     summary: cleanText(source.summary, "AI 直接生成 HTML/CSS 草稿，已做脚本和外链清洗。", 220),
@@ -2449,10 +2597,10 @@ function normalizeAiHtmlScheme(scheme, payload = {}, config = {}, providerConfig
     componentReferences,
     designNotes,
     html,
-    css,
-    dataBindings: dataBindings.length ? dataBindings.slice(0, 12) : aiHtmlDataBindingsFromConfig(config),
-    qualityScore,
-    qualityStatus: cleanText(source.qualityStatus, qualityScore === null ? "" : qualityScore >= 82 ? "passed" : "needs-polish", 40),
+	    css,
+	    dataBindings: dataBindings.length ? dataBindings.slice(0, 12) : aiHtmlDataBindingsFromConfig(config),
+	    qualityScore,
+	    qualityStatus,
     qualityIssues,
     aestheticChecks,
     safetyStatus: html && css ? "sanitized" : "empty",
@@ -2463,14 +2611,17 @@ function normalizeAiHtmlScheme(scheme, payload = {}, config = {}, providerConfig
     ].slice(0, 8),
     provider: providerConfig.name || providerConfig.provider || "",
     model: providerConfig.model || "",
-    generatedAt,
-    generationPipeline: cleanText(source.generationPipeline, "", 48),
-    correctionStatus: cleanText(source.correctionStatus, html && css ? "sanitized" : "empty", 48),
-    sourceType: cleanText(source.sourceType, "", 36),
-    isFallback: Boolean(source.isFallback),
-    correctionNotes,
-  };
-}
+	    generatedAt,
+	    generationPipeline: cleanText(source.generationPipeline, "", 48),
+	    correctionStatus: cleanText(source.correctionStatus, html && css ? "sanitized" : "empty", 48),
+	    sourceType,
+	    isFallback,
+	    fallbackReason,
+	    modelAttempted,
+	    mock,
+	    correctionNotes,
+	  };
+	}
 
 function aiHtmlCorrectionActions(config = {}) {
   const settings = config.moduleSettings || {};
@@ -2525,11 +2676,15 @@ function aiHtmlThemeFromPrompt(prompt, config = {}) {
 
 function repairAiHtmlScheme(scheme, payload = {}, config = {}, providerConfig = {}, options = {}) {
   const normalized = normalizeAiHtmlScheme(
-    {
-      ...(scheme || {}),
-      sourceType: options.sourceType || scheme?.sourceType || "model-free",
-      generationPipeline: options.generationPipeline || scheme?.generationPipeline || "free-html-first",
-    },
+	    {
+	      ...(scheme || {}),
+	      sourceType: options.sourceType || scheme?.sourceType || "model/free-html",
+	      generationPipeline: options.generationPipeline || scheme?.generationPipeline || "free-html-first",
+	      isFallback: Boolean(options.isFallback || scheme?.isFallback),
+	      fallbackReason: options.fallbackReason || scheme?.fallbackReason || "",
+	      modelAttempted: typeof options.modelAttempted === "boolean" ? options.modelAttempted : scheme?.modelAttempted,
+	      mock: Boolean(options.mock || scheme?.mock),
+	    },
     payload,
     config,
     providerConfig,
@@ -2537,18 +2692,19 @@ function repairAiHtmlScheme(scheme, payload = {}, config = {}, providerConfig = 
 
   if (!normalized.enabled) return normalized;
 
-  let html = normalized.html.trim();
-  let css = normalized.css.trim();
-  const notes = [...normalized.correctionNotes];
-  const theme = escapeHtmlText(aiHtmlThemeFromPrompt(payload.prompt, config));
+	  let html = normalized.html.trim();
+	  let css = normalized.css.trim();
+	  const notes = [...normalized.correctionNotes];
+	  const theme = escapeHtmlText(aiHtmlThemeFromPrompt(payload.prompt, config));
+	  const pipeline = escapeHtmlText(options.generationPipeline || normalized.generationPipeline || "free-html-first");
 
-  if (!/\bai-html-page\b/i.test(html)) {
-    html = `<section class="ai-html-page ai-html-freeform-page" data-ai-html-theme="${theme}" data-ai-html-pipeline="free-html-first">\n${html}\n</section>`;
-    notes.push("已补齐 AI HTML 根容器、主题标记和预览隔离边界。");
-  } else if (!/data-ai-html-pipeline=/i.test(html)) {
-    html = html.replace(/<section\b/i, '<section data-ai-html-pipeline="free-html-first"');
-    notes.push("已补齐自由 HTML 生成管线标记。");
-  }
+	  if (!/\bai-html-page\b/i.test(html)) {
+	    html = `<section class="ai-html-page ai-html-freeform-page" data-ai-html-theme="${theme}" data-ai-html-pipeline="${pipeline}">\n${html}\n</section>`;
+	    notes.push("已补齐 AI HTML 根容器、主题标记和预览隔离边界。");
+	  } else if (!/data-ai-html-pipeline=/i.test(html)) {
+	    html = html.replace(/<section\b/i, `<section data-ai-html-pipeline="${pipeline}"`);
+	    notes.push("已补齐自由 HTML 生成管线标记。");
+	  }
 
   if (!/data-home-action=/i.test(html)) {
     html = injectAiHtmlAfterRoot(html, aiHtmlCorrectionActions(config));
@@ -2591,12 +2747,15 @@ function repairAiHtmlScheme(scheme, payload = {}, config = {}, providerConfig = 
       qualityStatus: quality.status,
       qualityIssues: quality.issues,
       aestheticChecks: quality.checks,
-      correctionStatus: "sanitized-and-corrected",
-      generationPipeline: options.generationPipeline || normalized.generationPipeline || "free-html-first",
-      sourceType: options.sourceType || normalized.sourceType || "model-free",
-      isFallback: Boolean(options.isFallback || normalized.isFallback),
-      correctionNotes: notes.length ? notes : ["已完成安全清洗、主题变量校验和系统动作校正。"],
-    },
+	      correctionStatus: "sanitized-and-corrected",
+	      generationPipeline: options.generationPipeline || normalized.generationPipeline || "free-html-first",
+	      sourceType: options.sourceType || normalized.sourceType || "model/free-html",
+	      isFallback: Boolean(options.isFallback || normalized.isFallback),
+	      fallbackReason: options.fallbackReason || normalized.fallbackReason || "",
+	      modelAttempted: typeof options.modelAttempted === "boolean" ? options.modelAttempted : normalized.modelAttempted,
+	      mock: Boolean(options.mock || normalized.mock),
+	      correctionNotes: notes.length ? notes : ["已完成安全清洗、主题变量校验和系统动作校正。"],
+	    },
     payload,
     config,
     providerConfig,
@@ -2604,124 +2763,177 @@ function repairAiHtmlScheme(scheme, payload = {}, config = {}, providerConfig = 
 }
 
 function mockAiHtmlScheme(payload = {}, config = {}, providerConfig = {}) {
-  const prompt = escapeHtmlText(cleanText(payload.prompt, "成熟券商客户端首页", 180));
   const theme = escapeHtmlText(cleanText(config.themePreset || config.theme, "default", 40));
   const title = escapeHtmlText(cleanText(config.name, "AI 视觉首页", 42));
-  const focus = cleanText(config.heroFocus, "asset_overview", 40);
+  const intent = config?.pageIntent?.primaryIntent || homepageIntentFromPrompt(payload.prompt);
   const bindings = aiHtmlDataBindingsFromConfig(config);
-  const html = `
-    <section class="ai-html-page" data-ai-html-theme="${theme}">
-      <header class="ai-html-hero">
-        <div>
-          <span>AI HTML VISUAL DRAFT</span>
-          <h1>${title}</h1>
-          <p>${prompt}</p>
-        </div>
-        <aside>
-          <small>余额合计</small>
-          <strong>$125,430.80</strong>
-          <em>Wallet $18,920 · TA $106,510</em>
-        </aside>
-      </header>
-      <section class="ai-html-command">
-        <a data-home-action="deposit" href="#deposit">入金</a>
-        <a data-home-action="openAccount" href="#account">开真实账户</a>
-        <a data-home-action="orders" href="#orders">订单</a>
+  const requiredModules = aiHtmlRequiredModuleContracts(payload, config);
+  const requiredBlocks = new Set(requiredModules.map((item) => item.component).filter(Boolean));
+  const has = (block) => requiredBlocks.has(block);
+  const addIf = (block, markup) => (has(block) ? markup : "");
+  const sourceClass = intent === "trader" ? "ai-html-trader" : intent === "growth" || intent === "deposit" ? "ai-html-growth" : intent === "onboarding" ? "ai-html-onboarding" : "ai-html-standard";
+  const openingHero = `
+    <header class="ai-html-opening-hero">
+      <div class="ai-html-primary-copy">
+        <small>开户引导</small>
+        <h1>完成真实账户开户准备</h1>
+        <p>KYC、开真实账户和首次入金按步骤推进，页面主行动聚焦立即开户。</p>
+        <a class="ai-html-primary-cta" data-home-action="openAccount" href="#open-account">立即开户</a>
+      </div>
+      <div class="ai-html-path" aria-label="开户流程">
+        <article><b>01</b><strong>KYC 认证</strong><span>Sample: 待提交</span></article>
+        <article><b>02</b><strong>开真实账户</strong><span>选择 MT5 / 账户类型</span></article>
+        <article><b>03</b><strong>首次入金准备</strong><span>确认钱包与风险提示</span></article>
+      </div>
+    </header>
+  `;
+  const traderHero = `
+    <header class="ai-html-trader-hero">
+      <div>
+        <small>交易工作台</small>
+        <h1>${title}</h1>
+        <p>首屏先处理账号状态、账户表现、持仓入口和 MT5 操作。</p>
+      </div>
+      <nav class="ai-html-command-strip" aria-label="交易操作">
         <a data-home-action="positions" href="#positions">持仓</a>
-      </section>
-      <section class="ai-html-grid">
-        <article>
-          <span>账户表现</span>
-          <strong>7D Equity</strong>
-          <div class="ai-html-chart"><i></i><i></i><i></i><i></i><i></i></div>
-          <p>净值、PnL 和保证金来自接口；预览使用占位曲线。</p>
-        </article>
-        <article>
-          <span>下一步</span>
-          <strong>${focus === "promo_banner" ? "查看活动权益" : "完成账户路径"}</strong>
-          <ol><li>KYC 状态</li><li>创建真实账户</li><li>首次入金</li></ol>
-        </article>
-      </section>
-      <section class="ai-html-table">
-        <span>Trading Accounts</span>
-        <div><b>Live</b><strong>80010</strong><em>MT5 · Equity $12,726.40</em></div>
-        <div><b>Demo</b><strong>90021</strong><em>MT5 · Equity $51,280.60</em></div>
-      </section>
+        <a data-home-action="orders" href="#orders">订单</a>
+        <a data-home-action="accounts" href="#accounts">切换账号</a>
+        <a data-home-action="downloadMt5" href="#download">MT5</a>
+      </nav>
+    </header>
+  `;
+  const growthHero = `
+    <header class="ai-html-growth-hero">
+      <div>
+        <small>活动权益</small>
+        <h1>${title}</h1>
+        <p>活动、权益梯度和入金路径优先，账号信息作为参与准备承接。</p>
+      </div>
+      <a class="ai-html-primary-cta" data-home-action="deposit" href="#deposit">查看活动并入金</a>
+    </header>
+  `;
+  const standardHero = `
+    <header class="ai-html-standard-hero">
+      <div>
+        <small>模型预览</small>
+        <h1>${title}</h1>
+        <p>资产摘要、关键动作和交易账号以清晰的信息架构组织。</p>
+      </div>
+      <a class="ai-html-primary-cta" data-home-action="deposit" href="#deposit">入金</a>
+    </header>
+  `;
+  const hero = intent === "trader" ? traderHero : intent === "growth" || intent === "deposit" ? growthHero : intent === "onboarding" ? openingHero : standardHero;
+  const moduleMarkup = [
+    addIf(
+      "asset_overview",
+      `<section class="ai-html-metrics" data-ai-html-module="asset_overview"><header><span>asset_overview</span><strong>账户摘要</strong></header><div><article><small>余额合计</small><b>Sample 125,430.80 USD</b></article><article><small>钱包余额</small><b>Sample 18,920.00</b></article><article><small>交易账号余额</small><b>Sample 106,510.80</b></article></div></section>`,
+    ),
+    addIf(
+      "onboarding_guide",
+      `<section class="ai-html-onboarding-rail" data-ai-html-module="onboarding_guide"><header><span>onboarding_guide</span><strong>KYC / 真实账户 / 首次入金</strong></header><ol><li><b>KYC</b><span>状态来自 CRM</span></li><li><b>开真实账户</b><span>下一步主任务</span></li><li><b>首次入金</b><span>准备钱包与风险确认</span></li></ol><a data-home-action="openAccount" href="#open-account">立即开户</a></section>`,
+    ),
+    addIf(
+      "quick_actions",
+      `<section class="ai-html-task-actions" data-ai-html-module="quick_actions"><header><span>quick_actions</span><strong>下一步操作</strong></header><nav><a data-home-action="openAccount" href="#open-account">立即开户</a><a data-home-action="deposit" href="#deposit">首次入金</a><a data-home-action="accounts" href="#accounts">交易账号</a><a data-home-action="contactSupport" href="#support">联系客服</a></nav></section>`,
+    ),
+    addIf(
+      "promo_banner",
+      `<section class="ai-html-benefits" data-ai-html-module="promo_banner"><header><span>promo_banner</span><strong>活动权益</strong></header><div><b>新客入金准备礼</b><p>Sample 活动权益，正式内容来自后台活动配置。</p><a data-home-action="deposit" href="#deposit">查看权益</a></div></section>`,
+    ),
+    addIf(
+      "pamm_products",
+      `<section class="ai-html-pamm" data-ai-html-module="pamm_products"><header><span>pamm_products</span><strong>PAMM 条件展示</strong></header><div><article><b>稳健策略 A</b><span>Sample 风险：中低</span><small>起投与周期来自后台配置</small></article><article><b>平衡策略 B</b><span>Sample 风险：中</span><small>收益字段仅作 demo</small></article></div></section>`,
+    ),
+    addIf(
+      "trading_account_highlight",
+      `<section class="ai-html-performance" data-ai-html-module="trading_account_highlight"><header><span>trading_account_highlight</span><strong>账户表现图表</strong></header><div class="ai-html-curve"><i></i><i></i><i></i><i></i><i></i></div><p>Equity、PnL、保证金等真实数据来自接口，缺失显示占位。</p></section>`,
+    ),
+    addIf(
+      "trading_accounts_list",
+      `<section class="ai-html-accounts-list" data-ai-html-module="trading_accounts_list"><header><span>trading_accounts_list</span><strong>交易账号列表</strong></header><div><article><b>Live</b><strong>80010</strong><span>MT5 · HCHoldings-Live2 · Equity Sample 12,726.40</span></article><article><b>Demo</b><strong>90021</strong><span>MT5 · HCHoldings-Demo · Equity Sample 51,280.60</span></article></div><a data-home-action="accounts" href="#accounts">查看账号</a></section>`,
+    ),
+    addIf(
+      "referral_link_card",
+      `<section class="ai-html-referral" data-ai-html-module="referral_link_card"><header><span>referral_link_card</span><strong>推广链接</strong></header><p>https://example.com/register?code=SAMPLE</p><div><b>邀请码 SAMPLE88</b><a data-home-action="copyLink" href="#copy">复制</a></div></section>`,
+    ),
+    addIf(
+      "app_download",
+      `<section class="ai-html-download" data-ai-html-module="app_download"><header><span>app_download</span><strong>下载入口</strong></header><div><b>Client Portal APP</b><b>MT5 下载</b></div><a data-home-action="downloadApp" href="#download">打开下载</a></section>`,
+    ),
+    addIf(
+      "support_contact",
+      `<section class="ai-html-support" data-ai-html-module="support_contact"><header><span>support_contact</span><strong>在线客服</strong></header><p>服务时间、在线状态和客户经理入口来自后台。</p><a data-home-action="contactSupport" href="#support">联系客服</a></section>`,
+    ),
+    addIf(
+      "faq_section",
+      `<section class="ai-html-faq" data-ai-html-module="faq_section"><header><span>faq_section</span><strong>FAQ 常见问题</strong></header><details open><summary>如何完成开户？</summary><p>先完成 KYC，再创建真实账户并准备首次入金。</p></details><details><summary>Demo 数据是否会发布？</summary><p>预览可用 Sample 数据，正式环境绑定后台数据。</p></details></section>`,
+    ),
+    addIf(
+      "risk_disclosure",
+      `<section class="ai-html-risk-strip" data-ai-html-module="risk_disclosure"><strong>风险提示</strong><p>外汇和差价合约交易涉及高风险，杠杆可能放大亏损，请确认自身风险承受能力。</p></section>`,
+    ),
+  ].filter(Boolean).join("\n");
+  const html = `
+    <section class="ai-html-page ${sourceClass}" data-ai-html-theme="${theme}" data-ai-html-source="mock">
+      ${hero}
+      <main class="ai-html-module-flow">
+        ${moduleMarkup}
+      </main>
     </section>
   `;
   const css = `
     :host{display:block;color:var(--home-text,#172033);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
     .ai-html-page{display:grid;gap:14px;padding:16px;background:var(--home-bg,#f6f8fb)}
     .ai-html-page *{box-sizing:border-box}
-    .ai-html-hero{min-height:250px;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(220px,.65fr);gap:16px;align-items:stretch;padding:22px;border:1px solid var(--home-banner-border,#c7d2fe);border-radius:var(--home-radius-sm,8px);background:linear-gradient(135deg,var(--home-banner-bg,#10213f),color-mix(in srgb,var(--home-primary,#2563eb) 30%,#0f172a));color:var(--home-banner-text,#fff)}
-    .ai-html-hero div{display:grid;align-content:center;gap:12px}.ai-html-hero span,.ai-html-grid span,.ai-html-table span{color:var(--home-primary,#2563eb);font-size:12px;font-weight:950;letter-spacing:0}.ai-html-hero h1{margin:0;max-width:780px;font-size:36px;line-height:1.06;font-weight:950;letter-spacing:0}.ai-html-hero p{margin:0;max-width:720px;color:var(--home-banner-muted,#dbeafe);font-size:14px;line-height:1.7}.ai-html-hero aside{display:grid;align-content:end;gap:8px;padding:18px;border:1px solid color-mix(in srgb,var(--home-banner-text,#fff) 20%,transparent);border-radius:var(--home-radius-sm,8px);background:color-mix(in srgb,var(--home-banner-text,#fff) 9%,transparent)}.ai-html-hero aside strong{font-size:32px;line-height:1}.ai-html-hero aside small,.ai-html-hero aside em{color:var(--home-banner-muted,#dbeafe);font-style:normal;font-weight:850}
-    .ai-html-command{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.ai-html-command a{min-height:54px;display:grid;place-items:center;border:1px solid var(--home-button-border,#1d4ed8);border-radius:var(--home-radius-sm,8px);background:var(--home-button-bg,#2563eb);color:var(--home-button-text,#fff);font-weight:950;text-decoration:none}
-    .ai-html-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:14px}.ai-html-grid article,.ai-html-table{display:grid;gap:12px;padding:18px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-card-bg,#fff);box-shadow:0 16px 40px rgba(15,23,42,.07)}.ai-html-grid strong{font-size:22px}.ai-html-grid p{margin:0;color:var(--home-text-muted,#64748b);line-height:1.6}.ai-html-chart{height:92px;display:grid;grid-template-columns:repeat(5,1fr);gap:7px;align-items:end}.ai-html-chart i{display:block;border-radius:999px 999px 4px 4px;background:linear-gradient(180deg,var(--home-primary,#2563eb),color-mix(in srgb,var(--home-primary,#2563eb) 20%,transparent))}.ai-html-chart i:nth-child(1){height:38%}.ai-html-chart i:nth-child(2){height:58%}.ai-html-chart i:nth-child(3){height:48%}.ai-html-chart i:nth-child(4){height:72%}.ai-html-chart i:nth-child(5){height:88%}.ai-html-grid ol{display:grid;gap:8px;margin:0;padding:0;list-style:none}.ai-html-grid li{padding:11px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft,#f8fbff);font-weight:900}
-    .ai-html-table div{display:grid;grid-template-columns:80px 100px 1fr;gap:10px;align-items:center;padding:12px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft,#f8fbff)}.ai-html-table b{color:var(--home-primary,#2563eb)}.ai-html-table em{color:var(--home-text-muted,#64748b);font-style:normal}
-    @media(max-width:860px){.ai-html-hero,.ai-html-grid{grid-template-columns:1fr}.ai-html-command{grid-template-columns:repeat(2,minmax(0,1fr))}.ai-html-table div{grid-template-columns:1fr}.ai-html-hero h1{font-size:28px}}
+    .ai-html-opening-hero,.ai-html-trader-hero,.ai-html-growth-hero,.ai-html-standard-hero{display:grid;gap:18px;padding:24px;border:1px solid var(--home-banner-border,#c7d2fe);border-radius:var(--home-radius-sm,8px);background:var(--home-banner-bg,#fff);color:var(--home-banner-text,var(--home-text,#172033))}
+    .ai-html-opening-hero{grid-template-columns:minmax(0,.95fr) minmax(300px,1.05fr);background:var(--home-card-bg,#fff);color:var(--home-text,#172033)}
+    .ai-html-trader-hero{grid-template-columns:minmax(0,1fr) minmax(320px,.9fr);background:var(--home-surface-soft,#eef6ff)}
+    .ai-html-growth-hero{grid-template-columns:minmax(0,1fr) auto;align-items:end;background:var(--home-banner-bg,#10213f);color:var(--home-banner-text,#fff)}
+    .ai-html-standard-hero{grid-template-columns:minmax(0,1fr) auto;align-items:end}
+    .ai-html-page h1{margin:0;font-size:34px;line-height:1.08;letter-spacing:0}.ai-html-page p{margin:0;color:var(--home-text-muted,#64748b);line-height:1.65}.ai-html-growth-hero p{color:var(--home-banner-muted,#dbeafe)}
+    .ai-html-page small,.ai-html-page span{color:var(--home-primary,#2563eb);font-size:12px;font-weight:950;letter-spacing:0}.ai-html-primary-copy{display:grid;gap:12px;align-content:center}.ai-html-primary-cta,.ai-html-page a{min-height:42px;display:inline-grid;place-items:center;width:max-content;padding:0 16px;border:1px solid var(--home-button-border,#1d4ed8);border-radius:var(--home-radius-sm,8px);background:var(--home-button-bg,#2563eb);color:var(--home-button-text,#fff);font-weight:950;text-decoration:none}
+    .ai-html-path{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.ai-html-path article{display:grid;gap:8px;min-height:132px;padding:14px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft,#f8fbff)}.ai-html-path b{color:var(--home-primary,#2563eb);font-size:24px}.ai-html-path strong{font-size:16px}
+    .ai-html-command-strip{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.ai-html-command-strip a{width:auto;background:var(--home-card-bg,#fff);color:var(--home-primary,#2563eb)}
+    .ai-html-module-flow{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px}.ai-html-module-flow>section{grid-column:span 6;display:grid;gap:12px;padding:18px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-card-bg,#fff);box-shadow:0 14px 34px rgba(15,23,42,.06)}.ai-html-module-flow>section.ai-html-accounts-list,.ai-html-module-flow>section.ai-html-risk-strip{grid-column:1/-1}.ai-html-module-flow header{display:flex;justify-content:space-between;gap:12px;align-items:start}.ai-html-module-flow strong{font-size:20px}.ai-html-metrics div,.ai-html-pamm div,.ai-html-accounts-list div{display:grid;gap:10px}.ai-html-metrics div{grid-template-columns:repeat(3,minmax(0,1fr))}.ai-html-metrics article,.ai-html-pamm article,.ai-html-accounts-list article{display:grid;gap:6px;padding:12px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft,#f8fbff)}.ai-html-metrics b,.ai-html-accounts-list b{color:var(--home-primary,#2563eb)}
+    .ai-html-onboarding-rail ol{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0;padding:0;list-style:none}.ai-html-onboarding-rail li{display:grid;gap:5px;padding:12px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft,#f8fbff)}
+    .ai-html-curve{height:108px;display:grid;grid-template-columns:repeat(5,1fr);gap:8px;align-items:end}.ai-html-curve i{display:block;border-radius:999px 999px 4px 4px;background:linear-gradient(180deg,var(--home-primary,#2563eb),color-mix(in srgb,var(--home-primary,#2563eb) 16%,transparent))}.ai-html-curve i:nth-child(1){height:44%}.ai-html-curve i:nth-child(2){height:62%}.ai-html-curve i:nth-child(3){height:52%}.ai-html-curve i:nth-child(4){height:78%}.ai-html-curve i:nth-child(5){height:92%}
+    .ai-html-task-actions nav,.ai-html-benefits div,.ai-html-referral div,.ai-html-download div{display:grid;gap:8px}.ai-html-task-actions nav{grid-template-columns:repeat(4,minmax(0,1fr))}.ai-html-task-actions a{width:auto}.ai-html-referral p{padding:10px;border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft,#f8fbff);overflow-wrap:anywhere}.ai-html-risk-strip{border-style:dashed}.ai-html-risk-strip p{max-width:920px}.ai-html-faq details{padding:10px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft,#f8fbff)}
+    @media(max-width:860px){.ai-html-opening-hero,.ai-html-trader-hero,.ai-html-growth-hero,.ai-html-standard-hero,.ai-html-path,.ai-html-metrics div,.ai-html-onboarding-rail ol,.ai-html-task-actions nav{grid-template-columns:1fr}.ai-html-module-flow{grid-template-columns:1fr}.ai-html-module-flow>section{grid-column:1/-1}.ai-html-page h1{font-size:28px}.ai-html-page a{width:100%}}
   `;
 
   return repairAiHtmlScheme(
     {
       name: `${title} HTML 版`,
-      summary: "本地 mock 生成的 AI HTML 视觉草稿，可用于和组件化方案对比。",
-      visualBrief: "更强调首屏视觉焦点、主金额层级、操作入口和专业数据区块。",
+      summary: "HOME_AI_MOCK 或本地预览生成的 mock AI HTML，不代表模型真实生成结果。",
+      visualBrief: "按页面意图选择 mock 骨架：开户引导、交易工作台或活动增长使用不同信息架构。",
       html,
       css,
       dataBindings: bindings,
-      implementationContract: [
-        {
-          module: "asset_overview",
-          label: "资产概览",
-          family: "AssetOverview",
-          dataFields: ["totalAssets", "walletBalance", "tradingAccountBalance"],
-          states: ["normal", "hiddenBalance"],
-          actions: ["deposit", "withdraw"],
-          interactions: ["主金额区承接资产详情，资金动作通过 data-home-action 接入。"],
-          renderEvidence: ["余额合计、Wallet、TA 三层金额已在 hero aside 中可见。"],
-        },
-        {
-          module: "quick_actions",
-          label: "快捷入口",
-          family: "QuickActions",
-          dataFields: ["quickActionList", "actionId"],
-          states: ["enabled"],
-          actions: ["deposit", "openAccount", "orders", "positions"],
-          interactions: ["四个入口都带 data-home-action。"],
-          renderEvidence: ["ai-html-command 导航区展示独立动作按钮。"],
-        },
-        {
-          module: "trading_account_highlight",
-          label: "账户表现",
-          family: "AccountPerformance",
-          dataFields: ["equityCurve", "pnlTrend", "marginState"],
-          states: ["profitable", "drawdown"],
-          actions: ["orders", "positions"],
-          interactions: ["趋势柱形结构用于承接账户表现数据。"],
-          renderEvidence: ["ai-html-chart 展示 7D Equity 走势。"],
-        },
-        {
-          module: "trading_accounts_list",
-          label: "交易账号",
-          family: "TradingAccounts",
-          dataFields: ["accountNumber", "accountKind", "accountType", "equity", "server"],
-          states: ["Live", "Demo", "active"],
-          actions: ["accounts", "openAccount"],
-          interactions: ["账号列表承接账户详情和进入账户动作。"],
-          renderEvidence: ["Trading Accounts 区域展示 Live/Demo、账号号、MT5 与 Equity。"],
-        },
-      ],
+      requiredModules: requiredModules.map((item) => item.label),
+      implementationContract: requiredModules.map((item) => ({
+        module: item.component,
+        label: item.label,
+        family: item.family,
+        dataFields: item.capability.dataFields,
+        states: item.capability.states,
+        actions: item.capability.actions,
+        interactions: [`${item.label} 在 mock HTML 中有独立区域、状态或动作承接。`],
+        renderEvidence: [`data-ai-html-module="${item.component}" 区域可见。`],
+      })),
       safetyNotes: ["本地 mock 方案未调用模型，适合验证渲染链路。"],
-      correctionNotes: ["当前为本地 mock HTML，用于验证自由 HTML 渲染和修正链路。"],
+      correctionNotes: ["当前为 mock HTML，用于验证自由 HTML 渲染和修正链路；发布前应明确提示管理员。"],
       generationPipeline: "mock-free-html",
       correctionStatus: "mock-sanitized",
       sourceType: "mock",
       isFallback: true,
+      fallbackReason: "HOME_AI_MOCK=true 或本地 mock 预览，未调用真实模型。",
+      modelAttempted: false,
+      mock: true,
     },
     payload,
     config,
     providerConfig,
-    { sourceType: "mock", generationPipeline: "mock-free-html", isFallback: true },
+    { sourceType: "mock", generationPipeline: "mock-free-html", isFallback: true, fallbackReason: "HOME_AI_MOCK=true 或本地 mock 预览，未调用真实模型。", modelAttempted: false, mock: true },
   );
 }
 
@@ -3392,10 +3604,10 @@ function guidedPromptExplicitlyRequestsBlock(block, text) {
   if (block === "referral_link_card" && /(?:不要|不需要|去掉|移除|关闭|禁用|隐藏|别放).{0,24}(?:推广链接|邀请链接|开户链接|注册链接|邀请码|代理|ib|partner|affiliate)/i.test(source)) return false;
   if (block === "announcements" && /(?:不要|不需要|去掉|移除|关闭|禁用|隐藏|别放).{0,24}(?:公告|通知|维护|平台消息)/.test(source)) return false;
   if (block === "market_news" && /(?:不要|不需要|去掉|移除|关闭|禁用|隐藏|别放).{0,24}(?:市场资讯|市场新闻|平台资讯|新手教程|交易教育|热门文章)/.test(source)) return false;
-  if (block === "risk_disclosure" && /(?:不要|不需要|去掉|移除|关闭|禁用|隐藏|别放|不要编造).{0,24}(?:风险提示|风险披露|合规|保证金|杠杆|预警)/i.test(source)) return false;
-  if (block === "faq_section" && /(?:不要|不需要|去掉|移除|关闭|禁用|隐藏|别放|不要编造).{0,24}(?:faq|常见问题|问题解答|帮助中心)/i.test(source)) return false;
-  if (block === "support_contact" && /(?:不要|不需要|去掉|移除|关闭|禁用|隐藏|别放|不要编造).{0,24}(?:在线客服|客服|客户经理|咨询|服务入口|在线状态)/i.test(source)) return false;
-  if (block === "app_download" && /(?:不要|不需要|去掉|移除|关闭|禁用|隐藏|别放|不要编造).{0,24}(?:app|下载|移动端|手机端|mt5)/i.test(source)) return false;
+  if (block === "risk_disclosure" && /(?:不要(?!编造)|不需要|去掉|移除|关闭|禁用|隐藏|别放).{0,24}(?:风险提示|风险披露|合规|保证金|杠杆|预警)/i.test(source)) return false;
+  if (block === "faq_section" && /(?:不要(?!编造)|不需要|去掉|移除|关闭|禁用|隐藏|别放).{0,24}(?:faq|常见问题|问题解答|帮助中心)/i.test(source)) return false;
+  if (block === "support_contact" && /(?:不要(?!编造)|不需要|去掉|移除|关闭|禁用|隐藏|别放).{0,24}(?:在线客服|客服|客户经理|咨询|服务入口|在线状态)/i.test(source)) return false;
+  if (block === "app_download" && /(?:不要(?!编造)|不需要|去掉|移除|关闭|禁用|隐藏|别放).{0,24}(?:app|下载|移动端|手机端|mt5)/i.test(source)) return false;
   if (block === "promo_banner") return /首屏\s*banner|banner|活动|奖励|入金奖励|赠金|权益|倒计时|promo/i.test(source);
   if (block === "pamm_products") return /pamm|资管产品|资金管理产品/i.test(source);
   if (block === "copytrading_signals") return /copy\s*trading|copytrading|跟单|信号源|交易员推荐/i.test(source);
@@ -4441,9 +4653,10 @@ function buildHomepageIntentProfile(prompt) {
   let layoutPreset = preset.layoutPreset;
   let themePreset = preset.themePreset;
   let density = preset.density;
-  let heroFocus = preset.heroFocus;
-  let primaryGoal = preset.primaryGoal;
-  let mustHave = [...new Set(preset.mustHave || [])];
+	  let heroFocus = preset.heroFocus;
+	  let primaryGoal = preset.primaryGoal;
+	  const explicitRequiredBlocks = [...aiHtmlExplicitRequiredBlocksFromPrompt(source)];
+	  let mustHave = [...new Set((preset.mustHave || []).concat(explicitRequiredBlocks))];
 
   if (humanUnderstanding.wantsProfessionalTraderWorkbench) {
     label = "专业交易客户首页";
@@ -5157,13 +5370,17 @@ function wantsCombinedTradingAccountCardsPrompt(prompt) {
 function wantsProfessionalTraderWorkbenchPrompt(prompt) {
   const source = String(prompt || "");
   const text = `${source.toLowerCase()} ${source}`;
-  const traderGoal =
-    textHasAny(text, ["专业交易客户首页", "专业交易客户", "交易客户首页", "交易工作台", "专业交易首页"]) ||
-    (textHasAny(text, ["首屏", "首页"]) && textHasAny(text, ["交易账号状态", "账号状态", "账户表现", "持仓入口", "mt5"]));
+  if (hasStrongOnboardingIntentSignal(source)) return false;
+  const explicitWorkbench = textHasAny(text, ["专业交易客户首页", "专业交易客户", "交易客户首页", "交易工作台", "专业交易首页"]);
+  const accountStatusSignal = textHasAny(text, ["交易账号状态", "账号状态", "交易账户状态", "交易账号"]);
+  const performanceSignal = textHasAny(text, ["账户表现图表", "账户表现", "账号表现", "净值曲线", "权益曲线", "pnl"]);
+  const operationSignal = textHasAny(text, ["持仓入口", "持仓", "mt5 操作入口", "mt5操作入口", "mt5"]);
+  const comboCount = [accountStatusSignal, performanceSignal, operationSignal].filter(Boolean).length;
+  const traderGoal = explicitWorkbench && comboCount >= 2;
   const firstScreenStack =
     /首屏[\s\S]{0,90}(交易账(?:号|户)状态|账(?:号|户)状态)[\s\S]{0,90}(账(?:号|户)表现|表现图表)[\s\S]{0,90}(持仓|mt5)/i.test(source) ||
     textHasAny(text, ["交易账号状态", "账户表现图表", "持仓入口", "mt5 操作入口", "mt5操作入口"]);
-  return !wantsTradingCostWorkbenchPrompt(prompt) && (traderGoal || firstScreenStack);
+  return !wantsTradingCostWorkbenchPrompt(prompt) && (traderGoal || (firstScreenStack && comboCount >= 2));
 }
 
 function homepageDataContractFromUnderstanding(understanding = {}) {
@@ -7631,10 +7848,12 @@ async function callProvider(payload) {
 
   if (renderModeWantsAiHtml(renderMode)) {
     if (freeHtmlResult?.json) {
-      htmlScheme = repairAiHtmlScheme(freeHtmlResult.json, payload, homepageConfig, config, {
-        sourceType: "model-free",
-        generationPipeline: "free-html-first",
-      });
+	      htmlScheme = repairAiHtmlScheme(freeHtmlResult.json, payload, homepageConfig, config, {
+	        sourceType: "model/free-html",
+	        generationPipeline: "free-html-first",
+	        modelAttempted: true,
+	        mock: false,
+	      });
       htmlUsage = freeHtmlResult.usage || null;
       htmlRawText = freeHtmlResult.rawText || "";
       if (htmlScheme.qualityStatus !== "passed") {
@@ -7659,8 +7878,8 @@ async function callProvider(payload) {
             payload,
             homepageConfig,
             config,
-            { sourceType: "model-quality-repair", generationPipeline: "free-html-quality-gate" },
-          );
+	            { sourceType: "model-repair", generationPipeline: "free-html-quality-gate", modelAttempted: true, mock: false },
+	          );
           const previousScore = Number(previousHtmlScheme.qualityScore);
           const repairedScore = Number(repairedHtmlScheme.qualityScore);
           if (Number.isFinite(previousScore) && Number.isFinite(repairedScore) && repairedScore < previousScore) {
@@ -7689,8 +7908,8 @@ async function callProvider(payload) {
             payload,
             homepageConfig,
             config,
-            { sourceType: htmlScheme.sourceType || "model-free", generationPipeline: "free-html-quality-gate" },
-          );
+	            { sourceType: htmlScheme.sourceType || "model/free-html", generationPipeline: "free-html-quality-gate", modelAttempted: true, mock: false },
+	          );
         }
       }
     } else {
@@ -7712,21 +7931,25 @@ async function callProvider(payload) {
           payload,
           homepageConfig,
           config,
-          { sourceType: "model-repair", generationPipeline: "config-guided-repair" },
-        );
+	          { sourceType: "model-repair", generationPipeline: "config-guided-repair", modelAttempted: true, mock: false },
+	        );
         htmlUsage = htmlResult.usage || null;
         htmlRawText = htmlResult.rawText || "";
       } catch (error) {
-        htmlScheme = {
-          ...mockAiHtmlScheme(payload, homepageConfig, config),
-          summary: `AI HTML 生成失败，已使用安全 mock 草稿：${cleanText(error.message || freeHtmlError?.message, "", 180)}`,
-          safetyNotes: ["AI HTML 通道生成失败，当前为本地 mock 草稿。"],
-          correctionNotes: ["自由 HTML 和修正版 HTML 均失败，已回退本地安全草稿。"],
-          generationPipeline: "fallback-mock",
-          correctionStatus: "fallback",
-          sourceType: "mock",
-          isFallback: true,
-        };
+	        htmlScheme = {
+	          ...mockAiHtmlScheme(payload, homepageConfig, config),
+	          summary: `AI HTML 生成失败，已使用安全 mock 草稿：${cleanText(error.message || freeHtmlError?.message, "", 180)}`,
+	          safetyNotes: ["AI HTML 通道生成失败，当前为本地 mock 草稿。"],
+	          correctionNotes: ["自由 HTML 和修正版 HTML 均失败，已回退本地安全草稿。"],
+	          generationPipeline: "fallback-mock",
+	          correctionStatus: "fallback",
+	          sourceType: "fallback/mock",
+	          isFallback: true,
+	          fallbackReason: cleanText(error.message || freeHtmlError?.message, "AI HTML 模型调用失败", 220),
+	          modelAttempted: true,
+	          mock: true,
+	          qualityStatus: "fallback-preview",
+	        };
       }
     }
   }
@@ -7848,10 +8071,12 @@ async function handleAiComplete(req, res) {
   let failedCallRecord = null;
 
   try {
-    payload = await readJsonBody(req);
-    historyConfig = callHistoryConfig(payload);
-    const result = await callProvider(payload);
-    const callRecord = addCallHistoryRecord({
+	    payload = await readJsonBody(req);
+	    historyConfig = callHistoryConfig(payload);
+	    const result = await callProvider(payload);
+	    const htmlScheme = result.config?.htmlScheme || result.htmlScheme || null;
+	    const recordStatus = result.mock ? "mock" : htmlScheme?.isFallback ? "fallback" : "success";
+	    const callRecord = addCallHistoryRecord({
       action: "homepage-generate",
       providerId: result.provider || historyConfig.provider,
       provider: historyConfig.name,
@@ -7864,9 +8089,14 @@ async function handleAiComplete(req, res) {
 	      maxOutputTokens: historyConfig.maxOutputTokens,
 	      inputMode: homepageInputMode(payload),
 	      variant: Number.isFinite(Number(payload.variant)) ? Number(payload.variant) : 0,
-	      status: "success",
-      mock: Boolean(result.mock),
-	      durationMs: Date.now() - startedAt,
+		      status: recordStatus,
+	      mock: Boolean(result.mock),
+	      htmlSourceType: htmlScheme?.sourceType || "",
+	      htmlPipeline: htmlScheme?.generationPipeline || "",
+	      htmlIsFallback: Boolean(htmlScheme?.isFallback),
+	      htmlFallbackReason: htmlScheme?.fallbackReason || "",
+	      htmlQualityStatus: htmlScheme?.qualityStatus || "",
+		      durationMs: Date.now() - startedAt,
 	      prompt: safeRecordText(payload.prompt),
 	      guidedSnapshot: guidedRecordSnapshot(payload),
 	      message: result.config?.name || "首页生成成功",
@@ -8296,5 +8526,7 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, "0.0.0.0", () => {
   const mockText = process.env.HOME_AI_MOCK === "true" ? " with HOME_AI_MOCK=true" : "";
+  const lanUrls = getLanUrls(PORT);
   console.log(`ForexCRM home AI server running at http://127.0.0.1:${PORT}/${mockText}`);
+  lanUrls.forEach((url) => console.log(`LAN access: ${url}`));
 });
