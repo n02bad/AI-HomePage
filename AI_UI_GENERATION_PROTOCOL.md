@@ -24,7 +24,7 @@ If a phrase has an implied meaning, make it explicit before generation:
 - Visual tokens such as "light blue", "flat", "10px radius", or "PingFang SC" are theme constraints only. They must not override the product intent or force the page into a generic asset/trust dashboard.
 - "CopyTrading recommendation" means the `copytrading_signals` module should be treated as a primary opportunity module. If the user asks for signal name, return rate, total return, or return curve, choose a signal-card/curve-card expression instead of a blank summary. Return curves and "near N days" performance are continuous time-series data, so they must use an ECharts line chart or area line chart, not a bar chart.
 - "Account performance" means one selected trading account plus a 7-day or 30-day equity/PnL trend. It is not a generic metric dump, and it must not use bars, capsule columns, or decorative histograms.
-- "Trading account card" means account identity first, one dominant money value, one PnL/risk status, and quiet secondary metadata. Do not render every field as an equal colored tile.
+- "Trading account card/list" uses only these account fields: account type (`Demo`/`Live`), platform/server (`MT4`/`MT5`/`Sirix`/`XOH`/`Fortex` plus account server), account number, balance, equity, credit, account category, leverage, and margin ratio. Do not invent PnL, usage tags, positions, margin-used amounts, risk states, or action buttons as account fields.
 - "Simpler", "flat", "too many modules inside a module", or "too many focal points" means reduce nested panels first. Do not answer this by only shrinking gaps or changing colors.
 - "Mobile adaptation", "small screen", "autolayout", or "responsive" means the blueprint must include an `autoLayout` contract. Paired desktop modules should collapse to one module per row when the content area gets narrow, and each module must have its own internal stack/wrap rule.
 - Metric labels such as total return, 30-day return, total profit, max drawdown, and risk level do not always need individual bordered cards. Prefer compact stat rows or quiet inline groups when the module already has a framed chart or recommendation card. Avoid heavy vertical dividers that make the metric row feel like a spreadsheet.
@@ -153,7 +153,7 @@ The generated homepage must pass these checks before delivery:
 - Continuous time-series data such as near-30-day return curves are rendered as line or area line charts, not bar charts or decorative capsule columns.
 - Recommendation modules put the chart and metrics ahead of decorative backgrounds, oversized empty banners, or heavy CTA blocks.
 - Account performance modules include a selected account context, 7D/30D period semantics, and an ECharts line/area line chart.
-- Trading account cards have one dominant value and restrained secondary metrics; they do not show four to six equally loud metric tiles.
+- Trading account cards/lists respect the fixed trading-account field contract and do not add PnL, usage, positions, margin-used amounts, risk states, or action buttons as account fields.
 - `autoLayout` is present and the result has a credible tablet/mobile fallback for every paired row and crowded module.
 - Paired modules are visually equal height on desktop, and they collapse into one module per row on narrow content containers.
 
@@ -177,7 +177,7 @@ Understanding protocol:
 4. Choose a layout strategy that is visibly different from the previous skeleton.
 5. Classify chart data before choosing chart type: time-series return/PNL/net-value data must use ECharts line or area line charts, not bars.
 6. For account performance, use a selected account context, 7D/30D period semantics, and an ECharts line/area line chart.
-7. Trading account cards must have one dominant value and restrained secondary metadata; use lists/tables when field density is high.
+7. Trading account cards/lists must use only the fixed trading-account field contract; use lists/tables when the nine allowed fields make cards too dense.
 8. Put risk disclosure at the bottom, FAQ as accordion, and account lists in the most suitable account presentation.
 9. Include autoLayout with desktop/tablet/mobile rules; paired rows must be equal height on desktop and stack on narrow content containers.
 10. Self-check the result against hard constraints before returning JSON.

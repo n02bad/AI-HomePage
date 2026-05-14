@@ -3671,26 +3671,32 @@
     return !wantsTradingCostWorkbenchPrompt(prompt) && (traderGoal || firstScreenStack);
   }
 
-  function homepageDataContractFromUnderstanding(understanding = {}) {
-    if (!understanding.wantsTradingDataContract && !understanding.wantsProfessionalTraderWorkbench) return null;
-    const field = (label, binding) => ({
-      label,
-      previewSample: true,
+	  function homepageDataContractFromUnderstanding(understanding = {}) {
+	    if (!understanding.wantsTradingDataContract && !understanding.wantsProfessionalTraderWorkbench) return null;
+	    const field = (label, binding) => ({
+	      label,
+	      previewSample: true,
       dataBindingRequired: true,
-      binding,
-      fallback: "--",
-    });
-    return {
-      mode: "api-bound-preview",
-      previewSample: true,
-      dataBindingRequired: true,
-      fallback: "placeholder",
-      note: "预览阶段可以填充 sample data；正式运行时交易成本、PnL、保证金和图表必须来自后台或接口，缺失显示占位。",
-      fields: {
-        tradingCost: field("交易成本", "api.trading.costs"),
-        pnl: field("PnL / 盈亏", "api.trading.pnl"),
-        margin: field("保证金", "api.trading.margin"),
-        charts: field("账户表现图表", "api.trading.performanceSeries"),
+	      binding,
+	      fallback: "--",
+	    });
+	    const tradingAccountFields = ["accountKind", "platform", "server", "account", "balance", "equity", "credit", "accountType", "leverage", "marginRatio"];
+	    return {
+	      mode: "api-bound-preview",
+	      previewSample: true,
+	      dataBindingRequired: true,
+	      fallback: "placeholder",
+	      note: "预览阶段可以填充 sample data；正式运行时交易账号、交易成本、PnL、保证金和图表必须来自后台或接口，缺失显示占位；交易账号卡片/列表只使用约定字段。",
+	      fields: {
+	        tradingAccounts: {
+	          ...field("交易账号卡片/列表字段", "api.trading.accounts"),
+	          allowedFields: tradingAccountFields,
+	          forbiddenFields: ["pnl", "usage", "positions", "marginUsed", "riskStatus", "actions"],
+	        },
+	        tradingCost: field("交易成本", "api.trading.costs"),
+	        pnl: field("PnL / 盈亏", "api.trading.pnl"),
+	        margin: field("保证金", "api.trading.margin"),
+	        charts: field("账户表现图表", "api.trading.performanceSeries"),
       },
     };
   }
@@ -4237,7 +4243,8 @@
     }
 
     if (wantsFlatAccountOptimization(prompt)) {
-      const refineCards = wantsAccountCardRefinement(prompt) && !wantsTradingAccountList(prompt);
+      const forceAccountList = wantsTradingAccountSingleViewCorrection(prompt);
+      const refineCards = wantsAccountCardRefinement(prompt) && !wantsTradingAccountList(prompt) && !forceAccountList;
       const promptText = String(prompt || "");
       const keepSeparatedCards = wantsRealAccountCards(promptText) || /模拟(?:交易)?账(?:号|户)(?:列表)?[\s\S]{0,32}卡片/.test(promptText);
       mergeModuleVariants(config, {
@@ -4422,7 +4429,7 @@
       check("professional-first-screen", "首屏聚焦账号状态和账户表现", featureIndex(config, "trading_accounts_list") <= 1 && featureIndex(config, "trading_account_highlight") <= 1, 18, "账号状态与账户表现应进入第一屏");
       check("combined-card-accounts", "Live/Demo 在同一账号卡片区", accountSettings.grouping === "combined" && accountSettings.viewMode === "card" && accountSettings.realViewMode === "card" && accountSettings.demoViewMode === "card", 18, "真实账号和模拟账号不应拆成两个区");
       check("no-cost-board", "未误触发成本看板", moduleStyle(config, "accountPerformance") !== "cost-board" && !isTradingCostWorkbenchConfig(config), 18, "接口数据要求不等于成本看板");
-      check("data-contract", "预览样例与正式接口契约分离", config.dataContract?.previewSample === true && config.dataContract?.dataBindingRequired === true && ["tradingCost", "pnl", "margin", "charts"].every((key) => contractFields[key]?.dataBindingRequired), 18, "需要标记 previewSample/dataBindingRequired/fallback");
+	      check("data-contract", "预览样例与正式接口契约分离", config.dataContract?.previewSample === true && config.dataContract?.dataBindingRequired === true && ["tradingAccounts", "tradingCost", "pnl", "margin", "charts"].every((key) => contractFields[key]?.dataBindingRequired), 18, "需要标记 previewSample/dataBindingRequired/fallback");
       if (understanding.wantsFaqSection) {
         check("faq-minimal", "FAQ 简约低干扰", slotVisibleInConfig(config, "faq_section") && ["accordion", "compact-list"].includes(config.moduleStyles?.faq_section), 10, "FAQ 应使用 accordion 或 compact-list");
       }
@@ -4679,7 +4686,64 @@
 	    return String(value || fallback).replace(/\s+/g, " ").trim().slice(0, limit);
 	  }
 
-	  const STRONG_ONBOARDING_SIGNALS = [
+  function normalizeHomepageRenderMode(value, fallback = "config") {
+    const raw = cleanMetaText(value, fallback, 24);
+    return ["config", "aiHtml", "compare"].includes(raw) ? raw : fallback;
+  }
+
+  function renderModeWantsAiHtml(mode) {
+    return mode === "aiHtml" || mode === "compare";
+  }
+
+  function sanitizeAiHtmlMarkup(value) {
+    return String(value || "")
+      .replace(/<script[\s\S]*?<\/script>/gi, "")
+      .replace(/<(?:iframe|object|embed|link|meta|base|form|input|textarea|select)\b[\s\S]*?<\/(?:iframe|object|embed|link|meta|base|form|input|textarea|select)>/gi, "")
+      .replace(/<(?:iframe|object|embed|link|meta|base|form|input|textarea|select)\b[^>]*\/?>/gi, "")
+      .replace(/\son\w+\s*=\s*"[^"]*"/gi, "")
+      .replace(/\son\w+\s*=\s*'[^']*'/gi, "")
+      .replace(/\sstyle\s*=\s*"[^"]*"/gi, "")
+      .replace(/\sstyle\s*=\s*'[^']*'/gi, "")
+      .replace(/javascript:/gi, "")
+      .slice(0, 18000);
+  }
+
+  function sanitizeAiHtmlCss(value) {
+    return String(value || "")
+      .replace(/@import[^;]+;/gi, "")
+      .replace(/url\(\s*javascript:[^)]+\)/gi, "")
+      .replace(/position\s*:\s*fixed\s*;?/gi, "")
+      .slice(0, 18000);
+  }
+
+  function normalizeAiHtmlScheme(source, enabled = false) {
+    const scheme = source && typeof source === "object" ? source : {};
+    const html = sanitizeAiHtmlMarkup(scheme.html);
+    const css = sanitizeAiHtmlCss(scheme.css);
+    const hasHtml = Boolean(html && css);
+    return {
+      enabled: Boolean(enabled || scheme.enabled) && hasHtml,
+      name: cleanMetaText(scheme.name, "AI HTML 视觉方案", 56),
+      summary: cleanMetaText(scheme.summary, "AI 生成 HTML/CSS 视觉草稿，已进行安全清洗。", 220),
+      visualBrief: cleanMetaText(scheme.visualBrief, "用更自由的排版、留白和视觉层级提升页面美感。", 260),
+      html,
+      css,
+      dataBindings: (Array.isArray(scheme.dataBindings) ? scheme.dataBindings : [])
+        .map((item) => cleanMetaText(item, "", 80))
+        .filter(Boolean)
+        .slice(0, 12),
+      safetyStatus: cleanMetaText(scheme.safetyStatus, hasHtml ? "sanitized" : "empty", 32),
+      safetyNotes: (Array.isArray(scheme.safetyNotes) ? scheme.safetyNotes : ["已移除脚本、内联事件和危险 URL。"])
+        .map((item) => cleanMetaText(item, "", 120))
+        .filter(Boolean)
+        .slice(0, 8),
+      provider: cleanMetaText(scheme.provider, "", 48),
+      model: cleanMetaText(scheme.model, "", 80),
+      generatedAt: cleanMetaText(scheme.generatedAt, "", 48),
+    };
+  }
+
+		  const STRONG_ONBOARDING_SIGNALS = [
 	    "新手",
 	    "新客",
 	    "新用户",
@@ -6655,30 +6719,41 @@
     return styles;
   }
 
-  function normalizeDataContract(source) {
-    const contract = source && typeof source === "object" ? source : null;
-    if (!contract) return null;
-    const basePreviewSample = boolValue(contract.previewSample, false);
-    const baseBindingRequired = boolValue(contract.dataBindingRequired, false);
-    const sourceFields = contract.fields && typeof contract.fields === "object" ? contract.fields : {};
-    const normalizeField = (key, label, binding) => {
-      const field = sourceFields[key] && typeof sourceFields[key] === "object" ? sourceFields[key] : {};
-      return {
-        label: cleanMetaText(field.label, label, 48),
-        previewSample: boolValue(field.previewSample, basePreviewSample),
-        dataBindingRequired: boolValue(field.dataBindingRequired, baseBindingRequired),
-        binding: cleanMetaText(field.binding, binding, 80),
-        fallback: cleanMetaText(field.fallback, "--", 24),
-      };
-    };
-    return {
+	  function normalizeDataContract(source) {
+	    const contract = source && typeof source === "object" ? source : null;
+	    if (!contract) return null;
+	    const basePreviewSample = boolValue(contract.previewSample, false);
+	    const baseBindingRequired = boolValue(contract.dataBindingRequired, false);
+	    const sourceFields = contract.fields && typeof contract.fields === "object" ? contract.fields : {};
+	    const defaultTradingAccountFields = ["accountKind", "platform", "server", "account", "balance", "equity", "credit", "accountType", "leverage", "marginRatio"];
+	    const cleanFieldList = (value, fallback) => {
+	      const source = Array.isArray(value) && value.length ? value : fallback;
+	      return source.map((item) => cleanMetaText(item, "", 32)).filter(Boolean).slice(0, 12);
+	    };
+	    const normalizeField = (key, label, binding) => {
+	      const field = sourceFields[key] && typeof sourceFields[key] === "object" ? sourceFields[key] : {};
+	      const normalized = {
+	        label: cleanMetaText(field.label, label, 48),
+	        previewSample: boolValue(field.previewSample, basePreviewSample),
+	        dataBindingRequired: boolValue(field.dataBindingRequired, baseBindingRequired),
+	        binding: cleanMetaText(field.binding, binding, 80),
+	        fallback: cleanMetaText(field.fallback, "--", 24),
+	      };
+	      if (key === "tradingAccounts") {
+	        normalized.allowedFields = cleanFieldList(field.allowedFields, defaultTradingAccountFields);
+	        normalized.forbiddenFields = cleanFieldList(field.forbiddenFields, ["pnl", "usage", "positions", "marginUsed", "riskStatus", "actions"]);
+	      }
+	      return normalized;
+	    };
+	    return {
       mode: cleanMetaText(contract.mode, "api-bound-preview", 48),
       previewSample: basePreviewSample,
       dataBindingRequired: baseBindingRequired,
       fallback: cleanMetaText(contract.fallback, "placeholder", 32),
-      note: cleanMetaText(contract.note, "", 220),
-      fields: {
-        tradingCost: normalizeField("tradingCost", "交易成本", "api.trading.costs"),
+	      note: cleanMetaText(contract.note, "", 220),
+	      fields: {
+	        tradingAccounts: normalizeField("tradingAccounts", "交易账号卡片/列表字段", "api.trading.accounts"),
+	        tradingCost: normalizeField("tradingCost", "交易成本", "api.trading.costs"),
         pnl: normalizeField("pnl", "PnL / 盈亏", "api.trading.pnl"),
         margin: normalizeField("margin", "保证金", "api.trading.margin"),
         charts: normalizeField("charts", "账户表现图表", "api.trading.performanceSeries"),
@@ -7296,6 +7371,10 @@
       : normalizedLayout.layout;
     const layout = enforceHomepageLayoutSafety(hydratedLayout, moduleSettings);
     const brickPlan = sourceBrickPlan.length ? sourceBrickPlan : shouldHydrateBricks ? brickPlanFromLayout(layout) : [];
+    const renderMode = normalizeHomepageRenderMode(source.renderMode, source.htmlGenerationEnabled ? "compare" : "config");
+    const htmlScheme = normalizeAiHtmlScheme(source.htmlScheme, renderModeWantsAiHtml(renderMode) || Boolean(source.htmlGenerationEnabled));
+    const requestedActiveRenderMode = source.activeRenderMode || (renderMode === "aiHtml" ? "aiHtml" : "config");
+    const activeRenderMode = requestedActiveRenderMode === "aiHtml" && htmlScheme.enabled ? "aiHtml" : "config";
 
     const normalized = {
       schemaVersion: 4,
@@ -7343,7 +7422,11 @@
       pageIntent: source.pageIntent && typeof source.pageIntent === "object" ? clone(source.pageIntent) : null,
       compositionStrategy: cleanMetaText(source.compositionStrategy, "", 260),
       annotations: Array.isArray(source.annotations) ? source.annotations.slice(0, 24) : [],
-    validationErrors: normalizedLayout.validationErrors,
+      renderMode,
+      htmlGenerationEnabled: htmlScheme.enabled,
+      activeRenderMode,
+      htmlScheme,
+      validationErrors: normalizedLayout.validationErrors,
     };
 
     return sanitizeCanonicalHomepageConfig(applyPageGovernanceRules(normalized, source), source);
@@ -7512,6 +7595,19 @@
 	    return /交易账(?:号|户)[\s\S]{0,24}(?:列表|表格)|账(?:号|户)[\s\S]{0,12}(?:列表|表格)|列表形式|表格形式|不是卡片|非卡片|live\s*(account\s*)?list|demo\s*(account\s*)?list/i.test(source);
 	  }
 
+	  function wantsTradingAccountSingleViewCorrection(text) {
+	    const source = String(text || "");
+	    return /交易账(?:号|户)[\s\S]{0,48}(?:重复|叠加|两套|同时|混在一起|上方[\s\S]{0,16}下方|卡片[\s\S]{0,16}表格|摘要[\s\S]{0,16}表格)|账号卡片[\s\S]{0,28}(?:重复|叠加|表格|模块太多|重点太多|信息太多)|小卡片[\s\S]{0,28}(?:模块太多|重点太多|信息太多)|卡片(?:的)?问题|内容重复|模块套模块/.test(source);
+	  }
+
+	  function applyTradingAccountsListContract(config) {
+	    mergeModuleVariants(config, { TradingAccounts: "separatedList" });
+	    mergeModuleStyles(config, { tradingAccounts: "calm-table" });
+	    mergeModuleSettings(config, {
+	      tradingAccounts: { enabled: true, realEnabled: true, demoEnabled: true, grouping: "separated", viewMode: "list", realViewMode: "list", demoViewMode: "list" },
+	    });
+	  }
+
 		  function wantsTradingAccountStyleVariety(text) {
 		    const source = String(text || "");
 		    return /交易账(?:号|户)[\s\S]{0,40}(?:灵活|变化|智能|多版式|多种样式|不固定|不要总是卡片)|(?:卡片|card)[\s\S]{0,16}(?:列表|表格|list|table)|(?:列表|表格|list|table)[\s\S]{0,16}(?:卡片|card)|耳目一新|明显区别|明显差异|不沿用上一版|不要沿用上一版|不要只换颜色|不能只是换颜色|布局骨架|重排模块|重排\s*sections/i.test(source);
@@ -7532,12 +7628,15 @@
 	    if (!settings.enabled) return;
 
 	    const source = String(prompt || "");
-		    const explicitCards = wantsTradingAccountCards(source);
+	    const explicitCards = wantsTradingAccountCards(source);
 		    const explicitList = wantsTradingAccountList(source);
 		    const wantsVariety = wantsTradingAccountStyleVariety(source);
 		    const preferNonCard = /耳目一新|明显区别|明显差异|不沿用上一版|不要沿用上一版|不要只换颜色|不能只是换颜色|布局骨架|重排模块|重排\s*sections/i.test(source);
 
-    if (wantsFlatAccountOptimization(source) && wantsAccountCardRefinement(source) && !explicitList) return;
+    if (wantsTradingAccountSingleViewCorrection(source)) {
+      applyTradingAccountsListContract(config);
+      return;
+    }
 	    if (!wantsVariety && (isTradingCostWorkbenchConfig(config) || (settings.grouping === "separated" && settings.viewMode === "list"))) return;
 	    if (explicitCards && !wantsVariety) return;
 	    if (explicitList && !wantsVariety) {
@@ -7860,7 +7959,8 @@
     }
 
     if (wantsFlatAccountOptimization(text)) {
-      const refineCards = wantsAccountCardRefinement(text) && !wantsTradingAccountList(text);
+      const forceAccountList = wantsTradingAccountSingleViewCorrection(text);
+      const refineCards = wantsAccountCardRefinement(text) && !wantsTradingAccountList(text) && !forceAccountList;
       const keepSeparatedCards = wantsRealAccountCards(text) || /模拟(?:交易)?账(?:号|户)(?:列表)?[\s\S]{0,32}卡片/.test(text);
       mergeModuleVariants(config, {
         AccountPerformance: "cleanSnapshot",
@@ -9409,50 +9509,52 @@
     const isSeparated = accountSettings.grouping === "separated" && accountSettings.realEnabled && accountSettings.demoEnabled;
     const hasBothAccountTypes = accountSettings.realEnabled && accountSettings.demoEnabled;
     const realViewMode = accountSettings.realViewMode || (accountSettings.viewMode === "list" ? "list" : "card");
-    const demoViewMode = accountSettings.demoViewMode || (accountSettings.viewMode === "card" ? "card" : "list");
-    const realOrder = accountSettings.demoFirst ? 2 : 1;
-    const demoOrder = accountSettings.demoFirst ? 1 : 2;
-    const previewAccountCards = `
-      <article class="trade-account-card" data-kind="real">
-        <div class="account-card-head">
-          <span class="account-status">真实交易</span>
-          <span class="account-number">80010</span>
-        </div>
-        <div class="account-tags"><span>Trade</span><span>CopyTrading</span></div>
-        <div class="account-card-hero">
-          <div><span>净值(USD)</span><strong>12,726.40</strong></div>
-          <b class="is-profit">+1,280.60</b>
-        </div>
-        <div class="account-card-flat-meta" aria-label="账号概要">
-          <span><small>平台 / 服务器</small><b>MT5 · HCHoldings-Live2</b></span>
-          <span><small>余额</small><b>12,480.50</b></span>
-          <span><small>保证金 / 杠杆</small><b>2,410.00 · 1:100</b></span>
-        </div>
-      </article>
-      <article class="trade-account-card" data-kind="demo">
-        <div class="account-card-head">
-          <span class="account-status demo">模拟交易</span>
-          <span class="account-number">90021</span>
-        </div>
-        <div class="account-tags"><span>Practice</span><span>Strategy Test</span></div>
-        <div class="account-card-hero">
-          <div><span>净值(USD)</span><strong>51,280.60</strong></div>
-          <b class="is-profit">+428.20</b>
-        </div>
-        <div class="account-card-flat-meta" aria-label="账号概要">
-          <span><small>平台 / 服务器</small><b>MT5 · HCHoldings-Demo</b></span>
-          <span><small>模拟余额</small><b>50,000.00</b></span>
-          <span><small>保证金 / 杠杆</small><b>1,180.00 · 1:500</b></span>
-        </div>
-      </article>
-    `;
+	    const demoViewMode = accountSettings.demoViewMode || (accountSettings.viewMode === "card" ? "card" : "list");
+	    const realOrder = accountSettings.demoFirst ? 2 : 1;
+	    const demoOrder = accountSettings.demoFirst ? 1 : 2;
+	    const previewAccountCards = `
+	      <article class="trade-account-card" data-kind="real">
+	        <div class="account-card-head">
+	          <span class="account-status">Live</span>
+	          <span class="account-number">80010</span>
+	        </div>
+	        <div class="account-card-hero">
+	          <div><span>净值(USD)</span><strong>12,726.40</strong></div>
+	        </div>
+	        <div class="account-card-flat-meta" aria-label="账号概要">
+	          <span><small>平台 / 服务器</small><b>MT5 · HCHoldings-Live2</b></span>
+	          <span><small>余额</small><b>12,480.50</b></span>
+	          <span><small>信用金</small><b>500.00</b></span>
+	          <span><small>账户类型</small><b>ECN Standard</b></span>
+	          <span><small>杠杆</small><b>1:100</b></span>
+	          <span><small>保证金比例</small><b>528%</b></span>
+	        </div>
+	      </article>
+	      <article class="trade-account-card" data-kind="demo">
+	        <div class="account-card-head">
+	          <span class="account-status demo">Demo</span>
+	          <span class="account-number">90021</span>
+	        </div>
+	        <div class="account-card-hero">
+	          <div><span>净值(USD)</span><strong>51,280.60</strong></div>
+	        </div>
+	        <div class="account-card-flat-meta" aria-label="账号概要">
+	          <span><small>平台 / 服务器</small><b>MT5 · HCHoldings-Demo</b></span>
+	          <span><small>余额</small><b>50,000.00</b></span>
+	          <span><small>信用金</small><b>0.00</b></span>
+	          <span><small>账户类型</small><b>Demo ECN</b></span>
+	          <span><small>杠杆</small><b>1:500</b></span>
+	          <span><small>保证金比例</small><b>4345%</b></span>
+	        </div>
+	      </article>
+	    `;
     const previewRealCards = previewAccountCards.match(/<article class="trade-account-card" data-kind="real">[\s\S]*?<\/article>/)?.[0] || "";
     const previewDemoCards = previewAccountCards.match(/<article class="trade-account-card" data-kind="demo">[\s\S]*?<\/article>/)?.[0] || "";
     const morphId = moduleMorphId(config, "TradingAccounts") || "statusBoard";
-    const accountRowsMarkup = `
-      <div class="ai-account-morph-row" data-kind="real"><b>Live 80010</b><span>MT5 · HCHoldings-Live2</span><strong>12,726.40</strong><small>1:100</small></div>
-      <div class="ai-account-morph-row" data-kind="demo"><b>Demo 90021</b><span>MT5 · HCHoldings-Demo</span><strong>51,280.60</strong><small>1:500</small></div>
-    `;
+	    const accountRowsMarkup = `
+	      <div class="ai-account-morph-row" data-kind="real"><b>Live</b><span>80010</span><span>MT5 · HCHoldings-Live2</span><strong>12,480.50</strong><strong>12,726.40</strong><span>500.00</span><span>ECN Standard</span><span>1:100</span><span>528%</span></div>
+	      <div class="ai-account-morph-row" data-kind="demo"><b>Demo</b><span>90021</span><span>MT5 · HCHoldings-Demo</span><strong>50,000.00</strong><strong>51,280.60</strong><span>0.00</span><span>Demo ECN</span><span>1:500</span><span>4345%</span></div>
+	    `;
 
     if (isSeparated) {
       feature.id = "accounts";
@@ -9500,27 +9602,27 @@
       return feature;
     }
 
-    if (morphId === "opsTable") {
-      feature.id = "accounts";
-      feature.innerHTML = `
-        <div class="ai-accounts-command"><strong>${escapeHtml(t(safeProps.titleKey))}</strong><span>Ops Table</span></div>
-        <div class="ai-account-ops-table" role="table" aria-label="${escapeHtml(t(safeProps.titleKey))}">
-          <div role="row"><b role="columnheader">账号</b><b role="columnheader">服务器</b><b role="columnheader">净值</b><b role="columnheader">杠杆</b></div>
-          ${accountRowsMarkup}
-        </div>
+	    if (morphId === "opsTable") {
+	      feature.id = "accounts";
+	      feature.innerHTML = `
+	        <div class="ai-accounts-command"><strong>${escapeHtml(t(safeProps.titleKey))}</strong></div>
+	        <div class="ai-account-ops-table" role="table" aria-label="${escapeHtml(t(safeProps.titleKey))}">
+	          <div role="row"><b role="columnheader">账号类型</b><b role="columnheader">账号</b><b role="columnheader">平台 / 服务器</b><b role="columnheader">余额</b><b role="columnheader">净值</b><b role="columnheader">信用金</b><b role="columnheader">账户类型</b><b role="columnheader">杠杆</b><b role="columnheader">保证金比例</b></div>
+	          ${accountRowsMarkup}
+	        </div>
         <div class="accounts-card-view" data-accounts-card-view hidden>${previewAccountCards}</div>
         <div class="accounts-list-view" data-accounts-list-view hidden></div>
       `;
       return feature;
     }
 
-    if (morphId === "accountWall" || morphId === "mobileStack") {
-      feature.id = "accounts";
-      feature.innerHTML = `
-        <div class="ai-accounts-command"><strong>${escapeHtml(t(safeProps.titleKey))}</strong><span>${morphId === "mobileStack" ? "Stack" : "Wall"}</span></div>
-        <div class="${morphId === "mobileStack" ? "ai-account-mobile-stack" : "accounts-card-view"}" data-accounts-card-view>${previewAccountCards}</div>
-        <div class="accounts-list-view" data-accounts-list-view hidden></div>
-      `;
+	    if (morphId === "accountWall" || morphId === "mobileStack") {
+	      feature.id = "accounts";
+	      feature.innerHTML = `
+	        <div class="ai-accounts-command"><strong>${escapeHtml(t(safeProps.titleKey))}</strong></div>
+	        <div class="${morphId === "mobileStack" ? "ai-account-mobile-stack" : "accounts-card-view"}" data-accounts-card-view>${previewAccountCards}</div>
+	        <div class="accounts-list-view" data-accounts-list-view hidden></div>
+	      `;
       return feature;
     }
 
@@ -9535,15 +9637,14 @@
       return feature;
     }
 
-    if (["statusBoard", "groupPanels", "platformGroups", "heroAccountList"].includes(morphId)) {
-      feature.id = "accounts";
-      feature.innerHTML = `
-        <div class="ai-account-${escapeHtml(morphId)}">
-          <header><strong>${escapeHtml(t(safeProps.titleKey))}</strong><span>${escapeHtml(morphId)}</span></header>
-          <section class="ai-account-morph-hero">${previewRealCards}</section>
-          <section class="ai-account-morph-list">${accountRowsMarkup}</section>
-        </div>
-        <div class="accounts-card-view" data-accounts-card-view hidden>${previewAccountCards}</div>
+	    if (["statusBoard", "groupPanels", "platformGroups", "heroAccountList"].includes(morphId)) {
+	      feature.id = "accounts";
+	      feature.innerHTML = `
+	        <div class="ai-account-${escapeHtml(morphId)}">
+	          <header><strong>${escapeHtml(t(safeProps.titleKey))}</strong></header>
+	          <section class="ai-account-morph-list">${accountRowsMarkup}</section>
+	        </div>
+	        <div class="accounts-card-view" data-accounts-card-view hidden>${previewAccountCards}</div>
         <div class="accounts-list-view" data-accounts-list-view hidden></div>
       `;
       return feature;
@@ -10420,7 +10521,7 @@
       .filter((section) => section.slots.length);
   }
 
-  function renderSlot(doc, slot, config) {
+	  function renderSlot(doc, slot, config) {
     if (slot === "welcome_header") return renderWelcomeHeader(doc, config);
     if (slot === "asset_overview") return renderBalanceTotal(doc, config);
     if (slot === "quick_actions") return renderQuickActions(doc, config);
@@ -10454,7 +10555,58 @@
     if (slot === "marketInsight") return renderMarketInsight(doc, config);
     if (slot === "riskNotice") return renderRiskDisclosure(doc, config);
 
-    return wrapFeature(doc, slot, "ai-empty-feature", config);
+	    return wrapFeature(doc, slot, "ai-empty-feature", config);
+	  }
+
+  function renderAiHtmlScheme(config, target) {
+    const shell = target.querySelector("[data-home-shell]");
+    const scheme = normalizeAiHtmlScheme(config.htmlScheme, true);
+    if (!shell || !scheme.enabled) {
+      renderBlueprint(config, target);
+      return;
+    }
+
+    shell.querySelectorAll(".client-welcome, [data-home-row], [data-home-module], [data-layout-section], [data-home-feature], [data-ai-html-render-host]").forEach((node) => node.remove());
+    shell.classList.remove("is-blueprint-home");
+    shell.classList.add("is-ai-html-home");
+    shell.dataset.aiHtmlScheme = scheme.name;
+
+    const host = target.createElement("section");
+    host.className = "ai-html-render-host";
+    host.dataset.aiHtmlRenderHost = "";
+    host.dataset.aiHtmlSafety = scheme.safetyStatus || "sanitized";
+    host.setAttribute("aria-label", scheme.name || "AI HTML 首页预览");
+
+    const shadow = host.attachShadow({ mode: "open" });
+    shadow.innerHTML = `
+      <style>
+        :host {
+          display: block;
+          min-width: 0;
+          color: var(--home-text, #172033);
+          font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+        }
+        *, *::before, *::after { box-sizing: border-box; }
+        a { color: inherit; text-decoration: none; }
+        button, a { font: inherit; }
+        ${scheme.css}
+      </style>
+      ${scheme.html}
+    `;
+
+    shadow.addEventListener("click", (event) => {
+      const actionTarget = event.target?.closest?.("[data-home-action]");
+      if (!actionTarget) return;
+      host.dispatchEvent(
+        new CustomEvent("home-ai-html-action", {
+          bubbles: true,
+          composed: true,
+          detail: { action: actionTarget.dataset.homeAction || "" },
+        }),
+      );
+    });
+
+    shell.appendChild(host);
   }
 
   function componentEnabled(component, config) {
@@ -10501,8 +10653,9 @@
     const renderableBlocks = config.layout.filter((block) => COMPONENT_MAP[block.component] && componentEnabled(block.component, config));
     const heroBlocks = renderableBlocks.filter((block) => block.slot === "hero" && block.component !== "welcome_header");
 
-    shell.querySelectorAll(".client-welcome, [data-home-row], [data-home-module], [data-layout-section], [data-home-feature]").forEach((node) => node.remove());
+    shell.querySelectorAll(".client-welcome, [data-home-row], [data-home-module], [data-layout-section], [data-home-feature], [data-ai-html-render-host]").forEach((node) => node.remove());
     shell.classList.add("is-blueprint-home");
+    shell.classList.remove("is-ai-html-home");
     shell.className = shell.className
       .split(/\s+/)
       .filter((className) => className && !className.startsWith("ai-blueprint-layout-"))
@@ -10709,14 +10862,12 @@
 
     if (!body) return normalized;
 
-    if (body.dataset.layoutPage === "client-home") {
-      renderBlueprint(normalized, target);
-    }
-
     body.dataset.homeTheme = normalized.themePreset;
     body.dataset.tenantTheme = normalized.themePreset;
     body.dataset.homeDensity = normalized.density;
     body.dataset.homeLayout = normalized.layoutPreset;
+    body.dataset.homeRenderMode = normalized.activeRenderMode || "config";
+    body.dataset.homeHtmlEnabled = normalized.htmlScheme?.enabled ? "true" : "false";
     body.dataset.homeGenome = normalized.designGenome;
     body.dataset.homeStory = normalized.pageStory;
     body.dataset.homeHero = normalized.heroFocus;
@@ -10746,6 +10897,14 @@
       target.documentElement.dataset.tenantTheme = normalized.themePreset;
     }
     applyThemeCustomVars(target, normalized.themeCustom);
+
+    if (body.dataset.layoutPage === "client-home") {
+      if (normalized.activeRenderMode === "aiHtml" && normalized.htmlScheme?.enabled) {
+        renderAiHtmlScheme(normalized, target);
+      } else {
+        renderBlueprint(normalized, target);
+      }
+    }
 
     target.querySelectorAll(".is-home-spotlight").forEach((node) => node.classList.remove("is-home-spotlight"));
     target.querySelectorAll(`[data-home-feature="${normalized.heroFocus}"]`).forEach((node) => {
@@ -10859,7 +11018,10 @@
       {
         label: "组件变体",
         value: variants,
-        reason: "组件形态来自白名单形态池，AI 只选择 JSON 配置，不生成页面代码。",
+        reason:
+          normalized.htmlScheme?.enabled && normalized.renderMode !== "config"
+            ? `当前同时保留组件化配置和 ${normalized.htmlScheme.name}，管理员可切换预览/发布方式。`
+            : "组件形态来自白名单形态池，AI 只选择 JSON 配置，不生成页面代码。",
       },
     ].filter(Boolean);
   }
@@ -10878,8 +11040,9 @@
       .slice(0, 5)
       .join(" / ");
 
-    choices.push(settings.wallet.enabled && settings.wallet.placement === "standalone" ? "钱包独立展示" : "钱包聚合到资产");
-    choices.push(settings.quickActions.enabled ? `快捷入口保留 ${settings.quickActions.count} 个` : "弱化快捷入口");
+	    choices.push(settings.wallet.enabled && settings.wallet.placement === "standalone" ? "钱包独立展示" : "钱包聚合到资产");
+    choices.push(normalized.htmlScheme?.enabled ? `AI HTML 已生成：${normalized.activeRenderMode === "aiHtml" ? "当前预览 HTML 版" : "当前预览组件版"}` : "AI HTML 未启用");
+	    choices.push(settings.quickActions.enabled ? `快捷入口保留 ${settings.quickActions.count} 个` : "弱化快捷入口");
     choices.push(settings.adCarousel.enabled ? "保留广告曝光" : "隐藏广告轮播");
     choices.push(settings.referral.enabled ? "保留邀请转化" : "隐藏邀请模块");
     choices.push(

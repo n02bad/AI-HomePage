@@ -141,6 +141,7 @@
   }
 
   function normalizeModelTemperature(provider, value) {
+    if (provider === "kimi") return 1;
     if (!Number.isFinite(value)) return DEFAULT_MODEL_CONFIG.temperature;
     if (provider === "minimax") return Math.min(Math.max(value, 0.01), 1);
     return Math.min(Math.max(value, 0), 2);
@@ -562,9 +563,9 @@
     optionList.innerHTML = preset.models.map((model) => `<option value="${escapeHtml(model)}"></option>`).join("");
     const temperatureField = modal.querySelector('[data-model-config-field="temperature"]');
     if (temperatureField) {
-      temperatureField.min = config.provider === "minimax" ? "0.01" : "0";
-      temperatureField.max = config.provider === "minimax" ? "1" : "2";
-      temperatureField.step = config.provider === "minimax" ? "0.01" : "0.1";
+      temperatureField.min = config.provider === "minimax" ? "0.01" : config.provider === "kimi" ? "1" : "0";
+      temperatureField.max = ["minimax", "kimi"].includes(config.provider) ? "1" : "2";
+      temperatureField.step = config.provider === "minimax" ? "0.01" : config.provider === "kimi" ? "1" : "0.1";
     }
     const maxTokensField = modal.querySelector('[data-model-config-field="maxOutputTokens"]');
     if (maxTokensField) {

@@ -5,6 +5,7 @@
 
   const PROMPT_KEY = "forexcrm.home.personalization.prompt";
   const PREVIEW_SIZE_KEY = "forexcrm.home.preview.size";
+  const RENDER_MODE_KEY = "forexcrm.home.ai.render.mode";
   const MODEL_CONFIG_KEY = "forexcrm.home.ai.model.config";
   const MODEL_HISTORY_KEY = "forexcrm.home.ai.call.history";
   const SUGGESTION_HISTORY_KEY = "forexcrm.home.ai.suggestion.history";
@@ -30,6 +31,20 @@
     immersive: "large",
     desktop: "web",
     phone: "mobile",
+  };
+  const RENDER_MODE_OPTIONS = {
+    config: {
+      label: "组件化",
+      summary: "稳定模式：AI 输出配置，由首页组件和积木渲染。",
+    },
+    aiHtml: {
+      label: "AI HTML",
+      summary: "自由模式：AI 生成受控 HTML/CSS 草稿，优先追求视觉美感。",
+    },
+    compare: {
+      label: "双方案",
+      summary: "对比模式：同时保存组件化方案和 AI HTML 视觉方案。",
+    },
   };
 
   const AI_MODEL_PRESETS = {
@@ -128,6 +143,7 @@
     summary: document.querySelector("[data-ai-summary]"),
     layout: document.querySelector("[data-summary-layout]"),
     theme: document.querySelector("[data-summary-theme]"),
+    renderModeSummary: document.querySelector("[data-summary-render]"),
     density: document.querySelector("[data-summary-density]"),
     strength: document.querySelector("[data-summary-strength]"),
     hero: document.querySelector("[data-summary-hero]"),
@@ -146,6 +162,8 @@
     generateSuggestions: document.querySelector("[data-ai-generate-suggestions]"),
     refreshSuggestions: document.querySelector("[data-refresh-suggestions]"),
     suggestionButtons: [...document.querySelectorAll("[data-suggestion-prompt]")],
+    renderModeButtons: [...document.querySelectorAll("[data-render-mode-button]")],
+    renderModeNotes: [...document.querySelectorAll("[data-render-mode-note]")],
     generationModeButtons: [...document.querySelectorAll("[data-generation-mode-button]")],
     generationPanels: [...document.querySelectorAll("[data-generation-panel]")],
     guidedChoices: [...document.querySelectorAll("[data-guided-choice]")],
@@ -165,8 +183,10 @@
   let selectedSuggestion = null;
   let interpretationRound = 0;
   let activePreviewSize = "web";
+  let renderModeSetting = loadRenderModeSetting();
   let aiModelConfig = loadModelConfig();
   let editingModelConfig = null;
+  let providerRuntimeStatus = {};
   let modelTestState = { tone: "", message: "尚未测试" };
   let suggestionRound = 0;
   let suggestionCards = [];
@@ -193,6 +213,133 @@
     showToast.timer = window.setTimeout(() => {
       els.toast.hidden = true;
     }, 1800);
+  }
+
+  function normalizeRenderMode(value, fallback = "config") {
+    return RENDER_MODE_OPTIONS[value] ? value : fallback;
+  }
+
+  function loadRenderModeSetting() {
+    try {
+      return normalizeRenderMode(window.localStorage.getItem(RENDER_MODE_KEY), "config");
+    } catch (error) {
+      return "config";
+    }
+  }
+
+  function saveRenderModeSetting(mode) {
+    const normalized = normalizeRenderMode(mode);
+    renderModeSetting = normalized;
+    try {
+      window.localStorage.setItem(RENDER_MODE_KEY, normalized);
+    } catch (error) {
+      // The current in-memory choice still applies if storage is unavailable.
+    }
+    renderRenderModeControls();
+    return normalized;
+  }
+
+  function renderModeLabel(mode) {
+    return RENDER_MODE_OPTIONS[normalizeRenderMode(mode)]?.label || mode;
+  }
+
+  function currentGenerationRenderMode() {
+    return normalizeRenderMode(renderModeSetting);
+  }
+
+  function activePreviewRenderMode(config = currentConfig) {
+    const normalized = home.normalizeConfig(config);
+    return normalized.activeRenderMode === "aiHtml" && normalized.htmlScheme?.enabled ? "aiHtml" : "config";
+  }
+
+  function renderRenderModeControls() {
+    const normalizedConfig = home.normalizeConfig(currentConfig);
+    const generationMode = currentGenerationRenderMode();
+    const activePreviewMode = activePreviewRenderMode(normalizedConfig);
+    const canPreviewHtml = Boolean(normalizedConfig.htmlScheme?.enabled);
+
+    els.renderModeButtons.forEach((button) => {
+      const mode = normalizeRenderMode(button.dataset.renderModeButton, "config");
+      const isPreviewControl = Boolean(button.closest("[data-preview-render-mode-controls]"));
+      const active = isPreviewControl ? activePreviewMode === mode : generationMode === mode;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+      if (isPreviewControl && mode === "aiHtml") {
+        button.disabled = !canPreviewHtml;
+        button.title = canPreviewHtml ? "切换到 AI HTML 预览" : "当前草稿还没有 AI HTML 方案";
+      }
+    });
+
+    els.renderModeNotes.forEach((note) => {
+      const mode = note.closest("[data-preview-render-mode-controls]") ? activePreviewMode : generationMode;
+      const option = RENDER_MODE_OPTIONS[mode] || RENDER_MODE_OPTIONS.config;
+      const htmlSuffix = normalizedConfig.htmlScheme?.enabled ? ` · 已保存 ${normalizedConfig.htmlScheme.name}` : "";
+      note.textContent = `${option.summary}${htmlSuffix}`;
+    });
+  }
+
+  function localAiHtmlScheme(config, prompt, reason = "本地生成") {
+    const normalized = home.normalizeConfig(config);
+    const title = escapeHtml(normalized.name || "AI 首页视觉方案");
+    const promptText = escapeHtml(String(prompt || normalized.aiSummary || "成熟券商客户端首页").slice(0, 220));
+    const theme = escapeHtml(normalized.themePreset || normalized.theme || "default");
+    return {
+      enabled: true,
+      name: `${normalized.name || "AI 首页"} HTML 版`.slice(0, 56),
+      summary: `${reason}的 AI HTML 视觉草稿，可和组件化方案并存。`.slice(0, 220),
+      visualBrief: "更强调首屏视觉焦点、主金额、操作入口和数据模块的层级。",
+      dataBindings: ["totalAssets", "walletBalance", "tradingAccountBalance", "quickActionList", "tradingAccounts"],
+      safetyStatus: "local-sanitized",
+      safetyNotes: ["本地 HTML 草稿不包含脚本，只用于验证双模式渲染链路。"],
+      generatedAt: new Date().toISOString(),
+      html: `
+        <section class="ai-html-page" data-ai-html-theme="${theme}">
+          <header class="ai-html-hero">
+            <div>
+              <span>AI HTML VISUAL DRAFT</span>
+              <h1>${title}</h1>
+              <p>${promptText}</p>
+            </div>
+            <aside><small>余额合计</small><strong>$125,430.80</strong><em>Wallet $18,920 · TA $106,510</em></aside>
+          </header>
+          <nav class="ai-html-actions">
+            <a data-home-action="deposit" href="#deposit">入金</a>
+            <a data-home-action="openAccount" href="#account">开真实账户</a>
+            <a data-home-action="orders" href="#orders">订单</a>
+            <a data-home-action="positions" href="#positions">持仓</a>
+          </nav>
+          <section class="ai-html-grid">
+            <article><span>账户表现</span><strong>7D Equity</strong><div class="ai-html-bars"><i></i><i></i><i></i><i></i><i></i></div><p>真实数据来自接口，预览阶段使用样例趋势。</p></article>
+            <article><span>下一步</span><strong>完成账户路径</strong><ol><li>KYC 状态</li><li>创建真实账户</li><li>首次入金</li></ol></article>
+          </section>
+          <section class="ai-html-table"><span>Trading Accounts</span><div><b>Live</b><strong>80010</strong><em>MT5 · Equity $12,726.40</em></div><div><b>Demo</b><strong>90021</strong><em>MT5 · Equity $51,280.60</em></div></section>
+        </section>
+      `,
+      css: `
+        :host{display:block;color:var(--home-text,#172033);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+        .ai-html-page{display:grid;gap:14px;padding:16px;background:var(--home-bg,#f6f8fb)}.ai-html-page *{box-sizing:border-box}
+        .ai-html-hero{min-height:250px;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(220px,.65fr);gap:16px;align-items:stretch;padding:22px;border:1px solid var(--home-banner-border,#c7d2fe);border-radius:var(--home-radius-sm,8px);background:linear-gradient(135deg,var(--home-banner-bg,#10213f),color-mix(in srgb,var(--home-primary,#2563eb) 30%,#0f172a));color:var(--home-banner-text,#fff)}
+        .ai-html-hero div{display:grid;align-content:center;gap:12px}.ai-html-hero span,.ai-html-grid span,.ai-html-table span{color:var(--home-primary,#2563eb);font-size:12px;font-weight:950}.ai-html-hero h1{margin:0;font-size:36px;line-height:1.06;font-weight:950}.ai-html-hero p{margin:0;color:var(--home-banner-muted,#dbeafe);font-size:14px;line-height:1.7}.ai-html-hero aside{display:grid;align-content:end;gap:8px;padding:18px;border:1px solid color-mix(in srgb,var(--home-banner-text,#fff) 20%,transparent);border-radius:var(--home-radius-sm,8px);background:color-mix(in srgb,var(--home-banner-text,#fff) 9%,transparent)}.ai-html-hero aside strong{font-size:32px;line-height:1}.ai-html-hero aside small,.ai-html-hero aside em{color:var(--home-banner-muted,#dbeafe);font-style:normal;font-weight:850}
+        .ai-html-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.ai-html-actions a{min-height:54px;display:grid;place-items:center;border:1px solid var(--home-button-border,#1d4ed8);border-radius:var(--home-radius-sm,8px);background:var(--home-button-bg,#2563eb);color:var(--home-button-text,#fff);font-weight:950;text-decoration:none}
+        .ai-html-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:14px}.ai-html-grid article,.ai-html-table{display:grid;gap:12px;padding:18px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-card-bg,#fff);box-shadow:0 16px 40px rgba(15,23,42,.07)}.ai-html-grid strong{font-size:22px}.ai-html-grid p{margin:0;color:var(--home-text-muted,#64748b);line-height:1.6}.ai-html-bars{height:92px;display:grid;grid-template-columns:repeat(5,1fr);gap:7px;align-items:end}.ai-html-bars i{display:block;border-radius:999px 999px 4px 4px;background:linear-gradient(180deg,var(--home-primary,#2563eb),color-mix(in srgb,var(--home-primary,#2563eb) 20%,transparent))}.ai-html-bars i:nth-child(1){height:38%}.ai-html-bars i:nth-child(2){height:58%}.ai-html-bars i:nth-child(3){height:48%}.ai-html-bars i:nth-child(4){height:72%}.ai-html-bars i:nth-child(5){height:88%}.ai-html-grid ol{display:grid;gap:8px;margin:0;padding:0;list-style:none}.ai-html-grid li{padding:11px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft,#f8fbff);font-weight:900}
+        .ai-html-table div{display:grid;grid-template-columns:80px 100px 1fr;gap:10px;align-items:center;padding:12px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft,#f8fbff)}.ai-html-table b{color:var(--home-primary,#2563eb)}.ai-html-table em{color:var(--home-text-muted,#64748b);font-style:normal}
+        @media(max-width:860px){.ai-html-hero,.ai-html-grid{grid-template-columns:1fr}.ai-html-actions{grid-template-columns:repeat(2,minmax(0,1fr))}.ai-html-table div{grid-template-columns:1fr}.ai-html-hero h1{font-size:28px}}
+      `,
+    };
+  }
+
+  function attachRenderModeToConfig(config, prompt, options = {}) {
+    const mode = normalizeRenderMode(options.renderMode || currentGenerationRenderMode());
+    const next = {
+      ...config,
+      renderMode: mode,
+      htmlGenerationEnabled: mode !== "config",
+    };
+    if (mode !== "config" && !next.htmlScheme?.enabled) {
+      next.htmlScheme = localAiHtmlScheme(next, prompt, options.reason || "本地 fallback");
+    }
+    next.activeRenderMode = mode === "aiHtml" && next.htmlScheme?.enabled ? "aiHtml" : "config";
+    return next;
   }
 
   function labelDensity(density) {
@@ -329,6 +476,10 @@
     if (els.summary) els.summary.textContent = config.aiSummary;
     if (els.layout) els.layout.textContent = home.layoutLabel(config.layoutPreset);
     if (els.theme) els.theme.textContent = home.themeLabel(config.themePreset || config.theme);
+    if (els.renderModeSummary) {
+      const suffix = config.htmlScheme?.enabled ? ` / ${config.htmlScheme.name}` : "";
+      els.renderModeSummary.textContent = `${renderModeLabel(config.activeRenderMode || "config")}${suffix}`;
+    }
     if (els.density) els.density.textContent = labelDensity(config.density);
     if (els.strength) els.strength.textContent = labelStrength(config.personalizationStrength);
     if (els.hero) els.hero.textContent = home.featureLabel(config.heroFocus);
@@ -415,6 +566,7 @@
     renderPagePresetControls();
     renderModuleStyleControls();
     renderModuleSettingControls();
+    renderRenderModeControls();
     applyPreview(true);
     updateStatus(statusText || "草稿预览", false);
   }
@@ -1360,6 +1512,7 @@
   }
 
   function normalizeModelTemperature(provider, value) {
+    if (provider === "kimi") return 1;
     if (!Number.isFinite(value)) return DEFAULT_MODEL_CONFIG.temperature;
     if (provider === "minimax") return Math.min(Math.max(value, 0.01), 1);
     return Math.min(Math.max(value, 0), 2);
@@ -1458,11 +1611,85 @@
     return `${key.slice(0, 4)}••••${key.slice(-4)}`;
   }
 
+  function modelConfigWasSaved() {
+    try {
+      return Boolean(window.localStorage.getItem(MODEL_CONFIG_KEY));
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function providerStatus(provider) {
+    return providerRuntimeStatus[provider] || {};
+  }
+
+  function providerHasServerKey(provider) {
+    return Boolean(providerStatus(provider).hasServerKey);
+  }
+
+  function modelKeyStatusLabel(config) {
+    const normalized = sanitizeModelConfig(config);
+    if (normalized.apiKey) return maskedApiKey(normalized.apiKey);
+
+    const status = providerStatus(normalized.provider);
+    if (status.hasServerKey) {
+      return `服务端已配置 ${status.serverKeyEnv || providerPreset(normalized.provider).apiKeyLabel}`;
+    }
+
+    return "未填写";
+  }
+
+  function applyServerConfiguredProvider() {
+    if (modelConfigWasSaved() || providerHasServerKey(aiModelConfig.provider)) return false;
+
+    const provider = ["deepseek", "minimax", "kimi", "openai", "claude"].find(providerHasServerKey);
+    if (!provider) return false;
+
+    aiModelConfig = sanitizeModelConfig({
+      ...providerPreset(provider),
+      callMode: "serverProxy",
+      proxyEndpoint: DEFAULT_MODEL_CONFIG.proxyEndpoint,
+      apiKey: "",
+      apiKeys: aiModelConfig.apiKeys,
+      temperature: DEFAULT_MODEL_CONFIG.temperature,
+      maxOutputTokens: provider === "minimax" ? MINIMAX_MAX_COMPLETION_TOKENS : DEFAULT_MODEL_CONFIG.maxOutputTokens,
+    });
+    return true;
+  }
+
+  async function refreshProviderRuntimeStatus() {
+    try {
+      const response = await fetch("/api/home-ai/providers", { headers: { accept: "application/json" } });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.providers) return;
+
+      providerRuntimeStatus = Object.fromEntries(
+        Object.entries(payload.providers).map(([provider, item]) => [
+          provider,
+          {
+            hasServerKey: Boolean(item?.hasServerKey),
+            serverKeyEnv: String(item?.serverKeyEnv || ""),
+            keyEnv: Array.isArray(item?.keyEnv) ? item.keyEnv : [],
+          },
+        ]),
+      );
+
+      applyServerConfiguredProvider();
+      renderModelConfigSummary();
+
+      const modal = document.querySelector("[data-model-config-modal]");
+      if (modal && !modal.hidden) renderModelConfigModal();
+    } catch (error) {
+      providerRuntimeStatus = {};
+    }
+  }
+
   function renderModelConfigSummary() {
     if (!els.modelConfigSummary.length) return;
 
     const config = sanitizeModelConfig(aiModelConfig);
     const preset = providerPreset(config.provider);
+    const keyHint = modelKeyStatusLabel(config);
     const runtimeHint =
       config.callMode === "serverProxy"
         ? `将通过 ${config.proxyEndpoint} 转发到 ${config.baseUrl}${config.endpoint}`
@@ -1473,7 +1700,7 @@
         <div>
           <span>${escapeHtml(preset.name)}</span>
           <strong>${escapeHtml(config.model)}</strong>
-          <small>${escapeHtml(preset.badge)} · ${escapeHtml(callModeLabel(config.callMode))}</small>
+          <small>${escapeHtml(preset.badge)} · ${escapeHtml(callModeLabel(config.callMode))} · ${escapeHtml(keyHint)}</small>
           <p>${escapeHtml(runtimeHint)}</p>
         </div>
         <button type="button" data-model-config-open>配置</button>
@@ -1804,12 +2031,12 @@
       <b>${escapeHtml(preset.name)} · ${escapeHtml(config.model)}</b>
       <p>${escapeHtml(preset.note)}</p>
       <dl>
-        <div><dt>密钥状态</dt><dd>${escapeHtml(maskedApiKey(config.apiKey))}</dd></div>
+        <div><dt>密钥状态</dt><dd>${escapeHtml(modelKeyStatusLabel(config))}</dd></div>
         <div><dt>运行状态</dt><dd>${escapeHtml(callModeLabel(config.callMode))}</dd></div>
         <div><dt>调用地址</dt><dd>${escapeHtml(`${config.baseUrl}${config.endpoint}`)}</dd></div>
         <div><dt>测试状态</dt><dd data-model-test-status data-tone="${escapeHtml(modelTestState.tone || "")}">${escapeHtml(modelTestState.message || "尚未测试")}</dd></div>
       </dl>
-      <small>保存后配置会保留在当前浏览器；测试连通性会用当前表单值做一次后端握手，不需要先生成首页。</small>
+      <small>${escapeHtml(providerHasServerKey(config.provider) && !config.apiKey ? "服务端已从 .env 加载这个厂商的 Key，输入框可留空；保存只记录厂商、模型和调用参数。" : "保存后配置会保留在当前浏览器；测试连通性会用当前表单值做一次后端握手，不需要先生成首页。")}</small>
     `;
   }
 
@@ -1826,13 +2053,16 @@
 
     providerList.innerHTML = Object.values(AI_MODEL_PRESETS)
       .map(
-        (item) => `
+        (item) => {
+          const serverKeyText = providerHasServerKey(item.provider) ? " · 服务端Key已配置" : "";
+          return `
           <button class="${item.provider === config.provider ? "active" : ""}" type="button" data-model-provider="${item.provider}">
             <span>${escapeHtml(item.name)}</span>
             <strong>${escapeHtml(item.model)}</strong>
-            <small>${escapeHtml(item.badge)}</small>
+            <small>${escapeHtml(`${item.badge}${serverKeyText}`)}</small>
           </button>
-        `,
+        `;
+        },
       )
       .join("");
 
@@ -1857,9 +2087,9 @@
     optionList.innerHTML = preset.models.map((model) => `<option value="${escapeHtml(model)}"></option>`).join("");
     const temperatureField = modal.querySelector('[data-model-config-field="temperature"]');
     if (temperatureField) {
-      temperatureField.min = config.provider === "minimax" ? "0.01" : "0";
-      temperatureField.max = config.provider === "minimax" ? "1" : "2";
-      temperatureField.step = config.provider === "minimax" ? "0.01" : "0.1";
+      temperatureField.min = config.provider === "minimax" ? "0.01" : config.provider === "kimi" ? "1" : "0";
+      temperatureField.max = ["minimax", "kimi"].includes(config.provider) ? "1" : "2";
+      temperatureField.step = config.provider === "minimax" ? "0.01" : config.provider === "kimi" ? "1" : "0.1";
     }
     const maxTokensField = modal.querySelector('[data-model-config-field="maxOutputTokens"]');
     if (maxTokensField) {
@@ -1963,6 +2193,7 @@
 
   function initModelConfig() {
     renderModelConfigSummary();
+    refreshProviderRuntimeStatus();
 
     document.addEventListener("click", (event) => {
       const openButton = event.target.closest("[data-model-config-open]");
@@ -1989,6 +2220,9 @@
     });
     els.suggestionButtons.forEach((button) => {
       button.disabled = busy;
+    });
+    els.renderModeButtons.forEach((button) => {
+      if (!button.closest("[data-preview-render-mode-controls]")) button.disabled = busy;
     });
     [els.generateSuggestions, els.refreshSuggestions].filter(Boolean).forEach((button) => {
       button.disabled = busy;
@@ -2071,10 +2305,11 @@
       schema: home.HOMEPAGE_CONFIG_JSON_SCHEMA,
     };
 
-    if (options.inputMode) context.inputMode = options.inputMode;
-    if (options.guidedIntake) context.guidedIntake = options.guidedIntake;
-    return context;
-  }
+	    if (options.inputMode) context.inputMode = options.inputMode;
+	    if (options.guidedIntake) context.guidedIntake = options.guidedIntake;
+    if (options.renderMode) context.renderMode = normalizeRenderMode(options.renderMode);
+	    return context;
+	  }
 
   function aiGenerationLabel(config) {
     const provider = providerPreset(config.provider);
@@ -2123,7 +2358,7 @@
     }
 
     if (/timed out|timeout|超时/i.test(source)) {
-      return "处理建议：模型连通正常，但首页蓝图生成超过代理等待时间；MiniMax/Kimi 已改用短 prompt，Kimi 旧模型会自动尝试当前默认模型，DeepSeek Pro 会自动降级到 Flash。仍失败时再回退本地方案。";
+      return "处理建议：模型连通正常，但首页蓝图生成超过代理等待时间；MiniMax/Kimi 已改用短 prompt，Kimi 会关闭 thinking 并使用 max_completion_tokens，Kimi 旧模型会自动尝试当前默认模型，DeepSeek Pro 会自动降级到 Flash。仍失败时再回退本地方案。";
     }
 
     return "";
@@ -2234,35 +2469,44 @@
 
 	  async function generateConfigFromModel(prompt, options = {}) {
 	    const config = sanitizeModelConfig(aiModelConfig);
+      const renderMode = normalizeRenderMode(options.renderMode || currentGenerationRenderMode());
 	    if (config.callMode !== "serverProxy") {
 	      return {
-        config: home.promptToConfig(prompt, options.variant || 0),
-        usedModel: false,
-        label: "本地规则",
-      };
-    }
+        config: attachRenderModeToConfig(home.promptToConfig(prompt, options.variant || 0), prompt, { renderMode, reason: "本地规则生成" }),
+	        usedModel: false,
+	        label: "本地规则",
+	      };
+	    }
 
-    const payload = await requestAiProxy(config, "complete", {
-      prompt,
-      variant: options.variant || 0,
-      inputMode: options.inputMode || "quick",
-      modelConfig: aiRequestModelConfig(),
-      context: aiRequestContext({
-        inputMode: options.inputMode || "quick",
-        guidedIntake: options.guidedIntake || null,
-      }),
-    });
+	    const payload = await requestAiProxy(config, "complete", {
+	      prompt,
+	      variant: options.variant || 0,
+        renderMode,
+	      inputMode: options.inputMode || "quick",
+	      modelConfig: aiRequestModelConfig(),
+	      context: aiRequestContext({
+	        inputMode: options.inputMode || "quick",
+	        guidedIntake: options.guidedIntake || null,
+          renderMode,
+	      }),
+	    });
     const usedProvider = providerPreset(payload.provider || config.provider);
     const usedModel = payload.model || config.model;
 
     const aiConfig = {
-      generationMode: "brick-v2",
-      ...(payload.config || {}),
-      aiSummary:
-        payload.config?.aiSummary ||
-        `已通过 ${usedProvider.name} / ${usedModel} 生成首页蓝图，并完成前端安全标准化。`,
-    };
-    const normalizedConfig = home.normalizeConfig(aiConfig);
+	      generationMode: "brick-v2",
+	      ...(payload.config || {}),
+        renderMode: payload.renderMode || renderMode,
+        activeRenderMode: payload.activeRenderMode || (renderMode === "aiHtml" ? "aiHtml" : "config"),
+        htmlGenerationEnabled: renderMode !== "config",
+        ...(payload.htmlScheme ? { htmlScheme: payload.htmlScheme } : {}),
+	      aiSummary:
+	        payload.config?.aiSummary ||
+	        `已通过 ${usedProvider.name} / ${usedModel} 生成首页蓝图，并完成前端安全标准化。`,
+	    };
+	    const normalizedConfig = home.normalizeConfig(
+        attachRenderModeToConfig(aiConfig, prompt, { renderMode, reason: `${usedProvider.name} fallback` }),
+      );
 
     return {
       config: normalizedConfig,
@@ -2279,8 +2523,10 @@
 	      name: normalized.name,
 	      layoutPreset: normalized.layoutPreset,
 	      themePreset: normalized.themePreset || normalized.theme,
-	      density: normalized.density,
-	      intent: normalized.brickTrace?.intent || "",
+		      density: normalized.density,
+          renderMode: normalized.activeRenderMode || "config",
+          htmlScheme: normalized.htmlScheme?.enabled ? normalized.htmlScheme.name : "",
+		      intent: normalized.brickTrace?.intent || "",
 	      strategy: normalized.brickTrace?.strategy || normalized.compositionStrategy || "",
 	      brickIds: normalized.brickPlan.map((item) => item.brickId || item.feature).filter(Boolean),
 	      sections: normalized.sections.map((section) => `${section.type}:${section.slots.join("+")}`),
@@ -2324,10 +2570,11 @@
     const requestConfig = sanitizeModelConfig(aiModelConfig);
     const provider = providerPreset(requestConfig.provider);
     const inputMode = options.inputMode === "guided" ? "guided" : "quick";
+    const renderMode = normalizeRenderMode(options.renderMode || currentGenerationRenderMode());
 
 	    try {
-	      const result = await generateConfigFromModel(prompt, options);
-	      const finalConfig = ensureDistinctHomepageConfig(prompt, result.config, options);
+	      const result = await generateConfigFromModel(prompt, { ...options, renderMode });
+	      const finalConfig = attachRenderModeToConfig(ensureDistinctHomepageConfig(prompt, result.config, options), prompt, { renderMode, reason: result.label });
 	      addModelHistoryRecord({
 	        id: result.callRecord?.id,
         action: "homepage-generate",
@@ -2349,15 +2596,15 @@
 	        durationMs: Date.now() - startedAt,
 	        prompt: String(prompt || "").slice(0, 1200),
 	        message: finalConfig?.name || result.label,
-	        configSnapshot: summarizeHomepageConfig(finalConfig),
-	      });
+		        configSnapshot: { ...summarizeHomepageConfig(finalConfig), renderMode: finalConfig.activeRenderMode, htmlScheme: finalConfig.htmlScheme?.enabled ? finalConfig.htmlScheme.name : "" },
+		      });
 
       if (result.usedModel) {
         showToast(result.mock ? "已通过代理 mock 生成首页方案" : `已通过 ${result.label} 生成首页方案`);
       }
 	      return finalConfig;
 	    } catch (error) {
-	      const fallback = ensureDistinctHomepageConfig(prompt, home.promptToConfig(prompt, options.variant || 0), options);
+		      const fallback = attachRenderModeToConfig(ensureDistinctHomepageConfig(prompt, home.promptToConfig(prompt, options.variant || 0), options), prompt, { renderMode, reason: "大模型失败后本地回退" });
 	      fallback.aiSummary = `大模型调用失败，已使用本地安全方案回退：${errorMessage(error, 220)}`;
       addModelHistoryRecord({
         action: "homepage-generate",
@@ -2378,8 +2625,8 @@
 	        durationMs: Date.now() - startedAt,
 	        prompt: String(prompt || "").slice(0, 1200),
 	        message: errorMessage(error, 700),
-	        configSnapshot: summarizeHomepageConfig(fallback),
-	      });
+		        configSnapshot: { ...summarizeHomepageConfig(fallback), renderMode: fallback.activeRenderMode, htmlScheme: fallback.htmlScheme?.enabled ? fallback.htmlScheme.name : "" },
+		      });
       showToast(`大模型调用失败，已回退本地方案`);
       return fallback;
     }
@@ -2710,13 +2957,30 @@
     });
   }
 
-  els.suggestionPanel?.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-suggestion-prompt]");
-    if (!button) return;
-    applySuggestionPrompt(button);
+	  els.suggestionPanel?.addEventListener("click", (event) => {
+	    const button = event.target.closest("[data-suggestion-prompt]");
+	    if (!button) return;
+	    applySuggestionPrompt(button);
+	  });
+
+  els.renderModeButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const mode = normalizeRenderMode(button.dataset.renderModeButton, "config");
+      if (button.closest("[data-preview-render-mode-controls]")) {
+        const nextConfig = {
+          ...currentConfig,
+          activeRenderMode: mode === "aiHtml" && currentConfig.htmlScheme?.enabled ? "aiHtml" : "config",
+        };
+        setConfig(nextConfig, `已切换预览：${renderModeLabel(nextConfig.activeRenderMode)}`, { saveDraft: Boolean(els.previewPage) });
+        return;
+      }
+
+      saveRenderModeSetting(mode);
+      showToast(`生成模式已切换为：${renderModeLabel(mode)}`);
+    });
   });
 
-  els.generateSuggestions?.addEventListener("click", () => {
+	  els.generateSuggestions?.addEventListener("click", () => {
     suggestionRound += 1;
     suggestionCards = buildSuggestionCards();
     renderSuggestionCards("已生成一批提示语案例");
@@ -2743,9 +3007,9 @@
     }
   });
 
-  els.random?.addEventListener("click", () => {
-    generatePreview(home.randomConfig(promptValue()));
-  });
+	  els.random?.addEventListener("click", () => {
+	    generatePreview(attachRenderModeToConfig(home.randomConfig(promptValue()), promptValue(), { reason: "随机方案" }));
+	  });
 
 	  els.regenerateIntelligence?.addEventListener("click", async () => {
 	    interpretationRound += 1;
@@ -2785,6 +3049,7 @@
     renderPagePresetControls();
     renderModuleStyleControls();
     renderModuleSettingControls();
+    renderRenderModeControls();
     applyPreview(true);
     updateStatus("已发布到首页", true);
     showToast("首页配置已发布");
@@ -2806,6 +3071,7 @@
     renderPagePresetControls();
     renderModuleStyleControls();
     renderModuleSettingControls();
+    renderRenderModeControls();
     applyPreview(true);
     updateStatus("已恢复默认", true);
     showToast("已恢复默认首页");
@@ -2846,6 +3112,7 @@
     renderPagePresetControls();
     renderModuleStyleControls();
     renderModuleSettingControls();
+    renderRenderModeControls();
     updateStatus("草稿预览", false);
   }
 })();

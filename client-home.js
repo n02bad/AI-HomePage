@@ -1,8 +1,26 @@
-const accounts = [
-  { id: "80010", kind: "real", balance: "12480.50", equity: "12726.40", currency: "USD", platform: "MT5", broker: "HCHoldings-Live2", type: "ECN Standard", credit: "500.00", leverage: "1:100", pnl: "+1,280.60", margin: "2,410.00", marginLevel: "528%", positions: "3", usages: ["Trade", "CopyTrading"] },
-  { id: "80011", kind: "real", balance: "8250.00", equity: "8196.70", currency: "USD", platform: "MT5", broker: "HCHoldings-Live2", type: "PAMM Investor", credit: "0.00", leverage: "1:200", pnl: "-53.30", margin: "620.00", marginLevel: "1322%", positions: "1", usages: ["PAMM"] },
-  { id: "90021", kind: "demo", balance: "50000.00", equity: "51280.60", currency: "USD", platform: "MT5", broker: "HCHoldings-Demo", type: "Demo ECN", credit: "0.00", leverage: "1:500", pnl: "+428.20", margin: "1,180.00", marginLevel: "4345%", positions: "5", usages: ["Practice", "Strategy Test"] },
+const TRADING_ACCOUNT_FIELDS = [
+  { key: "accountKind", label: "账号类型", note: "Demo / Live" },
+  { key: "platformServer", label: "平台 / 服务器", note: "平台为 MT4、MT5、Sirix、XOH 或 Fortex；服务器为交易账号所在服务器" },
+  { key: "account", label: "账号", note: "交易账号" },
+  { key: "balance", label: "余额", note: "账户的余额" },
+  { key: "equity", label: "净值", note: "账号的净值" },
+  { key: "credit", label: "信用金", note: "账户的信用金" },
+  { key: "accountType", label: "账户类型", note: "账户类型" },
+  { key: "leverage", label: "杠杆", note: "账号杠杆" },
+  { key: "marginRatio", label: "保证金比例", note: "账户保证金比例" },
 ];
+
+const accounts = [
+  { id: "80010", account: "80010", kind: "real", accountKind: "Live", platform: "MT5", server: "HCHoldings-Live2", balance: "12480.50", equity: "12726.40", credit: "500.00", accountType: "ECN Standard", leverage: "1:100", marginRatio: "528%" },
+  { id: "80011", account: "80011", kind: "real", accountKind: "Live", platform: "MT5", server: "HCHoldings-Live2", balance: "8250.00", equity: "8196.70", credit: "0.00", accountType: "PAMM Investor", leverage: "1:200", marginRatio: "1322%" },
+  { id: "90021", account: "90021", kind: "demo", accountKind: "Demo", platform: "MT5", server: "HCHoldings-Demo", balance: "50000.00", equity: "51280.60", credit: "0.00", accountType: "Demo ECN", leverage: "1:500", marginRatio: "4345%" },
+];
+
+const performanceSnapshotsByAccount = {
+  80010: { floatingPnl: "+1,280.60" },
+  80011: { floatingPnl: "-53.30" },
+  90021: { floatingPnl: "+428.20" },
+};
 
 const performanceSeriesByAccount = {
   80010: {
@@ -125,15 +143,19 @@ function escapeHtml(value) {
 }
 
 function kindLabel(account) {
-  return account.kind === "demo" ? "模拟交易" : "真实交易";
+  return account.accountKind || (account.kind === "demo" ? "Demo" : "Live");
 }
 
 function accountStatusLabel(account) {
-  return account.kind === "demo" ? "Demo" : "Live";
+  return account.accountKind || (account.kind === "demo" ? "Demo" : "Live");
 }
 
 function performanceAccountLabel(account) {
-  return `${account.id}-${account.broker}`;
+  return `${account.account || account.id}-${account.server}`;
+}
+
+function platformServerLabel(account) {
+  return [account.platform, account.server].filter(Boolean).join(" · ");
 }
 
 function visibleAccounts() {
@@ -220,7 +242,7 @@ function formatSignedUsd(value) {
 function renderBalanceOverview() {
   const accountTotal = accounts
     .filter((account) => account.kind === "real")
-    .reduce((sum, account) => sum + toUsd(account.balance, account.currency), 0);
+    .reduce((sum, account) => sum + toUsd(account.balance), 0);
 
   const walletTotal = wallets.reduce((sum, wallet) => sum + toUsd(wallet.balance, wallet.currency), 0);
   const total = accountTotal + walletTotal;
@@ -274,7 +296,9 @@ function renderAccountPerformanceWidgets() {
   els.performanceWidgets.forEach((widget) => {
     const period = currentPerformancePeriod(widget);
     const series = performanceSeries(selectedAccount, period);
-    const isLoss = String(selectedAccount.pnl || "").startsWith("-");
+    const snapshot = performanceSnapshotsByAccount[selectedAccount.id] || {};
+    const floatingPnl = snapshot.floatingPnl || "--";
+    const isLoss = String(floatingPnl || "").startsWith("-");
 
     hydratePerformanceSelect(widget.querySelector("[data-performance-account-select]"), selectedAccount.id);
     const metricSelect = widget.querySelector("[data-performance-metric-select]");
@@ -287,12 +311,12 @@ function renderAccountPerformanceWidgets() {
     }
 
     setText(widget, "[data-performance-account-label]", performanceAccountLabel(selectedAccount));
-    setText(widget, "[data-performance-account-meta]", `${selectedAccount.platform} · ${selectedAccount.type}`);
-    setText(widget, "[data-performance-equity]", formatUsdNumber(toUsd(selectedAccount.equity || selectedAccount.balance, selectedAccount.currency)));
-    setText(widget, "[data-performance-balance]", `Balance ${formatUsdNumber(toUsd(selectedAccount.balance, selectedAccount.currency))}`);
-    setText(widget, '[data-performance-metric-value="pnl"]', formatSignedUsd(selectedAccount.pnl));
-    setText(widget, '[data-performance-metric-value="margin"]', selectedAccount.marginLevel || "--");
-    setText(widget, '[data-performance-metric-value="credit"]', `$${formatUsdNumber(toUsd(selectedAccount.credit || 0, selectedAccount.currency))}`);
+    setText(widget, "[data-performance-account-meta]", `${platformServerLabel(selectedAccount)} · ${selectedAccount.accountType}`);
+    setText(widget, "[data-performance-equity]", formatUsdNumber(toUsd(selectedAccount.equity || selectedAccount.balance)));
+    setText(widget, "[data-performance-balance]", `Balance ${formatUsdNumber(toUsd(selectedAccount.balance))}`);
+    setText(widget, '[data-performance-metric-value="pnl"]', floatingPnl === "--" ? "--" : formatSignedUsd(floatingPnl));
+    setText(widget, '[data-performance-metric-value="margin"]', selectedAccount.marginRatio || "--");
+    setText(widget, '[data-performance-metric-value="credit"]', `$${formatUsdNumber(toUsd(selectedAccount.credit || 0))}`);
     setText(widget, '[data-performance-metric-value="leverage"]', selectedAccount.leverage || "--");
     widget.querySelector('[data-performance-metric-value="pnl"]')?.classList.toggle("positive", !isLoss);
     widget.querySelector('[data-performance-metric-value="pnl"]')?.classList.toggle("negative", isLoss);
@@ -380,51 +404,27 @@ function renderAccountEntryMenu() {
 }
 
 function renderAccountCard(account) {
-  const usageTags = (account.usages || ["Trade"])
-    .slice(0, 2)
-    .map((usage) => `<span>${escapeHtml(usage)}</span>`)
-    .join("");
-  const actions =
-    account.kind === "demo"
-      ? [
-          { label: "补充模拟金", action: "demoTopUp" },
-          { label: "重置", action: "resetDemo" },
-          { label: "交易", action: "trade" },
-        ]
-      : [
-          { label: "入金", action: "deposit" },
-          { label: "交易", action: "trade" },
-          { label: "资金划转", action: "transfer" },
-        ];
-  const primaryAction = actions[0];
-  const secondaryAction = actions[1];
-  const brokerLabel = `${account.platform} · ${account.broker}`;
+  const platformServer = platformServerLabel(account);
 
   return `
     <article class="trade-account-card" data-kind="${escapeHtml(account.kind)}">
       <div class="account-card-head">
         <span class="account-status${account.kind === "demo" ? " demo" : ""}">${kindLabel(account)}</span>
-        <span class="account-number">${escapeHtml(account.id)}</span>
-        <button class="account-menu" type="button" aria-label="更多操作">${icon("dots")}</button>
-      </div>
-      <div class="account-tags">
-        ${usageTags}
+        <span class="account-number">${escapeHtml(account.account || account.id)}</span>
       </div>
       <div class="account-card-hero">
         <div>
           <span>净值(USD)</span>
-          <strong>${escapeHtml(formatUsdNumber(toUsd(account.equity || account.balance, account.currency)))}</strong>
+          <strong>${escapeHtml(formatUsdNumber(toUsd(account.equity || account.balance)))}</strong>
         </div>
-        <b class="${String(account.pnl || "").startsWith("-") ? "is-loss" : "is-profit"}">${escapeHtml(account.pnl || "--")}</b>
       </div>
       <div class="account-card-flat-meta" aria-label="账号概要">
-        <span><small>平台 / 服务器</small><b>${escapeHtml(brokerLabel)}</b></span>
-        <span><small>余额</small><b>${escapeHtml(formatUsdNumber(toUsd(account.balance, account.currency)))}</b></span>
-        <span><small>保证金 / 杠杆</small><b>${escapeHtml(account.margin || "--")} · ${escapeHtml(account.leverage)}</b></span>
-      </div>
-      <div class="account-card-actions compact">
-        <button type="button" data-home-action="${escapeHtml(primaryAction.action)}">${escapeHtml(primaryAction.label)}</button>
-        <button type="button" data-home-action="${escapeHtml(secondaryAction.action)}">${escapeHtml(secondaryAction.label)}</button>
+        <span><small>平台 / 服务器</small><b>${escapeHtml(platformServer)}</b></span>
+        <span><small>余额</small><b>${escapeHtml(formatUsdNumber(toUsd(account.balance)))}</b></span>
+        <span><small>信用金</small><b>${escapeHtml(formatUsdNumber(toUsd(account.credit || 0)))}</b></span>
+        <span><small>账户类型</small><b>${escapeHtml(account.accountType)}</b></span>
+        <span><small>杠杆</small><b>${escapeHtml(account.leverage)}</b></span>
+        <span><small>保证金比例</small><b>${escapeHtml(account.marginRatio)}</b></span>
       </div>
     </article>
   `;
@@ -464,23 +464,15 @@ function renderAccountRows(items) {
       (account) => `
         <tr>
           <td><span class="account-status${account.kind === "demo" ? " demo" : ""}">${kindLabel(account)}</span></td>
-          <td><strong>${escapeHtml(account.id)}</strong></td>
-          <td>${escapeHtml((account.usages || ["Trade"]).join(" / "))}</td>
+          <td><strong>${escapeHtml(account.account || account.id)}</strong></td>
           <td>${escapeHtml(account.platform)}</td>
-          <td>${escapeHtml(account.broker)}</td>
-          <td><strong>${escapeHtml(formatUsdNumber(toUsd(account.balance, account.currency)))}</strong> USD</td>
-          <td><strong class="${String(account.pnl || "").startsWith("-") ? "is-loss" : "is-profit"}">${escapeHtml(account.pnl || "--")}</strong></td>
-          <td>${escapeHtml(account.margin || "--")} USD</td>
-          <td>${escapeHtml(account.positions || "0")}</td>
-          <td>${escapeHtml(account.type)}</td>
-          <td>${escapeHtml(account.credit)}</td>
+          <td>${escapeHtml(account.server)}</td>
+          <td><strong>${escapeHtml(formatUsdNumber(toUsd(account.balance)))}</strong></td>
+          <td><strong>${escapeHtml(formatUsdNumber(toUsd(account.equity || account.balance)))}</strong></td>
+          <td>${escapeHtml(formatUsdNumber(toUsd(account.credit || 0)))}</td>
+          <td>${escapeHtml(account.accountType)}</td>
           <td>${escapeHtml(account.leverage)}</td>
-          <td>
-            <div class="table-actions">
-              <button type="button" data-home-action="deposit">入金</button>
-              <button type="button">更多</button>
-            </div>
-          </td>
+          <td>${escapeHtml(account.marginRatio)}</td>
         </tr>
       `,
     )
@@ -512,19 +504,16 @@ function renderAccountTableContent(items) {
       <table class="account-table">
         <thead>
           <tr>
-            <th>分类</th>
+            <th>账号类型</th>
             <th>账号</th>
-            <th>用途</th>
             <th>平台</th>
             <th>服务器</th>
             <th>余额</th>
-            <th>持仓 PnL</th>
-            <th>保证金占用</th>
-            <th>持仓</th>
-            <th>账号类型</th>
-            <th>信用额</th>
+            <th>净值</th>
+            <th>信用金</th>
+            <th>账户类型</th>
             <th>杠杆</th>
-            <th>操作</th>
+            <th>保证金比例</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>

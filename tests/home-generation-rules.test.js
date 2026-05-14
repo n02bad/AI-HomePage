@@ -203,6 +203,25 @@ async function run() {
   assert.strictEqual(home.t("home.asset.title"), "资产概览");
   assert.strictEqual(home.t("home.asset.totalLabel"), "余额合计");
 
+  const normalizedAiHtml = home.normalizeConfig({
+    schemaVersion: 4,
+    renderMode: "aiHtml",
+    htmlScheme: {
+      enabled: true,
+      name: "Admin HTML Draft",
+      html: '<section onclick="alert(1)"><script>alert(1)</script><a href="javascript:alert(1)">入金</a></section>',
+      css: '@import "https://example.com/a.css"; .hero{position:fixed;background:url(javascript:alert(1));color:red}',
+    },
+  });
+  assert.strictEqual(normalizedAiHtml.renderMode, "aiHtml");
+  assert.strictEqual(normalizedAiHtml.activeRenderMode, "aiHtml");
+  assert.strictEqual(normalizedAiHtml.htmlScheme.enabled, true);
+  assert(!normalizedAiHtml.htmlScheme.html.includes("<script"), "AI HTML scheme must strip script tags");
+  assert(!normalizedAiHtml.htmlScheme.html.includes("onclick"), "AI HTML scheme must strip inline event handlers");
+  assert(!normalizedAiHtml.htmlScheme.html.includes("javascript:"), "AI HTML scheme must strip javascript links");
+  assert(!normalizedAiHtml.htmlScheme.css.includes("@import"), "AI HTML CSS must strip imports");
+  assert(!normalizedAiHtml.htmlScheme.css.includes("position:fixed"), "AI HTML CSS must strip fixed positioning");
+
   const normalizedAssetTriplet = home.normalizeConfig({
     schemaVersion: 4,
     moduleSettings: {
@@ -396,9 +415,12 @@ async function run() {
   assert.strictEqual(hasBlock(localProfessionalTrader, "asset_overview"), false);
   assert.strictEqual(localProfessionalTrader.moduleSettings.faq.enabled, true);
   assert(["accordion", "compact-list"].includes(localProfessionalTrader.moduleStyles.faq_section));
-  assert.strictEqual(localProfessionalTrader.dataContract.previewSample, true);
-  assert.strictEqual(localProfessionalTrader.dataContract.dataBindingRequired, true);
-  assert.strictEqual(localProfessionalTrader.dataContract.fields.tradingCost.dataBindingRequired, true);
+	  assert.strictEqual(localProfessionalTrader.dataContract.previewSample, true);
+	  assert.strictEqual(localProfessionalTrader.dataContract.dataBindingRequired, true);
+	  assert.strictEqual(localProfessionalTrader.dataContract.fields.tradingAccounts.binding, "api.trading.accounts");
+	  assert.deepStrictEqual(Array.from(localProfessionalTrader.dataContract.fields.tradingAccounts.allowedFields), ["accountKind", "platform", "server", "account", "balance", "equity", "credit", "accountType", "leverage", "marginRatio"]);
+	  assert(localProfessionalTrader.dataContract.fields.tradingAccounts.forbiddenFields.includes("pnl"));
+	  assert.strictEqual(localProfessionalTrader.dataContract.fields.tradingCost.dataBindingRequired, true);
   assert.strictEqual(localProfessionalTrader.dataContract.fields.pnl.fallback, "--");
   assert.strictEqual(localProfessionalTrader.dataContract.fields.margin.previewSample, true);
   assert.strictEqual(localProfessionalTrader.dataContract.fields.charts.binding, "api.trading.performanceSeries");
@@ -428,8 +450,10 @@ async function run() {
   assertOnlyAllowedBlocks(localFlatAccounts);
   assertVisibleModulesHaveMorph(localFlatAccounts);
   assert.strictEqual(localFlatAccounts.moduleStyles.accountPerformance, "pro-chart");
-  assert.strictEqual(localFlatAccounts.moduleStyles.tradingAccounts, "dense-cards");
-  assert.strictEqual(localFlatAccounts.moduleSettings.tradingAccounts.viewMode, "card");
+  assert.strictEqual(localFlatAccounts.moduleStyles.tradingAccounts, "calm-table");
+  assert.strictEqual(localFlatAccounts.moduleSettings.tradingAccounts.viewMode, "list");
+  assert.strictEqual(localFlatAccounts.moduleSettings.tradingAccounts.realViewMode, "list");
+  assert.strictEqual(localFlatAccounts.moduleSettings.tradingAccounts.demoViewMode, "list");
 
   const compactOnboardingPrompt = "开户引导首页，样式需要优化，大面积空白区域是可以舍去的，注意空间利用。";
   const localCompactOnboarding = home.promptToConfig(compactOnboardingPrompt);
@@ -449,23 +473,33 @@ async function run() {
   assert(personalizationSource.includes('data-chart-axis-mode="minimal"'), "recommendation charts must support a minimal axis mode");
 	  assert(personalizationSource.includes("ai-performance-summary"), "account performance should use a flat account summary");
 	  assert(personalizationSource.includes("ai-chart-insights"), "account performance charts must reserve the lower chart area for compact trend insights");
-	  assert(personalizationSource.includes("ai-support-bar"), "support contact must render as a compact service bar");
+  assert(personalizationSource.includes("ai-support-bar"), "support contact must render as a compact service bar");
 	  assert(personalizationSource.includes("ai-balance-metric-row"), "asset overview should render multi-field balances in one metric row");
 	  assert(!personalizationSource.includes("ai-performance-ledger"), "account performance must not nest balance/equity ledger cards");
+  assert(personalizationSource.includes("wantsTradingAccountSingleViewCorrection"), "account-card problem prompts must route TradingAccounts to one primary view");
   const clientHomeSource = fs.readFileSync(path.join(ROOT, "client-home.js"), "utf8");
   assert(clientHomeSource.includes("account-card-flat-meta"), "trading account cards must use a flat metadata strip");
   assert(!clientHomeSource.includes("account-value-grid"), "trading account cards must not render a nested metric grid");
   const personalizationCss = fs.readFileSync(path.join(ROOT, "home-personalization.css"), "utf8");
+  assert(personalizationCss.includes(".ai-accounts-feature .accounts-list-view[hidden]"), "inactive account view must stay hidden in AI preview CSS");
   const serverSource = fs.readFileSync(path.join(ROOT, "server.js"), "utf8");
   assert(serverSource.includes("空间利用是硬约束"), "AI prompt must treat space utilization as a hard constraint");
+  assert(serverSource.includes("同一组账号数据不得在同一个模块里同时渲染上方摘要卡/摘要行和下方列表/表格"), "AI prompt must forbid duplicate account card plus table views");
+  assert(serverSource.includes("账号类型(accountKind=Live/Demo)和账户类型(accountType=ECN Standard/Demo ECN)"), "AI prompt must distinguish account kind and account type");
+  const componentLibrary = JSON.parse(fs.readFileSync(path.join(ROOT, "home-component-library.json"), "utf8"));
+  const tradingAccountsBrick = componentLibrary.components.find((component) => component.id === "trading-accounts-separated-list");
+  assert(tradingAccountsBrick.sourcePrompt.includes("不能上方摘要卡片下方再重复完整表格"), "TradingAccounts library contract must forbid duplicate summary/table views");
   assert(serverSource.includes("const MINIMAX_MAX_COMPLETION_TOKENS = 2048"), "MiniMax should keep the documented OpenAI-compatible completion token cap");
   assert(serverSource.includes('const KIMI_DEFAULT_MODEL = "kimi-k2.6"'), "Kimi preset should use the current default model");
   assert(serverSource.includes("body.max_completion_tokens = config.maxOutputTokens"), "Kimi chat requests should use max_completion_tokens instead of deprecated max_tokens");
+  assert(serverSource.includes('if (/^kimi-k2\\.6\\b/i.test(config.model))'), "Kimi thinking controls should only be sent to K2.6 models");
+  assert(serverSource.includes('body.thinking = { type: "disabled" }'), "Kimi K2.6 JSON requests should disable thinking to avoid homepage generation timeouts");
+  assert(serverSource.includes('if (providerId === "kimi") return 1'), "Kimi requests should force the only allowed temperature");
+  assert(!serverSource.includes('["minimax", "kimi"].includes(config.provider) ? Math.min(config.temperature, 0.6)'), "Kimi structured JSON requests must not be clamped below its required temperature");
   assert(serverSource.includes("buildLowLatencyHomepagePrompt"), "MiniMax and Kimi should use a short homepage prompt to avoid provider timeouts");
   assert(!/\.ai-copy-signal-metrics span\s*\{[\s\S]{0,220}border-left:\s*1px/.test(personalizationCss), "recommendation metric rows should not be divided by heavy vertical lines");
   assert(!/\.ai-copy-curve\s*\{[\s\S]{0,260}repeating-linear-gradient/.test(personalizationCss), "recommendation charts should not default to dense grid backgrounds");
   assert(/\.ai-guide-card\s*\{[\s\S]{0,220}min-height:\s*96px/.test(personalizationCss), "onboarding guide cards should avoid tall empty cards");
-  const componentLibrary = JSON.parse(fs.readFileSync(path.join(ROOT, "home-component-library.json"), "utf8"));
   const accountPerformanceBrick = componentLibrary.components.find((component) => component.id === "account-performance-pro-chart");
   assert(accountPerformanceBrick.html.includes("data-home-echart"), "account performance demo must use an ECharts chart container");
   assert(accountPerformanceBrick.html.includes('data-chart-axis-mode="xy"'), "account performance demo must declare chart axis mode");
@@ -706,9 +740,12 @@ async function run() {
     assert.strictEqual(hasBlock(professionalTraderResponse.config, "asset_overview"), false);
     assert.strictEqual(professionalTraderResponse.config.moduleSettings.faq.enabled, true);
     assert(["accordion", "compact-list"].includes(professionalTraderResponse.config.moduleStyles.faq_section));
-    assert.strictEqual(professionalTraderResponse.config.dataContract.previewSample, true);
-    assert.strictEqual(professionalTraderResponse.config.dataContract.dataBindingRequired, true);
-    assert.strictEqual(professionalTraderResponse.config.dataContract.fields.tradingCost.dataBindingRequired, true);
+	    assert.strictEqual(professionalTraderResponse.config.dataContract.previewSample, true);
+	    assert.strictEqual(professionalTraderResponse.config.dataContract.dataBindingRequired, true);
+	    assert.strictEqual(professionalTraderResponse.config.dataContract.fields.tradingAccounts.binding, "api.trading.accounts");
+	    assert.deepStrictEqual(Array.from(professionalTraderResponse.config.dataContract.fields.tradingAccounts.allowedFields), ["accountKind", "platform", "server", "account", "balance", "equity", "credit", "accountType", "leverage", "marginRatio"]);
+	    assert(professionalTraderResponse.config.dataContract.fields.tradingAccounts.forbiddenFields.includes("pnl"));
+	    assert.strictEqual(professionalTraderResponse.config.dataContract.fields.tradingCost.dataBindingRequired, true);
     assert.strictEqual(professionalTraderResponse.config.dataContract.fields.pnl.fallback, "--");
     assert.strictEqual(professionalTraderResponse.config.dataContract.fields.margin.previewSample, true);
     assert.strictEqual(professionalTraderResponse.config.dataContract.fields.charts.binding, "api.trading.performanceSeries");
@@ -733,8 +770,25 @@ async function run() {
     assert.strictEqual(flatAccountResponse.ok, true);
     assertOnlyAllowedBlocks(flatAccountResponse.config);
     assert.strictEqual(flatAccountResponse.config.moduleStyles.accountPerformance, "pro-chart");
-    assert.strictEqual(flatAccountResponse.config.moduleStyles.tradingAccounts, "dense-cards");
-    assert.strictEqual(flatAccountResponse.config.moduleSettings.tradingAccounts.viewMode, "card");
+    assert.strictEqual(flatAccountResponse.config.moduleStyles.tradingAccounts, "calm-table");
+    assert.strictEqual(flatAccountResponse.config.moduleSettings.tradingAccounts.viewMode, "list");
+    assert.strictEqual(flatAccountResponse.config.moduleSettings.tradingAccounts.realViewMode, "list");
+    assert.strictEqual(flatAccountResponse.config.moduleSettings.tradingAccounts.demoViewMode, "list");
+
+    const aiHtmlResponse = await postJson(port, {
+      prompt: "生成成熟券商客户端首页，希望更有美感，有清晰首屏和数据层级。",
+      renderMode: "aiHtml",
+      modelConfig: { provider: "openai" },
+    });
+    assert.strictEqual(aiHtmlResponse.ok, true);
+    assert.strictEqual(aiHtmlResponse.renderMode, "aiHtml");
+    assert.strictEqual(aiHtmlResponse.activeRenderMode, "aiHtml");
+    assert.strictEqual(aiHtmlResponse.config.renderMode, "aiHtml");
+    assert.strictEqual(aiHtmlResponse.config.activeRenderMode, "aiHtml");
+    assert.strictEqual(aiHtmlResponse.config.htmlScheme.enabled, true);
+    assert.strictEqual(aiHtmlResponse.htmlScheme.enabled, true);
+    assert(!aiHtmlResponse.htmlScheme.html.includes("<script"), "server AI HTML scheme must not contain script tags");
+    assert(!aiHtmlResponse.htmlScheme.html.includes("javascript:"), "server AI HTML scheme must not contain javascript URLs");
 
     const referralCoreResponse = await postJson(port, {
       prompt:

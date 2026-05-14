@@ -3234,6 +3234,11 @@ body[data-home-layout="traderConsole"] .ai-section-rail .ai-quick-feature {
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
 }
 
+.ai-accounts-feature .accounts-card-view[hidden],
+.ai-accounts-feature .accounts-list-view[hidden] {
+  display: none !important;
+}
+
 .ai-accounts-feature .trade-account-card {
   border-color: transparent;
   background:
@@ -3884,6 +3889,77 @@ body[data-layout-page="home-layout-admin"] .personalization-page {
 .ai-generation-mode button:disabled {
   cursor: wait;
   opacity: 0.62;
+}
+
+.ai-render-mode-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid rgba(37, 99, 235, 0.14);
+  border-radius: 8px;
+  background: rgba(248, 251, 255, 0.78);
+}
+
+.ai-render-mode-card.compact {
+  grid-template-columns: 1fr;
+  background: #f8fbff;
+}
+
+.ai-render-mode-card span {
+  display: block;
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.ai-render-mode-card strong {
+  display: block;
+  margin-top: 3px;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.ai-render-mode-card small {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.ai-render-mode-options {
+  min-width: 0;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.ai-render-mode-options button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid #dbe4ef;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.ai-render-mode-options button.active {
+  border-color: rgba(37, 99, 235, 0.38);
+  background: #1d4ed8;
+  color: #ffffff;
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.14);
+}
+
+.ai-render-mode-options button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
 }
 
 .ai-generation-panel {
@@ -8535,6 +8611,24 @@ body[data-layout-page="client-home"] .ai-brick-meta {
   display: none !important;
 }
 
+.client-shell.is-ai-html-home {
+  display: block;
+  padding: 0;
+  background: transparent;
+}
+
+.ai-html-render-host {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: var(--home-radius-sm, 8px);
+}
+
+body[data-home-render-mode="aiHtml"] .dashboard-customize-link {
+  border-color: var(--home-primary-border);
+}
+
 @media (max-width: 860px) {
   .client-shell.is-blueprint-home .ai-home-row,
   body[data-home-preview="content-only"] .client-shell.is-blueprint-home .ai-home-row,
@@ -8633,15 +8727,23 @@ body[data-layout-page="client-home"] .ai-brick-meta {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0 8px;
+  overflow-x: auto;
 }
 
 .ai-balance-compact-table th,
 .ai-balance-compact-table td,
-.ai-account-ops-table > div,
-.ai-wallet-ledger-row,
-.ai-account-morph-row {
+.ai-wallet-ledger-row {
   display: grid;
   grid-template-columns: minmax(120px, 1fr) minmax(120px, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+}
+
+.ai-account-ops-table > div,
+.ai-account-morph-row {
+  display: grid;
+  grid-template-columns: minmax(72px, 0.6fr) minmax(84px, 0.7fr) minmax(156px, 1.4fr) repeat(2, minmax(92px, 0.8fr)) minmax(76px, 0.7fr) minmax(112px, 0.9fr) minmax(72px, 0.6fr) minmax(92px, 0.7fr);
   align-items: center;
   gap: 10px;
   text-align: left;

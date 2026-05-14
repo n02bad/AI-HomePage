@@ -360,25 +360,32 @@
       "name": "真实/模拟账号双列表",
       "family": "TradingAccounts",
       "size": "3x2",
-      "description": "真实账号和模拟账号分区展示，适合专业交易工作台。",
+      "description": "交易账号卡片或列表只展示账号类型、平台/服务器、账号、余额、净值、信用金、账户类型、杠杆和保证金比例，不自行补充 PnL、用途、持仓、操作等字段；同一模块只能选择卡片、列表或表格一种主视图，不允许摘要卡片和完整表格上下重复。",
       "tags": [
         "accounts",
         "live",
         "demo",
         "list"
       ],
-      "html": "<section class=\"brick-account-list\"><span>Trading Accounts</span><strong>Live / Demo separated</strong><p>Long account list with filters, status and actions.</p></section>",
+      "html": "<section class=\"brick-account-list\"><span>交易账号</span><strong>Live / Demo</strong><p>字段：账号类型、平台/服务器、账号、余额、净值、信用金、账户类型、杠杆、保证金比例。</p></section>",
       "css": ".brick-account-list{min-height:220px;display:grid;gap:10px;padding:18px;border:1px solid var(--home-border);border-radius:var(--home-radius-sm,8px);background:var(--home-card-bg)}.brick-account-list span{color:var(--home-primary);font-size:12px;font-weight:900}.brick-account-list strong{font-size:24px}.brick-account-list p{margin:0;color:var(--home-text-muted)}",
       "layoutHints": [
         "full",
         "3x2"
       ],
       "dataRequirements": [
-        "liveAccounts",
-        "demoAccounts",
-        "accountActions"
+        "accountKind",
+        "platform",
+        "server",
+        "account",
+        "balance",
+        "equity",
+        "credit",
+        "accountType",
+        "leverage",
+        "marginRatio"
       ],
-      "sourcePrompt": "",
+      "sourcePrompt": "交易账号卡片和列表字段契约：账号类型 Demo/Live、平台/服务器、账号、余额、净值、信用金、账户类型、杠杆、保证金比例；其他字段不要自行补充；账号类型=Live/Demo，账户类型=ECN Standard/Demo ECN，不得混用；同一模块只保留卡片、列表或表格一种主视图，不能上方摘要卡片下方再重复完整表格。",
       "createdAt": "2026-05-08T09:18:13.977Z",
       "updatedAt": "2026-05-09T03:44:17.720Z"
     },

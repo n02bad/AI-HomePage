@@ -113,6 +113,16 @@ function envValue(names = []) {
   return "";
 }
 
+function providerKeyStatus(provider) {
+  const keyEnv = Array.isArray(provider.keyEnv) ? provider.keyEnv : [];
+  const serverKeyEnv = keyEnv.find((name) => Boolean(process.env[name])) || "";
+  return {
+    hasServerKey: Boolean(serverKeyEnv),
+    serverKeyEnv,
+    keyEnv,
+  };
+}
+
 function normalizeBaseUrl(value) {
   return String(value || "").trim().replace(/\/+$/, "");
 }
@@ -134,6 +144,7 @@ function normalizeProviderBaseUrl(providerId, value) {
 }
 
 function normalizeTemperature(providerId, value) {
+  if (providerId === "kimi") return 1;
   if (!Number.isFinite(value)) return 0.4;
   if (providerId === "minimax") {
     return Math.min(Math.max(value, 0.01), 1);
@@ -899,6 +910,21 @@ const GENERATED_COMPONENT_JSON_SCHEMA = {
   },
 };
 
+const AI_HTML_SCHEME_JSON_SCHEMA = {
+  type: "object",
+  additionalProperties: true,
+  required: ["name", "summary", "html", "css"],
+  properties: {
+    name: { type: "string" },
+    summary: { type: "string" },
+    visualBrief: { type: "string" },
+    html: { type: "string" },
+    css: { type: "string" },
+    dataBindings: { type: "array", items: { type: "string" } },
+    safetyNotes: { type: "array", items: { type: "string" } },
+  },
+};
+
 const COMPONENT_COMPOSITION_JSON_SCHEMA = {
   type: "object",
   additionalProperties: true,
@@ -1242,6 +1268,8 @@ function homepageRecordSnapshot(config) {
     density: safeRecordText(source.density, 24),
     intent: safeRecordText(trace.intent, 40),
     strategy: safeRecordText(trace.strategy || source.compositionStrategy, 120),
+    renderMode: safeRecordText(source.activeRenderMode || source.renderMode, 24),
+    htmlScheme: source.htmlScheme?.enabled ? safeRecordText(source.htmlScheme.name || "AI HTML", 80) : "",
     brickIds: brickPlan.map((item) => safeRecordText(item?.brickId || item?.feature, 80)).filter(Boolean).slice(0, 12),
     sections: sections.map((section) => `${safeRecordText(section?.type, 24)}:${Array.isArray(section?.slots) ? section.slots.join("+") : ""}`).slice(0, 12),
   };
@@ -1281,6 +1309,15 @@ function oneOfList(value, options, fallback) {
   return options.includes(value) ? value : fallback;
 }
 
+function homepageRenderMode(payload) {
+  const value = cleanText(payload?.renderMode || payload?.generationRenderMode || payload?.context?.renderMode, "config", 24);
+  return ["config", "aiHtml", "compare"].includes(value) ? value : "config";
+}
+
+function renderModeWantsAiHtml(mode) {
+  return mode === "aiHtml" || mode === "compare";
+}
+
 function sanitizeGeneratedHtml(value) {
   return String(value || "")
     .replace(/<script[\s\S]*?<\/script>/gi, "")
@@ -1295,6 +1332,24 @@ function sanitizeGeneratedCss(value) {
     .replace(/@import[^;]+;/gi, "")
     .replace(/url\(\s*javascript:[^)]+\)/gi, "")
     .slice(0, 12000);
+}
+
+function sanitizeAiHtmlMarkup(value) {
+  return sanitizeGeneratedHtml(value)
+    .replace(/<(?:iframe|object|embed|link|meta|base|form|input|textarea|select)\b[\s\S]*?<\/(?:iframe|object|embed|link|meta|base|form|input|textarea|select)>/gi, "")
+    .replace(/<(?:iframe|object|embed|link|meta|base|form|input|textarea|select)\b[^>]*\/?>/gi, "")
+    .replace(/\sstyle\s*=\s*"[^"]*"/gi, "")
+    .replace(/\sstyle\s*=\s*'[^']*'/gi, "")
+    .replace(/\shref\s*=\s*"(?!#|\/|\.\/|\.\.\/)[^"]*"/gi, ' href="#"')
+    .replace(/\shref\s*=\s*'(?!#|\/|\.\/|\.\.\/)[^']*'/gi, " href='#'")
+    .slice(0, 18000);
+}
+
+function sanitizeAiHtmlCss(value) {
+  return sanitizeGeneratedCss(value)
+    .replace(/position\s*:\s*fixed\s*;?/gi, "")
+    .replace(/(?:^|})\s*(?:html|body)\s*\{/gi, " .ai-html-page{")
+    .slice(0, 18000);
 }
 
 function cleanText(value, fallback = "", limit = 220) {
@@ -1661,6 +1716,175 @@ function savedCompositionPromptReference(limit = 6) {
     }));
 }
 
+function aiHtmlDataBindingsFromConfig(config) {
+  const sections = Array.isArray(config?.sections) ? config.sections : [];
+  const blocks = new Set(
+    sections
+      .flatMap((section) => (Array.isArray(section?.slots) ? section.slots : []))
+      .concat((Array.isArray(config?.brickPlan) ? config.brickPlan : []).flatMap((brick) => [brick?.component, brick?.feature]))
+      .filter(Boolean)
+      .map((item) => canonicalHomeBlock(item) || item),
+  );
+  const bindings = ["totalAssets", "walletBalance", "tradingAccountBalance", "quickActionList"];
+  if (blocks.has("onboarding_guide")) bindings.push("kycStatus", "accountOpeningSteps");
+  if (blocks.has("trading_account_highlight")) bindings.push("equityCurve", "pnlTrend", "marginState");
+  if (blocks.has("trading_accounts_list")) bindings.push("tradingAccounts");
+  if (blocks.has("promo_banner")) bindings.push("campaignConfig");
+  if (blocks.has("wallet_list")) bindings.push("currencyWallets");
+  if (blocks.has("referral_link_card")) bindings.push("promoLink", "inviteCode");
+  if (blocks.has("risk_disclosure")) bindings.push("riskDisclosureText");
+  return [...new Set(bindings)].slice(0, 12);
+}
+
+function normalizeAiHtmlScheme(scheme, payload = {}, config = {}, providerConfig = {}) {
+  const source = scheme && typeof scheme === "object" ? scheme.htmlScheme || scheme : {};
+  const fallbackName = cleanText(config.name, "AI HTML 首页方案", 48);
+  const html = sanitizeAiHtmlMarkup(source.html);
+  const css = sanitizeAiHtmlCss(source.css);
+  const generatedAt = source.generatedAt || new Date().toISOString();
+  const dataBindings = Array.isArray(source.dataBindings)
+    ? source.dataBindings.map((item) => cleanText(item, "", 80)).filter(Boolean)
+    : aiHtmlDataBindingsFromConfig(config);
+  const safetyNotes = Array.isArray(source.safetyNotes)
+    ? source.safetyNotes.map((item) => cleanText(item, "", 120)).filter(Boolean).slice(0, 8)
+    : [];
+
+  return {
+    enabled: Boolean(html && css),
+    name: cleanText(source.name, `${fallbackName} HTML 版`, 56),
+    summary: cleanText(source.summary, "AI 直接生成 HTML/CSS 草稿，已做脚本和外链清洗。", 220),
+    visualBrief: cleanText(source.visualBrief, "以更强视觉层级、卡片比例和留白节奏提升首页美感。", 260),
+    html,
+    css,
+    dataBindings: dataBindings.length ? dataBindings.slice(0, 12) : aiHtmlDataBindingsFromConfig(config),
+    safetyStatus: html && css ? "sanitized" : "empty",
+    safetyNotes: [
+      "已移除 script、内联事件、外链脚本入口和危险 URL。",
+      "CSS 将在独立预览容器内渲染，不污染正式组件样式。",
+      ...safetyNotes,
+    ].slice(0, 8),
+    provider: providerConfig.name || providerConfig.provider || "",
+    model: providerConfig.model || "",
+    generatedAt,
+  };
+}
+
+function mockAiHtmlScheme(payload = {}, config = {}, providerConfig = {}) {
+  const prompt = escapeHtmlText(cleanText(payload.prompt, "成熟券商客户端首页", 180));
+  const theme = escapeHtmlText(cleanText(config.themePreset || config.theme, "default", 40));
+  const title = escapeHtmlText(cleanText(config.name, "AI 视觉首页", 42));
+  const focus = cleanText(config.heroFocus, "asset_overview", 40);
+  const bindings = aiHtmlDataBindingsFromConfig(config);
+  const html = `
+    <section class="ai-html-page" data-ai-html-theme="${theme}">
+      <header class="ai-html-hero">
+        <div>
+          <span>AI HTML VISUAL DRAFT</span>
+          <h1>${title}</h1>
+          <p>${prompt}</p>
+        </div>
+        <aside>
+          <small>余额合计</small>
+          <strong>$125,430.80</strong>
+          <em>Wallet $18,920 · TA $106,510</em>
+        </aside>
+      </header>
+      <section class="ai-html-command">
+        <a data-home-action="deposit" href="#deposit">入金</a>
+        <a data-home-action="openAccount" href="#account">开真实账户</a>
+        <a data-home-action="orders" href="#orders">订单</a>
+        <a data-home-action="positions" href="#positions">持仓</a>
+      </section>
+      <section class="ai-html-grid">
+        <article>
+          <span>账户表现</span>
+          <strong>7D Equity</strong>
+          <div class="ai-html-chart"><i></i><i></i><i></i><i></i><i></i></div>
+          <p>净值、PnL 和保证金来自接口；预览使用占位曲线。</p>
+        </article>
+        <article>
+          <span>下一步</span>
+          <strong>${focus === "promo_banner" ? "查看活动权益" : "完成账户路径"}</strong>
+          <ol><li>KYC 状态</li><li>创建真实账户</li><li>首次入金</li></ol>
+        </article>
+      </section>
+      <section class="ai-html-table">
+        <span>Trading Accounts</span>
+        <div><b>Live</b><strong>80010</strong><em>MT5 · Equity $12,726.40</em></div>
+        <div><b>Demo</b><strong>90021</strong><em>MT5 · Equity $51,280.60</em></div>
+      </section>
+    </section>
+  `;
+  const css = `
+    :host{display:block;color:var(--home-text,#172033);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+    .ai-html-page{display:grid;gap:14px;padding:16px;background:var(--home-bg,#f6f8fb)}
+    .ai-html-page *{box-sizing:border-box}
+    .ai-html-hero{min-height:250px;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(220px,.65fr);gap:16px;align-items:stretch;padding:22px;border:1px solid var(--home-banner-border,#c7d2fe);border-radius:var(--home-radius-sm,8px);background:linear-gradient(135deg,var(--home-banner-bg,#10213f),color-mix(in srgb,var(--home-primary,#2563eb) 30%,#0f172a));color:var(--home-banner-text,#fff)}
+    .ai-html-hero div{display:grid;align-content:center;gap:12px}.ai-html-hero span,.ai-html-grid span,.ai-html-table span{color:var(--home-primary,#2563eb);font-size:12px;font-weight:950;letter-spacing:0}.ai-html-hero h1{margin:0;max-width:780px;font-size:36px;line-height:1.06;font-weight:950;letter-spacing:0}.ai-html-hero p{margin:0;max-width:720px;color:var(--home-banner-muted,#dbeafe);font-size:14px;line-height:1.7}.ai-html-hero aside{display:grid;align-content:end;gap:8px;padding:18px;border:1px solid color-mix(in srgb,var(--home-banner-text,#fff) 20%,transparent);border-radius:var(--home-radius-sm,8px);background:color-mix(in srgb,var(--home-banner-text,#fff) 9%,transparent)}.ai-html-hero aside strong{font-size:32px;line-height:1}.ai-html-hero aside small,.ai-html-hero aside em{color:var(--home-banner-muted,#dbeafe);font-style:normal;font-weight:850}
+    .ai-html-command{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.ai-html-command a{min-height:54px;display:grid;place-items:center;border:1px solid var(--home-button-border,#1d4ed8);border-radius:var(--home-radius-sm,8px);background:var(--home-button-bg,#2563eb);color:var(--home-button-text,#fff);font-weight:950;text-decoration:none}
+    .ai-html-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:14px}.ai-html-grid article,.ai-html-table{display:grid;gap:12px;padding:18px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-card-bg,#fff);box-shadow:0 16px 40px rgba(15,23,42,.07)}.ai-html-grid strong{font-size:22px}.ai-html-grid p{margin:0;color:var(--home-text-muted,#64748b);line-height:1.6}.ai-html-chart{height:92px;display:grid;grid-template-columns:repeat(5,1fr);gap:7px;align-items:end}.ai-html-chart i{display:block;border-radius:999px 999px 4px 4px;background:linear-gradient(180deg,var(--home-primary,#2563eb),color-mix(in srgb,var(--home-primary,#2563eb) 20%,transparent))}.ai-html-chart i:nth-child(1){height:38%}.ai-html-chart i:nth-child(2){height:58%}.ai-html-chart i:nth-child(3){height:48%}.ai-html-chart i:nth-child(4){height:72%}.ai-html-chart i:nth-child(5){height:88%}.ai-html-grid ol{display:grid;gap:8px;margin:0;padding:0;list-style:none}.ai-html-grid li{padding:11px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft,#f8fbff);font-weight:900}
+    .ai-html-table div{display:grid;grid-template-columns:80px 100px 1fr;gap:10px;align-items:center;padding:12px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft,#f8fbff)}.ai-html-table b{color:var(--home-primary,#2563eb)}.ai-html-table em{color:var(--home-text-muted,#64748b);font-style:normal}
+    @media(max-width:860px){.ai-html-hero,.ai-html-grid{grid-template-columns:1fr}.ai-html-command{grid-template-columns:repeat(2,minmax(0,1fr))}.ai-html-table div{grid-template-columns:1fr}.ai-html-hero h1{font-size:28px}}
+  `;
+
+  return normalizeAiHtmlScheme(
+    {
+      name: `${title} HTML 版`,
+      summary: "本地 mock 生成的 AI HTML 视觉草稿，可用于和组件化方案对比。",
+      visualBrief: "更强调首屏视觉焦点、主金额层级、操作入口和专业数据区块。",
+      html,
+      css,
+      dataBindings: bindings,
+      safetyNotes: ["本地 mock 方案未调用模型，适合验证渲染链路。"],
+    },
+    payload,
+    config,
+    providerConfig,
+  );
+}
+
+function buildAiHtmlPrompt(payload, configScheme = {}) {
+  const prompt = cleanText(payload.prompt, "生成一个成熟券商用户端首页", 1200);
+  const system = [
+    "你是 ForexCRM 首页视觉设计生成器。",
+    "只输出一个能被 JSON.parse 解析的紧凑 JSON object，不要 markdown、代码块或解释。",
+    "这条通道允许你生成 HTML/CSS 视觉草稿，但它只用于后台预览或管理员确认后的受控渲染。",
+    "必须返回字段 name、summary、visualBrief、html、css、dataBindings、safetyNotes。",
+    "HTML 只能使用 section/header/main/div/article/nav/a/button/span/small/strong/b/em/p/ul/ol/li/table/thead/tbody/tr/th/td/svg/path 等静态标签。",
+    "禁止生成 JS、script、iframe、form、input、onclick/onload 等事件属性、外链脚本、外链字体、远程图片、javascript: URL。",
+    "CSS 只能写当前 HTML 草稿需要的类，类名统一用 ai-html- 前缀；不要写 body/html 全局样式，不要 position:fixed。",
+    "必须使用 CSS 变量承接主题，例如 var(--home-bg)、var(--home-card-bg)、var(--home-primary)、var(--home-text)、var(--home-border)、var(--home-radius-sm)。",
+    "视觉目标：成熟券商客户端、信息层级清楚、留白克制、模块不像普通卡片堆叠；主金额、主操作、趋势图和账号状态要有明确层次。",
+    "按钮只能通过 data-home-action 表达系统动作，不要编造不存在的功能；真实数据缺失时用 -- 或预览样例。",
+  ].join("\n");
+  const user = [
+    "管理员需求:",
+    prompt,
+    "",
+    "已生成的组件化首页配置，可作为业务和数据契约参考:",
+    compactJson({
+      name: configScheme.name,
+      themePreset: configScheme.themePreset || configScheme.theme,
+      density: configScheme.density,
+      heroFocus: configScheme.heroFocus,
+      sections: configScheme.sections,
+      brickPlan: configScheme.brickPlan,
+      moduleSettings: configScheme.moduleSettings,
+      pageIntent: configScheme.pageIntent,
+    }),
+    "",
+    "组件库视觉参考摘要:",
+    compactJson(componentLibraryPromptReference({ prompt, limit: 10 })),
+    "",
+    "已保存组合参考:",
+    compactJson(savedCompositionPromptReference(4)),
+    "",
+    "请返回 AI HTML 视觉草稿 JSON。",
+  ].join("\n");
+
+  return { system, user };
+}
+
 function saveComponent(component) {
   const library = readComponentLibrary();
   const normalized = normalizeGeneratedComponent(component);
@@ -1785,8 +2009,8 @@ function componentFamilySpec(family) {
     },
     TradingAccounts: {
       purpose: "真实账号和模拟账号管理",
-      requiredUi: ["Live/Demo 筛选", "账号号码", "平台/服务器", "余额", "杠杆", "详情或操作"],
-      forbidden: ["单个空卡片"],
+      requiredUi: ["账号类型 Live/Demo", "账号号码", "平台/服务器", "余额", "净值", "信用金", "账户类型", "杠杆", "保证金比例"],
+      forbidden: ["单个空卡片", "摘要卡片和完整表格上下重复", "账号类型与账户类型混用", "同一模块同时使用合并平台/服务器和拆分平台/服务器"],
     },
     OpenAccount: {
       purpose: "开真实账号、开模拟账号、绑定账号入口",
@@ -2258,10 +2482,13 @@ function buildMiniMaxPrompt(payload) {
     "各币种钱包卡片只能由 wallet_list 展示，asset_overview 不得展开 USD/EUR/USDT 等单个钱包、icon 钱包卡、可用资金、保证金或风险等级。",
     "PAMM 和 CopyTrading 必须分别使用 pamm_products 与 copytrading_signals，不能合并成一个投资推荐模块。",
     "连续时间数据必须按趋势表达：近 N 天收益、7/30/90 日收益、净值、PnL、回撤变化或收益率曲线必须使用折线图或面积折线图，不得使用柱状图、胶囊柱或装饰性条形图。",
-    "数据策略必须分层：预览可用 sample data 填充效果，但交易成本、PnL、保证金、图表等真实数据必须在 dataContract 中标记 previewSample=true、dataBindingRequired=true、fallback=\"--\" 或 placeholder，正式运行来自后台或接口。",
-    "不要把“交易成本/PnL/保证金/图表数据必须来自接口”理解成交易成本看板；只有管理员明确说首屏突出交易成本、成本效率、点差佣金看板或成本工作台时，才使用成本看板。",
-    "专业交易客户首页的首屏优先级是交易账号状态 > 账户表现图表 > 持仓入口 > MT5 操作入口；真实账号和模拟账号在一起且要求卡片时，必须使用 combined card 账号区展示 Live / Demo。",
-    "copytrading_signals 的 curveCards 必须把信号源、收益率、总收益、最大回撤、收益折线/面积曲线和 AI 推荐理由按信息层级展示；不能用大面积渐变横幅或厚重 CTA 抢走图表空间。",
+	    "数据策略必须分层：预览可用 sample data 填充效果，但交易成本、PnL、保证金、图表等真实数据必须在 dataContract 中标记 previewSample=true、dataBindingRequired=true、fallback=\"--\" 或 placeholder，正式运行来自后台或接口。",
+	    "不要把“交易成本/PnL/保证金/图表数据必须来自接口”理解成交易成本看板；只有管理员明确说首屏突出交易成本、成本效率、点差佣金看板或成本工作台时，才使用成本看板。",
+	    "专业交易客户首页的首屏优先级是交易账号状态 > 账户表现图表 > 持仓入口 > MT5 操作入口；真实账号和模拟账号在一起且要求卡片时，必须使用 combined card 账号区展示 Live / Demo。",
+	    "交易账号卡片/列表字段契约固定为 9 项：账号类型(Demo/Live)、平台/服务器(平台只能是 MT4/MT5/Sirix/XOH/Fortex，服务器为交易账号所在服务器)、账号、余额、净值、信用金、账户类型、杠杆、保证金比例；不得自行补充 PnL、用途、持仓、保证金占用、风险状态或操作按钮作为账号字段。",
+	    "交易账号模块必须先确定一种主展示形态：card、list 或 table 三选一；同一组账号数据不得在同一个模块里同时渲染上方摘要卡/摘要行和下方列表/表格。switchable 只允许作为交互状态，默认也只能显示一个视图。",
+	    "交易账号字段命名必须区分账号类型(accountKind=Live/Demo)和账户类型(accountType=ECN Standard/Demo ECN)；平台/服务器可以合并显示或拆成两列，但同一个模块内只能采用一种结构。",
+	    "copytrading_signals 的 curveCards 必须把信号源、收益率、总收益、最大回撤、收益折线/面积曲线和 AI 推荐理由按信息层级展示；不能用大面积渐变横幅或厚重 CTA 抢走图表空间。",
     "收益率、总收益、最大回撤、风险等级等指标不要默认逐项套边框卡片；已有图表或推荐卡承载时，用简洁指标行、分隔线或低干扰内联分组。",
     "不要输出无业务增益的英文 eyebrow，例如 AI Copytrading Match；标题能说明模块时直接展示标题。",
     "referral_link_card 只能在代理/IB/合作伙伴用户或租户开启推广链接功能时展示；用户端标题写“推广链接”，它只是轻量推广链接模块，不是 ib_dashboard。",
@@ -2418,7 +2645,9 @@ function buildMiniMaxPrompt(payload) {
       "模拟账号练习卡必须作为可优化的体验模块处理：表达模拟金、平台、练习目标和开始练习/重置模拟金等动作，避免只堆账号编号、余额和普通入金按钮。",
       "trading_account_highlight 的左侧账号栏目必须是单层账号上下文 + 主金额 + 安静指标行；右侧图表必须让下半部分有日期轴、趋势摘要或关键指标补足视觉重心，不能上半图表、下半空白。",
       "当管理员要求简洁、扁平、降噪、指标排版优化、不要模块套模块时，trading_account_highlight 必须是单层账号上下文 + ECharts 趋势 + 一条安静指标带，禁止把 Balance/Equity/Floating PnL 做成多个等权小卡片。",
-      "当管理员批评交易账号卡片排版或小卡片模块太多时，账号卡片只能保留一个主金额、一个盈亏状态、2-3 条安静元信息和 1-2 个操作；字段更多时改用列表/表格。",
+	      "交易账号卡片/列表只能展示账号类型、平台/服务器、账号、余额、净值、信用金、账户类型、杠杆、保证金比例这 9 项字段；不得为了丰富画面补 PnL、用途、持仓、保证金占用、风险状态或操作按钮。",
+	      "交易账号主视图必须单一：card、list 或 table 三选一，不得把摘要卡片/摘要行和完整表格在同一模块内上下叠加；需要切换视图时，默认只显示当前视图，另一个视图必须隐藏。",
+	      "当管理员批评交易账号卡片排版、小卡片模块太多、内容重复或卡片里又套表格时，优先把交易账号改成列表/表格，并减少重复容器和模块形态，只保留上述交易账号字段。",
       "列表需求优先使用 tradingAccounts.viewMode=list；但如果管理员明确要求真实账号卡片，不能把真实账号渲染成列表。",
       "quickActions.count=8 时，QuickActions 必须使用 size=2x1 或 3x1，不得使用 1x1/1x2。",
       "用户要求欢迎模块、欢迎区或 welcome 时，保留轻量 welcome_header 首行；welcome 只是入口和上下文，不应替代业务 heroFocus。",
@@ -2518,13 +2747,21 @@ function buildMiniMaxPrompt(payload) {
         announcements: { enabled: false },
         marketNews: { enabled: false },
       },
-      dataContract: {
-        mode: "api-bound-preview",
-        previewSample: true,
-        dataBindingRequired: true,
-        fallback: "placeholder",
-        fields: {
-          tradingCost: { previewSample: true, dataBindingRequired: true, binding: "api.trading.costs", fallback: "--" },
+	      dataContract: {
+	        mode: "api-bound-preview",
+	        previewSample: true,
+	        dataBindingRequired: true,
+	        fallback: "placeholder",
+	        fields: {
+	          tradingAccounts: {
+	            previewSample: true,
+	            dataBindingRequired: true,
+	            binding: "api.trading.accounts",
+	            fallback: "--",
+	            allowedFields: ["accountKind", "platform", "server", "account", "balance", "equity", "credit", "accountType", "leverage", "marginRatio"],
+	            forbiddenFields: ["pnl", "usage", "positions", "marginUsed", "riskStatus", "actions"]
+	          },
+	          tradingCost: { previewSample: true, dataBindingRequired: true, binding: "api.trading.costs", fallback: "--" },
           pnl: { previewSample: true, dataBindingRequired: true, binding: "api.trading.pnl", fallback: "--" },
           margin: { previewSample: true, dataBindingRequired: true, binding: "api.trading.margin", fallback: "--" },
           charts: { previewSample: true, dataBindingRequired: true, binding: "api.trading.performanceSeries", fallback: "--" },
@@ -2767,6 +3004,9 @@ function buildPrompt(payload, config = {}) {
     "数据策略必须分层：预览可用 sample data 填充页面效果，但交易成本、PnL、保证金、图表等真实数据必须在 dataContract 中标记 previewSample=true、dataBindingRequired=true、fallback=\"--\" 或 placeholder，正式运行来自后台或接口。",
     "不要把“交易成本/PnL/保证金/图表数据必须来自接口”理解成交易成本看板；只有管理员明确说首屏突出交易成本、成本效率、点差佣金看板或成本工作台时，才使用成本看板。",
     "专业交易客户首页的首屏优先级是交易账号状态 > 账户表现图表 > 持仓入口 > MT5 操作入口；真实账号和模拟账号在一起且要求卡片时，必须使用 combined card 账号区展示 Live / Demo。",
+    "交易账号卡片/列表字段契约固定为 9 项：账号类型(Demo/Live)、平台/服务器(平台只能是 MT4/MT5/Sirix/XOH/Fortex，服务器为交易账号所在服务器)、账号、余额、净值、信用金、账户类型、杠杆、保证金比例；不得自行补充 PnL、用途、持仓、保证金占用、风险状态或操作按钮作为账号字段。",
+    "交易账号模块必须先确定一种主展示形态：card、list 或 table 三选一；同一组账号数据不得在同一个模块里同时渲染上方摘要卡/摘要行和下方列表/表格。switchable 只允许作为交互状态，默认也只能显示一个视图。",
+    "交易账号字段命名必须区分账号类型(accountKind=Live/Demo)和账户类型(accountType=ECN Standard/Demo ECN)；平台/服务器可以合并显示或拆成两列，但同一个模块内只能采用一种结构。",
     "copytrading_signals 的 curve-cards 必须把信号源、收益率、总收益、最大回撤、收益折线/面积曲线和 AI 推荐理由按信息层级展示；不能用大面积渐变横幅或厚重 CTA 抢走图表空间。",
     "收益率、总收益、最大回撤、风险等级等指标不要默认逐项套边框卡片；已有图表或推荐卡承载时，用简洁指标行、分隔线或低干扰内联分组。",
     "trading_account_highlight 的左侧账号栏目必须扁平分组，右侧图表下半部分要有日期轴、走势摘要或关键指标补足视觉重心，不能出现大面积空白。",
@@ -2808,7 +3048,9 @@ function buildPrompt(payload, config = {}) {
     "同一屏里的核心可见模块要尽量选择不同 morph，不得只换标题、颜色、顺序、moduleStyles 或 variant；morph 必须意味着真实 DOM 骨架差异，例如表格型、横向状态条、指标三联、左右分栏、时间线、操作坞、紧凑列表、终端面板、卡片墙、风险/信任证明结构。",
     "当管理员提到个性化、意图、更多方案、样式风格时，personalizationStrength 必须为 strong，并让 pageIntent 同时影响 layoutPreset、sections 顺序、QuickActions 风格和核心可见模块 morph，不要只换颜色。",
     "如果管理员要求简洁、扁平、降噪、数据指标排版优化、不要模块内套模块，账号表现必须采用单层结构：选中账号上下文、一个主数值、ECharts 7D/30D 折线图和一条轻量指标带；不要再生成卡片里面套小卡片。",
-    "交易账号卡片只能展示一个主金额、一个 PnL/风险状态、2-3 条安静元信息和 1-2 个操作；如果字段多、账号多或管理员说重点太多，优先选择列表/表格。",
+    "交易账号卡片/列表只能展示账号类型、平台/服务器、账号、余额、净值、信用金、账户类型、杠杆、保证金比例这 9 项字段；不得为了丰富画面补 PnL、用途、持仓、保证金占用、风险状态或操作按钮。",
+    "交易账号主视图必须单一：card、list 或 table 三选一，不得把摘要卡片/摘要行和完整表格在同一模块内上下叠加；需要切换视图时，默认只显示当前视图，另一个视图必须隐藏。",
+    "如果账号字段密度较高、账号多或管理员说重点太多、内容重复、卡片里又套表格，优先选择列表/表格，而不是把多种账号形态堆在同一个模块里。",
     "sections、layout 和 brickPlan 只能包含可渲染且启用的业务模块；禁止空 section、空 slots、东缺一块西缺一块的断裂拼版。",
     "brickPlan、brickTrace、brickName、brickReason 只用于系统调试和数据属性，不能作为用户端可见 UI 文案。",
     "如果管理员要求真实账号用卡片、模拟账号用列表，必须设置 moduleSettings.tradingAccounts.grouping = \"separated\"、viewMode = \"card\"、realViewMode = \"card\"、demoViewMode = \"list\"，前端会渲染成两个独立账号模块且不显示 tab。",
@@ -2923,7 +3165,7 @@ function buildOpenAiChatBody(config, promptParts) {
   const structuredJsonRequest = config.responseFormat !== "text";
   const body = {
     model: config.model,
-    temperature: structuredJsonRequest && ["minimax", "kimi"].includes(config.provider) ? Math.min(config.temperature, 0.6) : config.temperature,
+    temperature: structuredJsonRequest && config.provider === "minimax" ? Math.min(config.temperature, 0.6) : config.temperature,
     max_tokens: config.maxOutputTokens,
     messages: [
       { role: "system", content: promptParts.system },
@@ -2938,6 +3180,9 @@ function buildOpenAiChatBody(config, promptParts) {
   } else if (config.provider === "kimi") {
     delete body.max_tokens;
     body.max_completion_tokens = config.maxOutputTokens;
+    if (/^kimi-k2\.6\b/i.test(config.model)) {
+      body.thinking = { type: "disabled" };
+    }
     if (structuredJsonRequest) {
       body.response_format = { type: "json_object" };
     }
@@ -3341,14 +3586,18 @@ function mockHomepageConfig(payload, providerConfig) {
   const wantsAccountPerformanceLine =
     /账号表现|账户表现|账号净值|账户净值|净值曲线|权益曲线|账号盈亏|账户盈亏|交易图表/.test(text) ||
     (/(7日|7 日|30日|30 日|7d|30d)/i.test(text) && /账号|账户/.test(text) && /净值|权益|pnl|盈亏|走势|曲线/i.test(text));
+  const wantsAccountSingleViewCorrection =
+    /交易账(?:号|户)[\s\S]{0,48}(?:重复|叠加|两套|同时|混在一起|上方[\s\S]{0,16}下方|卡片[\s\S]{0,16}表格|摘要[\s\S]{0,16}表格)|账号卡片[\s\S]{0,28}(?:重复|叠加|表格|模块太多|重点太多|信息太多)|小卡片[\s\S]{0,28}(?:模块太多|重点太多|信息太多)|卡片(?:的)?问题|内容重复|模块套模块/.test(rawPrompt);
   const wantsAccountList =
     /交易账号列表|交易账户列表|账号列表|账户列表|账(?:号|户)[\s\S]{0,16}用列表|account list/.test(text) ||
+    wantsAccountSingleViewCorrection ||
     (wantsFlatAccountOptimization && !wantsAccountCardRefinement);
   const wantsWelcome = /欢迎|welcome/.test(text);
   const wantsRealAccountCards = !rejectsAccountCards && /真实(?:交易)?账(?:号|户)(?:列表)?[\s\S]{0,32}卡片|卡片[\s\S]{0,32}真实(?:交易)?账(?:号|户)/.test(String(payload.prompt || ""));
   const wantsDemoAccountCards = !rejectsAccountCards && /模拟(?:交易)?账(?:号|户)[\s\S]{0,32}卡片|卡片[\s\S]{0,32}模拟(?:交易)?账(?:号|户)|demo[\s\S]{0,32}card/i.test(String(payload.prompt || ""));
   const wantsDemoAccountList = /模拟(?:交易)?账(?:号|户)[\s\S]{0,32}列表|demo\s*(account\s*)?list/i.test(String(payload.prompt || ""));
   const wantsMixedAccountPresentation = wantsRealAccountCards && wantsDemoAccountList && !wantsDemoAccountCards;
+  const wantsAccountCardMode = wantsAccountCardRefinement && !wantsAccountList;
   const design = homepageDesignForIntent(intent);
   const onboardingPresentation = onboardingPresentationFromText(text, design.designGenome, Number(payload.variant || 0));
 	  const brickPlans = {
@@ -3516,13 +3765,13 @@ function mockHomepageConfig(payload, providerConfig) {
       AccountPerformance: { variant: wantsFlatAccountOptimization ? "cleanSnapshot" : wantsAccountPerformanceLine ? "proChart" : intent === "deposit" ? "cleanSnapshot" : design.designGenome === "tradingCommand" ? "sparklineBoard" : intent === "insight" ? "cleanSnapshot" : "proChart" },
       WalletList: { variant: design.designGenome === "accountOpsConsole" ? "walletTiles" : "currencyTable" },
       TradingAccounts: {
-        variant: wantsFlatAccountOptimization && !wantsAccountCardRefinement
+        variant: wantsFlatAccountOptimization && wantsAccountList
           ? "separatedList"
           : intent === "deposit"
           ? "accountWall"
           : design.designGenome === "magazineCampaign"
           ? "accountWall"
-          : wantsAccountCardRefinement
+          : wantsAccountCardMode
           ? "denseCards"
           : design.designGenome === "tradingCommand" || intent === "brand"
           ? "opsTable"
@@ -3546,7 +3795,7 @@ function mockHomepageConfig(payload, providerConfig) {
       quick_actions: quickPresentation.style,
       referral_link_card: intent === "partner" ? "compact-card" : "compact-card",
       copytrading_signals: "curve-cards",
-      tradingAccounts: wantsFlatAccountOptimization && !wantsAccountCardRefinement ? "calm-table" : wantsAccountCardRefinement ? "dense-cards" : intent === "deposit" ? "account-wall" : design.designGenome === "magazineCampaign" ? "account-wall" : design.designGenome === "tradingCommand" || isAsset || intent === "brand" ? "ops-table" : "dense-cards",
+      tradingAccounts: wantsFlatAccountOptimization && wantsAccountList ? "calm-table" : wantsAccountCardMode ? "dense-cards" : intent === "deposit" ? "account-wall" : design.designGenome === "magazineCampaign" ? "account-wall" : design.designGenome === "tradingCommand" || isAsset || intent === "brand" ? "ops-table" : "dense-cards",
       accountPerformance: wantsFlatAccountOptimization ? "pro-chart" : wantsAccountPerformanceLine ? "pro-chart" : design.designGenome === "tradingCommand" ? "sparkline-board" : "pro-chart",
       walletList: design.designGenome === "accountOpsConsole" ? "wallet-tiles" : "currency-table",
     },
@@ -3555,9 +3804,9 @@ function mockHomepageConfig(payload, providerConfig) {
       QuickActions: { variant: quickPresentation.variant },
       PromotionBanner: { variant: intent === "deposit" ? "depositLadder" : design.designGenome === "magazineCampaign" ? "editorialCover" : "splitVisual" },
       TradingAccounts: {
-        variant: wantsFlatAccountOptimization && !wantsAccountCardRefinement
+        variant: wantsFlatAccountOptimization && wantsAccountList
           ? "separatedList"
-          : wantsAccountCardRefinement
+          : wantsAccountCardMode
           ? "denseCards"
           : design.designGenome === "tradingCommand" || intent === "brand"
           ? "opsTable"
@@ -3613,10 +3862,10 @@ function mockHomepageConfig(payload, providerConfig) {
         enabled: true,
         realEnabled: true,
         demoEnabled: true,
-        grouping: wantsAccountCardRefinement && !wantsAccountList ? (wantsRealAccountCards || wantsDemoAccountCards ? "separated" : "combined") : intent === "brand" ? "combined" : isAsset || isTrader || wantsSeparatedAccounts || wantsAccountList || wantsMixedAccountPresentation ? "separated" : "combined",
-        viewMode: wantsAccountCardRefinement && !wantsAccountList ? "card" : intent === "brand" ? "list" : intent === "deposit" || wantsRealAccountCards || wantsDemoAccountCards || wantsMixedAccountPresentation ? "card" : isAsset || isTrader || wantsSeparatedAccounts || wantsAccountList ? "list" : "switchable",
-        realViewMode: wantsAccountCardRefinement && !wantsAccountList ? "card" : intent === "brand" ? "list" : wantsRealAccountCards || wantsMixedAccountPresentation ? "card" : isAsset || isTrader || wantsSeparatedAccounts || wantsAccountList ? "list" : "card",
-        demoViewMode: wantsAccountCardRefinement && !wantsAccountList ? "card" : intent === "brand" ? "list" : wantsDemoAccountCards ? "card" : wantsMixedAccountPresentation ? "list" : isAsset || isTrader || wantsSeparatedAccounts || wantsAccountList ? "list" : "card",
+        grouping: wantsAccountCardMode ? (wantsRealAccountCards || wantsDemoAccountCards ? "separated" : "combined") : intent === "brand" ? "combined" : isAsset || isTrader || wantsSeparatedAccounts || wantsAccountList || wantsMixedAccountPresentation ? "separated" : "combined",
+        viewMode: wantsAccountCardMode ? "card" : intent === "brand" || wantsAccountList ? "list" : intent === "deposit" || wantsRealAccountCards || wantsDemoAccountCards || wantsMixedAccountPresentation ? "card" : isAsset || isTrader || wantsSeparatedAccounts ? "list" : "switchable",
+        realViewMode: wantsAccountCardMode ? "card" : intent === "brand" || wantsAccountList ? "list" : wantsRealAccountCards || wantsMixedAccountPresentation ? "card" : isAsset || isTrader || wantsSeparatedAccounts ? "list" : "card",
+        demoViewMode: wantsAccountCardMode ? "card" : intent === "brand" || wantsAccountList ? "list" : wantsDemoAccountCards ? "card" : wantsMixedAccountPresentation ? "list" : isAsset || isTrader || wantsSeparatedAccounts ? "list" : "card",
         demoFirst: /模拟账号.*(?:真实账号|live)|demo.*live|demo\s*在\s*live|模拟.*上面/i.test(String(payload.prompt || "")),
       },
       openAccount: { enabled: true, real: true, demo: intent === "deposit" ? false : true, bind: intent === "deposit" || intent === "brand" ? false : true, placement: isOnboarding || intent === "deposit" || intent === "brand" || isPartner ? "standalone" : "insideTradingAccounts" },
@@ -3900,13 +4149,19 @@ function homepageDataContractFromUnderstanding(understanding = {}) {
     binding,
     fallback: "--",
   });
+  const tradingAccountFields = ["accountKind", "platform", "server", "account", "balance", "equity", "credit", "accountType", "leverage", "marginRatio"];
   return {
     mode: "api-bound-preview",
     previewSample: true,
     dataBindingRequired: true,
     fallback: "placeholder",
-    note: "预览阶段可以填充 sample data；正式运行时交易成本、PnL、保证金和图表必须来自后台或接口，缺失显示占位。",
+    note: "预览阶段可以填充 sample data；正式运行时交易账号、交易成本、PnL、保证金和图表必须来自后台或接口，缺失显示占位；交易账号卡片/列表只使用约定字段。",
     fields: {
+      tradingAccounts: {
+        ...field("交易账号卡片/列表字段", "api.trading.accounts"),
+        allowedFields: tradingAccountFields,
+        forbiddenFields: ["pnl", "usage", "positions", "marginUsed", "riskStatus", "actions"],
+      },
       tradingCost: field("交易成本", "api.trading.costs"),
       pnl: field("PnL / 盈亏", "api.trading.pnl"),
       margin: field("保证金", "api.trading.margin"),
@@ -3923,7 +4178,15 @@ function wantsServerTradingAccountCards(prompt) {
 
 function wantsServerTradingAccountList(prompt) {
   const source = String(prompt || "");
-  return /交易账(?:号|户)[\s\S]{0,24}(?:列表|表格|用列表)|账(?:号|户)[\s\S]{0,16}(?:列表|表格|用列表)|列表形式|表格形式|不是卡片|非卡片|live\s*(account\s*)?list|demo\s*(account\s*)?list/i.test(source);
+  return (
+    wantsServerTradingAccountSingleViewCorrection(source) ||
+    /交易账(?:号|户)[\s\S]{0,24}(?:列表|表格|用列表)|账(?:号|户)[\s\S]{0,16}(?:列表|表格|用列表)|列表形式|表格形式|不是卡片|非卡片|live\s*(account\s*)?list|demo\s*(account\s*)?list/i.test(source)
+  );
+}
+
+function wantsServerTradingAccountSingleViewCorrection(prompt) {
+  const source = String(prompt || "");
+  return /交易账(?:号|户)[\s\S]{0,48}(?:重复|叠加|两套|同时|混在一起|上方[\s\S]{0,16}下方|卡片[\s\S]{0,16}表格|摘要[\s\S]{0,16}表格)|账号卡片[\s\S]{0,28}(?:重复|叠加|表格|模块太多|重点太多|信息太多)|小卡片[\s\S]{0,28}(?:模块太多|重点太多|信息太多)|卡片(?:的)?问题|内容重复|模块套模块/.test(source);
 }
 
 function wantsServerTradingAccountVariety(prompt) {
@@ -3946,9 +4209,10 @@ function applyServerTradingAccountPresentationVariety(config, prompt, options = 
   if (!settings.tradingAccounts?.enabled) return;
 
   const wantsFlatOptimization = wantsServerFlatAccountOptimization(prompt);
-  const refineCards = wantsServerAccountCardRefinement(prompt) && !wantsServerTradingAccountList(prompt);
+  const forceList = wantsServerTradingAccountSingleViewCorrection(prompt);
+  const refineCards = wantsServerAccountCardRefinement(prompt) && !wantsServerTradingAccountList(prompt) && !forceList;
   const keepSeparatedCards = wantsServerTradingAccountCards(prompt) || /模拟(?:交易)?账(?:号|户)(?:列表)?[\s\S]{0,32}卡片/.test(String(prompt || ""));
-  if (wantsFlatOptimization) {
+  if (wantsFlatOptimization || forceList) {
     settings.tradingAccounts = refineCards
       ? { ...settings.tradingAccounts, enabled: true, realEnabled: true, demoEnabled: true, grouping: keepSeparatedCards ? "separated" : "combined", viewMode: "card", realViewMode: "card", demoViewMode: "card" }
       : { ...settings.tradingAccounts, enabled: true, realEnabled: true, demoEnabled: true, grouping: "separated", viewMode: "list", realViewMode: "list", demoViewMode: "list" };
@@ -5539,8 +5803,9 @@ function applyHomepageUnderstandingToServerConfig(config, prompt) {
     ensureHomepageSectionContains(next, { id: "combined-accounts", type: "full", title: "交易账号" }, "tradingAccounts");
   }
 
-  if (wantsServerFlatAccountOptimization(prompt)) {
-    const refineCards = wantsServerAccountCardRefinement(prompt) && !wantsServerTradingAccountList(prompt);
+  const forceSingleAccountView = wantsServerTradingAccountSingleViewCorrection(prompt);
+  if (wantsServerFlatAccountOptimization(prompt) || forceSingleAccountView) {
+    const refineCards = wantsServerAccountCardRefinement(prompt) && !wantsServerTradingAccountList(prompt) && !forceSingleAccountView;
     const keepSeparatedCards = wantsServerTradingAccountCards(prompt) || /模拟(?:交易)?账(?:号|户)(?:列表)?[\s\S]{0,32}卡片/.test(String(prompt || ""));
     next.modules = {
       ...ensureObject(next.modules),
@@ -5909,13 +6174,13 @@ function mockGeneratedComponent(payload, providerConfig) {
 	      css: `${baseCss}.${root} header{display:grid;gap:4px}.${root} header strong{font-size:22px}.${root} .link{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end;padding:10px;border:1px solid var(--home-border);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft)}.${root} .link small{grid-column:1/-1}.${root} p{margin:0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}.${root} .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.${root} b{padding:9px;border-radius:var(--home-radius-sm,8px);background:var(--home-primary-soft);color:var(--home-primary);font-size:12px}@media(max-width:620px){.${root} .link,.${root} .stats{grid-template-columns:1fr}}`,
       dataRequirements: ["inviteUrl", "inviteCode", "clicks", "registeredAccounts", "tradingAccounts"],
     },
-    TradingAccounts: {
-      name: "真实模拟账号列表",
-      description: "用列表方式展示 Live/Demo 账号、服务器、余额、杠杆和详情操作。",
-      html: `<section class="${root}"><header><span>Trading Accounts</span><div><button class="primary" type="button">All</button><button type="button">Live</button><button type="button">Demo</button></div></header><div class="rows"><p><b>Live 2000281</b><span>MT5 HCHoldingsGroup</span><strong>99,999.99</strong><a>Details</a></p><p><b>Demo 1000008</b><span>MT5 Demo</span><strong>50,000.00</strong><a>Details</a></p></div></section>`,
-	      css: `${baseCss}.${root} header{display:flex;justify-content:space-between;gap:10px;align-items:center}.${root} header div{display:flex;gap:6px}.${root} .rows{display:grid;gap:8px}.${root} p{display:grid;grid-template-columns:1.1fr 1.2fr .8fr auto;gap:8px;align-items:center;margin:0;padding:10px;border:1px solid var(--home-border);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft)}.${root} strong{text-align:right}@media(max-width:720px){.${root} header,.${root} p{grid-template-columns:1fr;display:grid}.${root} strong{text-align:left}}`,
-      dataRequirements: ["liveAccounts", "demoAccounts", "server", "balance", "leverage"],
-    },
+	    TradingAccounts: {
+	      name: "真实模拟账号列表",
+	      description: "交易账号卡片或列表只展示账号类型、平台/服务器、账号、余额、净值、信用金、账户类型、杠杆和保证金比例。",
+	      html: `<section class="${root}"><header><span>Trading Accounts</span><div><button class="primary" type="button">All</button><button type="button">Live</button><button type="button">Demo</button></div></header><div class="rows"><p><b>Live</b><span>2000281</span><span>MT5 · HCHoldings-Live2</span><strong>99,999.99</strong><strong>101,280.60</strong><span>500.00</span><span>ECN Standard</span><span>1:100</span><span>528%</span></p><p><b>Demo</b><span>1000008</span><span>MT5 · HCHoldings-Demo</span><strong>50,000.00</strong><strong>51,280.60</strong><span>0.00</span><span>Demo ECN</span><span>1:500</span><span>4345%</span></p></div></section>`,
+		      css: `${baseCss}.${root} header{display:flex;justify-content:space-between;gap:10px;align-items:center}.${root} header div{display:flex;gap:6px}.${root} .rows{display:grid;gap:8px;overflow-x:auto}.${root} p{display:grid;grid-template-columns:minmax(68px,.6fr) minmax(86px,.7fr) minmax(150px,1.4fr) repeat(2,minmax(92px,.8fr)) minmax(76px,.7fr) minmax(110px,.9fr) minmax(70px,.6fr) minmax(88px,.7fr);gap:8px;align-items:center;margin:0;padding:10px;border:1px solid var(--home-border);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft)}.${root} strong{text-align:right}@media(max-width:720px){.${root} header,.${root} p{grid-template-columns:1fr;display:grid}.${root} strong{text-align:left}}`,
+	      dataRequirements: ["accountKind", "platform", "server", "account", "balance", "equity", "credit", "accountType", "leverage", "marginRatio"],
+	    },
     OpenAccount: {
       name: "开户动作面板",
       description: "聚合开真实账号、开模拟账号、绑定账号和 KYC 状态的转化积木。",
@@ -6276,10 +6541,22 @@ async function testProviderConnection(payload) {
 
 async function callProvider(payload) {
   const config = normalizeProviderConfig(payload.modelConfig);
+  const renderMode = homepageRenderMode(payload);
 
   if (process.env.HOME_AI_MOCK === "true") {
+    const mockConfig = enforceHomepagePromptIntent(payload, mockHomepageConfig(payload, config));
+    const htmlScheme = renderModeWantsAiHtml(renderMode) ? mockAiHtmlScheme(payload, mockConfig, config) : null;
     return {
-      config: enforceHomepagePromptIntent(payload, mockHomepageConfig(payload, config)),
+      config: {
+        ...mockConfig,
+        renderMode,
+        htmlGenerationEnabled: renderModeWantsAiHtml(renderMode),
+        activeRenderMode: renderMode === "aiHtml" ? "aiHtml" : "config",
+        ...(htmlScheme ? { htmlScheme } : {}),
+      },
+      ...(htmlScheme ? { htmlScheme } : {}),
+      renderMode,
+      activeRenderMode: renderMode === "aiHtml" ? "aiHtml" : "config",
       provider: config.provider,
       model: config.model,
       rawText: "",
@@ -6288,12 +6565,46 @@ async function callProvider(payload) {
   }
 
   const result = await callProviderWithPrompt(payload, buildPrompt(payload, config), payload.context?.schema, "homepage_config");
+  const homepageConfig = enforceHomepagePromptIntent(payload, result.json);
+  let htmlScheme = null;
+  let htmlUsage = null;
+  let htmlRawText = "";
+
+  if (renderModeWantsAiHtml(renderMode)) {
+    try {
+      const htmlResult = await callProviderWithPrompt(
+        payload,
+        buildAiHtmlPrompt(payload, homepageConfig),
+        AI_HTML_SCHEME_JSON_SCHEMA,
+        "homepage_ai_html",
+      );
+      htmlScheme = normalizeAiHtmlScheme(htmlResult.json, payload, homepageConfig, config);
+      htmlUsage = htmlResult.usage || null;
+      htmlRawText = htmlResult.rawText || "";
+    } catch (error) {
+      htmlScheme = {
+        ...mockAiHtmlScheme(payload, homepageConfig, config),
+        summary: `AI HTML 生成失败，已使用安全 mock 草稿：${cleanText(error.message, "", 180)}`,
+        safetyNotes: ["AI HTML 通道生成失败，当前为本地 mock 草稿。"],
+      };
+    }
+  }
+
   return {
-    config: enforceHomepagePromptIntent(payload, result.json),
+    config: {
+      ...homepageConfig,
+      renderMode,
+      htmlGenerationEnabled: renderModeWantsAiHtml(renderMode),
+      activeRenderMode: renderMode === "aiHtml" ? "aiHtml" : "config",
+      ...(htmlScheme ? { htmlScheme } : {}),
+    },
+    ...(htmlScheme ? { htmlScheme } : {}),
+    renderMode,
+    activeRenderMode: renderMode === "aiHtml" ? "aiHtml" : "config",
     provider: result.provider,
     model: result.model,
-    rawText: result.rawText,
-    usage: result.usage,
+    rawText: [result.rawText, htmlRawText].filter(Boolean).join("\n\n--- ai html ---\n\n"),
+    usage: htmlUsage ? { config: result.usage || null, html: htmlUsage } : result.usage,
   };
 }
 
@@ -6768,7 +7079,7 @@ const server = http.createServer(async (req, res) => {
               model: config.model,
               baseUrl: config.baseUrl,
               endpoint: config.endpoint,
-              keyEnv: provider.keyEnv,
+              ...providerKeyStatus(provider),
             },
           ];
         }),

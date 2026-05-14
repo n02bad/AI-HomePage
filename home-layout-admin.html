@@ -25,6 +25,19 @@
               <button type="button" role="tab" aria-selected="false" data-generation-mode-button="guided">引导式生成</button>
             </div>
 
+            <section class="ai-render-mode-card" aria-label="AI HTML 生成模式">
+              <div>
+                <span>生成模式</span>
+                <strong>启用 / 关闭 AI 生成 HTML</strong>
+                <small data-render-mode-note>稳定模式：AI 输出配置，由首页组件和积木渲染。</small>
+              </div>
+              <div class="ai-render-mode-options" role="group" aria-label="选择生成模式">
+                <button class="active" type="button" data-render-mode-button="config">组件化</button>
+                <button type="button" data-render-mode-button="aiHtml">AI HTML</button>
+                <button type="button" data-render-mode-button="compare">双方案</button>
+              </div>
+            </section>
+
             <div class="ai-generation-panel active" data-generation-panel="quick">
               <section class="ai-chat-composer" aria-label="AI 首页生成输入">
                 <label class="visually-hidden" for="homeAiPrompt">描述首页目标</label>

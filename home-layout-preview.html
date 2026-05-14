@@ -42,9 +42,28 @@
                 <dl>
                   <div><dt>布局</dt><dd data-summary-layout>--</dd></div>
                   <div><dt>主题</dt><dd data-summary-theme>--</dd></div>
+                  <div><dt>方式</dt><dd data-summary-render>--</dd></div>
                   <div><dt>首屏</dt><dd data-summary-hero>--</dd></div>
                 </dl>
                 <div class="governance-summary" data-governance-summary></div>
+              </div>
+
+              <div class="studio-section">
+                <div class="studio-section-head">
+                  <span class="section-kicker">RENDER</span>
+                  <h2>预览方式</h2>
+                </div>
+                <section class="ai-render-mode-card compact" data-preview-render-mode-controls aria-label="预览渲染方式">
+                  <div>
+                    <span>当前页面</span>
+                    <strong>组件化 / AI HTML</strong>
+                    <small data-render-mode-note>稳定模式：AI 输出配置，由首页组件和积木渲染。</small>
+                  </div>
+                  <div class="ai-render-mode-options" role="group" aria-label="切换预览方式">
+                    <button class="active" type="button" data-render-mode-button="config">组件化</button>
+                    <button type="button" data-render-mode-button="aiHtml">AI HTML</button>
+                  </div>
+                </section>
               </div>
 
               <div class="studio-section">

@@ -968,7 +968,7 @@
 .account-card-hero {
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   align-items: end;
   gap: 12px;
   padding: 14px 0 6px;
