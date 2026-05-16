@@ -1,6 +1,8 @@
 # AI UI Generation Protocol
 
-This project should treat every homepage prompt as a product-design brief, not as a color-change request. Before generating or accepting a homepage blueprint, the AI must pass through this protocol.
+This project should treat every homepage prompt as a product-design brief, not as a color-change request. Before generating or accepting a homepage blueprint, the AI must pass through this protocol and the local `design.md` governance document.
+
+`design.md` is the design constitution. It limits AI freedom to the ForexCRM / Nxbroker financial CRM style: clear information hierarchy, dense but scannable modules, disciplined tokens, responsive behavior, and component-library semantics. The AI may still generate polished HTML, but polish must come from structure, spacing, state expression, data visualization, empty/loading states, and responsive refinement. It must not come from random gradients, thick shadows, oversized marketing heroes, card nesting, hard-coded colors, or newly invented business modules.
 
 ## 1. Understand First
 

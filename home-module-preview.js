@@ -1,6 +1,8 @@
 (function () {
   const MODEL_CONFIG_KEY = "forexcrm.home.ai.model.config";
   const COMPONENT_CACHE_KEY = "forexcrm.home.ai.component.library";
+  const COMPONENT_SCORE_KEY = "forexcrm.home.ai.component.scores";
+  const COMPONENT_DELETED_KEY = "forexcrm.home.ai.component.deleted";
   const COMPOSITION_CACHE_KEY = "forexcrm.home.ai.component.composition";
   const MINIMAX_CN_BASE_URL = "https://api.minimaxi.com/v1";
   const MINIMAX_CN_TYPED_ALIAS_BASE_URL = "https://api.minimaxi.cn/v1";
@@ -82,9 +84,29 @@
     apiKey: "",
     apiKeys: {},
   };
+  const COMPONENT_SIZE_OPTIONS = [
+    "1x1",
+    "1x2",
+    "2x1",
+    "2x2",
+    "3x1",
+    "3x2",
+    "4x1",
+    "4x2",
+    "4x3",
+    "5x1",
+    "5x2",
+    "5x3",
+  ];
+  const COMPONENT_SIZE_PATTERN = /^([1-9]\d?)x([1-9]\d?)$/i;
 
   const buttons = [...document.querySelectorAll("[data-brick-filter]")];
   const groups = [...document.querySelectorAll("[data-brick-group]")];
+  const familyGroupMap = new Map(
+    groups
+      .map((group) => [group.querySelector(".brick-family-head span")?.textContent.trim(), group.dataset.brickGroup])
+      .filter(([family, group]) => family && group),
+  );
 
   const els = {
     prompt: document.querySelector("[data-ai-component-prompt]"),
@@ -93,6 +115,7 @@
     generate: document.querySelector("[data-ai-generate-component]"),
     compose: document.querySelector("[data-ai-compose-home]"),
     status: document.querySelector("[data-ai-component-status]"),
+    aiComponentModal: document.querySelector("[data-ai-component-modal]"),
     savedSection: document.querySelector("[data-saved-section]"),
     savedCount: document.querySelector("[data-saved-count]"),
     savedComponents: document.querySelector("[data-saved-components]"),
@@ -102,13 +125,28 @@
     compositionLayout: document.querySelector("[data-composition-layout]"),
     compositionPolish: document.querySelector("[data-composition-polish]"),
     modelSummary: document.querySelector("[data-component-model-summary]"),
+    familyFilter: document.querySelector("[data-brick-family-filter]"),
+    sizeFilter: document.querySelector("[data-brick-size-filter]"),
+    scoreFilter: document.querySelector("[data-brick-score-filter]"),
+    search: document.querySelector("[data-brick-search]"),
+    filterCount: document.querySelector("[data-brick-filter-count]"),
+    emptyState: document.querySelector("[data-brick-empty-state]"),
   };
 
   let savedComponents = [];
+  let componentScores = loadComponentScores();
+  let deletedComponentIds = loadDeletedComponentIds();
   let aiModelConfig = loadModelConfig();
   let editingModelConfig = null;
   let modelTestState = { tone: "", message: "组件生成会复用这套模型配置" };
-  let componentEditorState = { componentId: "", messages: [], busy: false };
+  let componentEditorState = { componentId: "", busy: false };
+  const brickFilters = {
+    group: "all",
+    family: "all",
+    size: "all",
+    minScore: "all",
+    search: "",
+  };
 
   function escapeHtml(value) {
     return String(value)
@@ -125,16 +163,305 @@
     els.status.dataset.tone = tone;
   }
 
-  function setFilter(filter) {
-    const nextFilter = filter || "all";
+  function openAiComponentModal(options = {}) {
+    const modal = els.aiComponentModal || document.querySelector("[data-ai-component-modal]");
+    if (!modal) return;
 
+    if (els.prompt && options.prompt) els.prompt.value = options.prompt;
+    if (els.family && options.family) els.family.value = options.family;
+    if (els.size && options.size) {
+      const size = isAutoComponentSize(options.size) ? "auto" : normalizeComponentSizeValue(options.size, "2x1");
+      ensureSizeOption(size);
+      els.size.value = size;
+    }
+    if (options.status) setStatus(options.status, options.tone || "");
+    else if (!els.status?.textContent?.trim()) setStatus("等待生成组件");
+
+    modal.hidden = false;
+    window.requestAnimationFrame(() => els.prompt?.focus());
+  }
+
+  function closeAiComponentModal() {
+    const modal = els.aiComponentModal || document.querySelector("[data-ai-component-modal]");
+    if (modal) modal.hidden = true;
+  }
+
+  function normalizeComponentScore(value, fallback = 5) {
+    const score = Number(value);
+    if (!Number.isFinite(score)) return fallback;
+    return Math.min(10, Math.max(1, Math.round(score)));
+  }
+
+  function loadComponentScores() {
+    try {
+      const data = JSON.parse(window.localStorage.getItem(COMPONENT_SCORE_KEY) || "{}");
+      return data && typeof data === "object" && !Array.isArray(data) ? data : {};
+    } catch (error) {
+      return {};
+    }
+  }
+
+  function saveComponentScores() {
+    window.localStorage.setItem(COMPONENT_SCORE_KEY, JSON.stringify(componentScores));
+  }
+
+  function loadDeletedComponentIds() {
+    try {
+      const data = JSON.parse(window.localStorage.getItem(COMPONENT_DELETED_KEY) || "[]");
+      return new Set(Array.isArray(data) ? data.filter(Boolean).map(String) : []);
+    } catch (error) {
+      return new Set();
+    }
+  }
+
+  function saveDeletedComponentIds() {
+    window.localStorage.setItem(COMPONENT_DELETED_KEY, JSON.stringify([...deletedComponentIds]));
+  }
+
+  function markComponentDeleted(componentId) {
+    const id = String(componentId || "").trim();
+    if (!id) return;
+    deletedComponentIds.add(id);
+    saveDeletedComponentIds();
+  }
+
+  function restoreDeletedComponent(componentId) {
+    const id = String(componentId || "").trim();
+    if (!id || !deletedComponentIds.has(id)) return;
+    deletedComponentIds.delete(id);
+    saveDeletedComponentIds();
+  }
+
+  function isComponentDeleted(componentId) {
+    return deletedComponentIds.has(String(componentId || "").trim());
+  }
+
+  function componentScoreKey(componentOrId) {
+    const id = typeof componentOrId === "string" ? componentOrId : componentOrId?.id;
+    return id ? `component:${id}` : "";
+  }
+
+  function staticCardScoreKey(card) {
+    return `static:${familyFromCard(card)}:${titleFromCard(card)}:${sizeFromCard(card)}`;
+  }
+
+  function scoreForKey(scoreKey, fallback = 5) {
+    return normalizeComponentScore(componentScores[scoreKey], fallback);
+  }
+
+  function scoreForComponent(component) {
+    const fallback = normalizeComponentScore(component?.score, 5);
+    const scoreKey = componentScoreKey(component);
+    return scoreKey ? scoreForKey(scoreKey, normalizeComponentScore(componentScores[component?.id], fallback)) : fallback;
+  }
+
+  function scoreTier(score) {
+    if (score >= 8) return "high";
+    if (score <= 4) return "low";
+    return "mid";
+  }
+
+  function scoreOptions(score) {
+    const selected = normalizeComponentScore(score);
+    return Array.from({ length: 10 }, (_, index) => {
+      const value = index + 1;
+      return `<option value="${value}"${value === selected ? " selected" : ""}>${value}</option>`;
+    }).join("");
+  }
+
+  function scoreControl(scoreKey, score) {
+    const normalized = normalizeComponentScore(score);
+    return `
+      <label class="brick-score-control" data-score-tier="${scoreTier(normalized)}" title="AI 会优先参考高分积木">
+        <span>评分</span>
+        <select data-brick-score-key="${escapeHtml(scoreKey)}" aria-label="积木评分，1 到 10 分">
+          ${scoreOptions(normalized)}
+        </select>
+      </label>
+    `;
+  }
+
+  function isAutoComponentSize(value) {
+    return ["auto", "ai", "free"].includes(String(value || "").trim().toLowerCase());
+  }
+
+  function normalizeComponentSizeValue(value, fallback = "2x1") {
+    const normalized = String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[×*]/g, "x");
+    if (COMPONENT_SIZE_PATTERN.test(normalized)) return normalized;
+    return fallback;
+  }
+
+  function ensureSizeOption(value, label) {
+    if (!els.size) return;
+    const rawValue = String(value || "").trim();
+    const safeValue = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(rawValue) : rawValue.replace(/"/g, '\\"');
+    if (!rawValue || els.size.querySelector(`option[value="${safeValue}"]`)) return;
+    const option = document.createElement("option");
+    option.value = rawValue;
+    option.textContent = label || rawValue;
+    els.size.insertBefore(option, els.size.querySelector('option[value="auto"]'));
+  }
+
+  function syncComponentSizeSelect() {
+    if (!els.size) return;
+    const current = els.size.value || "2x1";
+    els.size.innerHTML = COMPONENT_SIZE_OPTIONS.map((size) => `<option value="${size}">${size}</option>`).join("") + '<option value="auto">AI 自行发挥</option>';
+    ensureSizeOption(current);
+    els.size.value = current;
+    if (!els.size.value) els.size.value = "2x1";
+  }
+
+  function componentSizeParts(value, fallback = "2x1") {
+    const size = normalizeComponentSizeValue(value, fallback);
+    const match = size.match(COMPONENT_SIZE_PATTERN);
+    return {
+      size,
+      columns: match ? Number(match[1]) || 1 : 1,
+      rows: match ? Number(match[2]) || 1 : 1,
+    };
+  }
+
+  function generatedCardLayoutAttrs(size) {
+    const parts = componentSizeParts(size, "2x1");
+    const gridSpan = parts.columns >= 3 ? 2 : 1;
+    const previewMinHeight = parts.rows >= 3 ? 340 : parts.rows >= 2 ? 270 : 210;
+    return ` data-component-size="${escapeHtml(parts.size)}" style="--component-grid-span:${gridSpan};--component-preview-min:${previewMinHeight}px;"`;
+  }
+
+  function groupForFamily(family) {
+    if (familyGroupMap.has(family)) return familyGroupMap.get(family);
+    if (/WalletList|Form|Table|List/i.test(family)) return "table";
+    if (/Atoms|Atom/i.test(family)) return "atom";
+    if (/Asset|Quick|TradingAccounts|OpenAccount|Referral/i.test(family)) return "core";
+    return "support";
+  }
+
+  function previewTextFromCard(card) {
+    return [...card.querySelectorAll(".brick-canvas :is(strong, b, span, small, label, button, a, p, dt, dd)")]
+      .map((node) => node.textContent.trim())
+      .filter(Boolean)
+      .slice(0, 24)
+      .join(" / ");
+  }
+
+  function allBrickCards() {
+    return [...document.querySelectorAll(".brick-family .brick-card, [data-saved-components] .brick-card")];
+  }
+
+  function syncCardMetadata(card) {
+    if (!card) return null;
+    const isGenerated = card.classList.contains("brick-generated-card");
+    const family = card.dataset.brickFamily || (isGenerated ? "" : familyFromCard(card));
+    const title = card.dataset.brickTitle || titleFromCard(card);
+    const size = normalizeComponentSizeValue(card.dataset.brickSize || sizeFromCard(card), "2x1");
+    const sizeParts = componentSizeParts(size, "2x1");
+    const group = card.dataset.brickGroup || groupForFamily(family);
+    const scoreKey = card.dataset.brickScoreKey || (isGenerated ? componentScoreKey(card.dataset.componentId) : staticCardScoreKey(card));
+    const score = scoreForKey(scoreKey, isGenerated ? scoreForComponent(componentById(card.dataset.componentId)) : 5);
+
+    card.dataset.brickFamily = family;
+    card.dataset.brickTitle = title;
+    card.dataset.brickSize = sizeParts.size;
+    card.dataset.componentSize = sizeParts.size;
+    card.dataset.brickGroup = group;
+    card.dataset.brickScoreKey = scoreKey;
+    card.dataset.brickScore = String(score);
+    card.style.setProperty("--component-grid-span", String(sizeParts.columns >= 3 ? 2 : 1));
+    card.style.setProperty("--component-preview-min", `${sizeParts.rows >= 3 ? 340 : sizeParts.rows >= 2 ? 270 : 210}px`);
+    card.dataset.brickSearchText = [title, family, size, group, previewTextFromCard(card)].join(" ").toLowerCase();
+    card.querySelector(".brick-score-control")?.setAttribute("data-score-tier", scoreTier(score));
+    return { family, title, size, group, scoreKey, score };
+  }
+
+  function syncAllCardMetadata() {
+    allBrickCards().forEach(syncCardMetadata);
+  }
+
+  function uniqueCardValues(field) {
+    syncAllCardMetadata();
+    return [...new Set(allBrickCards().map((card) => card.dataset[field]).filter(Boolean))];
+  }
+
+  function sortedSizes(sizes) {
+    return sizes.sort((a, b) => {
+      const indexA = COMPONENT_SIZE_OPTIONS.indexOf(a);
+      const indexB = COMPONENT_SIZE_OPTIONS.indexOf(b);
+      if (indexA >= 0 && indexB >= 0) return indexA - indexB;
+      if (indexA >= 0) return -1;
+      if (indexB >= 0) return 1;
+      return a.localeCompare(b);
+    });
+  }
+
+  function updateFilterOptions() {
+    const currentFamily = els.familyFilter?.value || "all";
+    const currentSize = els.sizeFilter?.value || "all";
+    const families = uniqueCardValues("brickFamily").sort((a, b) => a.localeCompare(b));
+    const sizes = sortedSizes(uniqueCardValues("brickSize"));
+
+    if (els.familyFilter) {
+      els.familyFilter.innerHTML =
+        '<option value="all">全部类型</option>' +
+        families.map((family) => `<option value="${escapeHtml(family)}">${escapeHtml(family)}</option>`).join("");
+      els.familyFilter.value = families.includes(currentFamily) ? currentFamily : "all";
+      brickFilters.family = els.familyFilter.value;
+    }
+
+    if (els.sizeFilter) {
+      els.sizeFilter.innerHTML =
+        '<option value="all">全部尺寸</option>' +
+        sizes.map((size) => `<option value="${escapeHtml(size)}">${escapeHtml(size)}</option>`).join("");
+      els.sizeFilter.value = sizes.includes(currentSize) ? currentSize : "all";
+      brickFilters.size = els.sizeFilter.value;
+    }
+  }
+
+  function applyBrickFilters() {
+    syncAllCardMetadata();
     buttons.forEach((button) => {
-      button.classList.toggle("active", button.dataset.brickFilter === nextFilter);
+      button.classList.toggle("active", button.dataset.brickFilter === brickFilters.group);
+    });
+
+    const query = brickFilters.search.trim().toLowerCase();
+    const minScore = brickFilters.minScore === "all" ? 0 : normalizeComponentScore(brickFilters.minScore, 1);
+    let visibleCount = 0;
+    let totalCount = 0;
+
+    allBrickCards().forEach((card) => {
+      const meta = syncCardMetadata(card);
+      if (!meta) return;
+      totalCount += 1;
+      const visible =
+        (brickFilters.group === "all" || meta.group === brickFilters.group) &&
+        (brickFilters.family === "all" || meta.family === brickFilters.family) &&
+        (brickFilters.size === "all" || meta.size === brickFilters.size) &&
+        meta.score >= minScore &&
+        (!query || card.dataset.brickSearchText.includes(query));
+
+      card.hidden = !visible;
+      if (visible) visibleCount += 1;
     });
 
     groups.forEach((group) => {
-      group.hidden = nextFilter !== "all" && group.dataset.brickGroup !== nextFilter;
+      const groupCards = [...group.querySelectorAll(".brick-card")];
+      const hasVisibleCard = groupCards.some((card) => !card.hidden);
+      group.hidden = !hasVisibleCard;
     });
+
+    if (els.savedSection) {
+      const generatedCards = [...els.savedSection.querySelectorAll(".brick-card")];
+      els.savedSection.hidden = !savedComponents.length || !generatedCards.some((card) => !card.hidden);
+    }
+    if (els.filterCount) els.filterCount.textContent = `${visibleCount} / ${totalCount}`;
+    if (els.emptyState) els.emptyState.hidden = visibleCount > 0;
+  }
+
+  function setFilter(filter) {
+    brickFilters.group = filter || "all";
+    applyBrickFilters();
   }
 
   function providerPreset(provider) {
@@ -271,6 +598,40 @@
     return String(value || "").replace(/<small\b[^>]*data-ai-edit-note[^>]*>[\s\S]*?<\/small>/gi, "");
   }
 
+  function componentTitleText(value) {
+    return String(value || "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function shouldRemoveComponentEyebrow(label, primaryTitle) {
+    const labelText = componentTitleText(label);
+    const titleText = componentTitleText(primaryTitle);
+    if (!labelText || !titleText) return false;
+    if (labelText.length > 80 || titleText.length > 120) return false;
+    if (!/[A-Za-z\u4e00-\u9fff]/.test(titleText)) return false;
+    if (/^\d+\s*\/\s*\d+$/i.test(titleText)) return false;
+    if (/^[\d\s.,:+/%$€¥￥-]+$/i.test(titleText)) return false;
+    return true;
+  }
+
+  function collapseDuplicateComponentTitles(value) {
+    const titlePattern = "((?:<strong\\b[^>]*>|<h[1-4]\\b[^>]*>)[^<]{1,180}<\\/(?:strong|h[1-4])>)";
+    const patterns = [
+      new RegExp(`(<(?:section|article|div)\\b[^>]*>\\s*)<(span|small|label)\\b[^>]*>([^<]{1,100})<\\/\\2>\\s*${titlePattern}`, "gi"),
+      new RegExp(`(<header\\b[^>]*>\\s*)<(span|small|label)\\b[^>]*>([^<]{1,100})<\\/\\2>\\s*${titlePattern}`, "gi"),
+    ];
+
+    return patterns.reduce(
+      (html, pattern) =>
+        html.replace(pattern, (match, prefix, tag, label, primaryTitle) =>
+          shouldRemoveComponentEyebrow(label, primaryTitle) ? `${prefix}${primaryTitle}` : match,
+        ),
+      String(value || ""),
+    );
+  }
+
   function stripEditorCssArtifacts(value) {
     return String(value || "")
       .replace(/[^{}]*\.ai-edit-note[^{}]*\{[^{}]*\}/gi, "")
@@ -290,10 +651,15 @@
 
   function sanitizeComponentForClient(component) {
     if (!component || typeof component !== "object") return component;
+    const id = component.id || "";
+    if (isComponentDeleted(id)) return null;
+    const scoreKey = componentScoreKey(id);
+    const localScore = scoreKey ? (componentScores[scoreKey] ?? componentScores[id]) : undefined;
     return {
       ...component,
+      score: normalizeComponentScore(localScore ?? component.score, 5),
       description: stripEditorTextArtifacts(component.description),
-      html: stripEditorArtifacts(component.html),
+      html: collapseDuplicateComponentTitles(stripEditorArtifacts(component.html)),
       css: stripEditorCssArtifacts(component.css),
     };
   }
@@ -302,7 +668,7 @@
     try {
       const data = JSON.parse(window.localStorage.getItem(COMPONENT_CACHE_KEY) || "[]");
       return Array.isArray(data)
-        ? data.map(sanitizeComponentForClient).filter((component) => component?.id && !componentLooksGeneric(component))
+        ? data.map(sanitizeComponentForClient).filter((component) => component?.id && !componentLooksGeneric(component) && !isComponentDeleted(component.id))
         : [];
     } catch (error) {
       return [];
@@ -310,20 +676,31 @@
   }
 
   function cacheComponents(components, options = {}) {
-    const source = options.replace ? [] : loadCachedComponents();
+    const source = options.replace ? (options.keepLocal ? loadCachedComponents() : []) : loadCachedComponents();
     const map = new Map(source.map((component) => [component.id, component]));
     components.forEach((component) => {
+      const rawId = component && typeof component === "object" ? String(component.id || "").trim() : "";
+      if (options.restoreDeleted && rawId) restoreDeletedComponent(rawId);
+      if (rawId && isComponentDeleted(rawId)) return;
       const cleanComponent = sanitizeComponentForClient(component);
-      if (cleanComponent?.id && !componentLooksGeneric(cleanComponent)) map.set(cleanComponent.id, cleanComponent);
+      if (cleanComponent?.id && !componentLooksGeneric(cleanComponent)) {
+        if (isComponentDeleted(cleanComponent.id)) return;
+        componentScores[componentScoreKey(cleanComponent)] = normalizeComponentScore(cleanComponent.score);
+        map.set(cleanComponent.id, cleanComponent);
+      }
     });
     const next = [...map.values()];
+    saveComponentScores();
     window.localStorage.setItem(COMPONENT_CACHE_KEY, JSON.stringify(next));
     savedComponents = next;
     return next;
   }
 
   function removeCachedComponent(componentId) {
+    markComponentDeleted(componentId);
     const next = loadCachedComponents().filter((component) => component.id !== componentId);
+    delete componentScores[componentScoreKey(componentId)];
+    saveComponentScores();
     window.localStorage.setItem(COMPONENT_CACHE_KEY, JSON.stringify(next));
     savedComponents = next;
     return next;
@@ -644,7 +1021,7 @@
         const response = await fetch("./home-component-library.json", { headers: { accept: "application/json" }, cache: "no-store" });
         const data = await response.json();
         if (Array.isArray(data.components)) {
-          savedComponents = cacheComponents(data.components, { replace: true });
+          savedComponents = cacheComponents(data.components, { replace: true, keepLocal: true });
         } else {
           savedComponents = cached;
         }
@@ -672,11 +1049,7 @@
     const family = familyFromCard(card);
     const title = titleFromCard(card);
     const size = sizeFromCard(card);
-    const previewText = [...card.querySelectorAll(".brick-canvas :is(strong, b, span, small, label, button, a, p, dt, dd)")]
-      .map((node) => node.textContent.trim())
-      .filter(Boolean)
-      .slice(0, 18)
-      .join(" / ");
+    const previewText = previewTextFromCard(card);
 
     return [
       `基于组件库里的「${title}」生成一个真实可用的 ForexCRM 首页积木组件。`,
@@ -686,6 +1059,42 @@
     ]
       .filter(Boolean)
       .join("\n");
+  }
+
+  function highScoreReferenceContext(options = {}) {
+    syncAllCardMetadata();
+    const family = options.family || "";
+    const size = normalizeComponentSizeValue(options.size || "", "");
+    const query = String(options.prompt || "").toLowerCase();
+
+    return allBrickCards()
+      .map((card) => {
+        const meta = syncCardMetadata(card);
+        return {
+          type: meta.group,
+          family: meta.family,
+          name: meta.title,
+          size: meta.size,
+          score: meta.score,
+          visibleText: previewTextFromCard(card).slice(0, 220),
+          description: card.querySelector(".generated-meta p")?.textContent.trim() || "",
+        };
+      })
+      .filter((item) => item.name)
+      .map((item) => {
+        const searchable = `${item.name} ${item.family} ${item.description} ${item.visibleText}`.toLowerCase();
+        return {
+          ...item,
+          priority:
+            item.score * 20 +
+            (family && item.family === family ? 35 : 0) +
+            (size && item.size === size ? 12 : 0) +
+            (query && searchable.includes(query.slice(0, 18)) ? 8 : 0),
+        };
+      })
+      .sort((a, b) => b.priority - a.priority)
+      .slice(0, 8)
+      .map(({ priority, ...item }) => item);
   }
 
   function enhanceStaticBrickCards() {
@@ -702,6 +1111,10 @@
       }
 
       tools.appendChild(sizeBadge);
+      syncCardMetadata(card);
+      if (!tools.querySelector("[data-brick-score-key]")) {
+        tools.insertAdjacentHTML("beforeend", scoreControl(card.dataset.brickScoreKey, scoreForKey(card.dataset.brickScoreKey)));
+      }
 
       const button = document.createElement("button");
       button.className = "brick-ai-inline-generate";
@@ -714,12 +1127,16 @@
   }
 
   function generatedCard(component) {
+    const score = scoreForComponent(component);
+    const scoreKey = componentScoreKey(component);
+    const group = groupForFamily(component.family);
     return `
-      <article class="brick-card brick-generated-card">
+      <article class="brick-card brick-generated-card"${generatedCardLayoutAttrs(component.size)} data-component-id="${escapeHtml(component.id)}" data-brick-family="${escapeHtml(component.family)}" data-brick-title="${escapeHtml(component.name)}" data-brick-size="${escapeHtml(normalizeComponentSizeValue(component.size, "2x1"))}" data-brick-group="${escapeHtml(group)}" data-brick-score-key="${escapeHtml(scoreKey)}" data-brick-score="${score}">
         <header>
           <span>${escapeHtml(component.name)}</span>
           <div class="brick-card-tools">
             <b>${escapeHtml(component.size)}</b>
+            ${scoreControl(scoreKey, score)}
             <button class="brick-ai-inline-generate" type="button" data-ai-regenerate-component="${escapeHtml(component.id)}">再生成</button>
             <button class="brick-ai-secondary-action" type="button" data-ai-edit-component="${escapeHtml(component.id)}">编辑</button>
             <button class="brick-ai-danger-action" type="button" data-ai-delete-component="${escapeHtml(component.id)}">删除</button>
@@ -764,17 +1181,120 @@
     });
   }
 
+  function componentsByPriority(components = savedComponents) {
+    return [...components].sort((a, b) => scoreForComponent(b) - scoreForComponent(a) || String(a.name || "").localeCompare(String(b.name || "")));
+  }
+
   function renderSavedComponents() {
     if (!els.savedSection || !els.savedComponents) return;
 
     els.savedSection.hidden = savedComponents.length === 0;
     if (els.savedCount) els.savedCount.textContent = `${savedComponents.length} 个`;
-    els.savedComponents.innerHTML = savedComponents.map(generatedCard).join("");
+    els.savedComponents.innerHTML = componentsByPriority(savedComponents).map(generatedCard).join("");
     renderGeneratedPreviews();
+    updateFilterOptions();
+    applyBrickFilters();
   }
 
   function componentById(componentId) {
     return savedComponents.find((component) => component.id === componentId);
+  }
+
+  function componentFamilyOptions(selectedFamily) {
+    const families = new Set([selectedFamily, ...[...(els.family?.options || [])].map((option) => option.value)]);
+    return [...families]
+      .filter(Boolean)
+      .map((family) => `<option value="${escapeHtml(family)}"${family === selectedFamily ? " selected" : ""}>${escapeHtml(family)}</option>`)
+      .join("");
+  }
+
+  function isPresetComponentSize(size) {
+    return COMPONENT_SIZE_OPTIONS.includes(normalizeComponentSizeValue(size, "2x1"));
+  }
+
+  function componentSizeOptions(selectedSize) {
+    const normalized = normalizeComponentSizeValue(selectedSize, "2x1");
+    const options = COMPONENT_SIZE_OPTIONS.map(
+      (size) => `<option value="${size}"${size === normalized ? " selected" : ""}>${size}</option>`,
+    );
+    options.push(`<option value="custom"${isPresetComponentSize(normalized) ? "" : " selected"}>自定义尺寸</option>`);
+    return options.join("");
+  }
+
+  function listToEditorText(value) {
+    return Array.isArray(value) ? value.join("\n") : "";
+  }
+
+  function editorTextToList(value) {
+    return String(value || "")
+      .split(/\n|,/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, 12);
+  }
+
+  function editorField(modal, fieldName) {
+    return modal.querySelector(`[data-component-editor-field="${fieldName}"]`);
+  }
+
+  function editorSizeValue(modal, fallback = "2x1") {
+    const preset = editorField(modal, "sizePreset")?.value || "";
+    const custom = editorField(modal, "sizeCustom")?.value.trim() || "";
+    const candidate = custom || (preset === "custom" ? "" : preset);
+    return normalizeComponentSizeValue(candidate, fallback);
+  }
+
+  function renderComponentEditorSummary(modal, component) {
+    const title = modal.querySelector("[data-component-editor-title]");
+    const subtitle = modal.querySelector("[data-component-editor-subtitle]");
+    const meta = modal.querySelector("[data-component-editor-meta]");
+    if (title) title.textContent = `编辑：${component.name}`;
+    if (subtitle) subtitle.textContent = `${component.family} · ${component.size} · 手动编辑，不会调用 AI`;
+    if (meta) {
+      meta.innerHTML = `
+        <span>${escapeHtml(component.family)} · ${escapeHtml(component.size)}</span>
+        <strong>${escapeHtml(component.name)}</strong>
+        <p>${escapeHtml(component.description || "")}</p>
+      `;
+    }
+  }
+
+  function readComponentEditorDraft(modal = ensureComponentEditorModal()) {
+    const component = componentById(componentEditorState.componentId);
+    if (!component) return null;
+
+    return {
+      ...component,
+      name: editorField(modal, "name")?.value.trim() || component.name,
+      family: editorField(modal, "family")?.value || component.family,
+      size: editorSizeValue(modal, component.size || "2x1"),
+      description: editorField(modal, "description")?.value.trim() || "",
+      tags: editorTextToList(editorField(modal, "tags")?.value),
+      html: editorField(modal, "html")?.value || "",
+      css: editorField(modal, "css")?.value || "",
+      layoutHints: editorTextToList(editorField(modal, "layoutHints")?.value),
+      dataRequirements: editorTextToList(editorField(modal, "dataRequirements")?.value),
+    };
+  }
+
+  function renderComponentEditorPreview() {
+    const modal = document.querySelector("[data-component-editor-modal]");
+    if (!modal) return;
+    const preview = modal.querySelector("[data-component-editor-preview]");
+    const draft = readComponentEditorDraft(modal);
+    if (draft) {
+      renderComponentEditorSummary(modal, draft);
+      renderComponentPreview(preview, draft);
+    }
+  }
+
+  function handleComponentEditorFormChange(event) {
+    const target = event.target;
+    if (target?.matches?.('[data-component-editor-field="sizePreset"]') && target.value !== "custom") {
+      const custom = editorField(ensureComponentEditorModal(), "sizeCustom");
+      if (custom) custom.value = "";
+    }
+    renderComponentEditorPreview();
   }
 
   function ensureComponentEditorModal() {
@@ -790,7 +1310,7 @@
       <section class="component-editor-dialog" role="dialog" aria-modal="true" aria-labelledby="component-editor-title">
         <header>
           <div>
-            <span class="brick-kicker">AI Component Editor</span>
+            <span class="brick-kicker">Component Editor</span>
             <h2 id="component-editor-title" data-component-editor-title>编辑积木组件</h2>
             <p data-component-editor-subtitle></p>
           </div>
@@ -803,13 +1323,55 @@
             <div class="component-editor-preview" data-component-editor-preview></div>
           </aside>
 
-          <section class="component-editor-chat" aria-label="组件编辑对话">
-            <div class="component-editor-messages" data-component-editor-messages></div>
+          <section class="component-editor-panel" aria-label="组件手动编辑">
             <form class="component-editor-form" data-component-editor-form>
-              <textarea data-component-editor-input rows="4" placeholder="例如：把主按钮改成入金优先，增加 KYC 状态提示，整体更紧凑。"></textarea>
+              <div class="component-editor-fields">
+                <label>
+                  组件名称
+                  <input data-component-editor-field="name" />
+                </label>
+                <label>
+                  模块归属
+                  <select data-component-editor-field="family"></select>
+                </label>
+                <label>
+                  积木尺寸
+                  <div class="component-editor-size-control">
+                    <select data-component-editor-field="sizePreset"></select>
+                    <input data-component-editor-field="sizeCustom" placeholder="自定义，如 6x2" />
+                  </div>
+                  <small>可选常用尺寸，也可以输入任意 NxM。</small>
+                </label>
+                <label>
+                  标签
+                  <textarea data-component-editor-field="tags" rows="3" placeholder="一行一个标签，或用逗号分隔"></textarea>
+                </label>
+              </div>
+              <label>
+                描述
+                <textarea data-component-editor-field="description" rows="3"></textarea>
+              </label>
+              <label>
+                HTML
+                <textarea class="code" data-component-editor-field="html" rows="8" spellcheck="false"></textarea>
+              </label>
+              <label>
+                CSS
+                <textarea class="code" data-component-editor-field="css" rows="8" spellcheck="false"></textarea>
+              </label>
+              <div class="component-editor-fields">
+                <label>
+                  布局提示
+                  <textarea data-component-editor-field="layoutHints" rows="4" placeholder="一行一条"></textarea>
+                </label>
+                <label>
+                  数据要求
+                  <textarea data-component-editor-field="dataRequirements" rows="4" placeholder="一行一条"></textarea>
+                </label>
+              </div>
               <footer>
                 <button type="button" data-component-editor-close>取消</button>
-                <button class="primary" type="submit" data-component-editor-submit>发送修改</button>
+                <button class="primary" type="submit" data-component-editor-submit>保存修改</button>
               </footer>
             </form>
           </section>
@@ -822,16 +1384,11 @@
     modal.querySelectorAll("[data-component-editor-close]").forEach((button) => {
       button.addEventListener("click", closeComponentEditorModal);
     });
-    modal.querySelector("[data-component-editor-form]")?.addEventListener("submit", submitComponentEdit);
+    modal.querySelector("[data-component-editor-form]")?.addEventListener("submit", saveComponentEdit);
+    modal.querySelector("[data-component-editor-form]")?.addEventListener("input", renderComponentEditorPreview);
+    modal.querySelector("[data-component-editor-form]")?.addEventListener("change", handleComponentEditorFormChange);
 
     return modal;
-  }
-
-  function componentEditorGreeting(component) {
-    return {
-      role: "assistant",
-      content: `正在编辑「${component.name}」。你可以直接描述要调整的结构、文案、字段、按钮优先级或视觉密度。`,
-    };
   }
 
   function renderComponentEditorModal() {
@@ -842,43 +1399,35 @@
       return;
     }
 
-    const title = modal.querySelector("[data-component-editor-title]");
-    const subtitle = modal.querySelector("[data-component-editor-subtitle]");
-    const meta = modal.querySelector("[data-component-editor-meta]");
     const preview = modal.querySelector("[data-component-editor-preview]");
-    const messages = modal.querySelector("[data-component-editor-messages]");
-    const input = modal.querySelector("[data-component-editor-input]");
     const submit = modal.querySelector("[data-component-editor-submit]");
+    const form = modal.querySelector("[data-component-editor-form]");
 
-    if (title) title.textContent = `编辑：${component.name}`;
-    if (subtitle) subtitle.textContent = `${component.family} · ${component.size}`;
-    if (meta) {
-      meta.innerHTML = `
-        <span>${escapeHtml(component.family)}</span>
-        <strong>${escapeHtml(component.name)}</strong>
-        <p>${escapeHtml(component.description || "")}</p>
-      `;
-    }
+    renderComponentEditorSummary(modal, component);
+
+    if (editorField(modal, "family")) editorField(modal, "family").innerHTML = componentFamilyOptions(component.family);
+    if (editorField(modal, "name")) editorField(modal, "name").value = component.name || "";
+    if (editorField(modal, "family")) editorField(modal, "family").value = component.family || "ClientHomeAtoms";
+    if (editorField(modal, "sizePreset")) editorField(modal, "sizePreset").innerHTML = componentSizeOptions(component.size);
+    if (editorField(modal, "sizePreset")) editorField(modal, "sizePreset").value = isPresetComponentSize(component.size) ? normalizeComponentSizeValue(component.size, "2x1") : "custom";
+    if (editorField(modal, "sizeCustom")) editorField(modal, "sizeCustom").value = isPresetComponentSize(component.size) ? "" : normalizeComponentSizeValue(component.size, "2x1");
+    if (editorField(modal, "description")) editorField(modal, "description").value = component.description || "";
+    if (editorField(modal, "tags")) editorField(modal, "tags").value = listToEditorText(component.tags);
+    if (editorField(modal, "html")) editorField(modal, "html").value = component.html || "";
+    if (editorField(modal, "css")) editorField(modal, "css").value = component.css || "";
+    if (editorField(modal, "layoutHints")) editorField(modal, "layoutHints").value = listToEditorText(component.layoutHints);
+    if (editorField(modal, "dataRequirements")) editorField(modal, "dataRequirements").value = listToEditorText(component.dataRequirements);
+
     renderComponentPreview(preview, component);
 
-    if (messages) {
-      messages.innerHTML = componentEditorState.messages
-        .map(
-          (message) => `
-            <article class="${message.role === "user" ? "user" : "assistant"}">
-              <span>${message.role === "user" ? "你" : "AI"}</span>
-              <p>${escapeHtml(message.content)}</p>
-            </article>
-          `,
-        )
-        .join("");
-      messages.scrollTop = messages.scrollHeight;
+    if (form) {
+      form.querySelectorAll("input, select, textarea, button").forEach((field) => {
+        field.disabled = componentEditorState.busy;
+      });
     }
-
-    if (input) input.disabled = componentEditorState.busy;
     if (submit) {
       submit.disabled = componentEditorState.busy;
-      submit.textContent = componentEditorState.busy ? "修改中..." : "发送修改";
+      submit.textContent = componentEditorState.busy ? "保存中..." : "保存修改";
     }
   }
 
@@ -888,14 +1437,13 @@
 
     componentEditorState = {
       componentId,
-      messages: [componentEditorGreeting(component)],
       busy: false,
     };
 
     const modal = ensureComponentEditorModal();
     renderComponentEditorModal();
     modal.hidden = false;
-    modal.querySelector("[data-component-editor-input]")?.focus();
+    editorField(modal, "name")?.focus();
   }
 
   function closeComponentEditorModal() {
@@ -903,44 +1451,36 @@
     if (modal) modal.hidden = true;
   }
 
-  async function submitComponentEdit(event) {
+  async function saveComponentEdit(event) {
     event.preventDefault();
     const modal = ensureComponentEditorModal();
-    const input = modal.querySelector("[data-component-editor-input]");
-    const instruction = input?.value.trim() || "";
     const component = componentById(componentEditorState.componentId);
+    const draft = readComponentEditorDraft(modal);
 
-    if (!instruction || !component || componentEditorState.busy) return;
+    if (!component || !draft || componentEditorState.busy) return;
+    const sizeChanged = draft.size !== component.size;
 
-    componentEditorState.messages.push({ role: "user", content: instruction });
     componentEditorState.busy = true;
-    if (input) input.value = "";
-    renderComponentEditorModal();
-    setStatus(`正在通过 ${modelLabel()} 修改「${component.name}」...`);
+    modal.querySelectorAll("input, select, textarea, button").forEach((field) => {
+      field.disabled = true;
+    });
+    const submit = modal.querySelector("[data-component-editor-submit]");
+    if (submit) submit.textContent = "保存中...";
+    setStatus(`正在保存手动修改：${component.name}${sizeChanged ? `，尺寸 ${component.size} → ${draft.size}` : ""}...`);
 
     try {
-      const data = await requestJson("/api/home-components/edit", {
-        componentId: component.id,
-        instruction,
-        messages: componentEditorState.messages,
-        component,
-        modelConfig: aiRequestModelConfig(),
-      });
+      const data = await requestJson("/api/home-components/save", { component: draft });
+      const savedComponent = data.component || draft;
       if (data.component) {
-        cacheComponents([data.component]);
+        cacheComponents([data.component], { restoreDeleted: true });
         componentEditorState.componentId = data.component.id;
-        componentEditorState.messages.push({
-          role: "assistant",
-          content: `已更新为「${data.component.name}」。可以继续描述下一轮调整。`,
-        });
-      } else {
-        componentEditorState.messages.push({ role: "assistant", content: "修改完成，但接口没有返回组件内容。" });
       }
       renderSavedComponents();
-      setStatus(`已保存修改：${data.component?.name || component.name}`, data.mock ? "mock" : "success");
+      setStatus(`已保存手动修改：${savedComponent.name}${sizeChanged ? `，尺寸已改为 ${savedComponent.size}` : ""}`, "success");
     } catch (error) {
-      componentEditorState.messages.push({ role: "assistant", content: `${error.message}。可以调整模型配置后再试。` });
-      setStatus(`组件修改失败：${error.message}`, "error");
+      cacheComponents([draft], { restoreDeleted: true });
+      renderSavedComponents();
+      setStatus(`已保存到当前浏览器缓存${sizeChanged ? `，尺寸已改为 ${draft.size}` : ""}；后端同步失败：${error.message}`, "mock");
     } finally {
       componentEditorState.busy = false;
       renderComponentEditorModal();
@@ -976,17 +1516,19 @@
     if (!confirmed) return;
 
     if (trigger) trigger.disabled = true;
+    removeCachedComponent(componentId);
+    pruneCompositionComponent(componentId);
+    if (componentEditorState.componentId === componentId) closeComponentEditorModal();
+    renderSavedComponents();
+    setStatus(`已从当前页面删除：${component.name}，正在同步组件库...`);
 
     try {
       const data = await requestJson("/api/home-components/delete", { componentId });
-      if (!syncComponentLibraryFromResponse(data)) removeCachedComponent(componentId);
+      syncComponentLibraryFromResponse(data);
       setStatus(`已删除组件：${component.name}`, "success");
     } catch (error) {
-      removeCachedComponent(componentId);
       setStatus(`已从当前浏览器缓存删除：${component.name}。后端同步失败：${error.message}`, "mock");
     } finally {
-      pruneCompositionComponent(componentId);
-      if (componentEditorState.componentId === componentId) closeComponentEditorModal();
       renderSavedComponents();
       if (trigger) trigger.disabled = false;
     }
@@ -1045,13 +1587,17 @@
   async function generateComponent(options = {}) {
     const prompt = options.prompt || els.prompt?.value.trim() || "生成一个适合 ForexCRM 首页的专业组件。";
     const family = options.family || els.family?.value || "ClientHomeAtoms";
-    const size = options.size || els.size?.value || "2x1";
+    const rawSize = options.size || els.size?.value || "2x1";
+    const size = isAutoComponentSize(rawSize) ? "auto" : normalizeComponentSizeValue(rawSize, "2x1");
     const requestConfig = aiRequestModelConfig();
     const trigger = options.trigger || els.generate;
 
     if (els.prompt && options.prompt) els.prompt.value = options.prompt;
     if (els.family && options.family) els.family.value = options.family;
-    if (els.size && options.size) els.size.value = options.size;
+    if (els.size && options.size) {
+      ensureSizeOption(size);
+      els.size.value = size;
+    }
 
     setStatus(`正在通过 ${modelLabel()} 生成组件...`);
     if (trigger) trigger.disabled = true;
@@ -1062,11 +1608,19 @@
         prompt,
         family,
         size,
+        scoreContext: highScoreReferenceContext({ family, size, prompt }),
+        componentScore: normalizeComponentScore(options.componentScore, 5),
         modelConfig: requestConfig,
       });
-      cacheComponents([data.component]);
+      cacheComponents([data.component], { restoreDeleted: true });
       renderSavedComponents();
-      setStatus(`已生成并保存：${data.component.name} · ${data.provider || requestConfig.provider} / ${data.model || requestConfig.model}`, data.mock ? "mock" : "success");
+      const providerLabel = `${data.provider || requestConfig.provider} / ${data.model || requestConfig.model}`;
+      setStatus(
+        data.localFallback
+          ? `模型输出非标准 JSON，已生成并保存本地兜底：${data.component.name} · ${providerLabel}`
+          : `已生成并保存：${data.component.name} · ${providerLabel}`,
+        data.localFallback || data.mock ? "mock" : "success",
+      );
     } catch (error) {
       setStatus(`${error.message}。如果还没有配置密钥，可以用 npm run start:mock 先演示完整链路。`, "error");
     } finally {
@@ -1076,13 +1630,13 @@
   }
 
   function buildHomepagePrompt(composition) {
-    const componentList = savedComponents
-      .map((component) => `${component.name}(${component.family}, ${component.size}): ${component.description}`)
+    const componentList = componentsByPriority(savedComponents)
+      .map((component) => `${component.name}(${component.family}, ${component.size}, ${scoreForComponent(component)}/10): ${component.description}`)
       .join("\n");
 
     return [
       "请基于已保存的首页积木组件，生成一个美观、克制、专业的 ForexCRM 用户端首页草稿。",
-      "要先搭积木，再调整布局美观度，首屏重点清晰，业务路径完整。",
+      "要先搭积木，再调整布局美观度，首屏重点清晰，业务路径完整；评分高的积木优先作为结构和字段参考。",
       "",
       "已保存组件:",
       componentList || "暂无自定义组件，使用内置模块。",
@@ -1105,11 +1659,13 @@
 
     let composition = null;
     const requestConfig = aiRequestModelConfig();
+    const prioritizedComponents = componentsByPriority(savedComponents);
 
     try {
       const compositionResult = await requestJson("/api/home-components/compose", {
         prompt: els.prompt?.value || "用已保存组件组合一个专业首页。",
-        componentIds: savedComponents.map((component) => component.id),
+        componentIds: prioritizedComponents.map((component) => component.id),
+        componentScores: Object.fromEntries(prioritizedComponents.map((component) => [component.id, scoreForComponent(component)])),
         modelConfig: requestConfig,
       });
       composition = compositionResult.composition;
@@ -1119,11 +1675,11 @@
       composition = {
         name: "本地临时首页积木组合",
         summary: "大模型组合暂不可用，已按组件尺寸生成一个临时组合，配置密钥后可以重新生成。",
-        layout: savedComponents.slice(0, 8).map((component, index) => ({
+        layout: prioritizedComponents.slice(0, 8).map((component, index) => ({
           componentId: component.id,
           size: component.size,
           zone: index === 0 ? "hero" : component.size.startsWith("1x") ? "rail" : "main",
-          reason: `${component.name} 用于承接 ${component.family} 路径。`,
+          reason: `${component.name} 评分 ${scoreForComponent(component)}/10，优先用于承接 ${component.family} 路径。`,
         })),
         themeAdvice: "保持当前蓝白金融风格。",
         polishInstructions: "首屏优先展示主业务模块，侧栏承载状态类组件，长表格放在页面下方。",
@@ -1164,21 +1720,108 @@
     }
   }
 
+  async function updateBrickScore(scoreKey, value, card) {
+    const score = normalizeComponentScore(value);
+    if (!scoreKey) return;
+
+    componentScores[scoreKey] = score;
+    saveComponentScores();
+    if (card) {
+      card.dataset.brickScore = String(score);
+      card.querySelector(".brick-score-control")?.setAttribute("data-score-tier", scoreTier(score));
+    }
+
+    const componentId = card?.dataset.componentId || (scoreKey.startsWith("component:") ? scoreKey.slice("component:".length) : "");
+    let updatedComponent = null;
+    if (componentId) {
+      const component = componentById(componentId);
+      if (component) {
+        updatedComponent = { ...component, score, updatedAt: new Date().toISOString() };
+        savedComponents = savedComponents.map((item) => (item.id === componentId ? updatedComponent : item));
+        window.localStorage.setItem(COMPONENT_CACHE_KEY, JSON.stringify(savedComponents));
+      }
+    }
+
+    if (updatedComponent) {
+      renderSavedComponents();
+      setStatus(`评分已保存到当前浏览器：${score}/10，正在同步组件库...`);
+      try {
+        const data = await requestJson("/api/home-components/save", { component: updatedComponent });
+        if (data.component) cacheComponents([data.component], { restoreDeleted: true });
+        else syncComponentLibraryFromResponse(data);
+        renderSavedComponents();
+        setStatus(`评分已同步到组件库：${score}/10，AI 会优先参考高分组件。`, "success");
+      } catch (error) {
+        setStatus(`评分已保存到当前浏览器：${score}/10；后端同步失败：${error.message}`, "mock");
+      }
+      return;
+    }
+
+    updateFilterOptions();
+    applyBrickFilters();
+    setStatus(`已保存当前浏览器评分：${score}/10，静态组件评分会作为本机 AI 参考。`, "success");
+  }
+
   buttons.forEach((button) => {
     button.addEventListener("click", () => setFilter(button.dataset.brickFilter));
   });
 
+  els.familyFilter?.addEventListener("change", () => {
+    brickFilters.family = els.familyFilter.value || "all";
+    applyBrickFilters();
+  });
+
+  els.sizeFilter?.addEventListener("change", () => {
+    brickFilters.size = els.sizeFilter.value || "all";
+    applyBrickFilters();
+  });
+
+  els.scoreFilter?.addEventListener("change", () => {
+    brickFilters.minScore = els.scoreFilter.value || "all";
+    applyBrickFilters();
+  });
+
+  els.search?.addEventListener("input", () => {
+    brickFilters.search = els.search.value || "";
+    applyBrickFilters();
+  });
+
+  document.addEventListener("change", (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    const scoreSelect = target?.closest("[data-brick-score-key]");
+    if (!scoreSelect) return;
+    updateBrickScore(scoreSelect.dataset.brickScoreKey, scoreSelect.value, scoreSelect.closest(".brick-card"));
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !els.aiComponentModal?.hidden) closeAiComponentModal();
+  });
+
   document.addEventListener("click", (event) => {
     const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+    const aiComponentClose = target?.closest("[data-ai-component-close]");
+    if (aiComponentClose) {
+      event.preventDefault();
+      closeAiComponentModal();
+      return;
+    }
+
+    const aiComponentOpen = target?.closest("[data-ai-component-open]");
+    if (aiComponentOpen) {
+      event.preventDefault();
+      openAiComponentModal();
+      return;
+    }
+
     const cardGenerateButton = target?.closest("[data-ai-generate-from-card]");
     if (cardGenerateButton) {
       event.preventDefault();
       const card = cardGenerateButton.closest(".brick-card");
-      generateComponent({
+      openAiComponentModal({
         prompt: promptFromCard(card),
         family: familyFromCard(card),
         size: sizeFromCard(card),
-        trigger: cardGenerateButton,
+        status: `已带入「${titleFromCard(card)}」作为生成参考，可微调需求后生成。`,
       });
       return;
     }
@@ -1198,6 +1841,7 @@
             .join("\n"),
           family: component.family,
           size: component.size,
+          componentScore: scoreForComponent(component),
           trigger: regenerateButton,
         });
       }
@@ -1228,7 +1872,10 @@
   els.generate?.addEventListener("click", generateComponent);
   els.compose?.addEventListener("click", composeHome);
 
+  syncComponentSizeSelect();
   enhanceStaticBrickCards();
+  updateFilterOptions();
+  applyBrickFilters();
   renderModelSummary();
   refreshLibrary();
   refreshSavedComposition();

@@ -43,6 +43,10 @@
       label: "AI HTML",
       summary: "自由模式：模型参考组件库生成 HTML/CSS，系统做安全清洗、质量门禁和动作修正。",
     },
+    skeletonHtml: {
+      label: "骨架填充",
+      summary: "装配模式：先生成首页骨架和模块占位，再按 slot 逐个生成组件，支持局部重生和锁定定稿。",
+    },
     compare: {
       label: "双方案",
       summary: "对比模式：同时保存组件化方案和 AI HTML 视觉方案。",
@@ -151,6 +155,7 @@
     strength: document.querySelector("[data-summary-strength]"),
     hero: document.querySelector("[data-summary-hero]"),
     governanceSummary: document.querySelector("[data-governance-summary]"),
+    skeletonWorkflow: document.querySelector("[data-skeleton-workflow]"),
     decisionReasons: document.querySelector("[data-decision-reasons]"),
     variantSummary: document.querySelector("[data-variant-summary]"),
     moduleOutline: document.querySelector("[data-module-outline]"),
@@ -194,6 +199,8 @@
   let modelTestState = { tone: "", message: "尚未测试" };
   let suggestionRound = 0;
   let suggestionCards = [];
+  let skeletonFillRunning = false;
+  let skeletonAutoStarted = false;
 
   function escapeHtml(value) {
     return String(value)
@@ -253,6 +260,7 @@
 
 	  function activePreviewRenderMode(config = currentConfig) {
 	    const normalized = home.normalizeConfig(config);
+	    if (normalized.activeRenderMode === "skeletonHtml" && normalized.skeletonHtmlScheme?.enabled) return "skeletonHtml";
 	    return normalized.activeRenderMode === "aiHtml" && normalized.htmlScheme?.enabled ? "aiHtml" : "config";
 	  }
 
@@ -291,11 +299,12 @@
 	    els.previewStage.dataset.aiHtmlSourceTone = shouldShow ? info.tone : "off";
 	  }
 
-	  function renderRenderModeControls() {
+		  function renderRenderModeControls() {
     const normalizedConfig = home.normalizeConfig(currentConfig);
     const generationMode = currentGenerationRenderMode();
     const activePreviewMode = activePreviewRenderMode(normalizedConfig);
     const canPreviewHtml = Boolean(normalizedConfig.htmlScheme?.enabled);
+    const canPreviewSkeleton = Boolean(normalizedConfig.skeletonHtmlScheme?.enabled || normalizedConfig.skeletonHtmlEnabled);
 
     els.renderModeButtons.forEach((button) => {
       const mode = normalizeRenderMode(button.dataset.renderModeButton, "config");
@@ -306,6 +315,10 @@
       if (isPreviewControl && mode === "aiHtml") {
         button.disabled = !canPreviewHtml;
         button.title = canPreviewHtml ? "切换到 AI HTML 预览" : "当前草稿还没有 AI HTML 方案";
+      }
+      if (isPreviewControl && mode === "skeletonHtml") {
+        button.disabled = !canPreviewSkeleton;
+        button.title = canPreviewSkeleton ? "切换到骨架填充预览" : "当前草稿还没有骨架填充方案";
       }
     });
 
@@ -442,12 +455,21 @@
     const next = {
       ...config,
       renderMode: mode,
-      htmlGenerationEnabled: mode !== "config",
+      htmlGenerationEnabled: mode === "aiHtml" || mode === "compare",
+      skeletonHtmlEnabled: mode === "skeletonHtml",
     };
-    if (mode !== "config" && !next.htmlScheme?.enabled) {
+    if ((mode === "aiHtml" || mode === "compare") && !next.htmlScheme?.enabled) {
       next.htmlScheme = localAiHtmlScheme(next, prompt, options.reason || "本地 fallback");
     }
-    next.activeRenderMode = mode === "aiHtml" && next.htmlScheme?.enabled ? "aiHtml" : "config";
+    if (mode === "skeletonHtml") {
+      next.skeletonHtmlScheme = home.buildSkeletonHtmlScheme(next, {
+        reason: "第一步只生成骨架和模块占位，等待逐 slot 填充。",
+        sourceType: "local-skeleton",
+        status: "pending-fill",
+      });
+    }
+    if (mode === "skeletonHtml" && next.skeletonHtmlScheme?.enabled) next.activeRenderMode = "skeletonHtml";
+    else next.activeRenderMode = mode === "aiHtml" && next.htmlScheme?.enabled ? "aiHtml" : "config";
     return next;
   }
 
@@ -713,8 +735,670 @@
     renderModuleStyleControls();
     renderModuleSettingControls();
     renderRenderModeControls();
+    renderSkeletonWorkflow();
     applyPreview(true);
+    maybeStartSkeletonWorkflow();
     updateStatus(statusText || "草稿预览", false);
+  }
+
+  function isSkeletonPreviewConfig(config = currentConfig) {
+    const normalized = home.normalizeConfig(config);
+    return normalized.activeRenderMode === "skeletonHtml" && normalized.skeletonHtmlScheme?.enabled;
+  }
+
+  function skeletonStatusLabel(status) {
+    return {
+      "pending-fill": "待填充",
+      generating: "生成中",
+      filled: "已填充",
+      locked: "已锁定",
+      failed: "失败",
+      review: "待定稿",
+      final: "已定稿",
+    }[status] || "待填充";
+  }
+
+  function skeletonSlotFamily(slotId) {
+    const map = {
+      welcome_header: "WelcomeHeader",
+      asset_overview: "AssetOverview",
+      wallet_balance: "WalletBalance",
+      wallet_list: "WalletList",
+      fund_actions: "FundActions",
+      fundActions: "FundActions",
+      quick_actions: "QuickActions",
+      open_account_actions: "OpenAccount",
+      openAccountActions: "OpenAccount",
+      onboarding_guide: "OnboardingProgress",
+      user_kyc_rail: "UserKycRail",
+      trading_account_highlight: "AccountPerformance",
+      trading_accounts_list: "TradingAccounts",
+      create_account_form: "CreateAccountForm",
+      promo_banner: "PromotionBanner",
+      ad_carousel: "PromotionBanner",
+      referral_link_card: "ReferralLinkCard",
+      referralLink: "ReferralLinkCard",
+      risk_disclosure: "RiskDisclosure",
+      risk_notice: "RiskDisclosure",
+      faq_section: "FaqSection",
+      support_contact: "SupportContact",
+      app_download: "AppDownload",
+    };
+    return map[slotId] || "ClientHomeAtoms";
+  }
+
+  function skeletonSlotSize(slot = {}) {
+    const id = slot.id || slot.slot || "";
+    if (["trading_accounts_list", "wallet_list", "copytrading_signals"].includes(id)) return "3x2";
+    if (["asset_overview", "promo_banner", "ad_carousel", "risk_disclosure"].includes(id)) return "3x1";
+    if (slot.sectionType === "hero" || slot.sectionType === "full") return "3x1";
+    if (slot.sectionType === "rail") return "1x1";
+    return "2x1";
+  }
+
+  function skeletonSchemeFor(config = currentConfig) {
+    const normalized = home.normalizeConfig(config);
+    if (normalized.skeletonHtmlScheme?.enabled) return normalized.skeletonHtmlScheme;
+    return home.buildSkeletonHtmlScheme(normalized, {
+      reason: "第一步只生成骨架和模块占位，等待逐 slot 填充。",
+      sourceType: "local-skeleton",
+      status: "pending-fill",
+    });
+  }
+
+  function skeletonStageFor(slots, explicitStatus = "") {
+    if (explicitStatus === "final") return "final";
+    if (slots.some((slot) => slot.status === "generating")) return "generating";
+    if (slots.length && slots.every((slot) => ["filled", "locked", "final"].includes(slot.status))) return "review";
+    if (slots.some((slot) => ["filled", "locked", "failed"].includes(slot.status))) return "filled";
+    return "pending-fill";
+  }
+
+  function withSkeletonSlotUpdate(config, slotId, slotPatch = {}, componentPatch, logPatch = null, schemePatch = {}) {
+    const normalized = home.normalizeConfig(config);
+    const baseScheme = skeletonSchemeFor(normalized);
+    const slotKey = String(slotId || "").trim();
+    const slotComponents = { ...(baseScheme.slotComponents || {}) };
+    if (componentPatch === null) delete slotComponents[slotKey];
+    else if (componentPatch) {
+      slotComponents[slotKey] = {
+        ...(slotComponents[slotKey] || {}),
+        ...componentPatch,
+        slot: slotKey,
+      };
+    }
+
+    const slots = baseScheme.slots.map((slot) => {
+      if (slot.id !== slotKey) return slot;
+      const component = slotComponents[slotKey];
+      return {
+        ...slot,
+        ...slotPatch,
+        status: slotPatch.status || (component?.locked ? "locked" : component?.html ? "filled" : slot.status),
+        componentId: component?.id || slotPatch.componentId || slot.componentId || "",
+        filledAt: slotPatch.filledAt || (component?.html ? new Date().toISOString() : slot.filledAt || ""),
+        locked: Boolean(slotPatch.locked ?? component?.locked ?? slot.locked),
+      };
+    });
+    const logEntry = logPatch
+      ? {
+          slot: slotKey,
+          label: slots.find((slot) => slot.id === slotKey)?.label || slotKey,
+          action: logPatch.action || "generate",
+          moduleId: slots.find((slot) => slot.id === slotKey)?.moduleId || "",
+          variant: slots.find((slot) => slot.id === slotKey)?.variant || "",
+          at: new Date().toISOString(),
+        }
+      : null;
+
+    return home.normalizeConfig({
+      ...normalized,
+      renderMode: "skeletonHtml",
+      activeRenderMode: "skeletonHtml",
+      skeletonHtmlEnabled: true,
+      skeletonHtmlScheme: {
+        ...baseScheme,
+        ...schemePatch,
+        status: schemePatch.status || skeletonStageFor(slots, baseScheme.status),
+        slots,
+        slotComponents,
+        slotRegenerationLog: logEntry ? [...(baseScheme.slotRegenerationLog || []), logEntry].slice(-20) : baseScheme.slotRegenerationLog || [],
+      },
+    });
+  }
+
+  function withSkeletonSchemeStatus(config, status) {
+    const normalized = home.normalizeConfig(config);
+    const baseScheme = skeletonSchemeFor(normalized);
+    const finalSlots = status === "final" ? baseScheme.slots.map((slot) => ({ ...slot, status: "final", locked: true })) : baseScheme.slots;
+    const slotComponents = { ...(baseScheme.slotComponents || {}) };
+    if (status === "final") {
+      Object.keys(slotComponents).forEach((slot) => {
+        slotComponents[slot] = { ...slotComponents[slot], locked: true };
+      });
+    }
+    return home.normalizeConfig({
+      ...normalized,
+      renderMode: "skeletonHtml",
+      activeRenderMode: "skeletonHtml",
+      skeletonHtmlEnabled: true,
+      skeletonHtmlScheme: {
+        ...baseScheme,
+        status,
+        slots: finalSlots,
+        slotComponents,
+      },
+    });
+  }
+
+  function prepareConfigForPublish(config) {
+    let next = home.normalizeConfig(config);
+    const mode = next.activeRenderMode || next.renderMode || "config";
+    if (mode === "skeletonHtml" && next.skeletonHtmlScheme?.enabled) {
+      next = withSkeletonSchemeStatus(next, "final");
+    } else if (mode === "aiHtml" && next.htmlScheme?.enabled) {
+      next = home.normalizeConfig({
+        ...next,
+        renderMode: "aiHtml",
+        activeRenderMode: "aiHtml",
+        htmlGenerationEnabled: true,
+      });
+    } else {
+      next = home.normalizeConfig({
+        ...next,
+        activeRenderMode: "config",
+      });
+    }
+    const publishMode = next.activeRenderMode || next.renderMode || "config";
+    return home.normalizeConfig({
+      ...next,
+      publishedAt: new Date().toISOString(),
+      publishedRenderMode: publishMode,
+      publishedRenderModeLabel: renderModeLabel(publishMode),
+    });
+  }
+
+  function localApiEndpointCandidates(path) {
+    const value = String(path || "").startsWith("/") ? path : `/${path || ""}`;
+    if (/^https?:\/\//i.test(value)) return [value];
+    const candidates = [];
+    if (/^https?:\/\//i.test(window.location.origin)) candidates.push(`${window.location.origin}${value}`);
+    const currentHost = window.location.hostname || "127.0.0.1";
+    [...new Set([currentHost, "127.0.0.1", "localhost"])].forEach((host) => {
+      ["5174", "5184"].forEach((port) => candidates.push(`http://${host}:${port}${value}`));
+    });
+    return [...new Set(candidates)];
+  }
+
+  async function requestJsonEndpoint(path, payload) {
+    const endpoints = localApiEndpointCandidates(path);
+    let lastMessage = "";
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json().catch(() => null);
+        if (response.ok && data?.ok !== false) return data || {};
+        lastMessage = data?.error || `${response.status} ${response.statusText}`;
+        if (![404, 405, 501].includes(response.status)) break;
+      } catch (error) {
+        lastMessage = String(error?.message || error || "Failed to fetch");
+      }
+    }
+    throw new Error(`${lastMessage || "Failed to fetch"} · 已尝试 ${endpoints.join(" -> ")}`);
+  }
+
+  function localFallbackSlotComponent(slot, action, error = null) {
+    const label = slot.label || home.featureLabel(slot.id);
+    const rootClass = `skeleton-local-${String(slot.id || "slot").replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+    const reason = action === "style" ? "已切换备用样式" : "内容待生成";
+    if (slot.id === "risk_disclosure" || slot.id === "risk_notice") {
+      return {
+        id: `${slot.id}-local-${Date.now().toString(36)}`,
+        slot: slot.id,
+        name: "风险披露提示条",
+        family: "RiskDisclosure",
+        size: skeletonSlotSize(slot),
+        sourceType: "local-fallback",
+        generatedAt: new Date().toISOString(),
+        description: error ? `模型生成失败后的风险提示兜底：${errorMessage(error, 120)}` : "本地风险提示兜底组件",
+        html: `
+          <article class="${rootClass}" role="note" aria-label="风险提示">
+            <header><span>Risk Disclosure</span><strong>风险提示</strong></header>
+            <div>
+              <p><b>杠杆风险</b><small>杠杆交易可能放大亏损，交易前请确认自身风险承受能力。</small></p>
+              <p><b>保证金风险</b><small>市场快速波动时可能触发追加保证金或强制平仓。</small></p>
+              <p><b>合规披露</b><small>正式风险披露、地区限制和条款链接以后台合规配置为准。</small></p>
+            </div>
+          </article>
+        `,
+        css: `
+          .${rootClass}{display:grid;gap:12px;min-height:144px;padding:16px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft,#f8fbff);color:var(--home-text,#172033)}
+          .${rootClass} header{display:flex;align-items:center;justify-content:space-between;gap:10px}
+          .${rootClass} span{color:var(--home-primary,#2563eb);font-size:11px;font-weight:950;text-transform:uppercase}
+          .${rootClass} strong{color:var(--home-text-strong,#0f172a);font-size:18px;font-weight:950}
+          .${rootClass} div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+          .${rootClass} p{display:grid;gap:5px;margin:0;padding:10px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-card-bg,#fff)}
+          .${rootClass} b{font-size:13px}
+          .${rootClass} small{color:var(--home-text-muted,#64748b);font-size:12px;line-height:1.5}
+          @media(max-width:720px){.${rootClass} div{grid-template-columns:1fr}}
+        `,
+      };
+    }
+    if (slot.id === "support_contact") {
+      return {
+        id: `${slot.id}-local-${Date.now().toString(36)}`,
+        slot: slot.id,
+        name: "在线客服服务卡",
+        family: "SupportContact",
+        size: skeletonSlotSize(slot),
+        sourceType: "local-fallback",
+        generatedAt: new Date().toISOString(),
+        description: error ? `模型生成失败后的在线客服兜底：${errorMessage(error, 120)}` : "本地在线客服兜底组件",
+        html: `
+          <article class="${rootClass}" aria-label="在线客服">
+            <header>
+              <strong>在线客服</strong>
+              <span>服务状态</span>
+            </header>
+            <div class="support-fields">
+              <p><small>服务时间</small><b>后台配置</b></p>
+              <p><small>在线状态</small><b>接口同步</b></p>
+              <p><small>客户经理</small><b>待分配</b></p>
+            </div>
+            <section>
+              <small>最近工单</small>
+              <b>#CS-1024 出金审核咨询</b>
+              <span>处理中 · 预计 24h 内回复</span>
+            </section>
+            <footer>
+              <a data-home-action="contactSupport" href="#support">联系客服</a>
+              <a data-home-action="supportCenter" href="#support-center">帮助中心</a>
+            </footer>
+          </article>
+        `,
+        css: `
+          .${rootClass}{display:grid;gap:12px;min-height:168px;padding:16px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-card-bg,#fff);color:var(--home-text,#172033)}
+          .${rootClass} *{box-sizing:border-box}
+          .${rootClass} header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+          .${rootClass} header strong{color:var(--home-text-strong,#0f172a);font-size:18px;font-weight:950}
+          .${rootClass} header span{padding:4px 8px;border-radius:var(--home-radius-sm,8px);background:var(--home-primary-soft,#eff6ff);color:var(--home-primary,#2563eb);font-size:11px;font-weight:950}
+          .${rootClass} .support-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+          .${rootClass} p,.${rootClass} section{display:grid;gap:5px;margin:0;padding:10px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft,#f8fbff)}
+          .${rootClass} small{color:var(--home-text-muted,#64748b);font-size:11px;font-weight:850}
+          .${rootClass} b{min-width:0;overflow:hidden;color:var(--home-text-strong,#0f172a);font-size:13px;font-weight:950;text-overflow:ellipsis;white-space:nowrap}
+          .${rootClass} section span{color:var(--home-text-muted,#64748b);font-size:12px}
+          .${rootClass} footer{display:flex;gap:8px;flex-wrap:wrap}
+          .${rootClass} a{min-height:34px;display:inline-flex;align-items:center;justify-content:center;padding:0 12px;border:1px solid var(--home-button-border,var(--home-primary,#2563eb));border-radius:var(--home-radius-sm,8px);background:var(--home-button-bg,var(--home-primary,#2563eb));color:var(--home-button-text,#fff);font-size:12px;font-weight:950;text-decoration:none}
+          .${rootClass} a + a{border-color:var(--home-border,#dbe4ef);background:var(--home-surface,#fff);color:var(--home-text,#172033)}
+          @media(max-width:720px){.${rootClass} .support-fields{grid-template-columns:1fr}.${rootClass} a{width:100%}}
+        `,
+      };
+    }
+    return {
+      id: `${slot.id}-local-${Date.now().toString(36)}`,
+      slot: slot.id,
+      name: `${label}组件`,
+      family: skeletonSlotFamily(slot.id),
+      size: skeletonSlotSize(slot),
+      sourceType: "local-fallback",
+      generatedAt: new Date().toISOString(),
+      description: error ? `模型生成失败后的本地兜底：${errorMessage(error, 120)}` : reason,
+      html: `
+        <article class="${rootClass}">
+          <header><span>${escapeHtml(reason)}</span><strong>${escapeHtml(label)}</strong></header>
+          <div>
+            <b>${escapeHtml(slot.sectionTitle || "首页模块")}</b>
+            <small>${escapeHtml(slot.id)} · ${escapeHtml(slot.variant || slot.sectionType || "slot")}</small>
+          </div>
+        </article>
+      `,
+      css: `
+        .${rootClass}{display:grid;gap:10px;min-height:124px;padding:14px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-card-bg,#fff);color:var(--home-text,#172033)}
+        .${rootClass} header{display:flex;align-items:center;justify-content:space-between;gap:10px}
+        .${rootClass} span{color:var(--home-primary,#2563eb);font-size:11px;font-weight:950}
+        .${rootClass} strong{font-size:16px;font-weight:950}
+        .${rootClass} div{display:grid;gap:6px;padding:10px;border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft,#f8fbff)}
+        .${rootClass} b{font-size:13px}
+        .${rootClass} small{color:var(--home-text-muted,#64748b);font-size:12px}
+      `,
+    };
+  }
+
+  function compactPromptText(value, fallback = "", limit = 220) {
+    const text = String(value || fallback || "").replace(/\s+/g, " ").trim();
+    return text.length > limit ? `${text.slice(0, Math.max(0, limit - 3))}...` : text;
+  }
+
+  function compactPromptJson(value, limit = 520) {
+    if (!value) return "";
+    try {
+      const text = JSON.stringify(value);
+      return text.length > limit ? `${text.slice(0, Math.max(0, limit - 3))}...` : text;
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function compactPromptSettingValue(value) {
+    if (Array.isArray(value)) return value.slice(0, 8).map((item) => compactPromptSettingValue(item));
+    if (!value || typeof value !== "object") return value;
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([, item]) => ["string", "number", "boolean"].includes(typeof item) || Array.isArray(item))
+        .slice(0, 10)
+        .map(([key, item]) => [key, Array.isArray(item) ? item.slice(0, 8) : item]),
+    );
+  }
+
+  function skeletonSlotSettingKeys(slotId) {
+    return {
+      welcome_header: ["welcome"],
+      asset_overview: ["assets", "wallet"],
+      wallet_balance: ["wallet", "assets"],
+      wallet_list: ["wallet", "assets"],
+      fund_actions: ["fundActions", "assets"],
+      quick_actions: ["quickActions"],
+      promo_banner: ["promoHighlight", "adCarousel"],
+      ad_carousel: ["promoHighlight", "adCarousel"],
+      referral_link_card: ["referralLinkCard", "referral"],
+      onboarding_guide: ["openAccount", "userKycRail"],
+      user_kyc_rail: ["userKycRail", "openAccount"],
+      trading_account_highlight: ["tradingAccounts", "accountPerformance"],
+      trading_accounts_list: ["tradingAccounts", "openAccount"],
+      create_account_form: ["openAccount", "createAccount"],
+      pamm_products: ["pamm"],
+      copytrading_signals: ["copytrading"],
+      risk_disclosure: ["riskDisclosure", "riskNotice"],
+      risk_notice: ["riskDisclosure", "riskNotice"],
+      faq_section: ["faq"],
+      support_contact: ["supportContact"],
+      app_download: ["appDownload"],
+    }[slotId] || [];
+  }
+
+  function skeletonRelatedSettings(slot, config) {
+    const settings = config.moduleSettings && typeof config.moduleSettings === "object" ? config.moduleSettings : {};
+    const summary = {};
+    skeletonSlotSettingKeys(slot.id).forEach((key) => {
+      if (settings[key] === undefined) return;
+      summary[key] = compactPromptSettingValue(settings[key]);
+    });
+    return Object.keys(summary).length ? summary : null;
+  }
+
+  function skeletonBrickForSlot(slot, config) {
+    const bricks = Array.isArray(config.brickPlan) ? config.brickPlan : [];
+    const slotId = slot.id || slot.slot || "";
+    const family = skeletonSlotFamily(slotId);
+    const exact = bricks.find((brick) => [brick?.component, brick?.feature, brick?.slot].includes(slotId));
+    if (exact) return exact;
+    return bricks.find((brick) => family !== "ClientHomeAtoms" && brick?.family === family) || null;
+  }
+
+  function skeletonPageBrief(config = currentConfig) {
+    const normalized = home.normalizeConfig(config);
+    const sectionSlots = (Array.isArray(normalized.sections) ? normalized.sections : [])
+      .flatMap((section) => (Array.isArray(section.slots) ? section.slots : []))
+      .map((slot) => home.featureLabel(slot))
+      .filter(Boolean)
+      .slice(0, 8);
+    const uniqueSlotLabels = [...new Set(sectionSlots)];
+    return [
+      `页面摘要：${compactPromptText(normalized.aiSummary || normalized.name, "专业 ForexCRM 用户端首页", 180)}`,
+      `页面框架：${compactPromptText(normalized.layoutPreset || normalized.pageStory || "standard", "standard", 64)} / ${compactPromptText(normalized.themePreset || normalized.theme, "default", 64)} / ${compactPromptText(normalized.density, "balanced", 40)}`,
+      normalized.heroFocus ? `首屏重心：${home.featureLabel(normalized.heroFocus)}` : "",
+      uniqueSlotLabels.length ? `骨架模块：${uniqueSlotLabels.join(" / ")}` : "",
+      "全局边界：不要编造收益、下载链接、联系方式、活动规则或后台未提供数据；整体保持克制、专业、可嵌入金融客户端。",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  function skeletonSlotObjective(slot) {
+    return {
+      welcome_header: "生成轻量欢迎头部，体现客户姓名、问候、当前账户状态或下一步动作，不要占用过大首屏。",
+      asset_overview: "生成账户概览组件，聚焦总资产、钱包余额、交易账号余额或可用资金，缺失数据用占位或隐藏。",
+      wallet_balance: "生成钱包余额摘要，突出币种、可用余额、冻结/处理中状态和资金动作入口。",
+      wallet_list: "生成多币种钱包列表或表格，字段密度清楚，币种、余额、状态和操作入口要分层。",
+      fund_actions: "生成资金操作组件，入金、出金、内部转账等主次清楚，不要扩展成完整资产页。",
+      quick_actions: "生成快捷入口组件，4-10 个操作可扫描，主操作突出，其余入口保持统一 icon 或 icon+文字节奏。",
+      promo_banner: "生成活动或公告承接组件，只展示后台已有活动/公告占位，不虚构奖池、倒计时或奖励规则。",
+      ad_carousel: "生成活动或公告承接组件，只展示后台已有活动/公告占位，不虚构奖池、倒计时或奖励规则。",
+      referral_link_card: "生成推广链接卡片，围绕开户链接、邀请码、复制/分享动作和可选基础统计，不生成完整代理中心。",
+      onboarding_guide: "生成开户/认证引导组件，体现 KYC、开真实账户、首次入金等步骤、状态和下一步 CTA。",
+      user_kyc_rail: "生成 CRM 账户 KYC 状态组件，只展示当前状态、审核提示和提交/重新提交入口。",
+      trading_account_highlight: "生成账号表现组件，左侧账号信息和右侧 7D/30D 净值或 PnL 趋势容器要清楚。",
+      trading_accounts_list: "生成交易账号列表组件，真实账号和模拟账号都要可见，支持列表或卡片但字段不要堆叠混乱。",
+      create_account_form: "生成创建交易账号表单组件，平台、账号类型、币种、杠杆和创建按钮完整。",
+      pamm_products: "生成 PAMM 产品推荐组件，产品收益、规模、风险和曲线都以接口字段或占位表达，不与 CopyTrading 混合。",
+      copytrading_signals: "生成 CopyTrading 信号源推荐组件，信号源、收益、回撤、风险和趋势图容器独立呈现。",
+      risk_disclosure: "生成合规风险提示组件，聚焦杠杆、保证金、亏损风险和后台合规文案占位。",
+      risk_notice: "生成合规风险提示组件，聚焦杠杆、保证金、亏损风险和后台合规文案占位。",
+      faq_section: "生成 FAQ 组件，问题和答案来自平台配置或 demo 占位，适合低干扰辅助区域。",
+      support_contact: "生成在线客服/客户经理组件，包含服务时间、在线状态或工单/帮助中心入口。",
+      app_download: "生成 APP / MT5 下载入口组件，二维码、平台入口和下载状态以后台配置或占位表达。",
+    }[slot.id] || "生成当前 slot 对应的真实业务组件，内容要服务当前模块，不要扩展成无关首页区块。";
+  }
+
+  function skeletonSlotPrompt(slot, action) {
+    const normalized = home.normalizeConfig(currentConfig);
+    const actionText = action === "style" ? "更换一种明显不同的组件样式" : "生成这个 slot 的完整组件";
+    const brick = skeletonBrickForSlot(slot, normalized);
+    const relatedSettings = skeletonRelatedSettings(slot, normalized);
+    return [
+      skeletonPageBrief(normalized),
+      "",
+      "当前模块 brief:",
+      `当前步骤：${actionText}，只处理当前模块，不要改整页骨架和其他模块。`,
+      `slot：${slot.id}`,
+      `模块名称：${slot.label || home.featureLabel(slot.id)}`,
+      `模块归属：${skeletonSlotFamily(slot.id)} / ${skeletonSlotSize(slot)}`,
+      `所在区域：${slot.sectionTitle || slot.sectionId || "首页区域"} / ${slot.sectionType || "full"}`,
+      slot.variant ? `当前变体：${slot.variant}` : "",
+      slot.morph ? `当前 morph：${slot.morph}` : "",
+      brick ? `积木意图：${compactPromptText([brick.brickName || brick.brickId, brick.reason].filter(Boolean).join(" - "), "", 220)}` : "",
+      relatedSettings ? `相关配置：${compactPromptJson(relatedSettings)}` : "",
+      `模块目标：${skeletonSlotObjective(slot)}`,
+      "输出要求：生成真实业务字段、清晰按钮层级、专业金融客户端质感；不要只显示模块名或通用占位。",
+      "审美要求：参考同 family 积木的字段密度、按钮层级、状态标签、卡片比例和响应式方式，生成新的漂亮变体；不要照抄积木，也不要只换颜色。",
+      "结构要求：至少体现一种明确组件工艺，例如指标带、状态条、步骤连接、趋势图容器、操作坞、表格/列表、左右分栏或紧凑信息流。",
+      slot.id === "risk_disclosure" || slot.id === "risk_notice"
+        ? "风险提示硬性要求：只能生成风险披露、杠杆风险、保证金风险、亏损风险、合规说明；不要生成资产概览、账户余额、入金、开户或营销活动组件。"
+        : "",
+      slot.id === "support_contact"
+        ? "在线客服硬性要求：生成在线客服 serviceCard，必须包含服务时间、在线状态或客户经理、工单/帮助中心、联系客服主按钮；不要显示页面摘要、当前步骤、slot 等管理员提示词；不要生成账户余额、KYC、开户或钱包组件。"
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  async function generateSkeletonSlot(slotId, action = "regenerate") {
+    if (!isSkeletonPreviewConfig()) return;
+    const scheme = skeletonSchemeFor(currentConfig);
+    const slot = scheme.slots.find((item) => item.id === slotId);
+    if (!slot) return;
+    if ((slot.locked || slot.status === "locked" || slot.status === "final") && action !== "unlock") {
+      showToast("该模块已锁定，先解锁再重生成");
+      return;
+    }
+    if (action === "lock" || action === "unlock") {
+      const locked = action === "lock";
+      const component = scheme.slotComponents?.[slotId] || null;
+      const next = withSkeletonSlotUpdate(
+        currentConfig,
+        slotId,
+        { status: locked ? "locked" : component?.html ? "filled" : "pending-fill", locked },
+        component ? { ...component, locked } : undefined,
+        { action },
+        { status: locked ? scheme.status : skeletonStageFor(scheme.slots) },
+      );
+      setConfig(next, locked ? "模块已锁定" : "模块已解锁", { saveDraft: true });
+      showToast(locked ? "模块已锁定" : "模块已解锁");
+      return;
+    }
+    if (slot.status === "generating") {
+      showToast("该模块正在生成中，请稍候");
+      return;
+    }
+
+    setConfig(withSkeletonSlotUpdate(currentConfig, slotId, { status: "generating" }, undefined, null, { status: "generating" }), `正在生成：${slot.label}`, { saveDraft: true });
+    try {
+      const existing = scheme.slotComponents?.[slotId];
+      const family = skeletonSlotFamily(slotId);
+      const size = skeletonSlotSize(slot);
+      const isStyleEdit = action === "style" && existing?.id;
+      const payload = isStyleEdit
+        ? {
+            componentId: existing.id,
+            component: existing,
+            instruction: `${skeletonSlotPrompt(slot, action)}\n请保持业务能力不变，但重做视觉层级、排版、密度或结构。`,
+            modelConfig: aiRequestModelConfig(),
+          }
+        : {
+            prompt: skeletonSlotPrompt(slot, action),
+            family,
+            size,
+            modelConfig: aiRequestModelConfig(),
+          };
+      const result = await requestJsonEndpoint(isStyleEdit ? "/api/home-components/edit" : "/api/home-components/generate", payload);
+      const component = {
+        ...(result.component || localFallbackSlotComponent(slot, action)),
+        slot: slotId,
+        sourceType: result.localFallback ? "fallback-component-ai" : result.mock ? "mock-component-ai" : "component-ai",
+        fallbackReason: result.fallbackReason || "",
+        provider: result.provider || "",
+        model: result.model || "",
+        generatedAt: new Date().toISOString(),
+      };
+      const next = withSkeletonSlotUpdate(
+        currentConfig,
+        slotId,
+        { status: "filled", locked: false, filledAt: new Date().toISOString() },
+        component,
+        { action: action === "style" ? "style" : "regenerate" },
+      );
+      setConfig(next, `已生成：${slot.label}`, { saveDraft: true });
+    } catch (error) {
+      const fallback = localFallbackSlotComponent(slot, action, error);
+      const next = withSkeletonSlotUpdate(
+        currentConfig,
+        slotId,
+        { status: "filled", locked: false, filledAt: new Date().toISOString() },
+        fallback,
+        { action: "fallback" },
+      );
+      setConfig(next, `模型生成失败，已使用本地兜底：${slot.label}`, { saveDraft: true });
+      showToast(`模块生成失败，已兜底：${slot.label}`);
+    }
+  }
+
+  async function fillSkeletonSlotsSequentially(options = {}) {
+    if (skeletonFillRunning || !isSkeletonPreviewConfig()) return;
+    skeletonFillRunning = true;
+    try {
+      const scheme = skeletonSchemeFor(currentConfig);
+      const slots = scheme.slots.filter((slot) => {
+        const component = scheme.slotComponents?.[slot.id];
+        const locked = slot.locked || slot.status === "locked" || slot.status === "final";
+        return options.force || (!locked && !component?.html && slot.status !== "generating");
+      });
+      for (const slot of slots) {
+        await generateSkeletonSlot(slot.id, options.force && scheme.slotComponents?.[slot.id] ? "style" : "regenerate");
+      }
+      const refreshedScheme = skeletonSchemeFor(currentConfig);
+      if (refreshedScheme.slots.length && refreshedScheme.slots.every((slot) => ["filled", "locked", "final"].includes(slot.status))) {
+        setConfig(withSkeletonSchemeStatus(currentConfig, "review"), "骨架组件已全部填充，等待定稿", { saveDraft: true });
+        showToast("骨架组件已全部填充");
+      }
+    } finally {
+      skeletonFillRunning = false;
+      renderSkeletonWorkflow();
+    }
+  }
+
+  function maybeStartSkeletonWorkflow() {
+    if (!els.previewPage || skeletonAutoStarted || !isSkeletonPreviewConfig()) return;
+    const scheme = skeletonSchemeFor(currentConfig);
+    const hasPending = scheme.slots.some((slot) => !slot.locked && !scheme.slotComponents?.[slot.id]?.html);
+    if (!hasPending || scheme.status === "final") return;
+    skeletonAutoStarted = true;
+    window.setTimeout(() => fillSkeletonSlotsSequentially(), 450);
+  }
+
+  function renderSkeletonWorkflow() {
+    if (!els.skeletonWorkflow) return;
+    if (!isSkeletonPreviewConfig()) {
+      els.skeletonWorkflow.hidden = true;
+      els.skeletonWorkflow.innerHTML = "";
+      return;
+    }
+
+    const scheme = skeletonSchemeFor(currentConfig);
+    const filled = scheme.slots.filter((slot) => scheme.slotComponents?.[slot.id]?.html).length;
+    const locked = scheme.slots.filter((slot) => slot.locked || slot.status === "locked" || slot.status === "final").length;
+    const generatingSlots = scheme.slots.filter((slot) => slot.status === "generating");
+    const totalSlots = scheme.slots.length;
+    const progressPercent = totalSlots ? Math.min(100, Math.round(((filled + (generatingSlots.length ? 0.45 : 0)) / totalSlots) * 100)) : 0;
+    const isRunning = skeletonFillRunning || generatingSlots.length > 0 || scheme.status === "generating";
+    const activeSlot =
+      generatingSlots[0] ||
+      scheme.slots.find((slot) => {
+        const lockedSlot = slot.locked || slot.status === "locked" || slot.status === "final";
+        return !lockedSlot && !scheme.slotComponents?.[slot.id]?.html;
+      });
+    const activeLabel = activeSlot?.label || (filled >= totalSlots ? "全部模块" : "下一模块");
+    const progressLabel = isRunning
+      ? `正在生成：${activeLabel}`
+      : filled >= totalSlots
+        ? "全部 slot 已填充，可以定稿"
+        : `待生成：${activeLabel}`;
+    els.skeletonWorkflow.hidden = false;
+    els.skeletonWorkflow.innerHTML = `
+      <div class="studio-section-head">
+        <span class="section-kicker">SKELETON</span>
+        <h2>骨架装配</h2>
+      </div>
+      <div class="skeleton-workflow-meter" data-status="${escapeHtml(scheme.status || "pending-fill")}" data-running="${isRunning ? "true" : "false"}">
+        <div class="skeleton-workflow-count">
+          <strong>${filled}/${scheme.slots.length}</strong>
+          <span>${escapeHtml(skeletonStatusLabel(scheme.status))} · 锁定 ${locked}</span>
+        </div>
+        <small>${progressPercent}%</small>
+      </div>
+      <div class="skeleton-workflow-progress" data-running="${isRunning ? "true" : "false"}" role="progressbar" aria-label="骨架生成进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progressPercent}">
+        <i style="width: ${progressPercent}%"></i>
+      </div>
+      <p class="skeleton-workflow-current" data-status="${isRunning ? "generating" : escapeHtml(scheme.status || "pending-fill")}">${escapeHtml(progressLabel)}</p>
+      <div class="skeleton-workflow-actions">
+        <button class="${isRunning ? "is-loading" : ""}" type="button" data-skeleton-fill-all ${isRunning ? "disabled" : ""}>${isRunning ? "填充中" : "继续填充"}</button>
+        <button type="button" data-skeleton-reset ${isRunning ? "disabled" : ""}>重置组件</button>
+        <button class="primary" type="button" data-skeleton-finalize ${isRunning || filled < scheme.slots.length ? "disabled" : ""}>定稿</button>
+      </div>
+      <div class="skeleton-slot-list">
+        ${scheme.slots
+          .map((slot, index) => {
+            const component = scheme.slotComponents?.[slot.id];
+            const status = slot.locked || slot.status === "final" ? "locked" : component?.html ? slot.status || "filled" : slot.status || "pending-fill";
+            const detail = status === "generating" ? "模型正在生成组件..." : `${slot.sectionTitle || slot.sectionType || "slot"} · ${component?.name || slot.id}`;
+            return `
+              <article class="skeleton-slot-row" data-status="${escapeHtml(status)}" aria-busy="${status === "generating" ? "true" : "false"}">
+                <span>${String(index + 1).padStart(2, "0")}</span>
+                <div>
+                  <strong>${escapeHtml(slot.label || home.featureLabel(slot.id))}</strong>
+                  <small>${escapeHtml(detail)}</small>
+                </div>
+                <b>${escapeHtml(skeletonStatusLabel(status))}</b>
+              </article>
+            `;
+          })
+          .join("")}
+      </div>
+    `;
   }
 
   function promptValue() {
@@ -742,27 +1426,14 @@
     { id: "campaign-landing-prompt", label: "活动承接提示语", summary: "适合已有活动配置的首页方案", prompt: "请生成一个活动承接首页，前提是租户后台已经配置活动内容；用 promo_banner 或公告承接活动曝光，用快捷入口和交易账号承接转化。不要虚构奖池、倒计时、报名条件或奖励规则。", tags: ["growth", "campaign"] },
     { id: "copytrading-prompt", label: "跟单推荐提示语", summary: "适合租户开启 CopyTrading 的首页", prompt: "请生成一个 CopyTrading 首页，使用 copytrading_signals 独立模块展示信号源推荐；收益率、总收益、回撤、风险和曲线都必须来自接口，并用折线或面积曲线表达趋势，不要把 PAMM 和 CopyTrading 合并。", tags: ["insight", "conversion"] },
     { id: "pamm-products-prompt", label: "PAMM 产品提示语", summary: "适合租户开启 PAMM 的产品推荐", prompt: "请生成一个 PAMM 产品推荐首页，使用 pamm_products 独立模块展示产品列表或排行；产品名称、收益、规模、风险和曲线均来自接口，缺少数据时隐藏对应指标。不要和 CopyTrading 信号源混在一起。", tags: ["asset", "insight"] },
-    { id: "risk-disclosure-prompt", label: "风险提示提示语", summary: "适合需要合规与保证金提醒的页面", prompt: "请生成一个风险提示首页，重点是保证金提醒、风险披露和客服入口；风险披露使用后台合规文案，放在底部或低干扰区域，不要把风险提示做成夸张营销卡，也不要暗示稳赚。", tags: ["risk", "trade"] },
+    { id: "risk-disclosure-prompt", label: "风险提示提示语", summary: "适合需要合规与保证金提醒的页面", prompt: "请生成一个风险提示首页，重点是保证金提醒、风险披露和客服入口；风险披露正式内容使用后台合规文案，放在底部或低干扰区域；如果暂无后台数据，Demo 预览生成参考风险提示文案用于展示。不要把风险提示做成夸张营销卡，也不要暗示稳赚。", tags: ["risk", "trade"] },
     { id: "mobile-compact-prompt", label: "移动端紧凑提示语", summary: "适合手机端优先、少滚动的首页", prompt: "请生成一个移动端优先首页，首屏单列，保留资产概览、当前 KYC/开户状态、快捷入口和交易账号摘要；模块高度要克制，避免大面积横幅和重复按钮。所有内容来自后台或接口。", tags: ["mobile", "conversion"] },
     { id: "brand-trust-prompt", label: "品牌可信首页提示语", summary: "适合白标券商或成熟品牌调性", prompt: "请生成一个品牌可信首页，整体像成熟券商客户端，首屏强调资产安全感、账户状态、快捷入口和客服承接；不要虚构隔离资金、监管资质、在线客服状态或服务时间。", tags: ["brand", "conversion"] },
     { id: "retention-prompt", label: "老用户唤醒提示语", summary: "适合沉睡用户或回访用户", prompt: "请生成一个老用户唤醒首页，先展示账户状态和可继续完成的下一步，再给出快捷入口、客服协助和交易账号摘要；如果没有后台返场权益或活动，不要编造优惠券、赠金或有效期。", tags: ["retention", "account"] },
     { id: "funding-status-prompt", label: "出入金状态提示语", summary: "适合资金流程透明的首页", prompt: "请生成一个资金状态追踪首页，展示入金、出金或钱包状态的当前进度；通道、预计时间、成功率和订单金额都必须来自支付接口，没有数据时只显示状态占位和客服入口。", tags: ["asset", "deposit"] },
   ];
 
-  const GUIDED_FIELD_LABELS = {
-    intent: "首页目标",
-    audience: "目标用户",
-    level: "功能分级",
-    requiredModules: "必选模块",
-    optionalModules: "选填模块",
-    theme: "视觉主题",
-    themeCustom: "自定义主题",
-    tone: "内容语气",
-    cta: "主 CTA",
-    note: "补充要求",
-  };
-
-  const GUIDED_REQUIRED_MODULE_IDS = ["accountOverview", "quickActions", "tradingAccounts"];
+  const GUIDED_REQUIRED_MODULE_IDS = ["accountOverview", "quickActions", "tradingAccounts", "openingFlow"];
 
   function isGuidedRequiredModule(value) {
     return GUIDED_REQUIRED_MODULE_IDS.includes(value);
@@ -773,47 +1444,47 @@
   }
 
   const GUIDED_PROMPT_COPY = {
-    intent: {
-      accountOpening: "开户引导，重点推动客户完成真实账户开户、KYC 和首次入金准备",
-      promotionConversion: "推广转化，重点把访客导向留资咨询、权益领取或活动承接",
-      newUserOnboarding: "新用户引导，重点让客户看清开户、认证、入金、交易的下一步",
-      marketingCampaign: "营销推广，重点曝光运营活动、权益和主按钮转化",
-      rewardActivity: "参与奖励活动，重点展示奖励规则、参与步骤和活动倒计时",
-      ibRecruitment: "代理/IB 招募，重点展示推广链接、邀请码、合作流程和客户经理入口",
-      depositConversion: "入金转化，重点推动已开户客户完成首存或追加入金",
-      retention: "老用户唤醒，重点召回沉睡用户重新入金、交易或领取返场权益",
-	    },
 	    level: {
 	      basic: "基础版，保留首屏、主 CTA 和核心说明",
 	      growth: "增长版，在基础能力上加入活动权益、按钮和转化承接",
 	      pro: "专业版，加入账号、资产、推广链接、数据指标或更完整的运营模块",
 	    },
+    designStyle: {
+      minimalClean: "简约留白：减少装饰和干扰，使用清晰留白、克制卡片和明确层级，让页面更轻、更安静",
+      colorfulEnergy: "色彩活力：使用更鲜明但有节制的色块、标签和强调态，整体有活力但不杂乱",
+      flatFresh: "扁平清爽：弱化阴影和厚重边框，用平面分区、浅色块和直接的信息排布塑造现代感",
+      refinedPolish: "精致美观：强调细腻层次、精致图标感、柔和过渡和成熟金融产品质感",
+    },
     modules: {
-      welcomeModule: "欢迎模块：放在选填模块第一位，用欢迎区承接客户身份、问候和当前首页主线",
-      heroBanner: "首屏 Banner、活动横幅和主 CTA",
-      accountOverview: "账户概览：使用 asset_overview 展示账户摘要",
-      quickActions: "快捷入口：必须展示高频操作入口，承接入金、开户、订单、持仓或客服等动作",
-      openingFlow: "新手 Onboarding 引导：KYC -> 开真实账户 -> 首次入金，帮助新用户完成基础流程",
-      accountBenefits: "账户类型与优势：说明真实账户、模拟账户和绑定账号的用途、限制和后台已配置权益",
-      kycGuide: "CRM 账户 KYC 状态：未提交、待审、通过、拒绝；只展示当前状态和下一步，不做材料说明页",
+      welcomeModule: "欢迎模块：必须在页面的第一栏，展示见客户姓名、问候",
+      heroBanner: "首页 Banner / 广告轮播：多张广告轮播图，需要具备自动切换和下一张控制；用 promo_banner 作为首页积木承接",
+      accountOverview: "账户概览：使用 asset_overview 展示账户摘要，包含账户余额，钱包余额，交易账号余额，单位：USD，可以参考积木块",
+      quickActions: "快捷入口：展示操作入口，4-10个快捷入口位置，icon或者icon+文字，样式可自行发挥",
+      openingFlow: "新手 Onboarding 引导：KYC -> 开真实账户 -> 首次入金 -> 首次交易，帮助新用户完成基础流程，其中首次交易可要可不要",
+      accountBenefits: "交易表现：说明真实账户的交易表现，左右结构。左侧展示真实交易账号的基础信息，右侧展示净值折线图(7d、30d)",
+      kycGuide: "CRM 账户 KYC 状态：未提交、待审、通过、拒绝；只展示当前状态,未提交时补充展示去提交按钮，拒绝是展示再次提交",
       depositBonus: "入金奖励、首存门槛和赠金梯度",
-      rewardRules: "活动规则、参与步骤、倒计时和权益说明",
-      pammProducts: "PAMM 产品推荐区，使用独立的 pamm_products 模块，仅在租户开启 PAMM 且接口返回产品时展示",
-      copyTrading: "CopyTrading 信号源推荐区，使用独立的 copytrading_signals 模块，仅在租户开启 CopyTrading 且接口返回信号源时展示",
+      rewardRules: "展示活动信息：活动名称、奖励金额、活动日期、简易活动规则说明、倒计时和权益说明。需要有营销的风格",
+      pammProducts: "PAMM 产品推荐区，独立的 pamm_products 模块，，展示PAMM产品名称、收益率、收益率折线图。仅在租户开启 PAMM 且接口返回产品时展示,演示界面可制造数据，风格可参考币安",
+      copyTrading: "CopyTrading 信号源推荐区，使用独立的 copytrading_signals 模块，展示信号源名称、收益率、总收益(USD)、最大回撤、收益率折线图仅在租户开启 CopyTrading 且接口返回信号源时展示，演示界面可制造数据，风格可参考币安",
       rewardActivity: "奖励活动专题区，使用活动 Banner、奖励权益、参与步骤和活动 CTA 承接转化",
-      referralLink: "推广链接：参考 ReferralLinkCard 积木字段，引申链接优先、邀请码优先、分享或基础统计样式",
+      referralLink: "推广链接：参考 ReferralLinkCard 积木字段，链接、邀请码优先展示、二维码，数据统计可要可不要",
       appDownload: "APP 下载、MT5 下载或移动端交易入口",
-      tradingAccounts: "交易账号列表：必须同时包含真实交易账号和模拟交易账号状态",
+      tradingAccounts: "交易账号列表：必须同时包含真实交易账号和模拟交易账号的列表，列表可参考交易账号积木块，列表或卡片形式皆可",
       customerService: "在线客服、客户经理或一对一协助入口",
-      faq: "FAQ 常见问题",
-      riskDisclosure: "风险提示与合规声明，不暗示稳赚",
+      faq: "FAQ 常见问题：展示一些平台设置的常见问题，demo 可以放 4-10 条",
+      riskDisclosure: "风险提示：展示一段风险解释的文案",
     },
     theme: {
       blueFinance: "蓝色金融，清爽专业",
       blackGold: "黑金高净值，高端稳重",
       lightGold: "浅金活动，适合营销权益",
-      minimalWhite: "极简白，清爽克制",
+      minimalWhite: "极简白，扁平，清爽克制",
       darkTech: "暗色科技，交易终端感",
+      emeraldTrust: "翡翠信任，适合资金安全和合规信任表达",
+      cobaltTeal: "钴蓝青绿，适合国际科技金融感",
+      crimsonPromo: "赤红活动，适合强转化营销活动",
+      graphiteSilver: "石墨银，适合成熟券商和机构质感",
     },
     tone: {
       professional: "专业稳健",
@@ -822,14 +1493,6 @@
       campaign: "活动促销",
       premium: "高净值客户导向",
       ib: "代理招募导向",
-    },
-    cta: {
-      openAccount: "立即开户",
-      claimReward: "领取奖励",
-      depositNow: "立即入金",
-      contactManager: "联系客户经理",
-      joinCampaign: "参与活动",
-      downloadApp: "下载 APP",
     },
   };
 
@@ -852,132 +1515,6 @@
     customerService: ["support_contact"],
     faq: ["faq_section"],
     riskDisclosure: ["risk_disclosure"],
-  };
-
-  const GUIDED_INTENT_CANONICAL = {
-    accountOpening: {
-      primaryIntent: "onboarding",
-      layoutPreset: "onboardingJourney",
-      heroFocus: "onboarding_guide",
-      mustHave: ["onboarding_guide", "quick_actions", "asset_overview", "trading_accounts_list"],
-    },
-    promotionConversion: {
-      primaryIntent: "growth",
-      layoutPreset: "magazineCampaign",
-      heroFocus: "promo_banner",
-      mustHave: ["promo_banner", "quick_actions", "asset_overview", "trading_accounts_list"],
-    },
-    newUserOnboarding: {
-      primaryIntent: "onboarding",
-      layoutPreset: "onboardingJourney",
-      heroFocus: "onboarding_guide",
-      mustHave: ["onboarding_guide", "quick_actions", "asset_overview"],
-    },
-    marketingCampaign: {
-      primaryIntent: "growth",
-      layoutPreset: "magazineCampaign",
-      heroFocus: "promo_banner",
-      mustHave: ["promo_banner", "quick_actions", "trading_accounts_list"],
-    },
-    rewardActivity: {
-      primaryIntent: "growth",
-      layoutPreset: "magazineCampaign",
-      heroFocus: "promo_banner",
-      mustHave: ["promo_banner", "quick_actions", "trading_accounts_list"],
-    },
-    ibRecruitment: {
-      primaryIntent: "partner",
-      layoutPreset: "accountOpsConsole",
-      heroFocus: "referral_link_card",
-      mustHave: ["referral_link_card", "quick_actions", "announcements", "trading_accounts_list"],
-    },
-    depositConversion: {
-      primaryIntent: "deposit",
-      layoutPreset: "conversionFirst",
-      heroFocus: "asset_overview",
-      mustHave: ["asset_overview", "quick_actions", "promo_banner", "trading_accounts_list"],
-    },
-    retention: {
-      primaryIntent: "retention",
-      layoutPreset: "onboardingJourney",
-      heroFocus: "onboarding_guide",
-      mustHave: ["onboarding_guide", "asset_overview", "quick_actions", "promo_banner"],
-    },
-  };
-
-  const GUIDED_INTENT_DEFAULTS = {
-	    accountOpening: {
-	      audience: ["newVisitor", "registeredNoAccount"],
-	      level: "growth",
-		      modules: ["welcomeModule", "heroBanner", "accountOverview", "quickActions", "tradingAccounts", "openingFlow", "accountBenefits", "kycGuide"],
-	      assetFields: ["total", "wallet", "tradingAccount"],
-	      theme: "blueFinance",
-	      tone: "professional",
-	      cta: "openAccount",
-	    },
-	    promotionConversion: {
-	      audience: ["newVisitor", "registeredNoAccount", "openedNoDeposit"],
-	      level: "growth",
-		      modules: ["welcomeModule", "heroBanner", "accountOverview", "quickActions", "tradingAccounts", "accountBenefits", "depositBonus", "rewardRules"],
-	      assetFields: ["total", "wallet", "tradingAccount"],
-	      theme: "blueFinance",
-	      tone: "conversion",
-	      cta: "openAccount",
-	    },
-	    newUserOnboarding: {
-	      audience: ["newVisitor", "registeredNoAccount"],
-	      level: "basic",
-		      modules: ["welcomeModule", "heroBanner", "accountOverview", "quickActions", "tradingAccounts", "openingFlow", "kycGuide"],
-	      assetFields: ["total", "tradingAccount"],
-	      theme: "minimalWhite",
-	      tone: "beginner",
-	      cta: "openAccount",
-	    },
-	    marketingCampaign: {
-	      audience: ["newVisitor", "activityUser"],
-	      level: "growth",
-		      modules: ["welcomeModule", "heroBanner", "accountOverview", "quickActions", "tradingAccounts", "rewardActivity", "rewardRules", "depositBonus"],
-	      assetFields: ["total", "wallet", "tradingAccount"],
-	      theme: "lightGold",
-	      tone: "campaign",
-	      cta: "joinCampaign",
-	    },
-	    rewardActivity: {
-	      audience: ["openedNoDeposit", "fundedUser", "activityUser"],
-	      level: "growth",
-		      modules: ["welcomeModule", "heroBanner", "accountOverview", "quickActions", "tradingAccounts", "rewardActivity", "rewardRules", "depositBonus"],
-	      assetFields: ["total", "wallet", "tradingAccount"],
-	      theme: "lightGold",
-	      tone: "campaign",
-	      cta: "claimReward",
-	    },
-	    ibRecruitment: {
-	      audience: ["ibUser", "highNetWorth"],
-	      level: "pro",
-		      modules: ["welcomeModule", "heroBanner", "accountOverview", "quickActions", "tradingAccounts", "referralLink", "accountBenefits"],
-	      assetFields: ["total", "tradingAccount"],
-	      theme: "blackGold",
-	      tone: "ib",
-	      cta: "contactManager",
-	    },
-	    depositConversion: {
-	      audience: ["openedNoDeposit", "fundedUser"],
-	      level: "growth",
-		      modules: ["welcomeModule", "heroBanner", "accountOverview", "quickActions", "tradingAccounts", "depositBonus"],
-	      assetFields: ["wallet", "tradingAccount"],
-	      theme: "blueFinance",
-	      tone: "conversion",
-	      cta: "depositNow",
-	    },
-	    retention: {
-	      audience: ["dormantUser", "fundedUser"],
-	      level: "basic",
-		      modules: ["welcomeModule", "heroBanner", "accountOverview", "quickActions", "tradingAccounts", "depositBonus"],
-	      assetFields: ["total", "wallet", "tradingAccount"],
-	      theme: "minimalWhite",
-	      tone: "professional",
-	      cta: "depositNow",
-	    },
   };
 
   function setGenerationMode(mode) {
@@ -1040,7 +1577,6 @@
   function guidedLabel(group, value) {
     const button = guidedButtonsFor(group).find((item) => item.dataset.guidedValue === value);
     if (button?.dataset.guidedLabel) return button.dataset.guidedLabel;
-    if (group === "cta" && GUIDED_PROMPT_COPY.cta?.[value]) return GUIDED_PROMPT_COPY.cta[value];
     return value || "未选择";
   }
 
@@ -1052,53 +1588,22 @@
     return (Array.isArray(modules) ? modules : []).includes("accountOverview");
   }
 
-  function guidedDefaultAssetFields(intent) {
-    return [...(GUIDED_INTENT_DEFAULTS[intent]?.assetFields || ["total", "wallet", "tradingAccount"])];
-  }
-
-  function guidedFreedomHint(intent) {
-    return {
-      accountOpening: "版式自由度：采用开户旅程、路径或任务流骨架，开户清单、开户面板和 KYC 下一步优先，资产概览不要抢首屏。",
-      promotionConversion: "版式自由度：采用增长专题或活动封面骨架，首屏可以更像营销落地页，权益、主 CTA 和转化按钮优先。",
-      newUserOnboarding: "版式自由度：采用新用户旅程、精美路径卡、原路径条或任务流骨架，用步骤化结构替代标准资产工作台，AI 按意图决定形态，不固定成方格。",
-      marketingCampaign: "版式自由度：采用活动封面、专题或大视觉骨架，活动 Banner、权益和参与动作优先，账号信息下移。",
-      rewardActivity: "版式自由度：采用活动封面、专题或大视觉骨架，奖励规则、参与步骤、倒计时和领取奖励按钮优先。",
-      ibRecruitment: "版式自由度：采用渠道增长专题骨架，推广链接、邀请码、复制动作和客户经理入口靠前。",
-      depositConversion: "版式自由度：采用入金奖励阶梯骨架，赠金梯度、钱包余额、入金动作和开真实账号压进首屏。",
-      retention: "版式自由度：采用召回任务流骨架，返场权益、账户状态、快捷入金和重新开始交易优先。",
-    }[intent] || "版式自由度：允许重排模块顺序、首屏组件和页面密度，让结果明显区别于默认工作台。";
-  }
-
-  function applyGuidedDefaults(intent) {
-    const defaults = GUIDED_INTENT_DEFAULTS[intent];
-    if (!defaults) return;
-
-    setGuidedGroupValues("audience", defaults.audience);
-    setGuidedGroupValues("level", defaults.level);
-    setGuidedGroupValues("modules", defaults.modules);
-    setGuidedGroupValues("theme", defaults.theme);
-    setGuidedGroupValues("tone", defaults.tone);
-    setGuidedGroupValues("cta", defaults.cta);
-  }
-
   function readGuidedState() {
-    const intent = selectedGuidedValue("intent");
     const state = {
-      intent,
       audience: selectedGuidedValues("audience"),
       level: selectedGuidedValue("level"),
       modules: selectedGuidedValues("modules"),
       assetFields: selectedGuidedValues("assetFields"),
+      designStyle: selectedGuidedValue("designStyle"),
       theme: selectedGuidedValue("theme"),
       themeCustom: (els.guidedThemeCustom?.value || "").trim(),
       tone: selectedGuidedValue("tone"),
-      cta: selectedGuidedValue("cta") || GUIDED_INTENT_DEFAULTS[intent]?.cta || "openAccount",
       note: (els.guidedNote?.value || "").trim(),
     };
 
     if (!state.audience.length) state.audience = [guidedButtonsFor("audience")[0]?.dataset.guidedValue].filter(Boolean);
     if (!state.modules.length) state.modules = [guidedButtonsFor("modules")[0]?.dataset.guidedValue].filter(Boolean);
-    if (!state.assetFields.length) state.assetFields = guidedDefaultAssetFields(state.intent);
+    if (!state.assetFields.length) state.assetFields = ["total", "wallet", "tradingAccount"];
     return state;
   }
 
@@ -1112,13 +1617,11 @@
 
   function buildGuidedAiIntake() {
     const state = readGuidedState();
-    const canonicalIntent = GUIDED_INTENT_CANONICAL[state.intent] || {};
     const modules = state.modules.map((value) => ({
       ...guidedChoiceDescriptor("modules", value),
       canonicalTargets: GUIDED_CANONICAL_TARGETS[value] || [],
     }));
     const canonicalMustHave = uniqueList([
-      canonicalIntent.mustHave || [],
       modules.map((module) => module.canonicalTargets || []),
     ]);
     const accountOverviewEnabled = hasGuidedAccountOverview(state.modules);
@@ -1126,12 +1629,9 @@
 
     return {
       source: "guided-builder",
-      intent: {
-        ...guidedChoiceDescriptor("intent", state.intent),
-        canonicalIntent: canonicalIntent.primaryIntent || "",
-      },
       audience: state.audience.map((value) => guidedChoiceDescriptor("audience", value)),
       level: guidedChoiceDescriptor("level", state.level),
+      designStyle: guidedChoiceDescriptor("designStyle", state.designStyle),
       modules,
       theme: {
         ...guidedChoiceDescriptor("theme", state.theme),
@@ -1139,7 +1639,6 @@
         customInput: state.themeCustom,
       },
       tone: guidedChoiceDescriptor("tone", state.tone),
-      cta: guidedChoiceDescriptor("cta", state.cta),
       moduleSettings: {
         assets: {
           enabled: accountOverviewEnabled,
@@ -1149,40 +1648,38 @@
         },
       },
       canonical: {
-        primaryIntent: canonicalIntent.primaryIntent || "",
-        layoutPreset: canonicalIntent.layoutPreset || "",
-        heroFocus: canonicalIntent.heroFocus || "",
+        primaryIntent: "",
+        layoutPreset: "",
+        heroFocus: canonicalMustHave[0] || "",
         mustHave: canonicalMustHave,
       },
-      freedomHint: guidedFreedomHint(state.intent),
       note: state.note,
     };
   }
 
-  function summarizeGuidedValues(group, values) {
-    return values.map((value) => guidedLabel(group, value)).join("、") || "未选择";
+  function guidedModuleCountText(optionalModules) {
+    const optionalCount = Array.isArray(optionalModules) ? optionalModules.length : 0;
+    return `必选 ${GUIDED_REQUIRED_MODULE_IDS.length} 项 · 选填 ${optionalCount} 项`;
   }
 
   function buildGuidedPrompt() {
     const state = readGuidedState();
     const requiredModules = GUIDED_REQUIRED_MODULE_IDS.map((value) => guidedPromptCopy("modules", value));
     const optionalModules = state.modules.filter((value) => !isGuidedRequiredModule(value)).map((value) => guidedPromptCopy("modules", value));
-    const audiences = state.audience.map((value) => guidedLabel("audience", value));
+    const designInstruction = guidedPromptCopy("designStyle", state.designStyle);
     const visualInstruction = state.themeCustom
       ? `${guidedPromptCopy("theme", state.theme)}；自定义色值或风格文案：${state.themeCustom}`
       : guidedPromptCopy("theme", state.theme);
     const parts = [
       "请为 ForexCRM 用户端首页生成可发布的首页方案",
-      `目标：${guidedPromptCopy("intent", state.intent)}`,
-      `用户：${audiences.join("、")}`,
       `分级：${guidedPromptCopy("level", state.level)}`,
-      `主 CTA：${guidedPromptCopy("cta", state.cta)}`,
+      `设计风格：${designInstruction}`,
       `视觉：${visualInstruction}`,
       `语气：${guidedPromptCopy("tone", state.tone)}`,
       `必选模块（不可撤销）：${requiredModules.join("、")}`,
       "交易账号模块必须同时包含真实交易账号和模拟交易账号",
       `选填模块：${optionalModules.length ? optionalModules.join("、") : "无"}`,
-      "允许在白名单内重排 sections、brickPlan、模块变体和密度，优先让目标决定首屏",
+      "允许在白名单内重排 sections、brickPlan、模块变体和密度，优先让所选模块和分级决定首屏",
       "不要编造收益、下载链接、后台未提供的数据或未选择的辅助模块",
     ];
 
@@ -1201,6 +1698,138 @@
 
   function guidedIntakeHasModule(guidedIntake, moduleId) {
     return (Array.isArray(guidedIntake?.modules) ? guidedIntake.modules : []).some((module) => module?.id === moduleId);
+  }
+
+  const GUIDED_EXPLICIT_ONLY_SLOTS = new Set([
+    "wallet_list",
+    "promo_banner",
+    "pamm_products",
+    "copytrading_signals",
+    "referral_link_card",
+    "announcements",
+    "market_news",
+    "risk_disclosure",
+    "faq_section",
+    "support_contact",
+    "app_download",
+  ]);
+
+  const GUIDED_SLOT_ALIASES = {
+    walletList: "wallet_list",
+    promoHighlight: "promo_banner",
+    adCarousel: "promo_banner",
+    pammProducts: "pamm_products",
+    copytradingSummary: "copytrading_signals",
+    referralLinkCard: "referral_link_card",
+    marketInsight: "market_news",
+    riskNotice: "risk_disclosure",
+    faq: "faq_section",
+    faqSection: "faq_section",
+    support_help: "support_contact",
+    customerService: "support_contact",
+    supportContact: "support_contact",
+    appDownload: "app_download",
+    app_download: "app_download",
+  };
+
+  const GUIDED_EXPLICIT_SLOT_SETTINGS = {
+    promo_banner: ["promoHighlight", "adCarousel"],
+    pamm_products: ["pamm"],
+    copytrading_signals: ["copytrading"],
+    referral_link_card: ["referralLinkCard"],
+    announcements: ["announcements"],
+    market_news: ["marketNews"],
+    risk_disclosure: ["riskDisclosure"],
+    faq_section: ["faq"],
+    support_contact: ["supportContact"],
+    app_download: ["appDownload"],
+  };
+
+  const GUIDED_EXPLICIT_SLOT_MODULES = {
+    wallet_list: ["WalletList"],
+    promo_banner: ["PromotionBanner", "AdCarousel"],
+    pamm_products: ["PammProducts"],
+    copytrading_signals: ["CopytradingSignals"],
+    referral_link_card: ["ReferralLinkCard"],
+    announcements: ["Announcements"],
+    market_news: ["MarketNews", "MarketInsight"],
+    risk_disclosure: ["RiskDisclosure"],
+    faq_section: ["FaqSection"],
+    support_contact: ["SupportContact"],
+    app_download: ["AppDownload"],
+  };
+
+  const GUIDED_EXPLICIT_SLOT_STYLES = {
+    wallet_list: ["walletList"],
+    promo_banner: ["promo_banner", "promoHighlight", "adCarousel"],
+    pamm_products: ["pamm_products"],
+    copytrading_signals: ["copytrading_signals"],
+    referral_link_card: ["referral_link_card"],
+    announcements: ["announcements"],
+    market_news: ["market_news", "marketInsight"],
+    risk_disclosure: ["risk_disclosure"],
+    faq_section: ["faq_section"],
+    support_contact: ["support_contact"],
+    app_download: ["app_download"],
+  };
+
+  function guidedCanonicalConfigSlot(value) {
+    const slot = String(value || "").trim();
+    if (!slot) return "";
+    if (home.FEATURES?.[slot]) return slot;
+    return GUIDED_SLOT_ALIASES[slot] || "";
+  }
+
+  function guidedExplicitSlotSet(guidedIntake) {
+    const slots = new Set();
+    (Array.isArray(guidedIntake?.modules) ? guidedIntake.modules : []).forEach((module) => {
+      (Array.isArray(module?.canonicalTargets) ? module.canonicalTargets : []).forEach((target) => {
+        const slot = guidedCanonicalConfigSlot(target);
+        if (slot) slots.add(slot);
+      });
+    });
+    return slots;
+  }
+
+  function removeUnguidedExplicitSlots(config, guidedIntake) {
+    if (!guidedIntake) return;
+    const allowed = guidedExplicitSlotSet(guidedIntake);
+    const blocked = new Set([...GUIDED_EXPLICIT_ONLY_SLOTS].filter((slot) => !allowed.has(slot)));
+    const allowedSlot = (value) => {
+      const slot = guidedCanonicalConfigSlot(value);
+      return !slot || !blocked.has(slot);
+    };
+
+    config.sections = (Array.isArray(config.sections) ? config.sections : [])
+      .map((section) => ({
+        ...section,
+        slots: (Array.isArray(section.slots) ? section.slots : []).filter(allowedSlot),
+      }))
+      .filter((section) => section.slots.length);
+
+    config.layout = (Array.isArray(config.layout) ? config.layout : []).filter((item) => allowedSlot(item?.component));
+    if (!config.layout.length) delete config.layout;
+
+    config.brickPlan = (Array.isArray(config.brickPlan) ? config.brickPlan : []).filter(
+      (brick) => allowedSlot(brick?.component) && allowedSlot(brick?.feature),
+    );
+
+    config.moduleSettings = config.moduleSettings && typeof config.moduleSettings === "object" ? config.moduleSettings : {};
+    blocked.forEach((slot) => {
+      (GUIDED_EXPLICIT_SLOT_SETTINGS[slot] || []).forEach((key) => {
+        config.moduleSettings[key] = { ...(config.moduleSettings[key] || {}), enabled: false };
+      });
+      (GUIDED_EXPLICIT_SLOT_MODULES[slot] || []).forEach((key) => {
+        if (config.modules && typeof config.modules === "object") delete config.modules[key];
+      });
+      (GUIDED_EXPLICIT_SLOT_STYLES[slot] || []).forEach((key) => {
+        if (config.moduleStyles && typeof config.moduleStyles === "object") delete config.moduleStyles[key];
+      });
+    });
+
+    if (!allowedSlot(config.heroFocus)) {
+      config.heroFocus = config.sections?.[0]?.slots?.[0] || "asset_overview";
+    }
   }
 
   const GUIDED_SLOT_ORDER = [
@@ -1248,6 +1877,7 @@
 
   function guidedRequiredSlots(guidedIntake) {
     const slots = [];
+    const explicitSlots = guidedExplicitSlotSet(guidedIntake);
     const addSlot = (slot) => {
       const canonical = guidedCanonicalSlot(slot);
       if (canonical && !slots.includes(canonical)) slots.push(canonical);
@@ -1256,7 +1886,12 @@
     (Array.isArray(guidedIntake?.modules) ? guidedIntake.modules : []).forEach((module) => {
       (Array.isArray(module?.canonicalTargets) ? module.canonicalTargets : []).forEach(addSlot);
     });
-    (Array.isArray(guidedIntake?.canonical?.mustHave) ? guidedIntake.canonical.mustHave : []).forEach(addSlot);
+    (Array.isArray(guidedIntake?.canonical?.mustHave) ? guidedIntake.canonical.mustHave : []).forEach((value) => {
+      const slot = guidedCanonicalSlot(value);
+      if (!slot) return;
+      if (GUIDED_EXPLICIT_ONLY_SLOTS.has(slot) && !explicitSlots.has(slot)) return;
+      addSlot(slot);
+    });
     if (guidedIntake?.moduleSettings?.assets?.enabled) addSlot("asset_overview");
 
     return slots.sort((a, b) => {
@@ -1345,8 +1980,11 @@
 
     if (slot === "promo_banner") {
       mergeGuidedSetting(config, "promoHighlight", { enabled: true });
+      mergeGuidedSetting(config, "adCarousel", { enabled: true });
       modules.PromotionBanner = modules.PromotionBanner || { variant: "imageBanner" };
       styles.promoHighlight = styles.promoHighlight || "clean";
+      styles.adCarousel = styles.adCarousel || "clean";
+      styles.promo_banner = styles.promo_banner || "clean";
     }
 
     if (slot === "pamm_products") {
@@ -1380,7 +2018,7 @@
     }
 
     if (slot === "risk_disclosure") {
-      mergeGuidedSetting(config, "riskDisclosure", { enabled: true });
+      mergeGuidedSetting(config, "riskDisclosure", { enabled: true, demoFallback: true });
       modules.RiskDisclosure = modules.RiskDisclosure || { variant: "legalStrip" };
       styles.risk_disclosure = "legal-strip";
     }
@@ -1409,8 +2047,13 @@
     const assetFields = guidedAssetFieldsFromIntake(guidedIntake);
     const accountOverviewEnabled = Boolean(guidedIntake?.moduleSettings?.assets?.enabled || guidedIntakeHasModule(guidedIntake, "accountOverview"));
     const customThemeInput = String(guidedIntake?.theme?.customInput || "").trim();
+    const themePreset = String(guidedIntake?.theme?.themePreset || guidedIntake?.theme?.id || "").trim();
     const requiredSlots = guidedRequiredSlots(guidedIntake);
 
+    if (home.THEMES?.[themePreset]) {
+      next.themePreset = themePreset;
+      next.theme = themePreset;
+    }
     if (customThemeInput) {
       next.themeCustom = { input: customThemeInput };
     }
@@ -1452,6 +2095,7 @@
       ensureGuidedSlot(next, slot);
       enableGuidedSlot(next, slot, assetFields);
     });
+    removeUnguidedExplicitSlots(next, guidedIntake);
 
     if (requiredSlots.length) {
       delete next.layout;
@@ -1465,20 +2109,15 @@
 
     const state = readGuidedState();
     const optionalModules = state.modules.filter((value) => !isGuidedRequiredModule(value));
+    const themeLabel = state.themeCustom || guidedLabel("theme", state.theme);
     const rows = [
-      [GUIDED_FIELD_LABELS.intent, guidedLabel("intent", state.intent)],
-      [GUIDED_FIELD_LABELS.audience, summarizeGuidedValues("audience", state.audience)],
-      [GUIDED_FIELD_LABELS.level, guidedLabel("level", state.level)],
-      [GUIDED_FIELD_LABELS.cta, guidedLabel("cta", state.cta)],
-      [GUIDED_FIELD_LABELS.theme, guidedLabel("theme", state.theme)],
-      [GUIDED_FIELD_LABELS.tone, guidedLabel("tone", state.tone)],
-      [GUIDED_FIELD_LABELS.requiredModules, summarizeGuidedValues("modules", GUIDED_REQUIRED_MODULE_IDS)],
-      [GUIDED_FIELD_LABELS.optionalModules, optionalModules.length ? summarizeGuidedValues("modules", optionalModules) : "未选择选填模块"],
+      ["分级", guidedLabel("level", state.level)],
+      ["设计", guidedLabel("designStyle", state.designStyle)],
+      ["风格", `${themeLabel} · ${guidedLabel("tone", state.tone)}`],
+      ["模块", guidedModuleCountText(optionalModules)],
     ];
 
-    if (state.themeCustom) rows.splice(5, 0, [GUIDED_FIELD_LABELS.themeCustom, state.themeCustom]);
-    if (state.note) rows.push([GUIDED_FIELD_LABELS.note, state.note]);
-    if (els.guidedSummaryTitle) els.guidedSummaryTitle.textContent = `${guidedLabel("intent", state.intent)}方案`;
+    if (els.guidedSummaryTitle) els.guidedSummaryTitle.textContent = `${guidedLabel("level", state.level)}方案`;
     els.guidedSummary.innerHTML = rows
       .map(
         ([label, value]) => `
@@ -1536,7 +2175,6 @@
           if (!activeInGroup.length) setGuidedActive(button, true);
         } else {
           setGuidedGroupValues(group, value);
-          if (group === "intent") applyGuidedDefaults(value);
         }
 
         renderGuidedSummary();
@@ -1573,7 +2211,6 @@
       }
     });
 
-    applyGuidedDefaults(selectedGuidedValue("intent"));
     refreshGuidedThemeCustomState();
     renderGuidedSummary();
     setGenerationMode("quick");
@@ -1893,21 +2530,17 @@
 
     const config = sanitizeModelConfig(aiModelConfig);
     const preset = providerPreset(config.provider);
-    const keyHint = modelKeyStatusLabel(config);
-    const runtimeHint =
-      config.callMode === "serverProxy"
-        ? `将通过 ${config.proxyEndpoint} 转发到 ${config.baseUrl}${config.endpoint}`
-        : "当前仍使用本地规则生成，未发起大模型请求";
+    const modelLabel = `${preset.name} / ${config.model}`;
 
     els.modelConfigSummary.forEach((target) => {
+      const summaryLabel = target.dataset.modelConfigLabel || "当前模型";
+      const buttonLabel = target.dataset.modelConfigButton || "配置";
       target.innerHTML = `
         <div>
-          <span>${escapeHtml(preset.name)}</span>
-          <strong>${escapeHtml(config.model)}</strong>
-          <small>${escapeHtml(preset.badge)} · ${escapeHtml(callModeLabel(config.callMode))} · ${escapeHtml(keyHint)}</small>
-          <p>${escapeHtml(runtimeHint)}</p>
+          <span>${escapeHtml(summaryLabel)}</span>
+          <strong title="${escapeHtml(modelLabel)}">${escapeHtml(modelLabel)}</strong>
         </div>
-        <button type="button" data-model-config-open>配置</button>
+        <button type="button" data-model-config-open>${escapeHtml(buttonLabel)}</button>
       `;
     });
   }
@@ -1959,18 +2592,19 @@
 	    return "调用失败";
 	  }
 
-	  function historySourceSummary(record) {
-	    const snapshot = record.configSnapshot || {};
-	    const sourceType = record.htmlSourceType || snapshot.htmlSourceType || "";
-	    const pipeline = record.htmlPipeline || snapshot.htmlPipeline || "";
-	    const quality = record.htmlQualityStatus || snapshot.htmlQualityStatus || "";
-	    const reason = record.htmlFallbackReason || snapshot.htmlFallbackReason || "";
-	    const isMock = Boolean(record.mock || record.status === "mock" || snapshot.htmlMock);
-	    const isFallback = Boolean(record.status === "fallback" || snapshot.htmlIsFallback || record.htmlIsFallback);
-	    if (!sourceType && !pipeline && !isMock && !isFallback) return "";
-	    const label = isMock ? "Mock 预览" : sourceType === "local-fallback" ? "本地规则生成" : isFallback ? "Fallback 预览" : "模型生成";
-	    return [label, sourceType, pipeline, quality, reason].filter(Boolean).join(" · ");
-	  }
+		  function historySourceSummary(record) {
+		    const snapshot = record.configSnapshot || {};
+		    const sourceType = record.htmlSourceType || snapshot.htmlSourceType || "";
+		    const pipeline = record.htmlPipeline || snapshot.htmlPipeline || "";
+		    const quality = record.htmlQualityStatus || snapshot.htmlQualityStatus || "";
+		    const reason = record.htmlFallbackReason || snapshot.htmlFallbackReason || "";
+		    const isMock = Boolean(record.mock || record.status === "mock" || snapshot.htmlMock);
+		    const modelGenerated = serverHtmlLooksModelGenerated({ sourceType, pipeline, qualityStatus: quality });
+		    const isFallback = !modelGenerated && Boolean(record.status === "fallback" || snapshot.htmlIsFallback || record.htmlIsFallback);
+		    if (!sourceType && !pipeline && !isMock && !isFallback) return "";
+		    const label = isMock ? "Mock 预览" : sourceType === "local-fallback" ? "本地规则生成" : isFallback ? "Fallback 预览" : "模型生成";
+		    return [label, sourceType, pipeline, quality, reason].filter(Boolean).join(" · ");
+		  }
 
   function inputModeLabel(mode) {
     return mode === "guided" ? "引导式" : "快速输入";
@@ -1985,7 +2619,7 @@
     }
 
     if (/valid homepage JSON|不是首页\s*JSON|JSON/i.test(source) && /AI response|homepage|首页|JSON/i.test(source)) {
-      return "处理建议：模型有响应，但没有按首页配置 JSON 返回；已自动回退本地方案。代理会对 MiniMax/Kimi 使用短 prompt 和正确的 completion token 参数，仍失败时可以降低 Temperature 后重试。";
+      return "处理建议：模型有响应，但没有按首页配置 JSON 返回；已自动回退本地方案。代理会对 MiniMax 使用短 patch JSON，AI HTML 预览由 MiniMax 配置蓝图驱动装配；Kimi 使用短 prompt 和正确的 completion token 参数，仍失败时可以降低 Temperature 后重试。";
     }
 
     if (/无法连接本地后端代理|Failed to fetch|NetworkError|fetch/i.test(source)) {
@@ -2575,7 +3209,7 @@
     if (/valid homepage JSON|AI response did not contain valid homepage JSON/i.test(source)) {
       if (details.likelyTruncated || /length|max_tokens/i.test(String(details.finishReason || ""))) {
         if (details.provider === "minimax") {
-          return "处理建议：MiniMax 输出达到 2048 上限导致截断；代理已改用短 prompt 和紧凑 JSON。仍失败时请降低 Temperature 或切到 Kimi/DeepSeek 这类更高输出上限模型。";
+          return "处理建议：MiniMax 输出达到 2048 上限导致截断；代理已改用首页短 patch JSON，并在 AI HTML 模式下跳过长自由 HTML，改为按 MiniMax 配置蓝图装配安全预览。仍失败时请降低 Temperature 或切到 Kimi/DeepSeek 这类更高输出上限模型。";
         }
         return "处理建议：模型返回了 JSON 开头，但输出可能被截断；已自动回退本地方案。Kimi 会使用 max_completion_tokens；仍失败时请把 Max output tokens 保持在 6000 以上并降低 Temperature。";
       }
@@ -2718,12 +3352,13 @@
     const usedProvider = providerPreset(payload.provider || config.provider);
     const usedModel = payload.model || config.model;
 
-    const aiConfig = {
+	    const aiConfig = {
 	      generationMode: "brick-v2",
 	      ...(payload.config || {}),
         renderMode: payload.renderMode || renderMode,
-        activeRenderMode: payload.activeRenderMode || (renderMode === "aiHtml" ? "aiHtml" : "config"),
-        htmlGenerationEnabled: renderMode !== "config",
+        activeRenderMode: payload.activeRenderMode || (renderMode === "aiHtml" ? "aiHtml" : renderMode === "skeletonHtml" ? "skeletonHtml" : "config"),
+        htmlGenerationEnabled: renderMode === "aiHtml" || renderMode === "compare",
+        skeletonHtmlEnabled: renderMode === "skeletonHtml",
         ...(payload.htmlScheme ? { htmlScheme: payload.htmlScheme } : {}),
 	      aiSummary:
 	        payload.config?.aiSummary ||
@@ -2778,20 +3413,37 @@
 	    return first.layoutPreset === second.layoutPreset && sameSections && overlap / maxSize >= 0.82;
 	  }
 
-	  function findDistinctLocalConfig(prompt, referenceConfig, startVariant = 0) {
-	    let fallback = null;
-	    for (let offset = 1; offset <= 7; offset += 1) {
-	      const candidate = home.promptToConfig(prompt, startVariant + offset);
+		  function findDistinctLocalConfig(prompt, referenceConfig, startVariant = 0) {
+		    let fallback = null;
+		    for (let offset = 1; offset <= 7; offset += 1) {
+		      const candidate = home.promptToConfig(prompt, startVariant + offset);
 	      fallback = candidate;
 	      if (!homepageConfigLooksSame(referenceConfig, candidate)) return candidate;
 	    }
-	    return fallback || home.promptToConfig(prompt, startVariant + 1);
-	  }
+		    return fallback || home.promptToConfig(prompt, startVariant + 1);
+		  }
 
-	  function ensureDistinctHomepageConfig(prompt, config, options = {}) {
-	    if (!options.distinctFrom || !homepageConfigLooksSame(options.distinctFrom, config)) return config;
+		  function serverHtmlLooksModelGenerated(value = {}) {
+		    const sourceType = String(value.sourceType || value.htmlSourceType || "").toLowerCase();
+		    const pipeline = String(value.pipeline || value.htmlPipeline || value.generationPipeline || "").toLowerCase();
+		    const quality = String(value.qualityStatus || value.htmlQualityStatus || "").toLowerCase();
+		    if (sourceType.startsWith("model/") || sourceType === "model-repair") return true;
+		    if (pipeline.includes("free-html") && !pipeline.includes("fallback")) return true;
+		    return quality === "passed" && !sourceType.includes("fallback") && !pipeline.includes("fallback");
+		  }
 
-	    const distinct = findDistinctLocalConfig(prompt, options.distinctFrom, options.variant || 0);
+		  function isRealModelAiHtmlScheme(configOrScheme = {}) {
+		    const scheme = configOrScheme.htmlScheme?.enabled ? configOrScheme.htmlScheme : configOrScheme;
+		    if (!scheme?.enabled) return false;
+		    if (scheme.mock || scheme.isFallback || scheme.sourceType === "local-fallback") return false;
+		    return serverHtmlLooksModelGenerated(scheme);
+		  }
+
+		  function ensureDistinctHomepageConfig(prompt, config, options = {}) {
+		    if (isRealModelAiHtmlScheme(config)) return config;
+		    if (!options.distinctFrom || !homepageConfigLooksSame(options.distinctFrom, config)) return config;
+
+		    const distinct = findDistinctLocalConfig(prompt, options.distinctFrom, options.variant || 0);
 	    const normalized = home.normalizeConfig(distinct);
 	    normalized.aiSummary = `检测到上一版首页结构过近，已自动切换到「${normalized.name}」并重排积木。`;
 	    return normalized;
@@ -3213,21 +3865,81 @@
 	    applySuggestionPrompt(button);
 	  });
 
-  els.renderModeButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      const mode = normalizeRenderMode(button.dataset.renderModeButton, "config");
-      if (button.closest("[data-preview-render-mode-controls]")) {
-        const nextConfig = {
-          ...currentConfig,
-          activeRenderMode: mode === "aiHtml" && currentConfig.htmlScheme?.enabled ? "aiHtml" : "config",
-        };
-        setConfig(nextConfig, `已切换预览：${renderModeLabel(nextConfig.activeRenderMode)}`, { saveDraft: Boolean(els.previewPage) });
-        return;
-      }
+	  els.renderModeButtons.forEach((button) => {
+	    button.addEventListener("click", () => {
+	      const mode = normalizeRenderMode(button.dataset.renderModeButton, "config");
+	      if (button.closest("[data-preview-render-mode-controls]")) {
+	        let nextConfig = { ...currentConfig, activeRenderMode: "config" };
+	        if (mode === "aiHtml" && currentConfig.htmlScheme?.enabled) {
+	          nextConfig = { ...nextConfig, activeRenderMode: "aiHtml" };
+	        }
+	        if (mode === "skeletonHtml") {
+	          const normalized = home.normalizeConfig(currentConfig);
+	          nextConfig = {
+	            ...normalized,
+	            renderMode: "skeletonHtml",
+	            activeRenderMode: "skeletonHtml",
+	            skeletonHtmlEnabled: true,
+	            skeletonHtmlScheme: normalized.skeletonHtmlScheme?.enabled
+	              ? normalized.skeletonHtmlScheme
+	              : home.buildSkeletonHtmlScheme(normalized, {
+	                  reason: "第一步只生成骨架和模块占位，等待逐 slot 填充。",
+	                  sourceType: "local-skeleton",
+	                  status: "pending-fill",
+	                }),
+	          };
+	          skeletonAutoStarted = false;
+	        }
+	        setConfig(nextConfig, `已切换预览：${renderModeLabel(nextConfig.activeRenderMode)}`, { saveDraft: Boolean(els.previewPage) });
+	        return;
+	      }
 
       saveRenderModeSetting(mode);
-      showToast(`生成模式已切换为：${renderModeLabel(mode)}`);
-    });
+	      showToast(`生成模式已切换为：${renderModeLabel(mode)}`);
+	    });
+	  });
+
+  els.skeletonWorkflow?.addEventListener("click", (event) => {
+    const fillAll = event.target.closest("[data-skeleton-fill-all]");
+    const reset = event.target.closest("[data-skeleton-reset]");
+    const finalize = event.target.closest("[data-skeleton-finalize]");
+    if (fillAll) {
+      skeletonAutoStarted = true;
+      fillSkeletonSlotsSequentially({ force: false });
+      return;
+    }
+    if (reset) {
+      const scheme = skeletonSchemeFor(currentConfig);
+      const next = home.normalizeConfig({
+        ...currentConfig,
+        renderMode: "skeletonHtml",
+        activeRenderMode: "skeletonHtml",
+        skeletonHtmlEnabled: true,
+        skeletonHtmlScheme: {
+          ...scheme,
+          status: "pending-fill",
+          slots: scheme.slots.map((slot) => ({ ...slot, status: "pending-fill", locked: false, componentId: "", filledAt: "" })),
+          slotComponents: {},
+        },
+      });
+      skeletonAutoStarted = false;
+      setConfig(next, "已重置骨架组件", { saveDraft: true });
+      return;
+    }
+    if (finalize) {
+      if (finalize.disabled) return;
+      const next = withSkeletonSchemeStatus(currentConfig, "final");
+      setConfig(next, "骨架方案已定稿", { saveDraft: true });
+      showToast("骨架方案已定稿");
+    }
+  });
+
+  window.addEventListener("message", (event) => {
+    if (event.data?.type !== "home-skeleton-slot-action") return;
+    const slot = String(event.data.slot || "").trim();
+    if (!slot) return;
+    skeletonAutoStarted = true;
+    generateSkeletonSlot(slot, event.data.action || "regenerate");
   });
 
 	  els.generateSuggestions?.addEventListener("click", () => {
@@ -3288,14 +4000,15 @@
     }
   });
 
-	  els.publish?.addEventListener("click", () => {
-	    const publishConfig = home.normalizeConfig(currentConfig);
-	    const sourceInfo = aiHtmlSourceInfo(publishConfig);
-	    const scheme = publishConfig.htmlScheme;
-	    const needsSourceConfirm =
-	      scheme?.enabled &&
-	      publishConfig.renderMode !== "config" &&
-	      (scheme.isFallback || scheme.mock || scheme.sourceType === "local-fallback");
+		  els.publish?.addEventListener("click", () => {
+		    const publishConfig = prepareConfigForPublish(currentConfig);
+		    const sourceInfo = aiHtmlSourceInfo(publishConfig);
+		    const scheme = publishConfig.htmlScheme;
+        const publishMode = publishConfig.activeRenderMode || publishConfig.renderMode || "config";
+		    const needsSourceConfirm =
+		      scheme?.enabled &&
+		      publishMode === "aiHtml" &&
+		      (scheme.isFallback || scheme.mock || scheme.sourceType === "local-fallback");
 	    if (needsSourceConfirm) {
 	      const confirmed = window.confirm(
 	        `当前 AI HTML 是「${sourceInfo.label}」，不是模型真实生成结果。\n\n${sourceInfo.detail || "这是 mock/fallback/demo 预览。"}\n\n仍要发布到首页吗？`,
@@ -3305,7 +4018,7 @@
 	        return;
 	      }
 	    }
-	    currentConfig = home.saveConfig(currentConfig);
+	    currentConfig = home.saveConfig(publishConfig);
     home.clearDraft();
     renderSummary();
     renderIntelligenceSummary();
@@ -3313,11 +4026,12 @@
     renderVariantSummary();
     renderModuleOutline();
     renderPagePresetControls();
-    renderModuleStyleControls();
-    renderModuleSettingControls();
-    renderRenderModeControls();
-    applyPreview(true);
-    updateStatus("已发布到首页", true);
+	    renderModuleStyleControls();
+	    renderModuleSettingControls();
+	    renderRenderModeControls();
+	    renderSkeletonWorkflow();
+	    applyPreview(true);
+	    updateStatus("已发布到首页", true);
     showToast("首页配置已发布");
     if (els.previewPage) {
       window.setTimeout(() => {
@@ -3335,10 +4049,11 @@
     renderVariantSummary();
     renderModuleOutline();
     renderPagePresetControls();
-    renderModuleStyleControls();
-    renderModuleSettingControls();
-    renderRenderModeControls();
-    applyPreview(true);
+	    renderModuleStyleControls();
+	    renderModuleSettingControls();
+	    renderRenderModeControls();
+	    renderSkeletonWorkflow();
+	    applyPreview(true);
     updateStatus("已恢复默认", true);
     showToast("已恢复默认首页");
   });
@@ -3355,7 +4070,10 @@
     }, 260);
   });
 
-  els.preview?.addEventListener("load", () => applyPreview(false));
+  els.preview?.addEventListener("load", () => {
+    applyPreview(false);
+    maybeStartSkeletonWorkflow();
+  });
 
   initModelConfig();
   renderModelHistory();
@@ -3377,9 +4095,11 @@
     renderVariantSummary();
     renderModuleOutline();
     renderPagePresetControls();
-    renderModuleStyleControls();
-    renderModuleSettingControls();
-    renderRenderModeControls();
-    updateStatus("草稿预览", false);
-  }
+	    renderModuleStyleControls();
+	    renderModuleSettingControls();
+	    renderRenderModeControls();
+	    renderSkeletonWorkflow();
+	    maybeStartSkeletonWorkflow();
+	    updateStatus("草稿预览", false);
+	  }
 })();

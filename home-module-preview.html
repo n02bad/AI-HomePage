@@ -8,7 +8,7 @@
     <title>ForexCRM - 首页积木组件库</title>
     <link rel="stylesheet" href="./styles.css" />
     <link rel="stylesheet" href="./theme.css?v=tenant-home-4" />
-    <link rel="stylesheet" href="./home-module-preview.css?v=module-bricks-1" />
+    <link rel="stylesheet" href="./home-module-preview.css?v=module-bricks-2" />
   </head>
   <body data-layout-page="home-module-preview" data-tenant-theme="default">
     <main class="app" data-layout-main>
@@ -22,8 +22,9 @@
             </div>
             <div class="brick-head-actions">
               <button type="button" data-model-config-open>模型配置</button>
+              <button class="primary" type="button" data-ai-component-open>AI 生成组件</button>
               <a href="./home-layout-preview.html">首页预览</a>
-              <a class="primary" href="./home-layout-admin.html">AI 生成</a>
+              <a href="./home-layout-admin.html">首页 AI 生成</a>
             </div>
           </header>
 
@@ -35,8 +36,8 @@
             </article>
             <article>
               <span>Sizes</span>
-              <strong>1x1-3x2</strong>
-              <small>可映射到 hero/main/rail/full</small>
+              <strong>1x1-5x3+</strong>
+              <small>支持 4x 以上宽幅积木与 AI 自由尺寸</small>
             </article>
             <article>
               <span>Priority</span>
@@ -45,59 +46,51 @@
             </article>
           </section>
 
-          <section class="brick-ai-workbench" aria-label="AI 组件生成工作台">
-            <div class="brick-ai-copy">
-              <span class="brick-kicker">AI Component Studio</span>
-              <h2>用 AI 增加新的模块组件</h2>
-              <p>输入组件需求后，系统会先参考组件库里已保存的积木字段、尺寸、按钮、标签和卡片层级，再复用首页云生成的大模型配置生成新的安全组件定义。保存后的组件可以参与首页积木组合，并生成首页草稿进入预览页。</p>
-              <div class="ai-model-status-card compact" data-component-model-summary></div>
+          <section class="brick-filter-panel" aria-label="组件筛选">
+            <div class="brick-filter-summary">
+              <div>
+                <span class="brick-kicker">Brick Finder</span>
+                <h2>组件检索与通用筛选</h2>
+              </div>
+              <strong data-brick-filter-count>0 / 0</strong>
             </div>
-            <div class="brick-ai-panel">
-              <label for="aiComponentPrompt">组件需求</label>
-              <textarea
-                id="aiComponentPrompt"
-                data-ai-component-prompt
-                rows="4"
-                placeholder="例如：做一个右侧开户提醒组件，包含 KYC 状态、开真实账号按钮、首次入金提示，风格清爽科技。"
-              ></textarea>
-              <div class="brick-ai-controls">
-                <label>
-                  模块归属
-                  <select data-ai-component-family>
-                    <option value="AssetOverview">AssetOverview</option>
-                    <option value="WalletBalance">WalletBalance</option>
-                    <option value="FundActions">FundActions</option>
-                    <option value="QuickActions">QuickActions</option>
-                    <option value="ReferralLink">ReferralLink</option>
-                    <option value="TradingAccounts">TradingAccounts</option>
-                    <option value="OpenAccount">OpenAccount</option>
-                    <option value="OnboardingProgress">OnboardingProgress</option>
-                    <option value="UserKycRail">UserKycRail</option>
-                    <option value="AccountPerformance">AccountPerformance</option>
-                    <option value="WalletList">WalletList</option>
-                    <option value="CreateAccountForm">CreateAccountForm</option>
-                    <option value="ClientHomeAtoms" selected>ClientHomeAtoms</option>
-                  </select>
-                </label>
-                <label>
-                  积木尺寸
-                  <select data-ai-component-size>
-                    <option value="1x1">1x1</option>
-                    <option value="1x2">1x2</option>
-                    <option value="2x1" selected>2x1</option>
-                    <option value="2x2">2x2</option>
-                    <option value="3x1">3x1</option>
-                    <option value="3x2">3x2</option>
-                  </select>
-                </label>
-              </div>
-              <div class="brick-ai-actions">
-                <button class="primary" type="button" data-ai-generate-component>生成并保存组件</button>
-                <button type="button" data-ai-compose-home>用保存组件生成首页草稿</button>
-              </div>
-              <p class="brick-ai-status" data-ai-component-status>等待生成组件</p>
+            <nav class="brick-filter-bar" aria-label="组件分类">
+              <button class="active" type="button" data-brick-filter="all">全部</button>
+              <button type="button" data-brick-filter="core">核心模块</button>
+              <button type="button" data-brick-filter="support">增强模块</button>
+              <button type="button" data-brick-filter="table">表格/表单</button>
+              <button type="button" data-brick-filter="atom">首页细组件</button>
+            </nav>
+            <div class="brick-filter-controls">
+              <label class="brick-filter-search">
+                搜索组件
+                <input data-brick-search type="search" placeholder="搜索模块、业务字段、按钮文案或尺寸" />
+              </label>
+              <label>
+                组件类型
+                <select data-brick-family-filter>
+                  <option value="all">全部类型</option>
+                </select>
+              </label>
+              <label>
+                积木尺寸
+                <select data-brick-size-filter>
+                  <option value="all">全部尺寸</option>
+                </select>
+              </label>
+              <label>
+                最低评分
+                <select data-brick-score-filter>
+                  <option value="all">全部评分</option>
+                  <option value="8">8 分以上</option>
+                  <option value="6">6 分以上</option>
+                  <option value="4">4 分以上</option>
+                </select>
+              </label>
             </div>
           </section>
+
+          <p class="brick-filter-empty" data-brick-empty-state hidden>没有匹配的积木组件，换一个类型、尺寸或评分试试。</p>
 
           <section class="brick-saved-section" data-saved-section hidden>
             <div class="brick-family-head">
@@ -124,14 +117,6 @@
               <small data-composition-polish></small>
             </div>
           </section>
-
-          <nav class="brick-filter-bar" aria-label="组件分类">
-            <button class="active" type="button" data-brick-filter="all">全部</button>
-            <button type="button" data-brick-filter="core">核心模块</button>
-            <button type="button" data-brick-filter="support">增强模块</button>
-            <button type="button" data-brick-filter="table">表格/表单</button>
-            <button type="button" data-brick-filter="atom">首页细组件</button>
-          </nav>
 
           <section class="brick-family" data-brick-group="atom" id="client-home-atoms">
             <div class="brick-family-head">
@@ -731,6 +716,80 @@
         </section>
       </div>
     </main>
+
+    <div class="brick-ai-modal" data-ai-component-modal hidden>
+      <div class="brick-ai-modal-backdrop" data-ai-component-close></div>
+      <section class="brick-ai-dialog" role="dialog" aria-modal="true" aria-labelledby="aiComponentDialogTitle">
+        <header class="brick-ai-dialog-head">
+          <div>
+            <span class="brick-kicker">AI Component Studio</span>
+            <h2 id="aiComponentDialogTitle">用 AI 增加新的模块组件</h2>
+            <p>输入组件需求后，系统会参考组件库里已保存的积木字段、尺寸、按钮、标签和卡片层级，生成新的安全组件定义。</p>
+          </div>
+          <button class="brick-ai-close" type="button" data-ai-component-close aria-label="关闭">×</button>
+        </header>
+
+        <section class="brick-ai-workbench" aria-label="AI 组件生成工作台">
+          <div class="brick-ai-copy">
+            <h3>组件生成配置</h3>
+            <p>保存后的组件可以参与首页积木组合，并生成首页草稿进入预览页。</p>
+            <div class="ai-model-status-card compact" data-component-model-summary></div>
+          </div>
+          <div class="brick-ai-panel">
+            <label for="aiComponentPrompt">组件需求</label>
+            <textarea
+              id="aiComponentPrompt"
+              data-ai-component-prompt
+              rows="4"
+              placeholder="例如：做一个右侧开户提醒组件，包含 KYC 状态、开真实账号按钮、首次入金提示，风格清爽科技。"
+            ></textarea>
+            <div class="brick-ai-controls">
+              <label>
+                模块归属
+                <select data-ai-component-family>
+                  <option value="AssetOverview">AssetOverview</option>
+                  <option value="WalletBalance">WalletBalance</option>
+                  <option value="FundActions">FundActions</option>
+                  <option value="QuickActions">QuickActions</option>
+                  <option value="ReferralLink">ReferralLink</option>
+                  <option value="TradingAccounts">TradingAccounts</option>
+                  <option value="OpenAccount">OpenAccount</option>
+                  <option value="OnboardingProgress">OnboardingProgress</option>
+                  <option value="UserKycRail">UserKycRail</option>
+                  <option value="AccountPerformance">AccountPerformance</option>
+                  <option value="WalletList">WalletList</option>
+                  <option value="CreateAccountForm">CreateAccountForm</option>
+                  <option value="ClientHomeAtoms" selected>ClientHomeAtoms</option>
+                </select>
+              </label>
+              <label>
+                积木尺寸
+                <select data-ai-component-size>
+                  <option value="1x1">1x1</option>
+                  <option value="1x2">1x2</option>
+                  <option value="2x1" selected>2x1</option>
+                  <option value="2x2">2x2</option>
+                  <option value="3x1">3x1</option>
+                  <option value="3x2">3x2</option>
+                  <option value="4x1">4x1</option>
+                  <option value="4x2">4x2</option>
+                  <option value="4x3">4x3</option>
+                  <option value="5x1">5x1</option>
+                  <option value="5x2">5x2</option>
+                  <option value="5x3">5x3</option>
+                  <option value="auto">AI 自行发挥</option>
+                </select>
+              </label>
+            </div>
+            <div class="brick-ai-actions">
+              <button class="primary" type="button" data-ai-generate-component>生成并保存组件</button>
+              <button type="button" data-ai-compose-home>用保存组件生成首页草稿</button>
+            </div>
+            <p class="brick-ai-status" data-ai-component-status>等待生成组件</p>
+          </div>
+        </section>
+      </section>
+    </div>
 
     <script src="./common-layout.js"></script>
     <script src="./home-personalization.js"></script>

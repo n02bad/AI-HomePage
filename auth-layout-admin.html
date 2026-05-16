@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="./theme.js"></script>
+    <title>ForexCRM - 登录注册 AI 生成</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./theme.css?v=tenant-home-4" />
+    <link rel="stylesheet" href="./auth-layout.css?v=auth-ai-2" />
+  </head>
+  <body data-layout-page="auth-layout-admin">
+    <main class="app" data-layout-main>
+      <div class="page auth-generator-page">
+        <section class="auth-ai-intake-shell auth-ai-chat-intake" aria-label="登录注册 AI 生成器">
+          <div class="auth-ai-center">
+            <header class="auth-ai-hero">
+              <span>ForexCRM Auth AI</span>
+              <h1>定制你的登录注册模块</h1>
+            </header>
+
+            <div class="auth-generation-mode" role="tablist" aria-label="认证模块生成方式">
+              <button class="active" type="button" role="tab" aria-selected="true" data-auth-generation-mode-button="quick">AI 快速生成</button>
+              <button type="button" role="tab" aria-selected="false" data-auth-generation-mode-button="guided">引导式生成</button>
+            </div>
+
+            <div class="auth-generation-panel active" data-auth-generation-panel="quick">
+              <section class="auth-chat-composer" aria-label="AI 登录注册模块生成输入">
+                <label class="visually-hidden" for="authAiPrompt">描述登录注册模块目标</label>
+                <textarea
+                  id="authAiPrompt"
+                  data-auth-ai-prompt
+                  rows="6"
+                  placeholder="描述客户类型、登录方式、注册流程、安全级别、品牌感觉或活动目标..."
+                >帮我生成一套适合外汇平台开户的登录注册模块：中文，蓝白金融科技感，登录支持邮箱/手机号，注册要包含国家地区、投资经验、密码和协议，整体要可信但不要像通用模板。</textarea>
+
+                <div class="auth-chat-toolbar">
+                  <span class="auth-chat-status" data-auth-status>等待输入</span>
+                  <div class="auth-chat-actions">
+                    <button class="auth-tool-button" type="button" data-auth-reset aria-label="恢复默认认证模块" title="恢复默认认证模块">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.7" /><path d="M4 4v6h6" /></svg>
+                    </button>
+                    <button class="auth-tool-button text" type="button" data-auth-model-open>
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" /><path d="M4 12h2" /><path d="M18 12h2" /><path d="m6.3 6.3 1.4 1.4" /><path d="m16.3 16.3 1.4 1.4" /><path d="M12 4v2" /><path d="M12 18v2" /><path d="m17.7 6.3-1.4 1.4" /><path d="m7.7 16.3-1.4 1.4" /></svg>
+                      <span>模型</span>
+                    </button>
+                    <button class="auth-send-button" type="button" data-auth-generate aria-label="生成认证模块" title="生成认证模块">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5" /><path d="m5 12 7-7 7 7" /></svg>
+                    </button>
+                  </div>
+                </div>
+              </section>
+
+              <section class="auth-chat-suggestions" aria-label="AI 推荐认证模块提示语" data-auth-suggestions>
+                <div class="auth-suggestion-head">
+                  <div>
+                    <span>AI 推荐</span>
+                    <strong data-auth-suggestion-note>推荐可直接套用的登录注册模块提示语</strong>
+                  </div>
+                  <div class="auth-suggestion-tools">
+                    <button class="auth-suggestion-tool" type="button" data-auth-generate-suggestions>生成提示语</button>
+                    <button class="auth-suggestion-tool" type="button" data-auth-refresh-suggestions>换一批</button>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <section class="auth-generation-panel auth-guided-builder" data-auth-generation-panel="guided" aria-label="引导式登录注册模块生成" hidden>
+              <div class="auth-guided-config">
+                <nav class="auth-guided-stepper" aria-label="引导步骤">
+                  <button class="active" type="button" data-auth-guided-step-button="intent"><span>1</span>主旨</button>
+                  <button type="button" data-auth-guided-step-button="flow"><span>2</span>流程</button>
+                  <button type="button" data-auth-guided-step-button="brand"><span>3</span>品牌</button>
+                </nav>
+
+                <section class="auth-guided-section" data-auth-guided-step="intent">
+                  <div class="auth-guided-section-head">
+                    <span>生成主旨</span>
+                    <strong>先告诉 AI 这个模块要解决什么</strong>
+                  </div>
+                  <div class="auth-guided-options compact" data-auth-guided-group="intent">
+                    <button class="active" type="button" data-auth-guided-choice data-auth-guided-group="intent" data-auth-guided-value="openAccount" data-auth-guided-label="开户链接">开户链接</button>
+                    <button type="button" data-auth-guided-choice data-auth-guided-group="intent" data-auth-guided-value="secureLogin" data-auth-guided-label="安全登录">安全登录</button>
+                    <button type="button" data-auth-guided-choice data-auth-guided-group="intent" data-auth-guided-value="campaignSignup" data-auth-guided-label="活动转化">活动转化</button>
+                    <button type="button" data-auth-guided-choice data-auth-guided-group="intent" data-auth-guided-value="partnerInvite" data-auth-guided-label="代理邀请">代理邀请</button>
+                    <button type="button" data-auth-guided-choice data-auth-guided-group="intent" data-auth-guided-value="resetTrust" data-auth-guided-label="找回信任">找回信任</button>
+                  </div>
+                </section>
+
+                <section class="auth-guided-section" data-auth-guided-step="intent">
+                  <div class="auth-guided-section-head">
+                    <span>客户对象</span>
+                    <strong>选择最重要的使用人群</strong>
+                  </div>
+                  <div class="auth-guided-options three" data-auth-guided-group="audience">
+                    <button class="active" type="button" data-auth-guided-choice data-auth-guided-group="audience" data-auth-guided-value="newTrader" data-auth-guided-label="新手开户客户">新手开户客户</button>
+                    <button type="button" data-auth-guided-choice data-auth-guided-group="audience" data-auth-guided-value="highNetWorth" data-auth-guided-label="高净值客户">高净值客户</button>
+                    <button type="button" data-auth-guided-choice data-auth-guided-group="audience" data-auth-guided-value="ibPartner" data-auth-guided-label="IB / 代理客户">IB / 代理客户</button>
+                    <button type="button" data-auth-guided-choice data-auth-guided-group="audience" data-auth-guided-value="returningTrader" data-auth-guided-label="回访交易客户">回访交易客户</button>
+                    <button type="button" data-auth-guided-choice data-auth-guided-group="audience" data-auth-guided-value="campaignLead" data-auth-guided-label="活动注册客户">活动注册客户</button>
+                  </div>
+                </section>
+
+                <section class="auth-guided-section" data-auth-guided-step="flow">
+                  <div class="auth-guided-section-head">
+                    <span>认证流程</span>
+                    <strong>保留必要能力，减少干扰</strong>
+                  </div>
+                  <div class="auth-guided-module-block">
+                    <div class="auth-guided-module-label">
+                      <span>核心流程</span>
+                      <small>登录、注册、找回密码固定保留，AI 会重写结构和文案。</small>
+                    </div>
+                    <div class="auth-guided-options modules required" data-auth-guided-group="flows">
+                      <button class="active" type="button" data-auth-guided-choice data-auth-guided-multiple data-auth-guided-required="true" data-auth-guided-group="flows" data-auth-guided-value="login" data-auth-guided-label="登录" aria-disabled="true">登录</button>
+                      <button class="active" type="button" data-auth-guided-choice data-auth-guided-multiple data-auth-guided-required="true" data-auth-guided-group="flows" data-auth-guided-value="register" data-auth-guided-label="注册" aria-disabled="true">注册</button>
+                      <button class="active" type="button" data-auth-guided-choice data-auth-guided-multiple data-auth-guided-required="true" data-auth-guided-group="flows" data-auth-guided-value="forgot" data-auth-guided-label="找回密码" aria-disabled="true">找回密码</button>
+                    </div>
+                  </div>
+                  <div class="auth-guided-module-block">
+                    <div class="auth-guided-module-label">
+                      <span>增强能力</span>
+                      <small>按业务需要让 AI 加入字段、状态和安全提示。</small>
+                    </div>
+                    <div class="auth-guided-options modules optional" data-auth-guided-group="features">
+                      <button class="active" type="button" data-auth-guided-choice data-auth-guided-multiple data-auth-guided-group="features" data-auth-guided-value="phoneEmailLogin" data-auth-guided-label="手机号 / 邮箱登录">手机号 / 邮箱登录</button>
+                      <button type="button" data-auth-guided-choice data-auth-guided-multiple data-auth-guided-group="features" data-auth-guided-value="socialLogin" data-auth-guided-label="第三方登录">第三方登录</button>
+                      <button class="active" type="button" data-auth-guided-choice data-auth-guided-multiple data-auth-guided-group="features" data-auth-guided-value="captcha" data-auth-guided-label="验证码 / Captcha">验证码</button>
+                      <button type="button" data-auth-guided-choice data-auth-guided-multiple data-auth-guided-group="features" data-auth-guided-value="twoFactor" data-auth-guided-label="双重验证">双重验证</button>
+                      <button class="active" type="button" data-auth-guided-choice data-auth-guided-multiple data-auth-guided-group="features" data-auth-guided-value="inviteCode" data-auth-guided-label="推荐码 / 邀请码">推荐码</button>
+                      <button type="button" data-auth-guided-choice data-auth-guided-multiple data-auth-guided-group="features" data-auth-guided-value="kycPrelude" data-auth-guided-label="KYC 前置说明">KYC 前置说明</button>
+                      <button type="button" data-auth-guided-choice data-auth-guided-multiple data-auth-guided-group="features" data-auth-guided-value="riskConsent" data-auth-guided-label="风险披露确认">风险披露确认</button>
+                      <button type="button" data-auth-guided-choice data-auth-guided-multiple data-auth-guided-group="features" data-auth-guided-value="promoReward" data-auth-guided-label="注册送礼 / 活动奖励">活动奖励</button>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="auth-guided-section" data-auth-guided-step="flow">
+                  <div class="auth-guided-section-head">
+                    <span>注册深度</span>
+                    <strong>控制表单复杂度</strong>
+                  </div>
+                  <div class="auth-guided-options three" data-auth-guided-group="registerDepth">
+                    <button type="button" data-auth-guided-choice data-auth-guided-group="registerDepth" data-auth-guided-value="light" data-auth-guided-label="轻量注册">轻量注册</button>
+                    <button class="active" type="button" data-auth-guided-choice data-auth-guided-group="registerDepth" data-auth-guided-value="standard" data-auth-guided-label="标准开户注册">标准开户注册</button>
+                    <button type="button" data-auth-guided-choice data-auth-guided-group="registerDepth" data-auth-guided-value="compliance" data-auth-guided-label="合规增强">合规增强</button>
+                  </div>
+                </section>
+
+                <section class="auth-guided-section" data-auth-guided-step="brand">
+                  <div class="auth-guided-section-head">
+                    <span>视觉气质</span>
+                    <strong>避免千篇一律</strong>
+                  </div>
+                  <div class="auth-guided-options design-style" data-auth-guided-group="designStyle">
+                    <button class="active" type="button" data-auth-guided-choice data-auth-guided-group="designStyle" data-auth-guided-value="trustClean" data-auth-guided-label="可信清爽"><i style="--design-accent:#2563eb"></i>可信清爽</button>
+                    <button type="button" data-auth-guided-choice data-auth-guided-group="designStyle" data-auth-guided-value="premiumCalm" data-auth-guided-label="高级克制"><i style="--design-accent:#b7791f"></i>高级克制</button>
+                    <button type="button" data-auth-guided-choice data-auth-guided-group="designStyle" data-auth-guided-value="techSecure" data-auth-guided-label="科技安全"><i style="--design-accent:#0f766e"></i>科技安全</button>
+                    <button type="button" data-auth-guided-choice data-auth-guided-group="designStyle" data-auth-guided-value="softFriendly" data-auth-guided-label="亲和轻量"><i style="--design-accent:#38bdf8"></i>亲和轻量</button>
+                    <button type="button" data-auth-guided-choice data-auth-guided-group="designStyle" data-auth-guided-value="campaignFocus" data-auth-guided-label="活动转化"><i style="--design-accent:#be123c"></i>活动转化</button>
+                  </div>
+                </section>
+
+                <section class="auth-guided-section" data-auth-guided-step="brand">
+                  <div class="auth-guided-section-head">
+                    <span>品牌主题</span>
+                    <strong>主色和语言</strong>
+                  </div>
+                  <div class="auth-guided-field-block">
+                    <label class="auth-guided-field-label">主题颜色</label>
+                    <div class="auth-guided-options swatches" data-auth-guided-group="theme">
+                      <button class="active" type="button" data-auth-guided-choice data-auth-guided-group="theme" data-auth-guided-value="blueTrust" data-auth-guided-label="蓝色信任"><i style="--swatch:#2563eb"></i>蓝色信任</button>
+                      <button type="button" data-auth-guided-choice data-auth-guided-group="theme" data-auth-guided-value="blackGold" data-auth-guided-label="黑金高净值"><i style="--swatch:#b7791f"></i>黑金高净值</button>
+                      <button type="button" data-auth-guided-choice data-auth-guided-group="theme" data-auth-guided-value="emeraldSecure" data-auth-guided-label="青绿安全"><i style="--swatch:#059669"></i>青绿安全</button>
+                      <button type="button" data-auth-guided-choice data-auth-guided-group="theme" data-auth-guided-value="graphiteSilver" data-auth-guided-label="石墨银"><i style="--swatch:#334155"></i>石墨银</button>
+                      <button type="button" data-auth-guided-choice data-auth-guided-group="theme" data-auth-guided-value="roseCampaign" data-auth-guided-label="玫红活动"><i style="--swatch:#e11d48"></i>玫红活动</button>
+                    </div>
+                    <div class="auth-guided-freeform-field">
+                      <label class="visually-hidden" for="authGuidedAccent">自定义品牌主色</label>
+                      <input id="authGuidedAccent" data-auth-accent type="text" maxlength="32" value="#2563eb" placeholder="#2563EB" />
+                    </div>
+                  </div>
+
+                  <div class="auth-guided-dual-grid">
+                    <label>
+                      品牌名
+                      <input data-auth-brand-name type="text" value="ForexCRM" />
+                    </label>
+                    <label>
+                      语言
+                      <select data-auth-language>
+                        <option value="zh-CN">中文</option>
+                        <option value="en-US">English</option>
+                      </select>
+                    </label>
+                  </div>
+                </section>
+
+                <div class="auth-guided-step-actions">
+                  <button type="button" data-auth-guided-prev>上一步</button>
+                  <button class="primary" type="button" data-auth-guided-next>下一步</button>
+                </div>
+              </div>
+
+              <aside class="auth-guided-summary-panel">
+                <div class="auth-guided-section-head">
+                  <span>选项汇总</span>
+                  <strong data-auth-guided-summary-title>标准开户链接方案</strong>
+                </div>
+
+                <div class="auth-model-summary compact" data-auth-model-summary>
+                  <div>
+                    <strong>OpenAI / gpt-5.2</strong>
+                    <small>模型状态读取中</small>
+                  </div>
+                  <button type="button" data-auth-model-open>配置</button>
+                </div>
+
+                <article class="auth-guided-main-idea">
+                  <span>主旨</span>
+                  <strong data-auth-guided-main-idea>开户链接 · 新手开户客户</strong>
+                  <small data-auth-guided-main-detail>标准开户注册，可信清爽。</small>
+                </article>
+
+                <div class="auth-guided-summary-list" data-auth-guided-summary></div>
+
+                <label class="auth-guided-note-label" for="authGuidedIntentNote">补充要求</label>
+                <textarea id="authGuidedIntentNote" data-auth-guided-note rows="4" placeholder="例如：注册首屏先收手机号和验证码，投资背景放第二步。"></textarea>
+
+                <div class="auth-guided-actions">
+                  <button class="auth-guided-sync-button" type="button" data-auth-guided-sync>写入快速输入</button>
+                  <button class="auth-guided-generate-button" type="button" data-auth-guided-generate>生成预览</button>
+                </div>
+              </aside>
+            </section>
+
+            <section class="auth-result-dock" aria-label="认证模块生成结果">
+              <div class="auth-result-head">
+                <div>
+                  <span data-auth-source>local</span>
+                  <h2>生成结果预览</h2>
+                  <p>预览内可直接切换登录、注册和找回密码。</p>
+                </div>
+                <div class="auth-result-actions">
+                  <a href="./auth-layout-preview.html" target="_blank" rel="noreferrer">打开预览页</a>
+                  <div class="auth-preview-tabs" role="tablist" aria-label="预览流程">
+                    <button class="active" type="button" data-auth-preview-tab="login">登录</button>
+                    <button type="button" data-auth-preview-tab="register">注册</button>
+                    <button type="button" data-auth-preview-tab="forgot">找回密码</button>
+                  </div>
+                </div>
+              </div>
+              <div class="auth-preview-canvas">
+                <div class="auth-preview-host" data-auth-preview-host></div>
+              </div>
+            </section>
+
+            <section class="auth-history-dock" aria-label="最近生成">
+              <div class="auth-result-head small">
+                <div>
+                  <span>History</span>
+                  <h2>最近生成</h2>
+                </div>
+                <button type="button" data-auth-local>本地草稿</button>
+              </div>
+              <div class="auth-history-list" data-auth-history></div>
+            </section>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <script src="./common-layout.js"></script>
+    <script src="./auth-personalization.js"></script>
+    <script src="./auth-layout-admin.js"></script>
+  </body>
+</html>

@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="./theme.js"></script>
+    <title>ForexCRM - AI 审美评审台</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./theme.css?v=tenant-home-4" />
+    <link rel="stylesheet" href="./client-home.css?v=tenant-home-4" />
+    <link rel="stylesheet" href="./home-personalization.css?v=tenant-home-4" />
+    <link rel="stylesheet" href="./home-ai-training.css?v=training-review-2" />
+  </head>
+  <body data-layout-page="home-ai-training">
+    <main class="app" data-layout-main>
+      <div class="page personalization-page">
+        <section class="training-page" data-training-page>
+          <header class="training-hero">
+            <div>
+              <span class="section-kicker">AESTHETIC REVIEW</span>
+              <h1>AI 审美评审台</h1>
+              <p>上传参考稿，生成多套首页方案，直接预览后用人工评分修正 AI 的审美方向。</p>
+            </div>
+            <div class="training-actions">
+              <a href="./home-layout-admin.html">生成首页</a>
+              <a href="./home-module-preview.html">积木组件库</a>
+              <a href="./home-model-calls.html">调用记录</a>
+              <button type="button" data-training-refresh>刷新</button>
+            </div>
+          </header>
+
+          <section class="training-stats" aria-label="训练数据统计">
+            <article>
+              <span>参考稿</span>
+              <strong data-training-reference-count>0</strong>
+            </article>
+            <article>
+              <span>样本页面</span>
+              <strong data-training-sample-count>0</strong>
+            </article>
+            <article>
+              <span>候选方案</span>
+              <strong data-training-candidate-count>0</strong>
+            </article>
+            <article>
+              <span>评分记录</span>
+              <strong data-training-score-count>0</strong>
+            </article>
+            <article>
+              <span>反馈记忆</span>
+              <strong data-training-feedback-count>0</strong>
+            </article>
+          </section>
+
+          <section class="training-review-layout">
+            <aside class="review-column review-column-left" aria-label="生成输入与参考稿">
+              <section class="review-panel">
+                <div class="panel-head">
+                  <div>
+                    <span class="section-kicker">PROMPT</span>
+                    <h2>生成需求</h2>
+                  </div>
+                  <button type="button" data-score-current>评分当前草稿</button>
+                </div>
+                <label class="field-stack">
+                  <span>候选生成需求</span>
+                  <textarea id="candidatePrompt" data-candidate-prompt rows="7">帮我做成高净值客户风格，黑金色，首屏突出资产、入金和广告轮播图，交易账号列表放下方，整体更大气。</textarea>
+                </label>
+                <div class="candidate-controls">
+                  <label>
+                    候选数量
+                    <select data-candidate-count>
+                      <option value="2">2 套</option>
+                      <option value="3" selected>3 套</option>
+                      <option value="4">4 套</option>
+                    </select>
+                  </label>
+                  <label>
+                    渲染模式
+                    <select data-candidate-render-mode>
+                      <option value="compare" selected>双方案</option>
+                      <option value="aiHtml">AI HTML</option>
+                      <option value="config">组件化</option>
+                    </select>
+                  </label>
+                </div>
+                <button class="primary-action" type="button" data-generate-candidates>生成候选并预览</button>
+                <p class="training-status" data-candidate-status>等待生成候选方案。</p>
+              </section>
+
+              <section class="review-panel">
+                <div class="panel-head">
+                  <div>
+                    <span class="section-kicker">REFERENCES</span>
+                    <h2>上传参考稿</h2>
+                  </div>
+                  <button type="button" data-clear-references>清空</button>
+                </div>
+                <label class="upload-dropzone" data-upload-dropzone>
+                  <input data-reference-file type="file" multiple accept="image/png,image/jpeg,image/webp,image/gif,text/html,.html,application/pdf" />
+                  <strong>选择图片、HTML 或 PDF 稿子</strong>
+                  <span>上传后可作为正向参考，生成时会带入审美上下文。</span>
+                </label>
+                <label class="field-stack">
+                  <span>参考稿标签</span>
+                  <input data-reference-tags type="text" placeholder="例如：高端、黑金、首屏强、移动端好看" />
+                </label>
+                <label class="field-stack">
+                  <span>我喜欢它哪里</span>
+                  <textarea data-reference-note rows="4" placeholder="例如：首屏有大视觉焦点，按钮层级干净，资产信息不会像后台表格。"></textarea>
+                </label>
+                <button type="button" data-upload-reference>保存参考稿</button>
+                <div class="reference-grid" data-reference-list></div>
+              </section>
+
+              <section class="review-panel context-panel">
+                <div class="panel-head">
+                  <div>
+                    <span class="section-kicker">CONTEXT</span>
+                    <h2>AI 已读取的审美上下文</h2>
+                  </div>
+                </div>
+                <div class="context-list" data-context-list></div>
+              </section>
+            </aside>
+
+            <section class="candidate-stage" aria-label="候选预览">
+              <div class="candidate-stage-head">
+                <div>
+                  <span class="section-kicker">PREVIEW WALL</span>
+                  <h2>候选方案预览</h2>
+                  <p>点选任意方案后，右侧可以改机器分、写原因，并沉淀为正向或反向偏好。</p>
+                </div>
+                <div class="preview-size-switch" role="group" aria-label="候选预览尺寸">
+                  <button class="active" type="button" data-preview-size="desktop">桌面</button>
+                  <button type="button" data-preview-size="mobile">手机</button>
+                </div>
+              </div>
+              <div class="candidate-results" data-candidate-results></div>
+            </section>
+
+            <aside class="review-column review-column-right" aria-label="人工评分">
+              <section class="review-panel rating-panel">
+                <div class="panel-head">
+                  <div>
+                    <span class="section-kicker">HUMAN SCORE</span>
+                    <h2>人工评分修正</h2>
+                  </div>
+                </div>
+                <div class="selected-review" data-selected-review>
+                  <p class="empty-training">先生成或选择一套候选方案，再进行人工评分。</p>
+                </div>
+                <form class="manual-score-form" data-manual-score-form>
+                  <div class="score-comparison">
+                    <label>
+                      机器评分
+                      <output data-machine-score>--</output>
+                    </label>
+                    <label>
+                      人工评分
+                      <output data-manual-score-output>88</output>
+                    </label>
+                  </div>
+                  <input data-manual-score type="range" min="0" max="100" step="1" value="88" />
+
+                  <div class="dimension-sliders" data-dimension-sliders></div>
+
+                  <div class="decision-segment" role="group" aria-label="人工判断">
+                    <button class="active" type="button" data-review-decision="approve">认可</button>
+                    <button type="button" data-review-decision="neutral">一般</button>
+                    <button type="button" data-review-decision="reject">不认可</button>
+                  </div>
+
+                  <label class="field-stack">
+                    <span>评分原因与修改意见</span>
+                    <textarea data-feedback-note rows="6" placeholder="例如：首屏资产和广告层级不错，但右侧开户卡太像后台表单；下次保留黑金资产 Hero，减少白卡。"></textarea>
+                  </label>
+                  <button class="primary-action" type="submit">保存人工反馈</button>
+                </form>
+              </section>
+
+              <section class="review-panel memory-panel">
+                <div class="panel-head">
+                  <div>
+                    <span class="section-kicker">MEMORY</span>
+                    <h2>近期反馈记忆</h2>
+                  </div>
+                  <button type="button" data-clear-feedback>清空</button>
+                </div>
+                <div class="training-list" data-feedback-list></div>
+              </section>
+            </aside>
+          </section>
+        </section>
+      </div>
+
+      <div class="client-toast" data-training-toast hidden></div>
+    </main>
+
+    <script src="./common-layout.js"></script>
+    <script src="./home-personalization.js"></script>
+    <script src="./home-ai-training.js?v=training-review-2"></script>
+  </body>
+</html>

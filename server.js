@@ -37,11 +37,24 @@ loadLocalEnvFile(".env");
 loadLocalEnvFile(".env.local");
 
 const PORT = Number(process.env.PORT || 5174);
-const MAX_BODY_BYTES = 1_200_000;
+const MAX_BODY_BYTES = 8_000_000;
 const COMPONENT_LIBRARY_FILE = path.join(ROOT_DIR, "home-component-library.json");
 const COMPOSITION_LIBRARY_FILE = path.join(ROOT_DIR, "home-component-compositions.json");
 const CALL_HISTORY_FILE = path.join(ROOT_DIR, "home-ai-call-history.json");
+const AUTH_CALL_HISTORY_FILE = path.join(ROOT_DIR, "auth-ai-call-history.json");
+const DESIGN_RULES_FILE = path.join(ROOT_DIR, "design.md");
+const UI_GENERATION_PROTOCOL_FILE = path.join(ROOT_DIR, "AI_UI_GENERATION_PROTOCOL.md");
+const HOME_MODULE_BRICKS_FILE = path.join(ROOT_DIR, "home-module-bricks.md");
+const DESIGN_SAMPLE_FILE = path.join(ROOT_DIR, "home-design-samples.json");
+const AESTHETIC_SCORE_FILE = path.join(ROOT_DIR, "home-ai-score-records.json");
+const FEEDBACK_MEMORY_FILE = path.join(ROOT_DIR, "home-ai-feedback-memory.json");
+const REFERENCE_ASSET_FILE = path.join(ROOT_DIR, "home-ai-reference-assets.json");
+const REFERENCE_ASSET_DIR = path.join(ROOT_DIR, "artifacts", "home-ai-reference-assets");
 const MAX_CALL_HISTORY = 200;
+const MAX_AUTH_CALL_HISTORY = 160;
+const MAX_AESTHETIC_SCORE_RECORDS = 300;
+const MAX_FEEDBACK_MEMORY_RECORDS = 300;
+const MAX_REFERENCE_ASSETS = 120;
 const MINIMAX_CN_BASE_URL = "https://api.minimaxi.com/v1";
 const MINIMAX_CN_TYPED_ALIAS_BASE_URL = "https://api.minimaxi.cn/v1";
 const MINIMAX_GLOBAL_BASE_URL = "https://api.minimax.io/v1";
@@ -63,7 +76,7 @@ const DEEPSEEK_PRO_MODEL = "deepseek-v4-pro";
 const DEEPSEEK_FLASH_MODEL = "deepseek-v4-flash";
 const DEEPSEEK_PRO_TIMEOUT_MS = 75_000;
 const DEEPSEEK_FLASH_TIMEOUT_MS = 120_000;
-const KIMI_TIMEOUT_MS = 75_000;
+const KIMI_TIMEOUT_MS = 120_000;
 
 const PROVIDERS = {
   openai: {
@@ -341,6 +354,19 @@ const GUIDED_EXPLICIT_ONLY_BLOCKS = new Set([
   "app_download",
 ]);
 
+const HOMEPAGE_THEME_PRESETS = [
+  "default",
+  "blackGold",
+  "lightGold",
+  "blueFinance",
+  "darkTech",
+  "minimalWhite",
+  "emeraldTrust",
+  "cobaltTeal",
+  "crimsonPromo",
+  "graphiteSilver",
+];
+
 const FORBIDDEN_HOME_BLOCKS = [
   "reward_tasks",
   "kyc_risk_notice",
@@ -550,7 +576,17 @@ const COMPONENT_FAMILIES = [
   "ClientHomeAtoms",
 ];
 
-const COMPONENT_SIZES = ["1x1", "1x2", "2x1", "2x2", "3x1", "3x2"];
+const COMPONENT_SIZES = ["1x1", "1x2", "2x1", "2x2", "3x1", "3x2", "4x1", "4x2", "4x3", "5x1", "5x2", "5x3"];
+const COMPONENT_SIZE_PATTERN = /^([1-9]\d?)x([1-9]\d?)$/i;
+const COMPONENT_SIZE_SCHEMA = {
+  type: "string",
+  pattern: "^[1-9]\\d?x[1-9]\\d?$",
+};
+const COMPONENT_SIZE_GUIDE = [
+  "常用尺寸: 1x1, 1x2, 2x1, 2x2, 3x1, 3x2, 4x1, 4x2, 4x3, 5x1, 5x2, 5x3。",
+  "也允许 AI 按 NxM 自行提出其他尺寸；N/M 必须是数字并用 x 连接，例如 6x2 或 8x3，同时在 reason/layoutHints 中说明适用场景、响应式降级和回退尺寸。",
+  "布局映射约定: 1x 是侧栏/小卡，2x 是主栏，3x 及以上是整行或宽屏工作台；移动端统一降级为单列。",
+].join(" ");
 
 const HOMEPAGE_INTENT_PRESETS = {
   standard: {
@@ -990,7 +1026,7 @@ const GENERATED_COMPONENT_JSON_SCHEMA = {
   properties: {
     name: { type: "string" },
     family: { enum: COMPONENT_FAMILIES },
-    size: { enum: COMPONENT_SIZES },
+    size: COMPONENT_SIZE_SCHEMA,
     description: { type: "string" },
     tags: { type: "array", items: { type: "string" } },
     html: { type: "string" },
@@ -1003,7 +1039,7 @@ const GENERATED_COMPONENT_JSON_SCHEMA = {
 const AI_HTML_SCHEME_JSON_SCHEMA = {
   type: "object",
   additionalProperties: true,
-  required: ["name", "summary", "html", "css", "implementationContract"],
+  required: ["html", "css"],
   properties: {
     name: { type: "string" },
     summary: { type: "string" },
@@ -1047,7 +1083,7 @@ const COMPONENT_COMPOSITION_JSON_SCHEMA = {
         required: ["componentId", "size", "zone", "reason"],
         properties: {
           componentId: { type: "string" },
-          size: { enum: COMPONENT_SIZES },
+          size: COMPONENT_SIZE_SCHEMA,
           zone: { enum: ["hero", "main", "rail", "full"] },
           reason: { type: "string" },
         },
@@ -1055,6 +1091,71 @@ const COMPONENT_COMPOSITION_JSON_SCHEMA = {
     },
     themeAdvice: { type: "string" },
     polishInstructions: { type: "string" },
+  },
+};
+
+const AUTH_UI_JSON_SCHEMA = {
+  type: "object",
+  additionalProperties: true,
+  required: ["name", "summary", "stylePreset", "screens"],
+  properties: {
+    name: { type: "string" },
+    summary: { type: "string" },
+    stylePreset: { enum: ["blueSplit", "clientOnboarding", "securityReset", "softPlatform", "photoDark"] },
+    defaultScreen: { enum: ["login", "register", "forgot"] },
+    language: { type: "string" },
+    brand: {
+      type: "object",
+      additionalProperties: true,
+      properties: {
+        name: { type: "string" },
+        tagline: { type: "string" },
+        serviceLine: { type: "string" },
+      },
+    },
+    visual: {
+      type: "object",
+      additionalProperties: true,
+      properties: {
+        accent: { type: "string" },
+        accent2: { type: "string" },
+        panelTone: { type: "string" },
+        radius: { type: "string" },
+        density: { enum: ["compact", "comfortable", "spacious"] },
+      },
+    },
+    experience: {
+      type: "object",
+      additionalProperties: true,
+      properties: {
+        audience: { type: "string" },
+        intent: { type: "string" },
+        registerDepth: { type: "string" },
+        designStyle: { type: "string" },
+        theme: { type: "string" },
+        features: { type: "array", items: { type: "string" } },
+      },
+    },
+    hero: {
+      type: "object",
+      additionalProperties: true,
+      properties: {
+        title: { type: "string" },
+        subtitle: { type: "string" },
+        bullets: { type: "array", items: { type: "string" } },
+      },
+    },
+    screens: {
+      type: "object",
+      additionalProperties: true,
+      properties: {
+        login: { type: "object", additionalProperties: true },
+        register: { type: "object", additionalProperties: true },
+        forgot: { type: "object", additionalProperties: true },
+      },
+    },
+    securityNotes: { type: "array", items: { type: "string" } },
+    designNotes: { type: "array", items: { type: "string" } },
   },
 };
 
@@ -1402,6 +1503,8 @@ function homepageRecordSnapshot(config) {
 	    htmlMock: Boolean(source.htmlScheme?.enabled && source.htmlScheme.mock),
 	    htmlQualityStatus: source.htmlScheme?.enabled ? safeRecordText(source.htmlScheme.qualityStatus, 40) : "",
 	    htmlFallbackReason: source.htmlScheme?.enabled ? safeRecordText(source.htmlScheme.fallbackReason, 180) : "",
+	    skeletonScheme: source.skeletonHtmlScheme?.enabled ? safeRecordText(source.skeletonHtmlScheme.name || "骨架 HTML 填充", 80) : "",
+	    skeletonSlots: source.skeletonHtmlScheme?.enabled && Array.isArray(source.skeletonHtmlScheme.slots) ? source.skeletonHtmlScheme.slots.length : 0,
 	    brickIds: brickPlan.map((item) => safeRecordText(item?.brickId || item?.feature, 80)).filter(Boolean).slice(0, 12),
     sections: sections.map((section) => `${safeRecordText(section?.type, 24)}:${Array.isArray(section?.slots) ? section.slots.join("+") : ""}`).slice(0, 12),
   };
@@ -1427,6 +1530,29 @@ function addCallHistoryRecord(record) {
   return nextRecord;
 }
 
+function readAuthCallHistory() {
+  const data = readJsonFile(AUTH_CALL_HISTORY_FILE, { records: [] });
+  return Array.isArray(data.records) ? data.records.slice(0, MAX_AUTH_CALL_HISTORY) : [];
+}
+
+function writeAuthCallHistory(records) {
+  const normalized = (Array.isArray(records) ? records : []).slice(0, MAX_AUTH_CALL_HISTORY);
+  writeJsonFile(AUTH_CALL_HISTORY_FILE, { records: normalized });
+  return normalized;
+}
+
+function addAuthCallHistoryRecord(record) {
+  const records = readAuthCallHistory();
+  const nextRecord = {
+    id: `auth-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    at: new Date().toISOString(),
+    source: "authServerProxy",
+    ...record,
+  };
+  writeAuthCallHistory([nextRecord, ...records]);
+  return nextRecord;
+}
+
 function safeId(value, prefix = "component") {
   const source = String(value || "")
     .trim()
@@ -1441,9 +1567,42 @@ function oneOfList(value, options, fallback) {
   return options.includes(value) ? value : fallback;
 }
 
+function normalizeComponentSize(value, fallback = "2x1") {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[×*]/g, "x");
+  if (COMPONENT_SIZE_PATTERN.test(normalized)) return normalized;
+  return fallback;
+}
+
+function normalizeComponentScore(value, fallback = 5) {
+  const score = Number(value);
+  if (!Number.isFinite(score)) return fallback;
+  return Math.min(10, Math.max(1, Math.round(score)));
+}
+
+function autoComponentSizeForFamily(family) {
+  if (["PromotionBanner", "AssetOverview", "QuickActions"].includes(family)) return "4x1";
+  if (["TradingAccounts", "AccountPerformance", "WalletList"].includes(family)) return "4x2";
+  if (["CreateAccountForm", "OnboardingProgress"].includes(family)) return "4x3";
+  return "2x1";
+}
+
+function componentSizeRows(size) {
+  const match = normalizeComponentSize(size, "2x1").match(/x([1-9]\d?)$/);
+  return match ? Number(match[1]) || 1 : 1;
+}
+
+function componentSizePromptLabel(value, fallback = "2x1") {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (["auto", "ai", "free"].includes(normalized)) return "AI 自行选择尺寸";
+  return normalizeComponentSize(value, fallback);
+}
+
 function homepageRenderMode(payload) {
   const value = cleanText(payload?.renderMode || payload?.generationRenderMode || payload?.context?.renderMode, "config", 24);
-  return ["config", "aiHtml", "compare"].includes(value) ? value : "config";
+  return ["config", "aiHtml", "skeletonHtml", "compare"].includes(value) ? value : "config";
 }
 
 function normalizeServerHomeColorMode(value, fallback = "auto") {
@@ -1466,6 +1625,12 @@ function homeColorModeFromPrompt(prompt, fallback = "auto") {
 
 function renderModeWantsAiHtml(mode) {
   return mode === "aiHtml" || mode === "compare";
+}
+
+function activeRenderModeForRequest(renderMode, htmlScheme = null) {
+  if (renderMode === "aiHtml" && htmlScheme?.enabled) return "aiHtml";
+  if (renderMode === "skeletonHtml") return "skeletonHtml";
+  return "config";
 }
 
 function sanitizeGeneratedHtml(value) {
@@ -1502,9 +1667,141 @@ function sanitizeAiHtmlCss(value) {
     .slice(0, 18000);
 }
 
+function shouldRemoveComponentEyebrow(label, primaryTitle) {
+  const labelText = stripHtmlTags(label);
+  const titleText = stripHtmlTags(primaryTitle);
+  if (!labelText || !titleText) return false;
+  if (labelText.length > 80 || titleText.length > 120) return false;
+  if (!/[A-Za-z\u4e00-\u9fff]/.test(titleText)) return false;
+  if (/^\d+\s*\/\s*\d+$/i.test(titleText)) return false;
+  if (/^[\d\s.,:+/%$€¥￥-]+$/i.test(titleText)) return false;
+  return true;
+}
+
+function collapseDuplicateComponentTitles(value) {
+  const titlePattern = "((?:<strong\\b[^>]*>|<h[1-4]\\b[^>]*>)[^<]{1,180}<\\/(?:strong|h[1-4])>)";
+  const patterns = [
+    new RegExp(`(<(?:section|article|div)\\b[^>]*>\\s*)<(span|small|label)\\b[^>]*>([^<]{1,100})<\\/\\2>\\s*${titlePattern}`, "gi"),
+    new RegExp(`(<header\\b[^>]*>\\s*)<(span|small|label)\\b[^>]*>([^<]{1,100})<\\/\\2>\\s*${titlePattern}`, "gi"),
+  ];
+
+  return patterns.reduce(
+    (html, pattern) =>
+      html.replace(pattern, (match, prefix, tag, label, primaryTitle) =>
+        shouldRemoveComponentEyebrow(label, primaryTitle) ? `${prefix}${primaryTitle}` : match,
+      ),
+    String(value || ""),
+  );
+}
+
 function cleanText(value, fallback = "", limit = 220) {
   const text = String(value || fallback).replace(/\s+/g, " ").trim();
   return text.slice(0, limit);
+}
+
+function readDesignRulesText() {
+  try {
+    if (!fs.existsSync(DESIGN_RULES_FILE)) return "";
+    return fs.readFileSync(DESIGN_RULES_FILE, "utf8").slice(0, 80_000);
+  } catch (error) {
+    return "";
+  }
+}
+
+function readGovernanceReferenceText(filePath, limit = 40_000) {
+  try {
+    if (!fs.existsSync(filePath)) return "";
+    return fs.readFileSync(filePath, "utf8").slice(0, limit);
+  } catch (error) {
+    return "";
+  }
+}
+
+function summarizeGovernanceReference(raw, options = {}) {
+  const source = cleanText(options.source, "governance", 80);
+  const keywords = Array.isArray(options.keywords) ? options.keywords : [];
+  const maxRules = Math.max(1, Math.min(Number(options.maxRules) || 8, 14));
+  const lines = String(raw || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim().replace(/^[-*]\s+/, "").replace(/^\d+\.\s+/, ""))
+    .filter((line) => line && !line.startsWith("|") && !line.startsWith("```") && !/^#{1,6}\s*$/.test(line));
+  const matched = lines.filter((line) => keywords.some((keyword) => line.toLowerCase().includes(String(keyword).toLowerCase()) || line.includes(String(keyword))));
+  return {
+    source,
+    status: raw.trim() ? "loaded" : "missing",
+    rules: (matched.length ? matched : lines)
+      .map((line) => cleanText(line.replace(/^#{1,6}\s+/, ""), "", 180))
+      .filter(Boolean)
+      .slice(0, maxRules),
+  };
+}
+
+function designRulesPromptReference() {
+  const raw = readDesignRulesText();
+  const protocolReference = summarizeGovernanceReference(readGovernanceReferenceText(UI_GENERATION_PROTOCOL_FILE), {
+    source: "AI_UI_GENERATION_PROTOCOL.md",
+    keywords: ["Component-library", "Quality Gate", "AI HTML", "allowed", "component", "implementation", "ECharts", "responsive", "CopyTrading"],
+    maxRules: 10,
+  });
+  const bricksReference = summarizeGovernanceReference(readGovernanceReferenceText(HOME_MODULE_BRICKS_FILE), {
+    source: "home-module-bricks.md",
+    keywords: ["AI 组件生成链路", "组件库", "尺寸", "responsive", "canonical", "禁止项", "积木"],
+    maxRules: 8,
+  });
+  const fallbackRules = [
+    "美观必须来自信息层级、间距、状态、表格/列表扫描效率、空状态和交互细节，而不是营销式 hero、随机渐变、厚重阴影或卡片堆叠。",
+    "AI 必须先判断页面意图、所属端、页面类型和需要承接的模块，再组合已有组件/积木，不直接自由写完整 HTML。",
+    "AI HTML 只能在设计 token 和组件库语义内自由发挥；颜色、圆角、阴影、响应式和暗色模式必须符合 ForexCRM / Nxbroker 金融 CRM 气质。",
+    "公共骨架、主题切换、导航、顶部栏、tab、数据绑定、系统动作和组件库能力必须由系统承接，不允许模型重新发明。",
+  ];
+  if (!raw.trim()) {
+    return {
+      source: "design.md",
+      status: "missing",
+      rules: fallbackRules,
+      protocolReference,
+      bricksReference,
+    };
+  }
+
+  const lines = raw
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const headings = [];
+  const rules = [];
+  const forbidden = [];
+  const generationFlow = [];
+
+  lines.forEach((line) => {
+    if (/^#{1,3}\s+/.test(line)) {
+      headings.push(cleanText(line.replace(/^#{1,3}\s+/, ""), "", 80));
+      return;
+    }
+
+    const normalized = line.replace(/^[-*]\s+/, "").replace(/^\d+\.\s+/, "").trim();
+    if (!normalized || normalized.startsWith("|") || normalized.startsWith("```")) return;
+    if (/(禁止|不要|不得|避免)/.test(normalized)) {
+      forbidden.push(cleanText(normalized, "", 180));
+      return;
+    }
+    if (/(必须|优先|应该|统一|只能|先判断|生成前|生成后|自检|流程)/.test(normalized)) {
+      if (/(流程|生成前|生成后|自检|判断|输出前)/.test(normalized)) generationFlow.push(cleanText(normalized, "", 180));
+      else rules.push(cleanText(normalized, "", 180));
+    }
+  });
+
+  return {
+    source: "design.md",
+    status: "loaded",
+    headings: headings.slice(0, 12),
+    rules: (rules.length ? rules : fallbackRules).slice(0, 18),
+    forbidden: forbidden.slice(0, 14),
+    generationFlow: generationFlow.slice(0, 10),
+    protocolReference,
+    bricksReference,
+    usePolicy: "先用 design.md 锁住产品骨架、组件语义、token、暗色/移动端和禁用项，再允许 AI 在信息层级、模块比例、状态细节和响应式上做美化。",
+  };
 }
 
 function normalizeServerHexColor(value) {
@@ -1690,7 +1987,7 @@ function stripEditorArtifactsFromText(value) {
 function normalizeGeneratedComponent(component, payload = {}, options = {}) {
   const source = component && typeof component === "object" ? component : {};
   const family = oneOfList(source.family || payload.family, COMPONENT_FAMILIES, "ClientHomeAtoms");
-  const size = oneOfList(source.size || payload.size, COMPONENT_SIZES, "2x1");
+  const size = normalizeComponentSize(source.size || payload.size, "2x1");
   const name = cleanText(source.name, `${family} AI 组件`, 48);
   const id = safeId(source.id || `${family}-${name}-${Date.now().toString(36)}`, "component");
   const now = new Date().toISOString();
@@ -1702,9 +1999,10 @@ function normalizeGeneratedComponent(component, payload = {}, options = {}) {
     name,
     family,
     size,
+    score: normalizeComponentScore(source.score ?? payload.componentScore, 5),
     description: cleanText(stripEditorArtifactsFromText(source.description), "AI 生成的首页积木组件。", 260),
     tags: (Array.isArray(source.tags) ? source.tags : [family, size]).map((tag) => cleanText(tag, "", 28)).filter(Boolean).slice(0, 8),
-    html: stripEditorArtifactsFromHtml(sanitizeGeneratedHtml(source.html)),
+    html: collapseDuplicateComponentTitles(stripEditorArtifactsFromHtml(sanitizeGeneratedHtml(source.html))),
     css: stripEditorArtifactsFromCss(sanitizeGeneratedCss(source.css)),
     layoutHints: (Array.isArray(source.layoutHints) ? source.layoutHints : []).map((item) => cleanText(item, "", 120)).filter(Boolean).slice(0, 6),
     dataRequirements: (Array.isArray(source.dataRequirements) ? source.dataRequirements : []).map((item) => cleanText(item, "", 120)).filter(Boolean).slice(0, 6),
@@ -1744,8 +2042,42 @@ function generatedComponentTooGeneric(component) {
     "模拟账号",
     "活动",
     "广告",
+    "风险",
+    "风险披露",
+    "合规",
+    "保证金",
+    "杠杆",
+    "在线客服",
+    "联系客服",
+    "客服",
+    "客户经理",
+    "服务时间",
+    "帮助中心",
+    "工单",
+    "实时对话",
+    "Support",
+    "Contact",
+    "Ticket",
+    "Live Chat",
   ];
   return !businessSignals.some((signal) => source.includes(signal));
+}
+
+function generatedComponentViolatesFamily(component, payload = {}) {
+  const family = oneOfList(component?.family || payload.family, COMPONENT_FAMILIES, "ClientHomeAtoms");
+  const source = `${component?.name || ""} ${component?.description || ""} ${component?.html || ""}`;
+  if (family === "RiskDisclosure") {
+    const hasRiskSemantics = /风险|风险披露|合规|免责声明|保证金|杠杆|强平|亏损|Risk|Disclosure|Margin|Leverage|Loss/i.test(source);
+    const looksLikeAccountOverview = /Account Overview|Wallet Balance|Trading Balance|Total Assets|Deposit|Open Account|账户概览|资产概览|钱包余额|交易余额/i.test(source);
+    return !hasRiskSemantics || looksLikeAccountOverview;
+  }
+  if (family === "SupportContact") {
+    const hasSupportSemantics = /在线客服|联系客服|客服|客户经理|服务时间|帮助中心|工单|实时对话|Support|Contact|Ticket|Live Chat|Manager|Service Hours/i.test(source);
+    const leaksPrompt = /首页目标|当前步骤|slot：|模块名称：|Client Home Atom/i.test(source);
+    const looksLikeAccountOverview = /Account Overview|Wallet Balance|Trading Balance|Total Assets|KYC Verified|Open Account|账户概览|资产概览|钱包余额|交易余额|开真实账户/i.test(source);
+    return !hasSupportSemantics || leaksPrompt || looksLikeAccountOverview;
+  }
+  return false;
 }
 
 function readComponentLibrary() {
@@ -1753,9 +2085,16 @@ function readComponentLibrary() {
   const components = Array.isArray(data.components)
     ? data.components
         .map((item) => normalizeGeneratedComponent(item, {}, { preserveUpdatedAt: true }))
-        .filter((item) => item.html && item.css && !generatedComponentTooGeneric(item))
+        .filter((item) => item.html && item.css && !generatedComponentTooGeneric(item) && !generatedComponentViolatesFamily(item, { family: item.family }))
     : [];
   return { components };
+}
+
+function readRawComponentLibrary() {
+  const data = readJsonFile(COMPONENT_LIBRARY_FILE, { components: [] });
+  return {
+    components: Array.isArray(data.components) ? data.components.filter((component) => component && typeof component === "object") : [],
+  };
 }
 
 function componentStyleSignals(css) {
@@ -1785,6 +2124,7 @@ function summarizeComponentForPrompt(component) {
     name: component.name,
     family: component.family,
     size: component.size,
+    score: normalizeComponentScore(component.score, 5),
     description: component.description,
     tags: Array.isArray(component.tags) ? component.tags.slice(0, 6) : [],
     layoutHints: Array.isArray(component.layoutHints) ? component.layoutHints.slice(0, 4) : [],
@@ -1802,6 +2142,7 @@ function rankComponentReferences(components, options = {}) {
 
   return components
     .map((component, index) => {
+      const userScore = normalizeComponentScore(component.score, 5);
       const haystack = normalizeKeywordText(
         [
           component.id,
@@ -1823,13 +2164,14 @@ function rankComponentReferences(components, options = {}) {
       return {
         component,
         score:
+          userScore * 18 +
           (family && component.family === family ? 80 : 0) +
           (size && component.size === size ? 22 : 0) +
           promptHits * 8 +
-          Math.min(index, 20),
+          Math.max(0, 20 - Math.min(index, 20)) * 0.2,
       };
     })
-    .sort((a, b) => b.score - a.score)
+    .sort((a, b) => b.score - a.score || normalizeComponentScore(b.component.score, 5) - normalizeComponentScore(a.component.score, 5))
     .map((item) => item.component)
     .slice(0, limit);
 }
@@ -1840,10 +2182,28 @@ function componentLibraryPromptReference(options = {}) {
 
   return {
     referenceMode: "先参考已保存组件库积木的业务字段、尺寸、按钮、标签、卡片密度和视觉层级，再根据本次意图做新组合或新变体。",
+    scoringRule: "score 为用户 1-10 分评分；同等相关性下优先参考高分组件。",
     freedomRule: "允许有 AI 灵感，但灵感必须依托现有父模块、真实字段、可用尺寸或组件语言；不能把组件库参考当成新增业务能力授权。",
     availableCount: components.length,
     selectedComponents: selected.map(summarizeComponentForPrompt),
   };
+}
+
+function scoreContextPromptReference(value) {
+  const source = Array.isArray(value) ? value : [];
+  return source
+    .map((item) => ({
+      type: cleanText(item?.type, "", 32),
+      family: cleanText(item?.family, "", 80),
+      name: cleanText(item?.name, "", 80),
+      size: normalizeComponentSize(item?.size, "2x1"),
+      score: normalizeComponentScore(item?.score, 5),
+      visibleText: cleanText(item?.visibleText, "", 260),
+      description: cleanText(item?.description, "", 180),
+    }))
+    .filter((item) => item.name && item.family)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 8);
 }
 
 function savedCompositionPromptReference(limit = 6) {
@@ -1864,6 +2224,468 @@ function savedCompositionPromptReference(limit = 6) {
       themeAdvice: cleanText(composition.themeAdvice, "", 180),
       polishInstructions: cleanText(composition.polishInstructions, "", 220),
     }));
+}
+
+function normalizeDesignFunction(item = {}) {
+  return {
+    name: cleanText(item.name || item.label, "首页功能", 60),
+    objective: cleanText(item.objective || item.goal || item.description, "", 180),
+    modules: (Array.isArray(item.modules) ? item.modules : []).map((module) => cleanText(module, "", 80)).filter(Boolean).slice(0, 10),
+    data: (Array.isArray(item.data) ? item.data : []).map((field) => cleanText(field, "", 80)).filter(Boolean).slice(0, 10),
+    actions: (Array.isArray(item.actions) ? item.actions : []).map((action) => cleanText(action, "", 80)).filter(Boolean).slice(0, 8),
+    states: (Array.isArray(item.states) ? item.states : []).map((state) => cleanText(state, "", 80)).filter(Boolean).slice(0, 8),
+  };
+}
+
+function normalizeSampleBlock(item = {}) {
+  return {
+    id: safeId(item.id || item.name || item.label, "sample-block"),
+    name: cleanText(item.name || item.label, "样本块", 60),
+    page: cleanText(item.page || item.pageRole || item.area, "", 80),
+    function: cleanText(item.function || item.functionName || item.objective, "", 160),
+    componentRefs: (Array.isArray(item.componentRefs) ? item.componentRefs : []).map((id) => cleanText(id, "", 80)).filter(Boolean).slice(0, 8),
+    visualNotes: (Array.isArray(item.visualNotes) ? item.visualNotes : []).map((note) => cleanText(note, "", 120)).filter(Boolean).slice(0, 6),
+    dataFields: (Array.isArray(item.dataFields) ? item.dataFields : []).map((field) => cleanText(field, "", 80)).filter(Boolean).slice(0, 8),
+  };
+}
+
+function normalizeDesignSample(sample = {}) {
+  const page = sample.page && typeof sample.page === "object" ? sample.page : {};
+  return {
+    id: safeId(sample.id || sample.name, "design-sample"),
+    name: cleanText(sample.name, "首页审美样本", 80),
+    scenario: cleanText(sample.scenario || sample.intent || sample.pageIntent, "", 120),
+    pageIntent: cleanText(sample.pageIntent || sample.intent, "", 60),
+    visualStyle: cleanText(sample.visualStyle || sample.style, "", 80),
+    aestheticScore: Number.isFinite(Number(sample.aestheticScore)) ? Math.max(0, Math.min(100, Math.round(Number(sample.aestheticScore)))) : 88,
+    tags: (Array.isArray(sample.tags) ? sample.tags : []).map((tag) => cleanText(tag, "", 36)).filter(Boolean).slice(0, 12),
+    page: {
+      name: cleanText(page.name || sample.name, "首页页面", 80),
+      layout: cleanText(page.layout, "", 180),
+      hero: cleanText(page.hero, "", 180),
+      navigation: cleanText(page.navigation, "", 140),
+      mobile: cleanText(page.mobile, "", 160),
+    },
+    functions: (Array.isArray(sample.functions) ? sample.functions : []).map(normalizeDesignFunction).slice(0, 10),
+    sampleBlocks: (Array.isArray(sample.sampleBlocks) ? sample.sampleBlocks : []).map(normalizeSampleBlock).slice(0, 12),
+    componentRefs: (Array.isArray(sample.componentRefs) ? sample.componentRefs : []).map((id) => cleanText(id, "", 80)).filter(Boolean).slice(0, 12),
+    goodPatterns: (Array.isArray(sample.goodPatterns) ? sample.goodPatterns : []).map((item) => cleanText(item, "", 140)).filter(Boolean).slice(0, 10),
+    avoidPatterns: (Array.isArray(sample.avoidPatterns) ? sample.avoidPatterns : []).map((item) => cleanText(item, "", 140)).filter(Boolean).slice(0, 10),
+    promptSeeds: (Array.isArray(sample.promptSeeds) ? sample.promptSeeds : []).map((item) => cleanText(item, "", 260)).filter(Boolean).slice(0, 8),
+    createdAt: sample.createdAt || new Date().toISOString(),
+    updatedAt: sample.updatedAt || sample.createdAt || new Date().toISOString(),
+  };
+}
+
+function readDesignSamples() {
+  const data = readJsonFile(DESIGN_SAMPLE_FILE, { samples: [] });
+  return {
+    version: Number.isFinite(Number(data.version)) ? Number(data.version) : 1,
+    updatedAt: cleanText(data.updatedAt, "", 40) || new Date().toISOString(),
+    samples: (Array.isArray(data.samples) ? data.samples : []).map(normalizeDesignSample),
+  };
+}
+
+function writeDesignSamples(samples) {
+  const normalized = (Array.isArray(samples) ? samples : []).map(normalizeDesignSample);
+  const payload = { version: 1, updatedAt: new Date().toISOString(), samples: normalized };
+  writeJsonFile(DESIGN_SAMPLE_FILE, payload);
+  return payload;
+}
+
+function saveDesignSample(sample) {
+  const library = readDesignSamples();
+  const normalized = normalizeDesignSample(sample);
+  return {
+    sample: normalized,
+    library: writeDesignSamples(library.samples.filter((item) => item.id !== normalized.id).concat(normalized)),
+  };
+}
+
+function designSampleSearchText(sample) {
+  return normalizeKeywordText(
+    [
+      sample.id,
+      sample.name,
+      sample.scenario,
+      sample.pageIntent,
+      sample.visualStyle,
+      ...(Array.isArray(sample.tags) ? sample.tags : []),
+      sample.page?.layout,
+      sample.page?.hero,
+      ...(Array.isArray(sample.functions) ? sample.functions.flatMap((item) => [item.name, item.objective, ...(item.modules || []), ...(item.actions || [])]) : []),
+      ...(Array.isArray(sample.sampleBlocks) ? sample.sampleBlocks.flatMap((item) => [item.name, item.page, item.function, ...(item.visualNotes || [])]) : []),
+      ...(Array.isArray(sample.goodPatterns) ? sample.goodPatterns : []),
+    ].join(" "),
+  );
+}
+
+function rankDesignSamplesForPrompt(prompt, limit = 4) {
+  const text = normalizeKeywordText(prompt);
+  const words = text.split(/\s+|[，,。；;、]/).filter((word) => word.length >= 2);
+  return readDesignSamples().samples
+    .map((sample, index) => {
+      const haystack = designSampleSearchText(sample);
+      const promptHits = words.filter((word) => haystack.includes(word)).length;
+      const tagHits = (sample.tags || []).filter((tag) => text.includes(String(tag).toLowerCase()) || text.includes(String(tag))).length;
+      return {
+        sample,
+        score: promptHits * 8 + tagHits * 14 + Math.round((sample.aestheticScore || 0) / 10) - index * 0.01,
+      };
+    })
+    .sort((a, b) => b.score - a.score)
+    .map((item) => item.sample)
+    .slice(0, Math.max(1, Math.min(Number(limit) || 4, 8)));
+}
+
+function summarizeDesignSampleForPrompt(sample) {
+  return {
+    id: sample.id,
+    name: sample.name,
+    scenario: sample.scenario,
+    pageIntent: sample.pageIntent,
+    visualStyle: sample.visualStyle,
+    aestheticScore: sample.aestheticScore,
+    page: sample.page,
+    functions: sample.functions.slice(0, 5),
+    sampleBlocks: sample.sampleBlocks.slice(0, 6),
+    componentRefs: sample.componentRefs.slice(0, 8),
+    goodPatterns: sample.goodPatterns.slice(0, 8),
+    avoidPatterns: sample.avoidPatterns.slice(0, 6),
+  };
+}
+
+function componentAestheticWeight(component = {}) {
+  const source = normalizeKeywordText([
+    component.id,
+    component.name,
+    component.family,
+    component.description,
+    component.html,
+    component.css,
+    ...(Array.isArray(component.tags) ? component.tags : []),
+  ].join(" "));
+  let score = 0;
+  [
+    "vip",
+    "hero",
+    "blackgold",
+    "chart",
+    "dock",
+    "console",
+    "journey",
+    "campaign",
+    "carousel",
+    "premium",
+    "专业",
+    "黑金",
+    "高净值",
+    "图表",
+    "轮播",
+    "开户",
+  ].forEach((signal) => {
+    if (source.includes(signal)) score += 8;
+  });
+  if (/display\s*:\s*grid/i.test(component.css || "")) score += 6;
+  if (/linear-gradient|radial-gradient/i.test(component.css || "")) score += 4;
+  if (/svg|path|chart|curve|progress|step|timeline/i.test(`${component.html || ""} ${component.css || ""}`)) score += 6;
+  return score;
+}
+
+function beautifulComponentReferences(options = {}) {
+  const prompt = cleanText(options.prompt, "", 1200);
+  const limit = Math.max(1, Math.min(Number(options.limit) || 8, 16));
+  const ranked = rankComponentReferences(readComponentLibrary().components, { ...options, limit: 16 })
+    .map((component, index) => ({ component, score: componentAestheticWeight(component) - index }))
+    .sort((a, b) => b.score - a.score)
+    .map((item) => item.component)
+    .slice(0, limit);
+
+  return ranked.map((component) => ({
+    ...summarizeComponentForPrompt(component),
+    aestheticValue: componentAestheticWeight(component),
+    reuseAdvice: "参考它的字段密度、按钮层级、卡片比例和状态表达，但不要逐字复制 HTML/CSS。",
+    matchedPrompt: Boolean(prompt && designSampleSearchText({ ...normalizeDesignSample({ name: component.name, tags: component.tags || [], functions: [] }) }).includes(normalizeKeywordText(prompt).slice(0, 16))),
+  }));
+}
+
+function readAestheticScoreRecords() {
+  const data = readJsonFile(AESTHETIC_SCORE_FILE, { records: [] });
+  return Array.isArray(data.records) ? data.records.slice(0, MAX_AESTHETIC_SCORE_RECORDS) : [];
+}
+
+function writeAestheticScoreRecords(records) {
+  const normalized = (Array.isArray(records) ? records : []).slice(0, MAX_AESTHETIC_SCORE_RECORDS);
+  writeJsonFile(AESTHETIC_SCORE_FILE, { records: normalized });
+  return normalized;
+}
+
+function addAestheticScoreRecord(record) {
+  const records = readAestheticScoreRecords();
+  const nextRecord = {
+    id: `score-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    at: new Date().toISOString(),
+    ...record,
+  };
+  writeAestheticScoreRecords([nextRecord, ...records]);
+  return nextRecord;
+}
+
+function readFeedbackMemoryRecords() {
+  const data = readJsonFile(FEEDBACK_MEMORY_FILE, { records: [] });
+  return Array.isArray(data.records) ? data.records.slice(0, MAX_FEEDBACK_MEMORY_RECORDS) : [];
+}
+
+function writeFeedbackMemoryRecords(records) {
+  const normalized = (Array.isArray(records) ? records : []).slice(0, MAX_FEEDBACK_MEMORY_RECORDS);
+  writeJsonFile(FEEDBACK_MEMORY_FILE, { records: normalized });
+  return normalized;
+}
+
+function addFeedbackMemoryRecord(record) {
+  const records = readFeedbackMemoryRecords();
+  const nextRecord = {
+    id: `feedback-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    at: new Date().toISOString(),
+    ...record,
+  };
+  writeFeedbackMemoryRecords([nextRecord, ...records]);
+  return nextRecord;
+}
+
+function ensureReferenceAssetDir() {
+  fs.mkdirSync(REFERENCE_ASSET_DIR, { recursive: true });
+}
+
+function referenceAssetType(mime = "", filename = "") {
+  const source = `${mime} ${filename}`.toLowerCase();
+  if (/image\/|\.png|\.jpe?g|\.webp|\.gif$/.test(source)) return "image";
+  if (/html|\.html?$/.test(source)) return "html";
+  if (/pdf|\.pdf$/.test(source)) return "pdf";
+  return "file";
+}
+
+function referenceAssetExtension(mime = "", filename = "") {
+  const ext = path.extname(filename || "").replace(".", "").toLowerCase();
+  if (["png", "jpg", "jpeg", "webp", "gif", "html", "htm", "pdf", "txt"].includes(ext)) {
+    return ext === "htm" ? "html" : ext;
+  }
+  if (/png/i.test(mime)) return "png";
+  if (/jpe?g/i.test(mime)) return "jpg";
+  if (/webp/i.test(mime)) return "webp";
+  if (/gif/i.test(mime)) return "gif";
+  if (/html/i.test(mime)) return "html";
+  if (/pdf/i.test(mime)) return "pdf";
+  if (/text/i.test(mime)) return "txt";
+  return "txt";
+}
+
+function normalizeReferenceAsset(record = {}) {
+  const name = cleanText(record.name, "参考稿", 120);
+  const mime = cleanText(record.mime, "", 80);
+  const url = cleanText(record.url, "", 220);
+  return {
+    id: safeId(record.id || name, "reference"),
+    at: record.at || record.createdAt || new Date().toISOString(),
+    name,
+    type: cleanText(record.type || referenceAssetType(mime, name), "file", 24),
+    mime,
+    size: Number.isFinite(Number(record.size)) ? Math.max(0, Number(record.size)) : 0,
+    fileName: cleanText(record.fileName, "", 180),
+    storagePath: cleanText(record.storagePath, "", 260),
+    url,
+    note: cleanText(record.note, "", 700),
+    tags: (Array.isArray(record.tags) ? record.tags : []).map((tag) => cleanText(tag, "", 36)).filter(Boolean).slice(0, 12),
+    textExcerpt: cleanText(record.textExcerpt, "", 900),
+    createdAt: record.createdAt || record.at || new Date().toISOString(),
+  };
+}
+
+function readReferenceAssets() {
+  const data = readJsonFile(REFERENCE_ASSET_FILE, { records: [] });
+  return (Array.isArray(data.records) ? data.records : []).map(normalizeReferenceAsset).slice(0, MAX_REFERENCE_ASSETS);
+}
+
+function writeReferenceAssets(records) {
+  const normalized = (Array.isArray(records) ? records : []).map(normalizeReferenceAsset).slice(0, MAX_REFERENCE_ASSETS);
+  writeJsonFile(REFERENCE_ASSET_FILE, { version: 1, updatedAt: new Date().toISOString(), records: normalized });
+  return normalized;
+}
+
+function decodeReferenceDataUrl(dataUrl = "") {
+  const match = String(dataUrl || "").match(/^data:([^;,]+)?;base64,(.+)$/i);
+  if (!match) return null;
+  return {
+    mime: cleanText(match[1], "application/octet-stream", 80),
+    buffer: Buffer.from(match[2], "base64"),
+  };
+}
+
+function saveReferenceAsset(asset = {}) {
+  ensureReferenceAssetDir();
+  const now = new Date().toISOString();
+  const name = cleanText(asset.name, "参考稿", 120);
+  const inputMime = cleanText(asset.mime, "", 80);
+  const type = referenceAssetType(inputMime, name);
+  const ext = referenceAssetExtension(inputMime, name);
+  const id = `reference-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const baseName = safeId(path.basename(name, path.extname(name)), "asset");
+  const fileName = `${id}-${baseName}.${ext}`;
+  const filePath = path.join(REFERENCE_ASSET_DIR, fileName);
+  let mime = inputMime;
+  let buffer = null;
+  let textExcerpt = "";
+
+  if (asset.textContent || type === "html") {
+    const rawText = String(asset.textContent || "");
+    const text = ext === "html" ? sanitizeGeneratedHtml(rawText) : rawText.slice(0, 200_000);
+    buffer = Buffer.from(text, "utf8");
+    mime = ext === "html" ? "text/html" : "text/plain";
+    textExcerpt = cleanText(text.replace(/<[^>]+>/g, " "), "", 900);
+  } else {
+    const decoded = decodeReferenceDataUrl(asset.dataUrl);
+    if (!decoded) {
+      throw Object.assign(new Error("参考稿文件内容缺失或格式不支持"), { statusCode: 400 });
+    }
+    mime = inputMime || decoded.mime;
+    buffer = decoded.buffer;
+  }
+
+  if (!buffer || buffer.length <= 0) {
+    throw Object.assign(new Error("参考稿文件为空"), { statusCode: 400 });
+  }
+  if (buffer.length > 6_000_000) {
+    throw Object.assign(new Error("单个参考稿不能超过 6MB"), { statusCode: 413 });
+  }
+
+  fs.writeFileSync(filePath, buffer);
+  const record = normalizeReferenceAsset({
+    id,
+    at: now,
+    createdAt: now,
+    name,
+    type,
+    mime,
+    size: Number(asset.size) || buffer.length,
+    fileName,
+    storagePath: path.relative(ROOT_DIR, filePath),
+    url: `/artifacts/home-ai-reference-assets/${fileName}`,
+    note: asset.note,
+    tags: asset.tags,
+    textExcerpt,
+  });
+  const records = readReferenceAssets();
+  return writeReferenceAssets([record, ...records]);
+}
+
+function referenceAssetsForPrompt(prompt = "", options = {}) {
+  const selectedIds = new Set(Array.isArray(options.referenceAssetIds) ? options.referenceAssetIds.map((id) => cleanText(id, "", 90)) : []);
+  const text = normalizeKeywordText(prompt);
+  const words = text.split(/\s+|[，,。；;、]/).filter((word) => word.length >= 2);
+  return readReferenceAssets()
+    .map((asset, index) => {
+      const haystack = normalizeKeywordText([asset.name, asset.note, asset.textExcerpt, ...(asset.tags || [])].join(" "));
+      const hits = words.filter((word) => haystack.includes(word)).length;
+      const selected = selectedIds.has(asset.id) ? 100 : 0;
+      return { asset, score: selected + hits * 12 - index * 0.01 };
+    })
+    .sort((a, b) => b.score - a.score)
+    .map(({ asset }) => ({
+      id: asset.id,
+      name: asset.name,
+      type: asset.type,
+      mime: asset.mime,
+      url: asset.url,
+      note: asset.note,
+      tags: asset.tags,
+      textExcerpt: asset.textExcerpt,
+      guidance: "这是用户上传的审美参考稿。优先学习它的页面气质、层级、视觉焦点和信息密度，不要直接复制受保护内容。",
+    }))
+    .slice(0, Math.max(1, Math.min(Number(options.limit) || 4, 8)));
+}
+
+function feedbackRecordSearchText(record) {
+  return normalizeKeywordText([
+    record.prompt,
+    record.note,
+    record.decision,
+    record.rating,
+    record.pageIntent,
+    record.visualStyle,
+    record.manualScore,
+    record.machineScore,
+    ...(Array.isArray(record.tags) ? record.tags : []),
+    ...(Array.isArray(record.preferenceSignals) ? record.preferenceSignals : []),
+    ...(Array.isArray(record.referenceAssets) ? record.referenceAssets.flatMap((item) => [item.name, ...(Array.isArray(item.tags) ? item.tags : [])]) : []),
+  ].join(" "));
+}
+
+function feedbackMemoryPromptReference(prompt, limit = 5) {
+  const text = normalizeKeywordText(prompt);
+  const words = text.split(/\s+|[，,。；;、]/).filter((word) => word.length >= 2);
+  return readFeedbackMemoryRecords()
+    .map((record, index) => {
+      const haystack = feedbackRecordSearchText(record);
+      const hits = words.filter((word) => haystack.includes(word)).length;
+      const positive = ["approve", "like", "selected", "good"].includes(record.decision) || Number(record.rating) >= 4 ? 16 : 0;
+      const negative = ["reject", "dislike", "bad"].includes(record.decision) || Number(record.rating) <= 2 ? 8 : 0;
+      return { record, score: hits * 10 + positive + negative - index * 0.01 };
+    })
+    .sort((a, b) => b.score - a.score)
+    .map(({ record }) => ({
+      id: record.id,
+      decision: record.decision,
+      rating: record.rating,
+      pageIntent: record.pageIntent,
+      visualStyle: record.visualStyle,
+      note: cleanText(record.note, "", 220),
+      manualScore: Number.isFinite(Number(record.manualScore)) ? Number(record.manualScore) : null,
+      machineScore: Number.isFinite(Number(record.machineScore)) ? Number(record.machineScore) : null,
+      preferenceSignals: Array.isArray(record.preferenceSignals) ? record.preferenceSignals.slice(0, 6) : [],
+      tags: Array.isArray(record.tags) ? record.tags.slice(0, 8) : [],
+      referenceAssets: Array.isArray(record.referenceAssets) ? record.referenceAssets.slice(0, 4) : [],
+    }))
+    .slice(0, Math.max(1, Math.min(Number(limit) || 5, 10)));
+}
+
+function aestheticTrainingContext(payloadOrPrompt = {}, options = {}) {
+  const prompt = typeof payloadOrPrompt === "string" ? payloadOrPrompt : cleanText(payloadOrPrompt.prompt, "", 1200);
+  const referenceAssetIds = typeof payloadOrPrompt === "object" && Array.isArray(payloadOrPrompt.referenceAssetIds) ? payloadOrPrompt.referenceAssetIds : [];
+  const samples = rankDesignSamplesForPrompt(prompt, options.sampleLimit || 4).map(summarizeDesignSampleForPrompt);
+  return {
+    purpose: "用于提升首页美感的训练上下文：用户上传参考稿决定审美方向，样本页面告诉模型怎么组织页面和功能，组件库积木告诉模型可借鉴的视觉细节，反馈记忆告诉模型用户偏好。",
+    referenceAssets: referenceAssetsForPrompt(prompt, { limit: options.referenceLimit || 4, referenceAssetIds }),
+    samplePages: samples,
+    beautifulComponents: beautifulComponentReferences({ prompt, limit: options.componentLimit || 8 }),
+    feedbackMemory: feedbackMemoryPromptReference(prompt, options.feedbackLimit || 5),
+    scoringRubric: {
+      visualFocus: "首屏必须有明确视觉焦点、主标题、主操作和品牌氛围。",
+      hierarchy: "模块要有大小、密度和层级差异，不能全部是同一种白卡。",
+      componentCraft: "优先参考漂亮积木块的字段密度、状态标签、按钮层级、图表/步骤表达。",
+      businessFunction: "每个样本块都必须绑定页面位置、功能目标、数据字段和系统动作。",
+      responsive: "桌面 12 栅格有节奏，移动端自然单列，不靠空白撑高级感。",
+    },
+  };
+}
+
+function componentAestheticPromptReference(options = {}) {
+  const prompt = cleanText(options.prompt, "", 1200);
+  const family = cleanText(options.family, "", 60);
+  const size = cleanText(options.size, "", 12);
+  return {
+    purpose: "用于让单个积木组件参考已保存漂亮积木后再生成：先吸收字段密度、按钮层级、状态标签、卡片比例、图表/步骤表达，再根据本次 slot 和尺寸做新的组件形态。",
+    referenceRule: "漂亮积木是审美和结构参考，不是复制源；必须改变布局、密度、层级或组合方式，不能只换色、换标题或照搬 HTML/CSS。",
+    selectedBeautifulBricks: beautifulComponentReferences({ family, size, prompt, limit: options.limit || 6 }),
+    samplePages: rankDesignSamplesForPrompt(prompt, options.sampleLimit || 2).map(summarizeDesignSampleForPrompt),
+    feedbackMemory: feedbackMemoryPromptReference(prompt, options.feedbackLimit || 3),
+    polishRubric: {
+      visualFocus: "组件内部必须有一个清晰主焦点：主数值、主状态、主步骤、主图表或主动作只能选一个最突出。",
+      hierarchy: "信息用主/次/辅助三级表达，避免所有字段等权小卡片。",
+      craft: "至少体现一种真实结构差异，如指标带、状态条、时间线、操作坞、表格/列表、趋势图容器或步骤连接。",
+      density: "金融客户端要克制紧凑，减少空白占位、厚重阴影、装饰性渐变和无意义 eyebrow。",
+      responsive: "在 1x、2x、3x 尺寸下都能自适应，不依赖固定大高度或不可控内容撑开。",
+    },
+  };
 }
 
 function aiHtmlDataBindingsFromConfig(config) {
@@ -1989,6 +2811,14 @@ const AI_HTML_MODULE_CONTRACTS = {
     signals: ["APP", "下载", "移动端", "app download"],
     expectation: "只做下载入口占位，不得编造二维码或下载链接。",
   },
+};
+
+const AI_HTML_REFERENCE_FAMILY_ALIASES = {
+  PammProducts: ["PammProducts", "ClientHomeAtoms"],
+  CopytradingSignals: ["CopytradingSignals", "ClientHomeAtoms"],
+  Announcements: ["Announcements", "ClientHomeAtoms"],
+  MarketNews: ["MarketNews", "ClientHomeAtoms"],
+  AppDownload: ["AppDownload", "ClientHomeAtoms"],
 };
 
 const AI_HTML_MODULE_CAPABILITIES = {
@@ -2188,9 +3018,13 @@ function normalizeAiHtmlComponentReferences(value, fallback = []) {
       if (!item || typeof item !== "object") return null;
       return {
         componentId: cleanText(item.componentId || item.id || item.name, "", 80),
+        name: cleanText(item.name || item.label, "", 80),
         family: cleanText(item.family, "", 60),
+        requiredFamily: cleanText(item.requiredFamily || item.targetFamily, "", 60),
         module: cleanText(item.module || item.block || item.component, "", 60),
         reason: cleanText(item.reason || item.usedFor || item.inspiration, "", 180),
+        visibleText: cleanText(item.visibleText, "", 220),
+        styleSignals: normalizeAiHtmlTextList(item.styleSignals || item.hints, 6, 60),
       };
     })
     .filter((item) => item && (item.componentId || item.family || item.module || item.reason))
@@ -2307,22 +3141,39 @@ function aiHtmlRequiredModuleContracts(payload = {}, config = {}) {
       expectation: AI_HTML_MODULE_CONTRACTS[block].expectation,
       signals: AI_HTML_MODULE_CONTRACTS[block].signals.slice(0, 8),
       capability: aiHtmlModuleCapability(block),
-    }));
+	    }));
+	}
+	
+function aiHtmlReferenceFamilies(family) {
+  const canonical = cleanText(family, "", 60);
+  return [canonical, ...(AI_HTML_REFERENCE_FAMILY_ALIASES[canonical] || [])].filter(Boolean).filter((item, index, list) => list.indexOf(item) === index);
+}
+
+function aiHtmlReferenceCoversFamily(reference = {}, family = "") {
+  const expected = aiHtmlReferenceFamilies(family).map((item) => item.toLowerCase());
+  const actual = [reference.family, reference.requiredFamily, reference.targetFamily].map((item) => String(item || "").toLowerCase()).filter(Boolean);
+  return actual.some((item) => expected.includes(item));
 }
 
 function aiHtmlComponentReferenceHints(requiredModules, prompt) {
   const families = new Set(requiredModules.map((item) => item.family).filter(Boolean));
   const selected = [];
   families.forEach((family) => {
-    const reference = componentLibraryPromptReference({ prompt, family, limit: 4 }).selectedComponents;
+    const reference = aiHtmlReferenceFamilies(family)
+      .flatMap((referenceFamily) => componentLibraryPromptReference({ prompt, family: referenceFamily, limit: 4 }).selectedComponents)
+      .filter((component, index, list) => component?.id && list.findIndex((item) => item.id === component.id) === index);
     const exactMatches = reference.filter((component) => component.family === family);
     (exactMatches.length ? exactMatches : reference.slice(0, 1)).slice(0, 2).forEach((component) => {
       if (!selected.some((item) => item.componentId === component.id)) {
         selected.push({
           componentId: component.id,
+          name: component.name,
           family: component.family,
+          requiredFamily: family,
           module: requiredModules.find((item) => item.family === family)?.component || "",
           reason: `${component.name} 可参考 ${component.styleSignals?.slice(0, 3).join("、") || "业务字段和布局密度"}`,
+          visibleText: component.visibleText,
+          styleSignals: component.styleSignals,
         });
       }
     });
@@ -2389,6 +3240,7 @@ function evaluateAiHtmlQuality(scheme, payload = {}, config = {}) {
     requiredModules,
   );
   const componentReferenceHints = aiHtmlComponentReferenceHints(requiredModules, payload.prompt || "");
+  const componentReferences = normalizeAiHtmlComponentReferences(source.componentReferences, []);
   const issues = [];
   const checks = [];
   const strengths = [];
@@ -2409,12 +3261,32 @@ function evaluateAiHtmlQuality(scheme, payload = {}, config = {}) {
   if (!/\bai-html-/i.test(`${html} ${css}`)) miss(10, "类名没有稳定使用 ai-html- 前缀，隔离性不足。");
   if (!/var\(--home-/i.test(css)) miss(12, "CSS 没有充分使用首页主题 token，容易和组件库视觉脱节。");
   else pass("使用首页主题 token 承接品牌视觉。");
+  const hardcodedColors = [...new Set(css.match(/#[0-9a-f]{3,8}\b/gi) || [])].filter((color) => !["#fff", "#ffffff", "#000", "#000000"].includes(color.toLowerCase()));
+  if (hardcodedColors.length > 10) miss(8, "硬编码颜色过多，未充分遵守 design.md 的 token 化视觉约束。");
+  else pass("硬编码颜色受控，主要依赖主题 token。");
+  const gradientCount = countAiHtmlMatches(css, /\b(?:linear|radial)-gradient\s*\(/gi);
+  if (gradientCount > 4) miss(8, "装饰性渐变过多，容易偏向营销页而不是金融 CRM 工作台。");
+  const largeRadiusValues = (css.match(/border-radius\s*:\s*([0-9.]+)px/gi) || [])
+    .map((item) => Number((item.match(/([0-9.]+)px/i) || [])[1]))
+    .filter((value) => Number.isFinite(value) && value > 18);
+  if (largeRadiusValues.length) miss(6, "圆角过大，容易脱离 CRM 组件规范。");
+  const oversizedTypeValues = (css.match(/font-size\s*:\s*([0-9.]+)px/gi) || [])
+    .map((item) => Number((item.match(/([0-9.]+)px/i) || [])[1]))
+    .filter((value) => Number.isFinite(value) && value > 48);
+  if (oversizedTypeValues.length) miss(6, "标题字号过大，页面可能偏营销 hero 而非工作台界面。");
   if (!/(display\s*:\s*grid|display\s*:\s*flex|grid-template-columns)/i.test(css)) miss(12, "布局缺少 grid/flex/栅格表达，容易退化成基础上下堆叠。");
   else pass("具备 grid/flex 布局结构。");
   if (!/@media/i.test(css)) miss(8, "缺少响应式规则，大屏/移动端美观性不可控。");
   else pass("包含响应式规则。");
 	  if (!/data-home-action=/i.test(html)) miss(8, "缺少 data-home-action，关键按钮无法接入系统动作。");
 	  else pass("关键动作带 data-home-action。");
+	  const controlCount = countAiHtmlMatches(html, /<(?:a|button)\b/gi);
+	  const controlCssEvidence = /\.ai-html-[^{]*(?:button|btn|cta|action)[^{]*\{|\.ai-html-page\s+(?:a|button)|a\[data-home-action\]|button\[data-home-action\]/i.test(css);
+	  if (controlCount && !controlCssEvidence) {
+	    miss(10, "按钮仍像原生控件，缺少 AI HTML 范围内的按钮/链接样式。");
+	  } else if (controlCount) {
+	    pass("按钮和链接有 AI HTML 范围内的视觉样式。");
+	  }
 	  if (aiHtmlLeaksPrompt(visibleText, payload.prompt)) {
 	    miss(28, "客户页面疑似渲染了管理员提示词原文，必须改写为面向客户的首页文案。");
 	  }
@@ -2452,6 +3324,17 @@ function evaluateAiHtmlQuality(scheme, payload = {}, config = {}) {
 	  }
 	  if (thinVisibleModules.length) {
 	    miss(Math.min(24, thinVisibleModules.length * 6), `要求模块只有标题或弱露出，缺少可见字段/状态/动作：${thinVisibleModules.map((item) => item.label).slice(0, 4).join("、")}。`);
+	  }
+		  if (requiredModules.length >= 3) {
+		    const requiredFamilies = [...new Set(requiredModules.map((item) => item.family).filter(Boolean))];
+		    const coveredFamilies = requiredFamilies.filter((family) => componentReferences.some((reference) => aiHtmlReferenceCoversFamily(reference, family)));
+		    if (!componentReferences.length) {
+		      miss(10, "缺少 componentReferences，无法证明 AI HTML 参考了组件库。");
+		    } else if (coveredFamilies.length < Math.min(3, requiredFamilies.length)) {
+	      miss(6, `componentReferences 覆盖组件家族不足：${coveredFamilies.length}/${requiredFamilies.length}。`);
+	    } else {
+	      pass("componentReferences 覆盖多个组件库家族。");
+	    }
 	  }
 
   if (!implementationContract.length) {
@@ -2657,6 +3540,54 @@ function aiHtmlResponsiveFallbackCss() {
   `;
 }
 
+function aiHtmlControlFallbackCss() {
+  return `
+    .ai-html-control-fallback{display:contents}
+    .ai-html-page a[data-home-action],.ai-html-page button{appearance:none;min-height:40px;display:inline-grid;place-items:center;width:max-content;max-width:100%;padding:0 14px;border:1px solid var(--home-button-border,var(--home-primary,#2563eb));border-radius:var(--home-radius-sm,8px);background:var(--home-button-bg,var(--home-primary,#2563eb));color:var(--home-button-text,#fff);font:inherit;font-weight:900;line-height:1.2;text-decoration:none;cursor:pointer}
+    .ai-html-page button:not([data-home-action]),.ai-html-page a[data-home-action]:not(.ai-html-primary-cta):not([class*="primary"]){background:var(--home-surface-soft,#f8fbff);color:var(--home-text,#172033);border-color:var(--home-border,#dbe4ef)}
+  `;
+}
+
+function aiHtmlNeedsControlFallback(html, css) {
+  const hasControls = /<(?:a|button)\b/i.test(String(html || ""));
+  if (!hasControls) return false;
+  return !/\.ai-html-[^{]*(?:button|btn|cta|action)[^{]*\{|\.ai-html-page\s+(?:a|button)|a\[data-home-action\]|button\[data-home-action\]|ai-html-control-fallback/i.test(String(css || ""));
+}
+
+function synthesizeAiHtmlImplementationContract(requiredModules = [], html = "") {
+  const htmlText = String(html || "");
+  return (Array.isArray(requiredModules) ? requiredModules : [])
+    .map((item) => {
+      const moduleId = cleanText(item?.component, "", 80);
+      const label = cleanText(item?.label, moduleId, 80);
+      const capability = item?.capability || {};
+      const hasModuleRegion = moduleId ? new RegExp(`data-ai-html-module=["']${moduleId}["']`, "i").test(htmlText) : false;
+      const visibleSignals = (Array.isArray(item?.signals) ? item.signals : []).filter((signal) => textContainsAnySignal(htmlText, [signal])).slice(0, 3);
+      const dataFields = normalizeAiHtmlTextList(capability.dataFields, 10, 72);
+      const states = normalizeAiHtmlTextList(capability.states, 8, 72);
+      const actions = normalizeAiHtmlTextList(capability.actions, 8, 72);
+      const renderEvidence = [
+        hasModuleRegion ? `data-ai-html-module="${moduleId}" 区域可见` : "",
+        ...visibleSignals.map((signal) => `HTML 可见信号：${signal}`),
+        item?.expectation ? cleanText(item.expectation, "", 120) : "",
+      ].filter(Boolean);
+
+      return {
+        module: moduleId,
+        label,
+        family: cleanText(item?.family, "", 80),
+        dataFields,
+        states,
+        actions,
+        interactions: actions.length ? actions.map((action) => `通过 data-home-action 或模块 CTA 承接 ${action}`).slice(0, 4) : [],
+        renderEvidence: renderEvidence.length ? renderEvidence : [`${label} 按模块契约补齐渲染证据`],
+        emptyShellRisk: !hasModuleRegion && !visibleSignals.length,
+        note: "服务端根据 requiredModules、HTML 区域和组件库契约自动补齐，避免短输出模型被迫返回冗长说明。",
+      };
+    })
+    .filter((item) => item.module);
+}
+
 function injectAiHtmlAfterRoot(html, fragment) {
   const source = String(html || "");
   const match = source.match(/<section\b[^>]*class=(["'])[^"']*\bai-html-page\b[^"']*\1[^>]*>/i);
@@ -2670,6 +3601,10 @@ function aiHtmlThemeFromPrompt(prompt, config = {}) {
   if (source.includes("blackgold") || raw.includes("黑金") || raw.includes("高净值") || raw.includes("私行") || raw.includes("VIP")) return "blackGold";
   if (source.includes("darktech") || raw.includes("暗色科技") || raw.includes("科技黑") || raw.includes("终端")) return "darkTech";
   if (source.includes("minimal") || raw.includes("极简") || raw.includes("留白") || raw.includes("白色")) return "minimalWhite";
+  if (source.includes("emerald") || raw.includes("翡翠") || raw.includes("信任绿") || raw.includes("资金安全绿")) return "emeraldTrust";
+  if (source.includes("cobalt") || source.includes("teal") || raw.includes("钴蓝") || raw.includes("青绿") || raw.includes("青蓝科技")) return "cobaltTeal";
+  if (source.includes("crimson") || raw.includes("赤红") || raw.includes("红色活动") || raw.includes("红橙")) return "crimsonPromo";
+  if (source.includes("graphite") || source.includes("silver") || raw.includes("石墨") || raw.includes("银色") || raw.includes("机构灰")) return "graphiteSilver";
   if (raw.includes("蓝") || raw.includes("金融蓝") || source.includes("blue")) return "blueFinance";
   return cleanText(config.themePreset || config.theme, "default", 40);
 }
@@ -2715,6 +3650,25 @@ function repairAiHtmlScheme(scheme, payload = {}, config = {}, providerConfig = 
     css = `${css}\n${aiHtmlResponsiveFallbackCss()}`;
     notes.push("已补齐基础响应式降级规则。");
   }
+	  if (aiHtmlNeedsControlFallback(html, css)) {
+	    html = injectAiHtmlAfterRoot(html, '<span class="ai-html-control-fallback" aria-hidden="true"></span>');
+	    css = `${css}\n${aiHtmlControlFallbackCss()}`;
+	    notes.push("已补齐 AI HTML 按钮/链接兜底样式，避免浏览器原生控件外观。");
+	  }
+
+  const expectedModules = aiHtmlRequiredModuleContracts(payload, config);
+  const synthesizedImplementationContract = synthesizeAiHtmlImplementationContract(expectedModules, html);
+  const implementationContract = normalized.implementationContract.length ? normalized.implementationContract : synthesizedImplementationContract;
+  const componentReferenceHints = aiHtmlComponentReferenceHints(expectedModules, payload.prompt || "");
+  const componentReferences = normalized.componentReferences.length
+    ? normalized.componentReferences
+    : normalizeAiHtmlComponentReferences(componentReferenceHints);
+  if (!normalized.implementationContract.length && synthesizedImplementationContract.length) {
+    notes.push("已根据模块契约自动补齐 implementationContract，适配 Kimi/DeepSeek/MiniMax 短输出。");
+  }
+  if (!normalized.componentReferences.length && componentReferences.length) {
+    notes.push("已根据组件库命中结果补齐 componentReferences，确保 AI HTML 可追溯到积木库。");
+  }
 
   const dataBindings = [
     ...new Set([...(Array.isArray(normalized.dataBindings) ? normalized.dataBindings : []), ...aiHtmlDataBindingsFromConfig(config)]),
@@ -2724,6 +3678,8 @@ function repairAiHtmlScheme(scheme, payload = {}, config = {}, providerConfig = 
       ...normalized,
       html,
       css,
+      implementationContract,
+      componentReferences,
     },
     payload,
     config,
@@ -2739,10 +3695,10 @@ function repairAiHtmlScheme(scheme, payload = {}, config = {}, providerConfig = 
       ...normalized,
       html,
       css,
-      dataBindings,
-      requiredModules: quality.requiredModules.map((item) => item.label),
-      implementationContract: quality.implementationContract.length ? quality.implementationContract : normalized.implementationContract,
-      componentReferences: normalizeAiHtmlComponentReferences(normalized.componentReferences, quality.componentReferenceHints),
+	      dataBindings,
+	      requiredModules: quality.requiredModules.map((item) => item.label),
+	      implementationContract: quality.implementationContract.length ? quality.implementationContract : implementationContract,
+	      componentReferences: normalizeAiHtmlComponentReferences(componentReferences, quality.componentReferenceHints),
       qualityScore: quality.score,
       qualityStatus: quality.status,
       qualityIssues: quality.issues,
@@ -2760,6 +3716,215 @@ function repairAiHtmlScheme(scheme, payload = {}, config = {}, providerConfig = 
     config,
     providerConfig,
   );
+}
+
+function collectHomepageBlocks(config = {}) {
+  const blocks = new Set();
+  (Array.isArray(config.sections) ? config.sections : []).forEach((section) => {
+    (Array.isArray(section?.slots) ? section.slots : []).forEach((slot) => {
+      const block = canonicalHomeBlock(slot) || cleanText(slot, "", 80);
+      if (block) blocks.add(block);
+    });
+  });
+  (Array.isArray(config.layout) ? config.layout : []).forEach((item) => {
+    const block = canonicalHomeBlock(item?.component || item?.feature) || cleanText(item?.component || item?.feature, "", 80);
+    if (block) blocks.add(block);
+  });
+  (Array.isArray(config.brickPlan) ? config.brickPlan : []).forEach((item) => {
+    [item?.component, item?.feature].forEach((value) => {
+      const block = canonicalHomeBlock(value) || cleanText(value, "", 80);
+      if (block) blocks.add(block);
+    });
+  });
+  return [...blocks].filter(Boolean);
+}
+
+function collectHomepageFamilies(config = {}) {
+  return [
+    ...new Set(
+      (Array.isArray(config.brickPlan) ? config.brickPlan : [])
+        .map((item) => cleanText(item?.family, "", 80))
+        .filter(Boolean),
+    ),
+  ];
+}
+
+function htmlClassVariety(html = "") {
+  return new Set((String(html || "").match(/class=(["'])(.*?)\1/gi) || []).map((item) => item.replace(/^class=(["'])|["']$/g, ""))).size;
+}
+
+function scoreBand(score) {
+  if (score >= 86) return "passed";
+  if (score >= 72) return "needs-polish";
+  return "needs-repair";
+}
+
+function categoryScore(value) {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function evaluateHomepageAesthetic(payload = {}, config = {}) {
+  const sourceConfig = config && typeof config === "object" ? config : {};
+  const prompt = cleanText(payload.prompt || sourceConfig.prompt || "", "", 1200);
+  const htmlScheme = payload.htmlScheme || sourceConfig.htmlScheme || null;
+  const html = String(htmlScheme?.html || "");
+  const css = String(htmlScheme?.css || "");
+  const blocks = collectHomepageBlocks(sourceConfig);
+  const families = collectHomepageFamilies(sourceConfig);
+  const sections = Array.isArray(sourceConfig.sections) ? sourceConfig.sections : [];
+  const brickPlan = Array.isArray(sourceConfig.brickPlan) ? sourceConfig.brickPlan : [];
+  const componentMorphs = sourceConfig.componentMorphs && typeof sourceConfig.componentMorphs === "object" ? sourceConfig.componentMorphs : {};
+  const moduleStyles = sourceConfig.moduleStyles && typeof sourceConfig.moduleStyles === "object" ? sourceConfig.moduleStyles : {};
+  const htmlQuality = htmlScheme?.enabled || html || css ? evaluateAiHtmlQuality({ ...htmlScheme, html, css }, payload, sourceConfig) : null;
+  const componentRefs = beautifulComponentReferences({ prompt, limit: 8 });
+  const sampleRefs = rankDesignSamplesForPrompt(prompt, 4).map(summarizeDesignSampleForPrompt);
+  const feedbackRefs = feedbackMemoryPromptReference(prompt, 5);
+  const strengths = [];
+  const issues = [];
+  const suggestions = [];
+
+  const addStrength = (condition, text) => {
+    if (condition) strengths.push(text);
+  };
+  const addIssue = (condition, text, suggestion) => {
+    if (!condition) {
+      issues.push(text);
+      if (suggestion) suggestions.push(suggestion);
+    }
+  };
+
+  const hasHero = sections.some((section) => section?.type === "hero") || /hero|首屏|h1|ai-html-(?:hero|cover|console|desk)/i.test(`${html} ${css}`);
+  const hasPrimaryAction = /data-home-action=["'](?:deposit|openAccount|accounts|copyLink|downloadApp|positions|orders)/i.test(html) ||
+    ["deposit", "openAccount", "accounts", "promo_banner", "onboarding_guide"].some((block) => blocks.includes(block));
+  const hasVisualSignal = /svg|path|chart|curve|trend|timeline|step|rail|console|dock|carousel|scoreboard|图表|曲线|步骤|轮播/i.test(`${html} ${css} ${brickPlan.map((item) => `${item.brickId} ${item.brickName} ${item.reason}`).join(" ")}`);
+  const uniqueSectionSlots = new Set(sections.flatMap((section) => (Array.isArray(section?.slots) ? section.slots : []))).size;
+  const uniqueZones = new Set(brickPlan.map((item) => item.zone).filter(Boolean)).size;
+  const wideBlocks = brickPlan.filter((item) => /^([3-5])x/.test(cleanText(item.size, "", 8)) || item.zone === "full").length;
+  const morphCount = Object.keys(componentMorphs).length;
+  const styleCount = Object.keys(moduleStyles).filter((key) => moduleStyles[key]).length;
+  const classVariety = htmlClassVariety(html);
+  const tokenUse = /var\(--home-/i.test(css);
+  const responsive = /@media/i.test(css) || sourceConfig.autoLayout;
+  const sampleAlignment = sampleRefs.length ? 72 + Math.min(20, sampleRefs[0].aestheticScore / 5) : 64;
+  const feedbackBoost = feedbackRefs.some((item) => ["approve", "like", "selected", "good"].includes(item.decision)) ? 8 : 0;
+  const htmlQualityScore = htmlQuality ? htmlQuality.score : null;
+
+  const categories = [
+    {
+      key: "visualFocus",
+      label: "首屏视觉焦点",
+      weight: 22,
+      score: categoryScore((hasHero ? 42 : 12) + (hasPrimaryAction ? 32 : 8) + (hasVisualSignal ? 26 : 10)),
+      notes: [
+        hasHero ? "有首屏/封面/工作台焦点" : "缺少明确首屏焦点",
+        hasPrimaryAction ? "主行动可被识别" : "主 CTA 不够明确",
+        hasVisualSignal ? "有图表、步骤、轮播或工作台结构" : "缺少可感知的视觉结构",
+      ],
+    },
+    {
+      key: "layoutHierarchy",
+      label: "布局层级",
+      weight: 20,
+      score: categoryScore(Math.min(38, sections.length * 9) + Math.min(26, uniqueSectionSlots * 4) + Math.min(20, uniqueZones * 7) + Math.min(16, wideBlocks * 8)),
+      notes: [
+        `${sections.length} 个 sections`,
+        `${uniqueSectionSlots} 个可见槽位`,
+        `${uniqueZones} 类积木区域`,
+        `${wideBlocks} 个宽幅/整行模块`,
+      ],
+    },
+    {
+      key: "componentCraft",
+      label: "积木审美复用",
+      weight: 22,
+      score: categoryScore(Math.min(30, families.length * 6) + Math.min(28, morphCount * 5) + Math.min(18, styleCount * 4) + Math.min(14, classVariety * 2) + (htmlQualityScore ? Math.round(htmlQualityScore * 0.1) : 6)),
+      notes: [
+        `${families.length} 个组件家族`,
+        `${morphCount} 个核心 morph`,
+        `${styleCount} 个模块样式`,
+        htmlQualityScore ? `AI HTML 质量 ${htmlQualityScore}/100` : "组件化方案评分",
+      ],
+    },
+    {
+      key: "brandHarmony",
+      label: "品牌色彩与质感",
+      weight: 14,
+      score: categoryScore(
+        (sourceConfig.themePreset || sourceConfig.theme ? 28 : 12) +
+          (tokenUse ? 28 : htmlScheme?.enabled ? 8 : 20) +
+          (sourceConfig.colorMode === "auto" || !sourceConfig.colorMode ? 18 : 14) +
+          (["blackGold", "lightGold", "darkTech", "minimalWhite", "emeraldTrust", "cobaltTeal", "crimsonPromo", "graphiteSilver", "blueFinance"].includes(sourceConfig.themePreset || sourceConfig.theme) ? 26 : 16),
+      ),
+      notes: [
+        `主题 ${sourceConfig.themePreset || sourceConfig.theme || "未标记"}`,
+        tokenUse ? "CSS 使用首页 token" : "CSS token 使用不足",
+        `色彩模式 ${sourceConfig.colorMode || "auto"}`,
+      ],
+    },
+    {
+      key: "businessFunction",
+      label: "页面功能完整度",
+      weight: 14,
+      score: categoryScore(Math.min(42, blocks.length * 5) + (hasPrimaryAction ? 24 : 8) + Math.min(22, brickPlan.length * 4) + (sourceConfig.dataContract ? 12 : 4)),
+      notes: [
+        `${blocks.length} 个业务块`,
+        `${brickPlan.length} 个积木计划`,
+        sourceConfig.dataContract ? "有数据契约" : "数据契约较弱",
+      ],
+    },
+    {
+      key: "responsiveSafety",
+      label: "响应式与可发布安全",
+      weight: 8,
+      score: categoryScore((responsive ? 46 : 18) + (htmlScheme?.safetyStatus === "sanitized" || !htmlScheme?.enabled ? 30 : 12) + (htmlScheme?.isFallback ? 8 : 24)),
+      notes: [
+        responsive ? "有响应式/autoLayout" : "响应式证据不足",
+        htmlScheme?.enabled ? `HTML 安全状态 ${htmlScheme.safetyStatus || "unknown"}` : "组件化安全路径",
+      ],
+    },
+  ];
+
+  const totalWeight = categories.reduce((sum, item) => sum + item.weight, 0);
+  const score = categoryScore(categories.reduce((sum, item) => sum + item.score * item.weight, 0) / totalWeight + feedbackBoost);
+
+  categories.forEach((category) => {
+    addIssue(category.score >= 70, `${category.label}偏弱：${category.notes.join("；")}`, `${category.label}需要补充可执行设计约束。`);
+  });
+  addIssue(!(htmlScheme?.enabled && htmlScheme.isFallback), "当前 AI HTML 是 fallback/mock，不能代表真实模型审美能力。", "先关闭 HOME_AI_MOCK 或确认真实模型调用成功，再沉淀为正向样本。");
+  addIssue(uniqueSectionSlots >= 4 || Boolean(htmlScheme?.enabled), "页面模块数量或形态太少，容易像单页表单。", "至少让首屏、主功能、辅助信息和合规/客服形成不同视觉层级。");
+  addIssue(morphCount >= Math.min(5, Math.max(3, families.length)) || Boolean(htmlScheme?.enabled), "核心模块 morph 覆盖不足，模块可能只是在换颜色。", "为资产、快捷入口、账号、开户、图表等核心模块选择不同 DOM morph。");
+
+  addStrength(hasHero, "首屏具备可识别焦点。");
+  addStrength(hasVisualSignal, "存在图表、步骤、轮播或工作台式视觉结构。");
+  addStrength(componentRefs.length > 0, "已拉取漂亮积木块作为审美参考。");
+  addStrength(sampleRefs.length > 0, "已命中样本库页面和功能参考。");
+  addStrength(feedbackRefs.length > 0, "已读取历史反馈偏好。");
+
+  if (htmlQuality?.issues?.length) {
+    htmlQuality.issues.slice(0, 3).forEach((issue) => issues.push(`AI HTML 质量门禁：${issue}`));
+  }
+
+  return {
+    label: "首页审美评分",
+    score,
+    status: scoreBand(score),
+    categories,
+    strengths: strengths.slice(0, 10),
+    issues: [...new Set(issues)].slice(0, 10),
+    suggestions: [...new Set(suggestions)].slice(0, 10),
+    sampleReferences: sampleRefs,
+    componentReferences: componentRefs,
+    feedbackReferences: feedbackRefs,
+    htmlQuality: htmlQuality
+      ? {
+          score: htmlQuality.score,
+          status: htmlQuality.status,
+          issues: htmlQuality.issues,
+          checks: htmlQuality.checks,
+        }
+      : null,
+    configSnapshot: homepageRecordSnapshot(sourceConfig),
+  };
 }
 
 function mockAiHtmlScheme(payload = {}, config = {}, providerConfig = {}) {
@@ -2937,6 +4102,69 @@ function mockAiHtmlScheme(payload = {}, config = {}, providerConfig = {}) {
   );
 }
 
+function configBackedAiHtmlScheme(payload = {}, config = {}, providerConfig = {}, options = {}) {
+  const localScheme = mockAiHtmlScheme(payload, config, providerConfig);
+  const providerName = cleanText(options.providerName || providerConfig.name || providerConfig.provider || "模型", "模型", 40);
+  const providerId = cleanText(providerConfig.provider || options.providerId || "provider", "provider", 32).toLowerCase();
+  const title = cleanText(config.name, `${providerName} 首页预览`, 48);
+  const sourceType = cleanText(options.sourceType, `model/${providerId}-config-html`, 48);
+  const pipeline = cleanText(options.generationPipeline, `${providerId}-config-backed-html`, 48);
+  const failureSummary = cleanText(options.failureSummary, "", 180);
+  const html = String(localScheme.html || "")
+    .replace(/data-ai-html-source=(["'])[^"']*\1/i, `data-ai-html-source="${escapeHtmlText(sourceType)}"`)
+    .replace(/data-ai-html-pipeline=(["'])[^"']*\1/i, `data-ai-html-pipeline="${escapeHtmlText(pipeline)}"`);
+  const summary =
+    options.summary ||
+    `${providerName} 已生成首页配置蓝图；HTML 预览由服务端按该蓝图装配，避免 HTML 长 JSON 超时或截断。`;
+  const visualBrief =
+    options.visualBrief ||
+    "保留模型选择的页面意图、模块顺序和主题，使用安全的本地 HTML/CSS 预览壳呈现。";
+  const notes = Array.isArray(options.correctionNotes) ? options.correctionNotes : [];
+  return normalizeAiHtmlScheme(
+    {
+      ...localScheme,
+      name: `${title} HTML 预览`,
+      summary,
+      visualBrief,
+      html,
+      safetyNotes: [
+        `HTML/CSS 由服务端从 ${providerName} 配置蓝图装配，没有执行脚本或远程资源。`,
+        `${providerName} 的模型配置结果仍保留在组件化首页中，可切回组件预览或继续生成自由 HTML。`,
+      ],
+      correctionNotes: [
+        failureSummary
+          ? `AI HTML 长输出未采用，已保留模型首页配置并装配安全预览：${failureSummary}`
+          : `${providerName} 使用配置蓝图驱动的安全 HTML 预览，避免长 JSON 截断。`,
+        ...notes,
+        ...(Array.isArray(localScheme.correctionNotes) ? localScheme.correctionNotes.filter((note) => !/mock|HOME_AI_MOCK/i.test(note)) : []),
+      ].slice(0, 8),
+      generationPipeline: pipeline,
+      correctionStatus: "config-backed",
+      sourceType,
+      isFallback: false,
+      fallbackReason: "",
+      modelAttempted: true,
+      mock: false,
+      qualityScore: Number.isFinite(Number(localScheme.qualityScore)) ? localScheme.qualityScore : 72,
+      qualityStatus: localScheme.qualityStatus && !["fallback-preview", "mock-preview"].includes(localScheme.qualityStatus) ? localScheme.qualityStatus : "needs-polish",
+    },
+    payload,
+    config,
+    providerConfig,
+  );
+}
+
+function minimaxConfigBackedAiHtmlScheme(payload = {}, config = {}, providerConfig = {}) {
+  return configBackedAiHtmlScheme(payload, config, providerConfig, {
+    providerName: "MiniMax",
+    sourceType: "model/minimax-config-html",
+    generationPipeline: "minimax-config-backed-html",
+    summary: "MiniMax 已生成首页配置蓝图；HTML 预览由服务端按该蓝图装配，避免 2048 输出上限截断。",
+    visualBrief: "保留 MiniMax 选择的页面意图、模块顺序和主题，使用安全的本地 HTML/CSS 预览壳呈现。",
+    correctionNotes: ["MiniMax OpenAI 兼容接口输出上限较小，AI HTML 长 JSON 容易被截断；已改为配置蓝图驱动的安全预览。"],
+  });
+}
+
 function buildFreeAiHtmlPrompt(payload) {
   const prompt = cleanText(payload.prompt, "生成一个成熟券商用户端首页", 1200);
   const guidedIntake = guidedAiIntakeFromPayload(payload);
@@ -2950,23 +4178,29 @@ function buildFreeAiHtmlPrompt(payload) {
   });
   const componentReference = componentLibraryPromptReference({ prompt, limit: 12 });
   const referenceHints = aiHtmlComponentReferenceHints(requiredModules, prompt);
+  const trainingContext = aestheticTrainingContext({ prompt }, { sampleLimit: 4, componentLimit: 10, feedbackLimit: 6 });
+  const designGovernance = designRulesPromptReference();
   const system = [
     "你是 ForexCRM 的 AI HTML 页面设计师。",
     "你的第一任务是先自由生成一版可预览的 HTML/CSS 首页视觉方案，而不是先生成组件配置或复用固定模板；但这个自由必须建立在模块理解、组件库参考和设计 token 之上。",
+    "必须遵守 design.md 设计治理：先锁住金融 CRM 骨架、组件语义、token、暗色/移动端和禁用项，再在信息层级、模块比例、状态细节和响应式上做美化。",
     "只输出一个能被 JSON.parse 解析的紧凑 JSON object，不要 markdown、代码块或解释。",
     "必须返回字段 name、summary、visualBrief、moduleUnderstanding、requiredModules、moduleMapping、implementationContract、componentReferences、designNotes、html、css、dataBindings、safetyNotes、correctionNotes。",
     "允许自由决定首屏骨架、栅格比例、模块排列、视觉层级和信息密度；可以使用 editorial cover、trading console、wealth desk、onboarding journey、campaign poster、ops workspace 等完全不同结构。",
     "禁止每次都使用同一套 hero + 四按钮 + 两张卡片 + 账号表的骨架；本次方案必须根据管理员需求重建页面形态。",
     "必须先理解 requiredModules，每个要求模块都要在 HTML 中有可见表达；不能把 KYC、交易账号、账户表现、推广链接等业务要求简化成普通标题或空白卡片。",
     "必须参考 componentLibraryReference 和 componentReferenceHints 的业务字段、按钮密度、卡片比例、状态标签、图表/列表表达；允许变形和重组，但要在 componentReferences 写明参考了哪些积木以及如何自由发挥。",
+    "组件库参考是硬约束：componentReferences 至少覆盖 3 个 requiredModules 或组件家族；HTML 必须把参考转成具体结构差异，例如指标带、任务时间线、账号列表、趋势图、操作 Dock、FAQ 折叠或风险提示条。",
+    "必须参考 designTrainingContext：样本页面用于判断整体页面骨架和功能流，beautifulComponents 用于吸收漂亮积木块的视觉细节，feedbackMemory 用于避开用户否定过的审美方向。",
     "moduleMapping 必须说明每个 requiredModules 如何映射到 HTML 中的区域、参考的组件家族，以及自由变形点。",
     "implementationContract 必须是数组，每个 requiredModules 至少一项，字段包括 module、label、family、dataFields、states、actions、interactions、renderEvidence；它用来证明该模块不是静态外观空壳。",
     "如果某模块只有标题、普通卡片或没有数据字段/状态/动作，请在 emptyShellRisk 标记 true；服务端会因此返修。",
-    "设计美感硬约束：首屏必须有主视觉焦点；页面不能全是同一种白卡片；至少包含一种数据/状态/趋势/步骤视觉结构；桌面端要有明确的分栏或栅格节奏；移动端要能单列降级。",
+    "设计美感硬约束：首屏必须有主视觉焦点；页面不能全是同一种白卡片；至少包含三类不同结构，如指标带、步骤时间线、账号列表/表格、活动条、客服卡、FAQ 折叠、风险提示条；桌面端要有明确的分栏或栅格节奏；移动端要能单列降级。",
     "HTML 只能使用 section/header/main/div/article/nav/a/button/span/small/strong/b/em/p/ul/ol/li/table/thead/tbody/tr/th/td/svg/path 等静态标签。",
     "禁止生成 JS、script、iframe、form、input、onclick/onload 等事件属性、外链脚本、外链字体、远程图片、javascript: URL。",
     "CSS 只能写当前 HTML 草稿需要的类，类名统一用 ai-html- 前缀；不要写 body/html 全局样式，不要 position:fixed。",
     "必须使用 CSS 变量承接主题，例如 var(--home-bg)、var(--home-card-bg)、var(--home-primary)、var(--home-text)、var(--home-border)、var(--home-radius-sm)。",
+    "所有 a/button 必须在 CSS 中被 ai-html- 类、.ai-html-page button 或 a[data-home-action] 显式样式化，不能保留浏览器默认按钮。",
     "客户侧字段要 value-first：交易账号卡片里不要露出“平台/服务器”这类后台字段名，平台和服务器合并直接显示为 MT5 · HCHoldings-Live2；表格需要列名时用“交易环境”。",
     "关键系统动作通过 data-home-action 标记，例如 deposit、openAccount、withdraw、wallet、accounts、copyLink；不要编造系统不存在的动作。",
     "真实数据缺失时用 -- 或预览样例，不能编造监管承诺、稳赚收益或不可兑现的账户状态。",
@@ -2994,6 +4228,12 @@ function buildFreeAiHtmlPrompt(payload) {
     "",
     "建议优先参考的积木:",
     compactJson(referenceHints),
+    "",
+    "审美训练上下文:",
+    compactJson(trainingContext),
+    "",
+    "design.md 设计治理摘要:",
+    compactJson(designGovernance),
     "",
     "已保存组合参考:",
     compactJson(savedCompositionPromptReference(4)),
@@ -3025,10 +4265,13 @@ function buildAiHtmlPrompt(payload, configScheme = {}, options = {}) {
   const requiredModules = aiHtmlRequiredModuleContracts(payload, configScheme);
   const qualityReport = options.qualityReport || null;
   const previousScheme = options.previousScheme || null;
+  const trainingContext = aestheticTrainingContext({ prompt }, { sampleLimit: 4, componentLimit: 10, feedbackLimit: 6 });
+  const designGovernance = designRulesPromptReference();
   const system = [
     "你是 ForexCRM 首页视觉设计修正器。",
     "只输出一个能被 JSON.parse 解析的紧凑 JSON object，不要 markdown、代码块或解释。",
     "这条通道用于在自由 HTML 生成失败或质量门禁不通过时，基于组件化配置、组件库参考和上一版问题生成一版更美观的 HTML/CSS 修正版。",
+    "必须遵守 design.md 设计治理：漂亮不是自由堆装饰，而是让信息层级、间距、状态、图表/列表、空状态和响应式更成熟，同时保持金融 CRM 的克制气质。",
     "必须返回字段 name、summary、visualBrief、moduleUnderstanding、requiredModules、moduleMapping、implementationContract、componentReferences、designNotes、html、css、dataBindings、safetyNotes、correctionNotes。",
     "HTML 只能使用 section/header/main/div/article/nav/a/button/span/small/strong/b/em/p/ul/ol/li/table/thead/tbody/tr/th/td/svg/path 等静态标签。",
     "禁止生成 JS、script、iframe、form、input、onclick/onload 等事件属性、外链脚本、外链字体、远程图片、javascript: URL。",
@@ -3036,10 +4279,13 @@ function buildAiHtmlPrompt(payload, configScheme = {}, options = {}) {
     "必须使用 CSS 变量承接主题，例如 var(--home-bg)、var(--home-card-bg)、var(--home-primary)、var(--home-text)、var(--home-border)、var(--home-radius-sm)。",
     "视觉目标：成熟券商客户端、信息层级清楚、留白克制、模块不像普通卡片堆叠；主金额、主操作、趋势图和账号状态要有明确层次。",
     "你可以自由改 HTML 骨架，但必须保留用户要求模块，并参考组件库的业务字段、尺寸、状态标签、图表、账号卡片、任务流等审美基因。",
+    "组件库参考是硬约束：componentReferences 至少覆盖 3 个 requiredModules 或组件家族，并把参考转成结构差异，不要只写普通白卡片。",
+    "必须同时参考 designTrainingContext：样本页面决定页面级构图和功能流，beautifulComponents 决定积木级细节，feedbackMemory 决定用户长期偏好。",
     "如果上一版问题指出模块缺失、token 不足、结构太平或占位符太多，这一版必须通过不同布局和更具体业务表达修复。",
     "implementationContract 必须逐模块写明 dataFields、states、actions、interactions、renderEvidence；修正版必须补齐上一版缺失的模块实现协议。",
     "客户侧字段要 value-first：交易账号卡片里不要露出“平台/服务器”这类后台字段名，平台和服务器合并直接显示为 MT5 · HCHoldings-Live2；表格需要列名时用“交易环境”。",
     "即使参考组件化配置，也不要照抄固定骨架；可以改变模块比例、分组方式和首屏叙事。",
+    "所有 a/button 必须在 CSS 中被 ai-html- 类、.ai-html-page button 或 a[data-home-action] 显式样式化，不能保留浏览器默认按钮。",
     "按钮只能通过 data-home-action 表达系统动作，不要编造不存在的功能；真实数据缺失时用 -- 或预览样例。",
   ].join("\n");
   const user = [
@@ -3063,6 +4309,12 @@ function buildAiHtmlPrompt(payload, configScheme = {}, options = {}) {
     "",
     "组件库视觉参考摘要:",
     compactJson(componentLibraryPromptReference({ prompt, limit: 10 })),
+    "",
+    "审美训练上下文:",
+    compactJson(trainingContext),
+    "",
+    "design.md 设计治理摘要:",
+    compactJson(designGovernance),
     "",
     "已保存组合参考:",
     compactJson(savedCompositionPromptReference(4)),
@@ -3098,8 +4350,228 @@ function buildAiHtmlPrompt(payload, configScheme = {}, options = {}) {
   return { system, user };
 }
 
+function buildMiniMaxAiHtmlPrompt(payload, configScheme = {}, options = {}) {
+  const prompt = cleanText(payload.prompt, "生成一个成熟券商用户端首页", 560);
+  const guidedIntake = guidedAiIntakeFromPayload(payload);
+  const intentProfile = applyGuidedIntentProfile(buildHomepageIntentProfile(prompt), guidedIntake);
+  const seedConfig =
+    configScheme && Object.keys(configScheme).length
+      ? configScheme
+      : {
+          sections: (Array.isArray(intentProfile.mustHave) ? intentProfile.mustHave : []).map((slot, index) => ({
+            id: `minimax-intent-${index + 1}`,
+            type: index === 0 ? "hero" : "main",
+            slots: [slot],
+          })),
+        };
+	  const requiredModules = aiHtmlRequiredModuleContracts(payload, seedConfig).slice(0, 5);
+  const referenceHints = aiHtmlComponentReferenceHints(requiredModules, prompt).slice(0, 5);
+	  const qualityReport = options.qualityReport || null;
+	  const designGovernance = designRulesPromptReference();
+
+  const system = [
+    "你是 ForexCRM 的 MiniMax 紧凑 AI HTML 设计师。",
+    "只输出一个能被 JSON.parse 解析的 JSON object；第一个字符是 {，最后一个字符是 }。",
+    "不要 markdown、代码块、解释、注释或 <think>。",
+	    "MiniMax 输出上限很小：必须返回 html、css、qualityScore、qualityStatus、correctionNotes；可选返回短 componentReferences 和 implementationContract，服务端会补齐冗长字段。",
+	    "html <= 900 字符，css <= 760 字符，整个 JSON <= 1800 中文字符。",
+	    "HTML 只能用静态 section/header/main/div/article/nav/a/span/small/strong/b/p/ol/li；CSS 类名用 ai-html- 前缀，使用 var(--home-bg)、var(--home-card-bg)、var(--home-primary)、var(--home-text)、var(--home-border)、var(--home-radius-sm)。",
+	    "遵守 design.md 设计治理：金融 CRM、克制专业、信息层级清楚；不要营销式大 hero、随机渐变、厚重阴影或卡片套卡片。",
+	    "所有 a/button 必须显式样式化，不能保留浏览器默认按钮；至少让模块出现两种不同结构，不能全是同一种白卡片。",
+	    "每个 requiredModules 至少在 html 中有 data-ai-html-module 可见区域；模块内容必须短，可用 Sample 或 --。",
+	    "必须参考 referenceHints 的 componentId、name、visibleText 和 styleSignals；即使不返回完整 componentReferences，HTML 也要体现对应积木的字段密度、状态标签和布局语言。",
+	    "禁止 JS、script、iframe、form、input、事件属性、远程图片、真实下载链接或稳赚/监管承诺。",
+	  ].join("\n");
+
+  const user = [
+    "管理员需求:",
+    prompt,
+    "",
+    "页面意图:",
+    compactJson({
+      primaryIntent: intentProfile.primaryIntent,
+      mustHave: intentProfile.mustHave,
+      avoid: intentProfile.avoid,
+      heroFocus: intentProfile.heroFocus,
+    }),
+    "",
+    "配置摘要:",
+    compactJson({
+      name: seedConfig.name,
+      themePreset: seedConfig.themePreset || seedConfig.theme,
+      density: seedConfig.density,
+      heroFocus: seedConfig.heroFocus,
+      sections: (Array.isArray(seedConfig.sections) ? seedConfig.sections : []).slice(0, 4),
+      brickPlan: (Array.isArray(seedConfig.brickPlan) ? seedConfig.brickPlan : []).slice(0, 6).map((item) => ({
+        component: item.component || item.feature,
+        size: item.size,
+        zone: item.zone,
+      })),
+    }),
+    "",
+	    "requiredModules:",
+	    compactJson(requiredModules.map((item) => ({
+	      module: item.component,
+	      label: item.label,
+      fields: item.capability?.dataFields?.slice(0, 3) || [],
+      actions: item.capability?.actions?.slice(0, 2) || [],
+	    }))),
+	    "",
+	    "referenceHints:",
+	    compactJson(referenceHints.map((item) => ({
+	      componentId: item.componentId,
+	      name: item.name,
+	      family: item.family,
+	      requiredFamily: item.requiredFamily,
+	      module: item.module,
+	      reason: item.reason,
+	      visibleText: item.visibleText,
+	      styleSignals: item.styleSignals,
+	    }))),
+	    "",
+	    "design.md 摘要:",
+    compactJson({
+      rules: designGovernance.rules?.slice(0, 4) || [],
+      forbidden: designGovernance.forbidden?.slice(0, 4) || [],
+    }),
+    "",
+    qualityReport
+      ? [
+          "质量问题，需用更清晰层级修复:",
+          compactJson({ score: qualityReport.score, issues: qualityReport.issues?.slice(0, 3) || [] }),
+          "",
+        ].join("\n")
+      : "",
+    "返回示例形状:{\"html\":\"<section class=\\\"ai-html-page\\\"><header><strong>标题</strong></header><main><article data-ai-html-module=\\\"asset_overview\\\"><b>Sample</b></article></main></section>\",\"css\":\".ai-html-page{display:grid;gap:12px;background:var(--home-bg);color:var(--home-text)}@media(max-width:860px){.ai-html-page{grid-template-columns:1fr}}\",\"qualityScore\":74,\"qualityStatus\":\"needs-polish\",\"correctionNotes\":[\"MiniMax compact\"]}",
+    "现在只返回最终短 JSON。html 用一个 ai-html-page 根 section，包含 hero 和 3-5 个模块；css 必须包含 @media(max-width:860px)。",
+  ].join("\n");
+
+  return { system, user, promptMode: "minimax-ai-html-compact" };
+}
+
+function buildCompactAiHtmlPrompt(payload, configScheme = {}, options = {}) {
+  const prompt = cleanText(payload.prompt, "生成一个成熟券商用户端首页", 560);
+  const guidedIntake = guidedAiIntakeFromPayload(payload);
+  const intentProfile = applyGuidedIntentProfile(buildHomepageIntentProfile(prompt), guidedIntake);
+  const seedConfig =
+    configScheme && Object.keys(configScheme).length
+      ? configScheme
+      : {
+          sections: (Array.isArray(intentProfile.mustHave) ? intentProfile.mustHave : []).map((slot, index) => ({
+            id: `compact-intent-${index + 1}`,
+            type: index === 0 ? "hero" : "main",
+            slots: [slot],
+          })),
+	        };
+  const requiredModules = aiHtmlRequiredModuleContracts(payload, seedConfig).slice(0, 6);
+  const referenceHints = aiHtmlComponentReferenceHints(requiredModules, prompt).slice(0, 5);
+  const qualityReport = options.qualityReport || null;
+  const previousScheme = options.previousScheme || null;
+  const designGovernance = designRulesPromptReference();
+	  const system = [
+	    "你是 ForexCRM 的 AI HTML 页面设计师。",
+	    "只输出一个能被 JSON.parse 解析的 JSON object，不要 markdown、代码块、解释或 <think>。",
+	    "这是 Kimi/DeepSeek 短输出通道：必须返回 html、css、qualityScore、qualityStatus、correctionNotes，可选 name、summary、componentReferences、implementationContract；服务端会补齐冗长字段。",
+	    "html <= 1800 字符，css <= 1500 字符，整个 JSON <= 3800 中文字符；宁可少写，也不要截断。",
+	    "必须遵守 design.md 设计治理：把漂亮控制在金融 CRM 规范内，先保证骨架、token、组件语义、暗色/移动端，再做细节美化。",
+	    "html/css 要短而完整：桌面端有清晰首屏和模块层级，移动端能单列降级；不要生成 JS、script、iframe、form、input、onclick/onload、远程图片或 javascript: URL。",
+	    "HTML 只能用静态 section/header/main/div/article/nav/a/button/span/small/strong/b/em/p/ul/ol/li/svg/path。",
+	    "CSS 类名统一用 ai-html- 前缀，并使用 var(--home-bg)、var(--home-card-bg)、var(--home-primary)、var(--home-text)、var(--home-border)、var(--home-radius-sm) 等主题变量。",
+	    "每个 requiredModules 都必须在 html 中有 data-ai-html-module 可见区域；服务端会根据配置补齐 implementationContract。",
+	    "组件库参考是硬约束：必须参考 referenceHints 的 componentId、name、visibleText 和 styleSignals，把积木字段密度、状态标签、按钮层级和图表/列表表达转成 HTML 结构。",
+	    "至少包含三种结构：首屏/指标/步骤或列表/风险提示中的三类；所有 a/button 必须显式样式化，不能保留浏览器默认按钮。",
+	    "真实数据缺失时用 Sample、-- 或后台绑定说明，不得编造稳赚收益、监管承诺、真实下载链接或后台未提供的数据。",
+	  ].join("\n");
+  const user = [
+    "管理员需求:",
+    prompt,
+    "",
+    "页面意图:",
+    compactJson({
+      primaryIntent: intentProfile.primaryIntent,
+      mustHave: intentProfile.mustHave,
+      avoid: intentProfile.avoid,
+      layoutPreset: intentProfile.layoutPreset,
+      heroFocus: intentProfile.heroFocus,
+    }),
+    "",
+    "必须承接的模块契约:",
+    compactJson(requiredModules.map((item) => ({
+      module: item.component,
+      label: item.label,
+      fields: item.capability?.dataFields?.slice(0, 3) || [],
+      actions: item.capability?.actions?.slice(0, 2) || [],
+    }))),
+    "",
+	    "优先参考的积木提示:",
+	    compactJson(referenceHints.map((item) => ({
+	      componentId: item.componentId,
+	      name: item.name,
+	      family: item.family,
+	      requiredFamily: item.requiredFamily,
+	      module: item.module,
+	      reason: item.reason,
+	      visibleText: item.visibleText,
+	      styleSignals: item.styleSignals,
+	    }))),
+    "",
+    "design.md 设计治理摘要:",
+    compactJson({
+      rules: designGovernance.rules?.slice(0, 4) || [],
+      forbidden: designGovernance.forbidden?.slice(0, 4) || [],
+      usePolicy: designGovernance.usePolicy,
+    }),
+    "",
+    qualityReport
+      ? [
+          "上一版质量门禁问题:",
+          compactJson({
+            score: qualityReport.score,
+            status: qualityReport.status,
+            issues: qualityReport.issues,
+          }),
+          "",
+	        ].join("\n")
+	      : "",
+    previousScheme
+      ? [
+          "上一版摘要，避免重复:",
+          compactJson({
+            name: previousScheme.name,
+            summary: previousScheme.summary,
+            qualityIssues: previousScheme.qualityIssues,
+          }),
+          "",
+        ].join("\n")
+      : "",
+    "返回示例形状:{\"html\":\"<section class=\\\"ai-html-page\\\"><header><strong>新客开户</strong><a data-home-action=\\\"openAccount\\\" href=\\\"#open\\\">立即开户</a></header><main><article data-ai-html-module=\\\"onboarding_guide\\\"><b>KYC</b><span>Sample</span></article></main></section>\",\"css\":\".ai-html-page{display:grid;gap:14px;background:var(--home-bg);color:var(--home-text)}.ai-html-page a{display:inline-grid;place-items:center;padding:0 14px;border:1px solid var(--home-primary);border-radius:var(--home-radius-sm);background:var(--home-primary);color:#fff}@media(max-width:860px){.ai-html-page{grid-template-columns:1fr}}\",\"qualityScore\":78,\"qualityStatus\":\"needs-polish\",\"correctionNotes\":[\"compact html\"]}",
+    "现在只返回最终短 JSON object。",
+  ].join("\n");
+
+  return { system, user };
+}
+
+function providerUsesCompactAiHtml(config = {}) {
+  return ["minimax", "deepseek", "kimi"].includes(config.provider);
+}
+
+function aiHtmlPromptForProvider(config, payload, configScheme = {}, options = {}) {
+  if (config.provider === "minimax") return buildMiniMaxAiHtmlPrompt(payload, configScheme, options);
+  if (providerUsesCompactAiHtml(config)) {
+    return buildCompactAiHtmlPrompt(payload, configScheme, options);
+  }
+  return options.free ? buildFreeAiHtmlPrompt(payload) : buildAiHtmlPrompt(payload, configScheme, options);
+}
+
+function providerFailureSummary(error, fallback = "AI HTML 模型调用失败") {
+  const message = cleanText(error?.message, fallback, 220);
+  const finish = cleanText(error?.details?.finishReason, "", 80);
+  const snippet = cleanText(error?.details?.rawTextSnippet, "", 180);
+  return [message, finish ? `finish: ${finish}` : "", snippet ? `模型返回片段：${snippet}` : ""].filter(Boolean).join("；");
+}
+
 function saveComponent(component) {
-  const library = readComponentLibrary();
+  const library = readRawComponentLibrary();
   const normalized = normalizeGeneratedComponent(component);
   const nextComponents = library.components.filter((item) => item.id !== normalized.id).concat(normalized);
   writeJsonFile(COMPONENT_LIBRARY_FILE, { components: nextComponents });
@@ -3126,10 +4598,10 @@ function deleteComponentById(componentId) {
     throw Object.assign(new Error("Missing componentId"), { statusCode: 400 });
   }
 
-  const library = readComponentLibrary();
+  const library = readRawComponentLibrary();
   const exists = library.components.some((component) => component.id === id);
   if (!exists) {
-    throw Object.assign(new Error("Component not found"), { statusCode: 404 });
+    return { componentId: id, deleted: false, library: readComponentLibrary() };
   }
 
   writeJsonFile(COMPONENT_LIBRARY_FILE, {
@@ -3148,7 +4620,26 @@ function deleteComponentById(componentId) {
     writeJsonFile(COMPOSITION_LIBRARY_FILE, { compositions: nextCompositions });
   }
 
-  return { componentId: id, library: readComponentLibrary() };
+  return { componentId: id, deleted: true, library: readComponentLibrary() };
+}
+
+function payloadComponentScore(component, payload = {}) {
+  const scores = payload.componentScores && typeof payload.componentScores === "object" ? payload.componentScores : {};
+  return normalizeComponentScore(scores[component.id] ?? component.score, 5);
+}
+
+function sortComponentsForAiUse(components, payload = {}) {
+  const requestedOrder = new Map((Array.isArray(payload.componentIds) ? payload.componentIds : []).map((id, index) => [id, index]));
+  return [...components]
+    .map((component) => ({
+      ...component,
+      score: payloadComponentScore(component, payload),
+    }))
+    .sort((a, b) => {
+      const scoreDelta = normalizeComponentScore(b.score, 5) - normalizeComponentScore(a.score, 5);
+      if (scoreDelta) return scoreDelta;
+      return (requestedOrder.get(a.id) ?? 9999) - (requestedOrder.get(b.id) ?? 9999);
+    });
 }
 
 function normalizeComposition(composition, payload = {}) {
@@ -3160,7 +4651,7 @@ function normalizeComposition(composition, payload = {}) {
   const layout = layoutSource
     .map((item) => ({
       componentId: cleanText(item?.componentId, "", 80),
-      size: oneOfList(item?.size, COMPONENT_SIZES, "2x1"),
+      size: normalizeComponentSize(item?.size, "2x1"),
       zone: oneOfList(item?.zone, ["hero", "main", "rail", "full"], "main"),
       reason: cleanText(item?.reason, "用于承接当前首页目标。", 180),
     }))
@@ -3255,6 +4746,16 @@ function componentFamilySpec(family) {
       requiredUi: ["交易平台", "账号类型", "币种", "杠杆", "创建按钮"],
       forbidden: ["不可识别的空表单"],
     },
+    RiskDisclosure: {
+      purpose: "风险披露、保证金和杠杆风险提示",
+      requiredUi: ["风险提示标题", "杠杆/保证金/亏损风险", "合规披露文案", "后台合规配置占位"],
+      forbidden: ["资产概览", "账户余额", "Deposit/Open Account 主操作", "收益承诺", "营销活动卡片"],
+    },
+    SupportContact: {
+      purpose: "在线客服、客户经理、服务时间和帮助入口",
+      requiredUi: ["在线客服标题", "服务时间或后台配置状态", "客户经理/工单/帮助中心其中至少两项", "联系客服主按钮", "帮助中心或提交工单次按钮"],
+      forbidden: ["只显示模块名", "把管理员 prompt 原文显示给客户", "账户余额/钱包/KYC/Open Account 主操作", "编造真实联系方式或外部下载链接"],
+    },
     ClientHomeAtoms: {
       purpose: "从 client-home.html 拆出的真实细颗粒组件",
       requiredUi: ["明确业务标签", "至少两个真实字段或动作", "可嵌入首页卡片"],
@@ -3268,21 +4769,32 @@ function componentFamilySpec(family) {
 function buildComponentPrompt(payload) {
   const prompt = String(payload.prompt || "").trim();
   const family = oneOfList(payload.family, COMPONENT_FAMILIES, "ClientHomeAtoms");
-  const size = oneOfList(payload.size, COMPONENT_SIZES, "2x1");
+  const size = componentSizePromptLabel(payload.size, "2x1");
+  const referenceSize = normalizeComponentSize(payload.size, "");
   const familySpec = componentFamilySpec(family);
+  const componentReference = componentLibraryPromptReference({ family, size: referenceSize, prompt, limit: 8 });
+  const scoreReference = scoreContextPromptReference(payload.scoreContext);
+  const aestheticReference = componentAestheticPromptReference({ family, size: referenceSize, prompt, limit: 6, sampleLimit: 2, feedbackLimit: 3 });
+  const designGovernance = designRulesPromptReference();
 
   const system = [
     "你是 ForexCRM 首页积木组件设计器。",
     "你只能返回一个 JSON object，不要 markdown，不要解释。",
     "组件用于金融/交易 CRM 用户端首页，必须克制、专业、信息清晰。",
-    "生成前必须先参考用户消息里的“组件库参考”：理解已保存积木的业务字段、尺寸、按钮、标签、卡片密度和视觉层级，再围绕本次需求发挥。",
+    "必须遵守 design.md 设计治理：组件漂亮来自主焦点、字段层级、状态细节、按钮主次和响应式稳定，不来自大圆角、厚阴影、随机渐变或营销装饰。",
+    "生成前必须先参考用户消息里的“组件库参考”“用户评分优先参考”和“漂亮积木审美参考”：理解已保存积木的业务字段、尺寸、按钮、标签、卡片密度、视觉层级和漂亮组件的结构手法，再围绕本次需求发挥。",
+    "用户评分为 1-10 分；同类或同尺寸组件中优先参考高分积木，但不要逐字复制。",
+    "漂亮不是装饰更多，而是主次更清楚、比例更成熟、字段更贴近业务、动作更有层级；不要用大面积空白、厚重阴影、营销渐变或英文装饰标签假装高级。",
     "允许创造新的结构和样式变体，但必须能追溯到现有父模块、真实业务字段、尺寸语言或组件库里的积木表达；不要凭空发明业务能力。",
     "不要逐字复制某个已保存组件，也不要只换标题或颜色；需要在布局、密度、层级或组合方式上形成新的有用变体。",
+    "组件必须至少体现一种明确的组件工艺：指标带、状态条、步骤连接、趋势图容器、操作坞、表格/列表、左右分栏或紧凑信息流；不要只返回普通标题加几张白卡。",
     "返回 HTML 和 CSS 片段，但不要返回 script、外链、iframe、表单提交逻辑、图片 URL 或不安全属性。",
     "HTML 根元素必须使用 class，并且 CSS 必须只作用于该 class 范围，避免污染其他页面。",
     "圆角控制在 8px 或以下，避免营销式大圆角和装饰性渐变球。",
     "组件必须能作为积木参与首页布局，明确 size、layoutHints 和 dataRequirements。",
+    `尺寸规则: ${COMPONENT_SIZE_GUIDE}`,
     "组件布局必须能自适应容器宽度，避免固定大空白、空占位或依赖不可控高度撑开。",
+    "组件内部只保留一个可见主标题：如果使用 strong/h1-h4 做主标题，就不要再放 span/small/label 作为上方 eyebrow、分类名或第二标题；span/small 只用于数据行字段标签。",
     "禁止返回通用占位组件；不要使用 Primary Action、AI 样式、Sample、Lorem ipsum 这类无业务含义文案。",
     "按钮、字段和值必须是 ForexCRM 用户端真实业务：入金、出金、真实账号、模拟账号、绑定账号、钱包、KYC、邀请链接、交易账号、余额、权益、信用、杠杆等。",
     "name 必须是面向业务的中文组件名，不要叫 WalletList AI 样式、ReferralLink AI 样式。",
@@ -3296,7 +4808,20 @@ function buildComponentPrompt(payload) {
     compactJson(familySpec),
     "",
     "组件库参考:",
-    compactJson(componentLibraryPromptReference({ family, size, prompt, limit: 8 })),
+    compactJson(componentReference),
+    "",
+    "用户评分优先参考:",
+    compactJson(scoreReference),
+    "",
+    "漂亮积木审美参考:",
+    compactJson(aestheticReference),
+    "",
+    "design.md 设计治理摘要:",
+    compactJson({
+      rules: designGovernance.rules?.slice(0, 6) || [],
+      forbidden: designGovernance.forbidden?.slice(0, 6) || [],
+      usePolicy: designGovernance.usePolicy,
+    }),
     "",
     "需求:",
     prompt || "生成一个适合默认首页的专业金融组件。",
@@ -3305,6 +4830,86 @@ function buildComponentPrompt(payload) {
   ].join("\n");
 
   return { system, user };
+}
+
+function compactMiniMaxComponentReference(item = {}) {
+  return {
+    name: cleanText(item.name, "", 40),
+    family: cleanText(item.family, "", 40),
+    size: cleanText(item.size, "", 12),
+    score: normalizeComponentScore(item.score, 5),
+    description: cleanText(item.description, "", 90),
+    visibleText: cleanText(item.visibleText, "", 120),
+    styleSignals: Array.isArray(item.styleSignals) ? item.styleSignals.slice(0, 5) : [],
+    layoutHints: Array.isArray(item.layoutHints) ? item.layoutHints.slice(0, 2) : [],
+    dataRequirements: Array.isArray(item.dataRequirements) ? item.dataRequirements.slice(0, 4) : [],
+  };
+}
+
+function compactMiniMaxComponentContext(payload, family, size, prompt) {
+  const referenceSize = normalizeComponentSize(size, "");
+  const componentReference = componentLibraryPromptReference({ family, size: referenceSize, prompt, limit: 3 });
+  const scoreReference = scoreContextPromptReference(payload.scoreContext).slice(0, 3);
+  const aestheticReference = componentAestheticPromptReference({ family, size: referenceSize, prompt, limit: 3, sampleLimit: 1, feedbackLimit: 2 });
+  const designGovernance = designRulesPromptReference();
+
+  return {
+    componentLibrary: (componentReference.selectedComponents || []).slice(0, 3).map(compactMiniMaxComponentReference),
+    scoreReference: scoreReference.map(compactMiniMaxComponentReference),
+    beautifulBricks: (aestheticReference.selectedBeautifulBricks || []).slice(0, 3).map(compactMiniMaxComponentReference),
+    designRules: (designGovernance.rules || []).slice(0, 3),
+    forbidden: (designGovernance.forbidden || []).slice(0, 3),
+  };
+}
+
+function buildMiniMaxComponentPrompt(payload, config = {}) {
+  const prompt = cleanText(payload.prompt, "生成一个适合 ForexCRM 首页的专业金融组件。", 1100);
+  const family = oneOfList(payload.family, COMPONENT_FAMILIES, "ClientHomeAtoms");
+  const size = componentSizePromptLabel(payload.size, "2x1");
+  const familySpec = componentFamilySpec(family);
+  const providerName = config.name || "MiniMax";
+
+  const system = [
+    "你是 ForexCRM 首页积木组件设计器。",
+    "只输出一个严格 JSON object；第一个字符必须是 {，最后一个字符必须是 }。",
+    "不要 markdown、代码块、解释、注释、<think> 或多余文本。",
+    "这是 MiniMax 2048 completion token 短输出模式：必须输出短 JSON，避免截断。",
+    "必须返回字段: name, family, size, description, tags, html, css, layoutHints, dataRequirements。",
+    "html 和 css 必须是 JSON 字符串；请压缩为单行并正确转义双引号，禁止字符串内裸换行。",
+    "html <= 1800 字符，css <= 2400 字符，description <= 80 字符，layoutHints/dataRequirements 各最多 4 项。",
+    "HTML 根元素必须有稳定 class；CSS 只能写根 class 作用域；禁止 script、外链、iframe、图片 URL、表单提交和不安全属性。",
+    "组件必须体现一种真实工艺：指标带、状态条、步骤连接、趋势图容器、操作坞、表格/列表、左右分栏或紧凑信息流。",
+    "金融客户端要克制专业，圆角 8px 或以下，不要厚重阴影、随机渐变、通用占位或只换颜色。",
+    `${providerName} 如果不确定，宁可少写字段内容，也必须保证 JSON.parse 可解析。`,
+  ].join("\n");
+
+  const user = [
+    "目标:",
+    compactJson({ family, size, familySpec }),
+    "",
+    "需求 brief:",
+    prompt,
+    "",
+    "紧凑参考:",
+    compactJson(compactMiniMaxComponentContext(payload, family, size, prompt)),
+    "",
+    "输出示例形状，不要照抄:",
+    compactJson({
+      name: "推广链接卡片",
+      family,
+      size: normalizeComponentSize(size, "2x1"),
+      description: "展示推广链接、邀请码和复制动作的轻量组件。",
+      tags: [family, normalizeComponentSize(size, "2x1")],
+      html: '<section class="fx-referral-card"><strong>推广链接</strong><p>开户链接来自后台配置</p><button type="button">复制链接</button></section>',
+      css: ".fx-referral-card{display:grid;gap:12px;padding:16px;border:1px solid var(--home-border);border-radius:8px;background:var(--home-card-bg);color:var(--home-text)}.fx-referral-card button{min-height:36px;border-radius:8px}",
+      layoutHints: ["桌面紧凑填充", "移动端单列"],
+      dataRequirements: ["inviteUrl", "inviteCode"],
+    }),
+    "",
+    "现在只返回最终 JSON object。",
+  ].join("\n");
+
+  return { system, user, promptMode: "minimax-component-compact" };
 }
 
 function normalizeEditMessages(messages) {
@@ -3322,6 +4927,8 @@ function buildComponentEditPrompt(payload, component) {
   const family = oneOfList(component.family, COMPONENT_FAMILIES, "ClientHomeAtoms");
   const familySpec = componentFamilySpec(family);
   const rootClass = firstHtmlClass(component.html);
+  const componentReference = componentLibraryPromptReference({ family, size: component.size, prompt: instruction, limit: 6 });
+  const aestheticReference = componentAestheticPromptReference({ family, size: component.size, prompt: instruction, limit: 5, sampleLimit: 2, feedbackLimit: 3 });
   const currentComponent = {
     id: component.id,
     name: component.name,
@@ -3334,18 +4941,24 @@ function buildComponentEditPrompt(payload, component) {
     layoutHints: component.layoutHints,
     dataRequirements: component.dataRequirements,
   };
+  const designGovernance = designRulesPromptReference();
 
   const system = [
     "你是 ForexCRM 首页积木组件编辑器。",
     "你只能返回一个 JSON object，不要 markdown，不要解释。",
     "你的任务是对当前组件做局部编辑，并返回完整替换版组件定义。",
     "把 currentComponent 当成唯一基稿，不能从零重新设计，不能替换成无关模块。",
-    "可以参考同 family 组件库积木的业务字段、尺寸和视觉语言来优化层级，但最终必须仍是 currentComponent 的局部演进。",
+    "必须遵守 design.md 设计治理：编辑时优先提升信息层级、状态表达、间距和响应式，不用装饰堆叠掩盖结构问题。",
+    "必须参考同 family 组件库积木和漂亮积木审美参考来优化层级，但最终必须仍是 currentComponent 的局部演进。",
+    "优化重点是让组件更像成熟金融客户端：主焦点更明确、字段层级更顺、按钮权重更克制、形态不再是普通白卡堆叠。",
     rootClass ? `HTML 根 class 必须继续使用 ${rootClass}，CSS 也必须继续限定在 .${rootClass} 下。` : "HTML 根元素必须继续使用一个稳定 class，CSS 必须限定在该 class 下。",
     "默认保留当前 family 和 size；只有用户明确要求改变尺寸或归属时才调整。",
+    `如需调整尺寸，遵守尺寸规则: ${COMPONENT_SIZE_GUIDE}`,
     "默认保留当前组件里没有被用户点名修改的字段、按钮、业务信息和视觉层级。",
     "如果用户说“名字/名称/标题改成 X”，必须同时更新 name 和组件里最主要的可见标题为 X。",
+    "组件内部只保留一个可见主标题；如果已有 strong/h1-h4 标题，移除上方 span/small/label 类 eyebrow 或分类小标题，数据行字段标签除外。",
     "如果用户说步骤不像渐进式、流程感不够、进度不明显，必须把步骤改成带编号、状态和连接关系的 progress/timeline 结构。",
+    "如果用户说更美观、更大气、更精致或重做样式，必须至少改变一种真实结构：指标带、状态条、步骤连接、趋势图容器、操作坞、表格/列表、左右分栏或紧凑信息流；不能只换颜色、阴影或圆角。",
     "不要把用户指令原文、AI 修改说明、对话说明或 change note 渲染进组件 UI。",
     "不要添加 data-ai-edit-note、ai-edit-note 或类似编辑痕迹。",
     "必须保留真实 ForexCRM 业务字段和动作，禁止生成通用占位组件。",
@@ -3364,7 +4977,16 @@ function buildComponentEditPrompt(payload, component) {
     compactJson(familySpec),
     "",
     "同类组件库参考:",
-    compactJson(componentLibraryPromptReference({ family, size: component.size, prompt: instruction, limit: 6 })),
+    compactJson(componentReference),
+    "",
+    "漂亮积木审美参考:",
+    compactJson(aestheticReference),
+    "",
+    "design.md 设计治理摘要:",
+    compactJson({
+      rules: designGovernance.rules?.slice(0, 5) || [],
+      forbidden: designGovernance.forbidden?.slice(0, 5) || [],
+    }),
     "",
     "对话记录:",
     compactJson(normalizeEditMessages(payload.messages), []),
@@ -3376,18 +4998,75 @@ function buildComponentEditPrompt(payload, component) {
   return { system, user };
 }
 
+function buildMiniMaxComponentEditPrompt(payload, component, config = {}) {
+  const instruction = cleanText(payload.instruction || payload.prompt, "优化当前组件。", 900);
+  const family = oneOfList(component.family, COMPONENT_FAMILIES, "ClientHomeAtoms");
+  const size = normalizeComponentSize(component.size || payload.size, "2x1");
+  const familySpec = componentFamilySpec(family);
+  const rootClass = firstHtmlClass(component.html);
+  const providerName = config.name || "MiniMax";
+  const currentComponent = {
+    id: component.id,
+    name: cleanText(component.name, "", 48),
+    family,
+    size,
+    description: cleanText(component.description, "", 120),
+    rootClass,
+    visibleText: cleanText(stripHtmlTags(component.html), "", 220),
+    html: sanitizeGeneratedHtml(component.html).slice(0, 1800),
+    css: sanitizeGeneratedCss(component.css).slice(0, 2200),
+    layoutHints: Array.isArray(component.layoutHints) ? component.layoutHints.slice(0, 4) : [],
+    dataRequirements: Array.isArray(component.dataRequirements) ? component.dataRequirements.slice(0, 4) : [],
+  };
+
+  const system = [
+    "你是 ForexCRM 首页积木组件编辑器。",
+    "只输出一个严格 JSON object；第一个字符必须是 {，最后一个字符必须是 }。",
+    "不要 markdown、代码块、解释、注释、<think> 或多余文本。",
+    "这是 MiniMax 2048 completion token 短输出模式：返回完整替换版组件，但 html/css 要短。",
+    "必须返回字段: name, family, size, description, tags, html, css, layoutHints, dataRequirements, changeSummary。",
+    "html 和 css 必须是 JSON 字符串；请压缩为单行并正确转义双引号，禁止字符串内裸换行。",
+    rootClass ? `HTML 根 class 必须继续使用 ${rootClass}，CSS 也必须限定在 .${rootClass} 下。` : "HTML 根元素必须使用一个稳定 class，CSS 必须限定在该 class 下。",
+    "保留当前业务能力，只调整用户点名的视觉层级、排版、密度或结构。",
+    "禁止 script、外链、iframe、图片 URL、表单提交和不安全属性。",
+    `${providerName} 如果不确定，宁可少写视觉细节，也必须保证 JSON.parse 可解析。`,
+  ].join("\n");
+
+  const user = [
+    "当前组件:",
+    compactJson(currentComponent),
+    "",
+    "业务约束:",
+    compactJson({ familySpec }),
+    "",
+    "紧凑参考:",
+    compactJson(compactMiniMaxComponentContext(payload, family, size, instruction)),
+    "",
+    "最新修改要求:",
+    instruction,
+    "",
+    "现在只返回最终 JSON object。",
+  ].join("\n");
+
+  return { system, user, promptMode: "minimax-component-edit-compact" };
+}
+
 function buildCompositionPrompt(payload) {
   const components = Array.isArray(payload.components) ? payload.components : [];
   const prompt = String(payload.prompt || "").trim();
+  const designGovernance = designRulesPromptReference();
 
   const system = [
     "你是 ForexCRM 首页积木编排师。",
     "你只能返回一个 JSON object，不要 markdown，不要解释。",
     "你的任务是从已保存的组件中选择积木，生成首页组合建议，并给出美化布局的指令。",
     "必须参考可用组件的真实内容：包括 visibleText、dataRequirements、layoutHints 和 styleSignals，再发挥组合意图；不能只看组件名字拼接。",
+    "可用组件里的 score 是用户 1-10 分评分；高分组件要优先进入首屏或作为同类组件的主要参考。",
     "不要创建不存在的 componentId。",
     "必须保证 asset_overview、quick_actions、trading_account_highlight、trading_accounts_list 或 onboarding_guide 至少有一条清晰路径。",
+    "必须遵守 design.md 设计治理：组合美化只能通过骨架、比例、密度、状态和模块顺序完成，不靠随机装饰。",
     "组合必须按 auto layout 思路填满可用区域，避免孤立小积木单独占整行、空白区块或东缺一块西缺一块的拼版。",
+    `组合尺寸规则: ${COMPONENT_SIZE_GUIDE}`,
   ].join("\n");
 
   const user = [
@@ -3401,6 +5080,7 @@ function buildCompositionPrompt(payload) {
         name: item.name,
         family: item.family,
         size: item.size,
+        score: normalizeComponentScore(item.score, 5),
         description: item.description,
         tags: item.tags,
         layoutHints: item.layoutHints,
@@ -3410,6 +5090,13 @@ function buildCompositionPrompt(payload) {
       })),
       [],
     ),
+    "",
+    "design.md 设计治理摘要:",
+    compactJson({
+      rules: designGovernance.rules?.slice(0, 6) || [],
+      forbidden: designGovernance.forbidden?.slice(0, 6) || [],
+      usePolicy: designGovernance.usePolicy,
+    }),
     "",
     "请返回字段: name, summary, layout[{componentId,size,zone,reason}], themeAdvice, polishInstructions。",
   ].join("\n");
@@ -3435,7 +5122,7 @@ function canonicalHomepageReference() {
       "onboarding_guide 可选，仅适合未开户、未入金、未开始交易等新用户阶段；它承接 KYC 状态、创建真实账户和首次入金这三步，KYC 状态只允许未提交/待审/通过/拒绝；AI 可以大胆把标题和样式包装成“账户开通进度”“3步成为交易大师”等新客转化旅程，不要固定写成“新手引导路径”；可按意图选择 mission-board、next-step-hero、ribbon-rail、guide-cards、journey-timeline、checklist 或 compact，图标必须贴合身份认证、开账户、入金业务，已完成主要流程时不展示或弱化。",
       "trading_account_highlight 可选，用于突出一个交易账号，可展示收益率、浮动盈亏和盈亏折线图；账号信息必须扁平分组，不要小卡片套小卡片；右侧图表区域下半部分要用日期轴、关键指标或走势摘要自然填满，不能出现大面积空白；所有账号和图表数据必须来自接口。",
       "trading_accounts_list 用于多个交易账号，可按字段数量和账号数量选择表格、列表、卡片、卡片墙或工作台切换视图；不要默认套用同一种白色卡片，也不要给标题工具栏额外加蓝色背景条块。",
-      "promo_banner 仅在租户配置活动时展示；不得虚构活动、奖励规则或 CTA 权益。",
+      "promo_banner 代表首页 Banner / 广告轮播；当管理员选择首屏 Banner 或首页 Banner 时，按可多张轮播图处理，必须具备分页/下一张/自动切换的交互契约，正式内容来自后台活动或广告配置。",
       "pamm_products 仅在租户开启 PAMM 功能且接口返回产品时展示；不得虚构产品、收益率、回撤、规模、人数、风险或走势图。",
       "copytrading_signals 仅在租户开启 CopyTrading 功能且接口返回信号源时展示；不得虚构信号源、交易员、收益率、跟随人数、风险、胜率或走势图。",
       "连续时间数据必须按趋势表达：近 N 天收益、7/30/90 日收益、净值、PnL、回撤变化或收益率曲线必须使用折线图或面积折线图，不得使用柱状图、胶囊柱或装饰性条形图。",
@@ -3446,7 +5133,7 @@ function canonicalHomepageReference() {
       "referral_link_card 不得展示返佣、团队入金、下级客户列表、层级关系或复杂 IB 数据；推广链接、邀请码和统计必须来自后台配置或接口。",
       "announcements 可选，展示系统公告、活动公告、维护通知、资金通知或平台消息；可按意图选择列表、重点公告、紧凑信息流或首页第一栏跑马灯，但不能抢资产、交易账户和快捷操作优先级。",
       "market_news 可选，适合下半部分展示市场新闻、平台资讯、新手教程、交易教育或热门文章；不能优先于核心模块。",
-      "risk_disclosure 可选，用于后台配置的风险披露、保证金提示和合规说明；必须作为页面底部 legal-strip 长文/富文本区域，不得作为普通侧栏指标卡，不得暗示稳赚或编造监管/风险状态。",
+      "risk_disclosure 可选，用于后台配置的风险披露、保证金提示和合规说明；必须作为页面底部 legal-strip 长文/富文本区域，不得作为普通侧栏指标卡，不得暗示稳赚或编造监管/风险状态；Demo 预览缺少后台数据时，可以生成参考风险提示文案占位。",
       "faq_section 可选，用于后台配置的开户、入金、下载、交易规则等常见问题；默认使用 accordion 折叠问答，不得编造政策细节。",
       "support_contact 可选，用于后台配置的在线客服、客户经理或服务时间入口；默认是轻量 1x1/compactBar 模块，只保留服务时间、客户经理/状态和联系按钮，不得占据大篇幅，不得编造在线状态或联系方式。",
       "app_download 可选，用于后台配置的 APP、MT5 或移动端下载入口；不得编造下载链接、二维码或商店地址。",
@@ -3529,6 +5216,7 @@ function guidedAiIntakeFromPayload(payload) {
     intent: compactGuidedChoice(source.intent),
     audience: Array.isArray(source.audience) ? source.audience.map(compactGuidedChoice).filter(Boolean).slice(0, 8) : [],
     level: compactGuidedChoice(source.level),
+    designStyle: compactGuidedChoice(source.designStyle),
     modules: Array.isArray(source.modules) ? source.modules.map(compactGuidedChoice).filter(Boolean).slice(0, 16) : [],
     theme: themeChoice ? { ...themeChoice, customInput: themeCustomInput } : null,
     tone: compactGuidedChoice(source.tone),
@@ -3626,17 +5314,31 @@ function guidedAllowsHomepageBlock(block, guidedIntake, text) {
   if (!canonical) return false;
   if (!guidedIntake || !GUIDED_EXPLICIT_ONLY_BLOCKS.has(canonical)) return true;
   const explicitBlocks = guidedExplicitBlockSet(guidedIntake);
-  return explicitBlocks.has(canonical) || guidedPromptExplicitlyRequestsBlock(canonical, text);
+  return explicitBlocks.has(canonical);
 }
 
 function guidedIntakePromptLines(guidedIntake) {
   if (!guidedIntake) return [];
   const assetFields = guidedIntake.moduleSettings?.assets?.visibleFields || [];
+  const selectedModuleIds = new Set((Array.isArray(guidedIntake.modules) ? guidedIntake.modules : []).map((module) => module?.id).filter(Boolean));
+  const themePreset = oneOfList(guidedIntake.theme?.themePreset || guidedIntake.theme?.id, HOMEPAGE_THEME_PRESETS, "");
   const assetLine = assetFields.length
     ? `账户概览字段硬约束: asset_overview 必须可见，标题用“资产概览”，moduleSettings.assets.visibleFields=${assetFields.join(",")}，只允许 total、wallet、tradingAccount 中的 1-3 项；如包含 total 和 tradingAccount，必须同时包含 wallet。`
     : "";
-  const themeLine = guidedIntake.theme?.customInput
-    ? `自定义视觉输入: ${guidedIntake.theme.customInput}；如果包含色值，把它作为主题主色参考，否则作为品牌风格文案参考。`
+  const themeLine = [
+    themePreset ? `主题硬约束: themePreset=${themePreset}，优先级高于自然语言中的“简约、留白、克制、浅色”等风格词。` : "",
+    guidedIntake.theme?.customInput
+      ? `自定义视觉输入: ${guidedIntake.theme.customInput}；如果包含色值，把它作为主题主色参考，否则作为品牌风格文案参考。`
+      : "",
+  ].filter(Boolean).join(" ");
+  const designLine = guidedIntake.designStyle?.instruction
+    ? `设计风格硬约束: ${guidedIntake.designStyle.label || guidedIntake.designStyle.id}；${guidedIntake.designStyle.instruction}`
+    : "";
+  const bannerLine = selectedModuleIds.has("heroBanner")
+    ? "首页 Banner 硬约束: 该选项按广告轮播图理解，使用 promo_banner 承接，生成多张 slide 的信息结构，并明确具备自动切换、分页和下一张交互；不要返回旧 adCarousel 模块 ID。"
+    : "";
+  const riskLine = selectedModuleIds.has("riskDisclosure")
+    ? "风险提示硬约束: risk_disclosure 正式内容来自合规后台；如果当前无数据，Demo 预览必须生成参考风险提示文案用于界面展示，并标注为参考，不得暗示稳赚。"
     : "";
   return [
     "引导式结构化选择:",
@@ -3647,7 +5349,10 @@ function guidedIntakePromptLines(guidedIntake) {
     `canonical.primaryIntent=${guidedIntake.canonical.primaryIntent || "未指定"}、layoutPreset=${guidedIntake.canonical.layoutPreset || "未指定"}、heroFocus=${guidedIntake.canonical.heroFocus || "未指定"}。`,
     `canonical.mustHave=${guidedIntake.canonical.mustHave.join(",") || "未指定"} 必须可见或由同类首页积木明确承接。`,
     assetLine,
+    designLine,
     themeLine,
+    bannerLine,
+    riskLine,
     "modules[].canonicalTargets 是每个表单模块映射后的首页积木；客服、FAQ、风险提示、APP 下载如被选择，必须分别用 support_contact、faq_section、risk_disclosure、app_download 可见承接。",
     "modules[].canonicalTargets 没有选择的可选模块不得为了补齐常见页面而自行出现，尤其是 support_contact、faq_section、app_download 和 risk_disclosure。",
     "如果表单模块和首页白名单冲突，用 canonicalTargets 或最接近的 allowedBlocks 承接；不要输出 kyc_risk_notice、ib_dashboard、旧 userKycRail 等禁用块。",
@@ -3679,12 +5384,14 @@ function buildMiniMaxPrompt(payload) {
   const guidedIntake = guidedAiIntakeFromPayload(payload);
   const intentProfile = applyGuidedIntentProfile(buildHomepageIntentProfile(prompt), guidedIntake);
   const humanUnderstanding = extractHomepageUnderstanding(prompt);
+  const designGovernance = designRulesPromptReference();
   const system = [
     "你是 ForexCRM 首页蓝图生成器。",
     "只输出一个能被 JSON.parse 解析的紧凑 JSON object。",
     "不要 markdown、不要代码块、不要解释、不要 <think>、不要注释。",
     "输出必须短，禁止返回 layout、props、schema、默认配置、HTML、CSS、JS。",
     "必须返回 generationMode=\"brick-v2\"、blueprintVersion=5、brickPlan 和 brickTrace。",
+    "必须遵守 design.md 设计治理：漂亮必须落在金融 CRM 规范内，用信息层级、模块比例、状态和响应式提升，不用营销式大 hero 或装饰堆叠。",
     "必须使用白名单枚举值；未知需求用最接近的白名单值承接。",
     `当前首页内容块白名单只允许: ${CANONICAL_HOME_BLOCKS.join(", ")}。`,
     "禁止输出 reward_tasks、kyc_risk_notice、ib_dashboard，也不要输出旧模块 referralLink、userKycRail、fundActions、walletList、openAccountActions、createAccountForm；旧 riskNotice/support_help 必须改用 risk_disclosure/support_contact。",
@@ -3709,7 +5416,7 @@ function buildMiniMaxPrompt(payload) {
     "referral_link_card 可以展示推广链接、邀请码、复制按钮、分享按钮和基础统计；样式应参考 ReferralLinkCard 积木字段、按钮和密度后再引申，不得生成返佣、团队业绩、下级客户或层级关系。",
     "announcements 可以是栏目列表、重点公告、紧凑信息流，也可以在管理员明确要求跑马灯/滚动公告/首页第一栏时使用 ticker-strip；公告标题、时间、内容均来自接口或后台配置。",
     "risk_disclosure、faq_section、support_contact、app_download 是正式可见模块；当管理员在引导中选择风险提示、FAQ、在线客服或 APP 下载时必须用这些模块承接。",
-    "support_contact 必须轻量化，不得占据大篇幅；只展示服务时间、客户经理/状态和一个联系按钮，不得编造在线状态或联系方式；app_download 不得编造下载链接或二维码；faq_section 和 risk_disclosure 的内容应来自后台配置或合规接口。",
+    "support_contact 必须轻量化，不得占据大篇幅；只展示服务时间、客户经理/状态和一个联系按钮，不得编造在线状态或联系方式；app_download 不得编造下载链接或二维码；faq_section 内容应来自后台配置；risk_disclosure 正式内容应来自合规接口，Demo 缺数据时可生成清晰标注的参考风险提示文案。",
     "首页必须按响应式 auto layout 思路编排：首屏、主内容、侧栏和整行模块要自然填满栅格，移动端能降级单列。",
     "必须返回 autoLayout：说明 desktop/tablet/mobile 三档行策略、折叠断点、同行等高和模块内部自适应；它是生成契约，不是给客户看的配置。",
     "autoLayout.tablet.collapseAt 默认 1040，mobile.collapseAt 默认 720；内容区低于 tablet 断点时，两栏模块自动变一栏一个模块。",
@@ -3717,7 +5424,7 @@ function buildMiniMaxPrompt(payload) {
     "禁止空 section、空 slots、禁用模块占位、孤立小积木独占大行，不能出现东缺一块西缺一块的空白区块。",
     "空间利用是硬约束：状态、步骤、快捷入口等轻量模块必须压缩高度并把信息靠近图标/编号，禁止内容贴底、编号漂浮或用无内容卡片制造高级感。",
     "桌面端允许一行两个积木；同行两个积木必须配满 12 栅格并等高，禁止 8/12 内容右侧留空。",
-    "必须遵守 brickReference.layoutGrammar：3x=整行、2x=主栏、1x=侧栏；只能使用 3x 独占、2x+1x、2x+2x 这些稳定组合。",
+    `必须遵守尺寸语法：${COMPONENT_SIZE_GUIDE} 稳定组合优先使用 3x/4x/5x 及以上独占、2x+1x、2x+2x。`,
     "交易账号列表、账号表现图表、钱包列表属于大模块，必须单独一个 full section/整横栏；不要把 trading_accounts_list 和 trading_account_highlight 放在同一个 section 或同一行左右分栏。",
     "账号、钱包列表、表格、8 个快捷入口、首屏轮播属于高风险模块，必须按 layoutGrammar.moduleSizing 选择 size 和 zone。",
     "如果布局美观度和模块数量冲突，优先保证行配方完整、同高、少空白，再减少辅助模块。",
@@ -3736,6 +5443,7 @@ function buildMiniMaxPrompt(payload) {
     "模型返回必须包含 pageIntent；如果 pageIntent 与管理员需求有冲突，仍以服务端识别结果为准。",
     "必须先选择 designGenome 和 pageStory，再选择积木：magazineCampaign=活动专题封面，tradingCommand=交易指挥中心，onboardingJourney=新客旅程，privateWealthDesk=私行服务台，accountOpsConsole=账户运营控制台。",
     "生成模块表达时必须参考 componentLibraryReference：先吸收已保存积木的字段、尺寸、按钮、标签和卡片密度，再结合 pageIntent 发挥；不要脱离组件库语言空想新模块。",
+    "生成页面审美时必须参考 aestheticTraining：samplePages 决定页面级构图和功能流，beautifulComponents 决定漂亮积木块细节，feedbackMemory 决定用户长期偏好；不要输出平均白卡表单页。",
     "componentLibraryReference 只能作为形态和灵感参考，不能授权新增 allowedBlocks 以外的业务模块，也不能把组件 HTML/CSS 直接塞进首页配置。",
     "组件形态不能都用普通卡片；componentMorphs 是渲染契约，不是展示说明。",
     "核心可见模块必须选择 componentMorphs：AssetOverview、WalletList、QuickActions、TradingAccounts、OnboardingProgress、AccountPerformance、PromotionBanner、ReferralLinkCard、RiskDisclosure 只要出现在 sections/brickPlan/layout 中，就必须从 componentMorphPool 对应 10 种 DOM morph 池里选择 morph/morphId。",
@@ -3756,7 +5464,9 @@ function buildMiniMaxPrompt(payload) {
     brickReference: canonicalHomepageReference(),
     componentMorphPool: CORE_COMPONENT_MORPH_POOL,
     componentLibraryReference: componentLibraryPromptReference({ prompt, limit: 12 }),
+    aestheticTraining: aestheticTrainingContext({ prompt }, { sampleLimit: 4, componentLimit: 10, feedbackLimit: 6 }),
     savedCompositionReference: savedCompositionPromptReference(6),
+    designGovernance,
     requiredFields: [
       "schemaVersion",
       "blueprintVersion",
@@ -3785,7 +5495,7 @@ function buildMiniMaxPrompt(payload) {
     ],
     enums: {
       layoutPreset: ["standardDashboard", "conversionFirst", "assetFirst", "tradingPro", "vipService", "magazineCampaign", "tradingCommand", "onboardingJourney", "privateWealthDesk", "accountOpsConsole"],
-      themePreset: ["default", "blackGold", "lightGold", "blueFinance", "darkTech", "minimalWhite"],
+      themePreset: ["default", "blackGold", "lightGold", "blueFinance", "darkTech", "minimalWhite", "emeraldTrust", "cobaltTeal", "crimsonPromo", "graphiteSilver"],
       colorMode: ["auto", "light", "dark"],
       personalizationStrength: ["subtle", "medium", "strong"],
       density: ["compact", "balanced", "spacious"],
@@ -3850,14 +5560,14 @@ function buildMiniMaxPrompt(payload) {
       "当模块内容在半宽列中会拥挤时，AI 必须在 autoLayout 中允许该模块内部先换行、缩成两列或变成纵向列表，而不是固定横向三等分。",
       "不要把所有模块默认做成独占整栏；没有明确独占/整栏/长模块/首屏大横幅要求时，允许 AI 把两个轻量相关模块组成一栏来优化首屏节奏，但不得包含交易账号列表、账号表现图表或钱包列表。",
       "空间利用是硬约束：如果管理员提到空白、少留白、空间利用或压缩高度，density 必须是 compact 或 balanced，不得使用 spacious；onboarding_guide 优先使用 compact/checklist/ribbon-rail 或紧凑 guide-cards。",
-      "size 必须遵守布局语法：3x1/3x2 只能独占整行；2x1/2x2 是主栏；1x1/1x2 是侧栏；不要返回 8x2、6*2 或其他非白名单尺寸。",
+      `size 必须遵守布局语法：${COMPONENT_SIZE_GUIDE}`,
       "禁止 2x2+1x1、3x2+任意模块、表格/list 用 1x、8 个快捷入口用 1x、广告轮播和账号列表同行。",
-      "优先选择稳定行配方：2x1+1x1、2x2+1x2、2x1+2x1、3x 独占。",
+      "优先选择稳定行配方：2x1+1x1、2x2+1x2、2x1+2x1、3x/4x/5x 及以上宽幅积木独占整行。",
       "禁止返回空 section、空 slots、不可渲染 slot 或明显会留下大面积空白的单模块区域。",
       "交易账号如需真实卡片、模拟列表，moduleSettings.tradingAccounts.grouping 必须为 separated，viewMode 为 card，realViewMode 为 card，demoViewMode 为 list，且不要出现账号 tab 切换。",
       "如果管理员要求 Demo 在 Live 上面、模拟账号在真实账号上面，moduleSettings.tradingAccounts.demoFirst 必须为 true。",
-      "真实卡片+模拟列表、真实/模拟分区、任一账号列表视图时，TradingAccounts 的 brickPlan size 必须是 3x2 且 zone=full。",
-      "AccountPerformance/trading_account_highlight 的 brickPlan size 必须是 3x2 且 zone=full；图表模块用整横栏换取更好的账号上下文、趋势图和指标带展示体验。",
+      "真实卡片+模拟列表、真实/模拟分区、任一账号列表视图时，TradingAccounts 的 brickPlan size 必须是 3x2 或更大宽幅尺寸且 zone=full。",
+      "AccountPerformance/trading_account_highlight 的 brickPlan size 必须是 3x2 或更大宽幅尺寸且 zone=full；图表模块用整横栏换取更好的账号上下文、趋势图和指标带展示体验。",
       "只有纯账号卡片证明且不含模拟列表时，TradingAccounts 才允许 size=2x2 zone=main，且旁边必须配 1x2 侧栏。",
       "交易账号如需真实/模拟都用列表，moduleSettings.tradingAccounts.grouping 必须为 separated 且 viewMode/realViewMode/demoViewMode 均为 list。",
       "交易账号模块标题区使用干净工具栏，不要额外蓝色背景条块；真实/模拟账号分区时，列表标题右侧不展示账号数量徽标；真实和模拟分区都要保留同级创建账号按钮，按钮文案统一为“创建账号”。",
@@ -3871,7 +5581,8 @@ function buildMiniMaxPrompt(payload) {
       "quickActions.count=8 时，QuickActions 必须使用 size=2x1 或 3x1，不得使用 1x1/1x2。",
       "用户要求欢迎模块、欢迎区或 welcome 时，保留轻量 welcome_header 首行；welcome 只是入口和上下文，不应替代业务 heroFocus。",
       "用户要求淡金色、浅金色、轻金色、香槟金、金色调或 gold 时，themePreset 必须使用 lightGold，并用扁平、轻量、低阴影样式表达；只有明确黑金/VIP/高净值才使用 blackGold。",
-      "活动 Banner 只能使用 promo_banner；只有租户配置活动时才展示，不能用 adCarousel 或 reward_tasks 旧模块表达活动。",
+      "用户要求翡翠、信任绿或资金安全绿时使用 emeraldTrust；要求钴蓝、青绿或青蓝科技时使用 cobaltTeal；要求赤红、红色活动或红橙时使用 crimsonPromo；要求石墨、银色或机构灰时使用 graphiteSilver。",
+      "活动 Banner / 首页 Banner 只能使用 promo_banner 作为 canonical 模块；表现上可以是多张广告轮播图，必须有下一张和自动切换契约；不要返回旧 adCarousel 或 reward_tasks 模块。",
       "用户只要求创建真实交易账号按钮时，不要返回 create_account_form/open_account_panel 作为独立模块；可由 onboarding_guide 或 trading_accounts_list 中的后台配置入口承接。",
       "不要绑定账号入口时，moduleSettings.openAccount.bind 必须为 false。",
       "入金/出金按钮只允许作为 asset_overview 的可选操作或后台配置的 quick_actions 入口出现；不要为了入金转化新增固定资金操作模块。",
@@ -4018,11 +5729,14 @@ function buildMiniMaxPrompt(payload) {
 function compactComponentLibraryPromptReference(options = {}) {
   const components = readComponentLibrary().components;
   return rankComponentReferences(components, { ...options, limit: Math.min(Number(options.limit) || 4, 4) }).map((component) => ({
+    id: cleanText(component.id, "", 60),
     name: cleanText(component.name, "", 40),
     family: cleanText(component.family, "", 40),
     size: cleanText(component.size, "", 12),
     description: cleanText(component.description, "", 90),
     tags: Array.isArray(component.tags) ? component.tags.slice(0, 4) : [],
+    visibleText: cleanText(stripHtmlTags(component.html), "", 140),
+    styleSignals: componentStyleSignals(component.css).slice(0, 5),
   }));
 }
 
@@ -4065,10 +5779,10 @@ function compactHomepageContract(intentProfile, prompt) {
     allowedBlocks: CANONICAL_HOME_BLOCKS,
     forbiddenBlocks: ["reward_tasks", "kyc_risk_notice", "ib_dashboard", "referralLink", "userKycRail", "riskNotice", "support_help"],
     layoutPreset: ["standardDashboard", "conversionFirst", "assetFirst", "tradingPro", "vipService", "magazineCampaign", "tradingCommand", "onboardingJourney", "privateWealthDesk", "accountOpsConsole"],
-    themePreset: ["default", "blackGold", "lightGold", "blueFinance", "darkTech", "minimalWhite"],
+    themePreset: ["default", "blackGold", "lightGold", "blueFinance", "darkTech", "minimalWhite", "emeraldTrust", "cobaltTeal", "crimsonPromo", "graphiteSilver"],
     density: ["compact", "balanced", "spacious"],
     sectionType: ["hero", "split", "full", "rail"],
-    brickSize: ["3x1", "3x2", "2x1", "2x2", "1x1", "1x2"],
+    brickSize: COMPONENT_SIZES,
     brickZone: ["hero", "main", "rail", "full"],
     blockFamily: {
       welcome_header: "WelcomeHeader",
@@ -4127,6 +5841,24 @@ function compactHomepageContract(intentProfile, prompt) {
     intentMustHave: compactIntent.mustHave,
     intentAvoid: compactIntent.avoid,
     componentReferences: compactComponentLibraryPromptReference({ prompt, limit: 4 }),
+    aestheticSamples: rankDesignSamplesForPrompt(prompt, 3).map((sample) => ({
+      id: sample.id,
+      name: sample.name,
+      pageIntent: sample.pageIntent,
+      visualStyle: sample.visualStyle,
+      page: sample.page,
+      functions: sample.functions.slice(0, 3),
+      goodPatterns: sample.goodPatterns.slice(0, 4),
+    })),
+    beautifulComponents: beautifulComponentReferences({ prompt, limit: 4 }).map((component) => ({
+      id: component.id,
+      name: component.name,
+      family: component.family,
+      size: component.size,
+      styleSignals: component.styleSignals,
+      reuseAdvice: component.reuseAdvice,
+    })),
+    feedbackMemory: feedbackMemoryPromptReference(prompt, 3),
   };
 }
 
@@ -4139,19 +5871,23 @@ function buildLowLatencyHomepagePrompt(payload, config = {}) {
   const compactIntent = compactHomepageIntentProfile(intentProfile);
   const design = homepageDesignForIntent(intentProfile.primaryIntent);
   const providerName = config.name || PROVIDERS[config.provider]?.name || "AI";
+  const designGovernance = designRulesPromptReference();
 
   const system = [
     "你是 ForexCRM 首页蓝图生成器。",
     "只输出一个能被 JSON.parse 解析的紧凑 JSON object，不要 markdown、解释、注释、HTML、CSS、JS 或 <think>。",
     "输出必须短：sections 3-4 个，brickPlan 4-6 个，reason 不超过 28 个中文字符，aiSummary 不超过 60 个中文字符。",
+    "必须遵守 design.md 设计治理：金融 CRM 美观来自结构、密度、状态、数据扫描和响应式，不来自随意装饰、营销式大封面或卡片堆叠。",
     "必须返回 generationMode=\"brick-v2\"、blueprintVersion=5，并只使用 allowedBlocks 里的 snake_case 内容块。",
     "禁止旧模块和禁用模块：balanceTotal、fundActions、walletList、referralLink、userKycRail、riskNotice、support_help、reward_tasks、kyc_risk_notice、ib_dashboard。",
     "quick_actions.actions 必须返回 []；入口内容来自后台配置或接口，AI 只决定数量、布局和样式。",
     "asset_overview 只做 total、wallet、tradingAccount 汇总；多币种明细只能用 wallet_list。",
+    "首页 Banner / 活动 Banner 使用 promo_banner；被选择时按多张广告轮播图处理，具备分页、下一张和自动切换契约，不返回旧 adCarousel。",
     "PAMM 和 CopyTrading 必须分别用 pamm_products 与 copytrading_signals，不能合并。",
     "连续收益、净值、PnL、回撤等趋势数据必须表达为折线或面积折线，真实数据在 dataContract 标记接口绑定和 fallback。",
+    "紧凑输出契约会包含 aestheticSamples、beautifulComponents 和 feedbackMemory；必须用它们决定页面级构图、漂亮积木块细节和用户偏好，不能只输出平均白卡布局。",
     "视觉模式必须返回 colorMode=\"auto\"，除非管理员只要求白天或只要求暗夜；minimalWhite、blueFinance、lightGold 的白天模式不得使用大面积黑色/终端色块，暗色只在 darkTech 或 colorMode=dark 时出现。",
-    "空间利用是硬约束：桌面 12 栅格紧凑填充，优先 3x 独占、2x+1x、2x+2x；移动端自然单列。",
+    `空间利用是硬约束：桌面 12 栅格紧凑填充，${COMPONENT_SIZE_GUIDE} 优先宽幅积木独占、2x+1x、2x+2x；移动端自然单列。`,
     `${providerName} 请求会走短上下文模式；不要复述规则，只返回最终 JSON。`,
   ].join("\n");
 
@@ -4170,6 +5906,13 @@ function buildLowLatencyHomepagePrompt(payload, config = {}) {
     "",
     "紧凑输出契约:",
     compactJson(compactHomepageContract(intentProfile, prompt)),
+    "",
+    "design.md 设计治理摘要:",
+    compactJson({
+      rules: designGovernance.rules?.slice(0, 6) || [],
+      forbidden: designGovernance.forbidden?.slice(0, 6) || [],
+      usePolicy: designGovernance.usePolicy,
+    }),
     "",
     "返回 JSON 示例结构只需同等字段，不要照抄内容:",
     compactJson({
@@ -4202,8 +5945,68 @@ function buildLowLatencyHomepagePrompt(payload, config = {}) {
   return { system, user, promptMode: "low-latency-homepage" };
 }
 
+function buildMiniMaxHomepagePatchPrompt(payload, config = {}) {
+  const prompt = cleanText(payload.prompt, "生成一个适合默认客户的平衡首页。", 720);
+  const variant = Number(payload.variant || 0);
+  const guidedIntake = guidedAiIntakeFromPayload(payload);
+  const intentProfile = applyGuidedIntentProfile(buildHomepageIntentProfile(prompt), guidedIntake);
+  const compactIntent = compactHomepageIntentProfile(intentProfile);
+  const design = homepageDesignForIntent(intentProfile.primaryIntent);
+  const providerName = config.name || "MiniMax";
+  const designGovernance = designRulesPromptReference();
+
+  const system = [
+    "你是 ForexCRM 首页蓝图 patch 生成器。",
+    "只输出一个 JSON object；第一个字符必须是 {，最后一个字符必须是 }。",
+    "不要 markdown、代码块、解释、注释、HTML、CSS、JS 或 <think>。",
+    "这是 MiniMax 2048 completion token 短输出模式：返回 patch，不返回完整默认配置；服务端会补齐 schema、默认 moduleSettings、dataContract、autoLayout 和安全纠偏。",
+    "输出控制在 1200 个中文字符内；sections 最多 4 个，brickPlan 最多 6 个；brickPlan 只写 component、size、zone，省略 reason、brickName、family。",
+    "必须返回 schemaVersion=4、blueprintVersion=5、generationMode=\"brick-v2\"、name、layoutPreset、themePreset、colorMode、density、heroFocus、sections、brickPlan、modules、moduleStyles、moduleSettings、aiSummary。",
+    "所有 sections[].slots 和 brickPlan[].component 只能使用 allowedBlocks；quickActions.actions 必须是空数组。",
+    "遵守 design.md 设计治理：只做金融 CRM 工作台式美化，不做营销式大 hero、卡片套卡片或随机渐变。",
+    `${providerName} 如果不确定字段，宁可少写，不能写白名单外模块或让 JSON 截断。`,
+  ].join("\n");
+
+  const user = [
+    `生成轮次: ${Number.isFinite(variant) ? variant : 0}`,
+    "",
+    ...guidedIntakePromptLines(guidedIntake),
+    "管理员需求:",
+    prompt,
+    "",
+    "页面意图和默认设计:",
+    compactJson({ pageIntent: compactIntent, design }),
+    "",
+    "allowedBlocks:",
+    compactJson(CANONICAL_HOME_BLOCKS),
+    "",
+    "可用 layout/theme/density:",
+    compactJson({
+      layoutPreset: ["standardDashboard", "conversionFirst", "assetFirst", "tradingPro", "vipService", "magazineCampaign", "tradingCommand", "onboardingJourney", "privateWealthDesk", "accountOpsConsole"],
+      themePreset: ["default", "blackGold", "lightGold", "blueFinance", "darkTech", "minimalWhite", "emeraldTrust", "cobaltTeal", "crimsonPromo", "graphiteSilver"],
+      density: ["compact", "balanced", "spacious"],
+      sizes: ["1x1", "2x1", "2x2", "3x1", "3x2", "4x1"],
+      zones: ["hero", "main", "rail", "full"],
+    }),
+    "",
+    "design.md 摘要:",
+    compactJson({
+      rules: designGovernance.rules?.slice(0, 4) || [],
+      forbidden: designGovernance.forbidden?.slice(0, 4) || [],
+    }),
+    "",
+    "输出示例形状，不要照抄:",
+    "{\"schemaVersion\":4,\"blueprintVersion\":5,\"generationMode\":\"brick-v2\",\"name\":\"AI 首页方案\",\"layoutPreset\":\"accountOpsConsole\",\"themePreset\":\"blueFinance\",\"colorMode\":\"auto\",\"density\":\"balanced\",\"heroFocus\":\"asset_overview\",\"sections\":[{\"id\":\"hero\",\"type\":\"hero\",\"slots\":[\"asset_overview\",\"quick_actions\"]}],\"brickPlan\":[{\"component\":\"asset_overview\",\"size\":\"2x1\",\"zone\":\"hero\"}],\"modules\":{\"AssetOverview\":{\"variant\":\"tickerStrip\"}},\"moduleStyles\":{\"asset_overview\":\"ticker-strip\"},\"moduleSettings\":{\"quickActions\":{\"enabled\":true,\"count\":4,\"display\":\"iconText\",\"actions\":[]}},\"aiSummary\":\"一句话说明方案\"}",
+    "",
+    "现在只返回最终 JSON object。",
+  ].join("\n");
+
+  return { system, user, promptMode: "minimax-homepage-patch" };
+}
+
 function buildPrompt(payload, config = {}) {
-  if (["minimax", "kimi"].includes(config.provider)) return buildLowLatencyHomepagePrompt(payload, config);
+  if (config.provider === "minimax") return buildMiniMaxHomepagePatchPrompt(payload, config);
+  if (config.provider === "kimi") return buildLowLatencyHomepagePrompt(payload, config);
   if (config.apiMode === "openai-chat") return buildMiniMaxPrompt(payload);
 
   const context = payload.context || {};
@@ -4212,17 +6015,20 @@ function buildPrompt(payload, config = {}) {
   const now = new Date().toISOString();
   const guidedIntake = guidedAiIntakeFromPayload(payload);
   const intentProfile = applyGuidedIntentProfile(buildHomepageIntentProfile(prompt), guidedIntake);
+  const designGovernance = designRulesPromptReference();
 
   const system = [
     "你是 ForexCRM 的首页蓝图生成器。",
     "你的任务是把管理员的中文需求转换成安全的首页配置 JSON。",
     "只能返回一个 JSON object，不要 markdown，不要解释，不要生成 HTML/CSS/JS。",
+    "必须遵守 design.md 设计治理：先用规范锁住页面骨架、组件语义、视觉 token、暗色/移动端和禁用项，再允许 AI 在结构、层级和模块细节上做漂亮变化。",
     `配置只能围绕这些首页内容块: ${CANONICAL_HOME_BLOCKS.join(", ")}。`,
     "不要输出奖励/任务区、KYC 风控提醒区或完整代理数据区；客服、FAQ、风险提示、APP 下载要用 support_contact、faq_section、risk_disclosure、app_download，旧 riskNotice/support_help 仅作兼容输入。",
     "快捷操作区 quick_actions 只负责占位、渲染和适配后台返回入口；不要写死具体快捷功能，也不要假设入金、出金、开户一定存在。",
     "quick_actions 的每个入口都必须有独立视觉容器，例如卡片、边框按钮、磁贴或背景色模块；不要输出裸排图标+文字。根据意图选风格：交易工作台用 command-bar/segmented-panel，活动增长用 accent-cards/tile-board，新客旅程用 task-rail/accent-cards，资产/品牌用 tile-board/segmented-panel，移动端用 compact-menu。",
     "资产概览区 asset_overview 标题统一用“资产概览”，可展示 total、wallet、tradingAccount 中任意 1-3 个字段；total=wallet+tradingAccount，如果出现 total+tradingAccount 必须同时出现 wallet；可选展示入金/出金按钮，但不得新增资产字段或编造资金数据。",
     "PAMM 产品推荐区 pamm_products 与 CopyTrading 信号源推荐区 copytrading_signals 必须独立处理，且只在租户开启对应能力时展示。",
+    "首页 Banner / 活动 Banner 只能使用 promo_banner 作为 canonical 模块；当管理员选择 Banner 时按多张广告轮播图处理，需要有分页、下一张和自动切换契约，不要返回旧 adCarousel 模块。",
     "连续时间数据必须按趋势表达：近 N 天收益、7/30/90 日收益、净值、PnL、回撤变化或收益率曲线必须使用折线图或面积折线图，不得使用柱状图、胶囊柱或装饰性条形图。",
     "数据策略必须分层：预览可用 sample data 填充页面效果，但交易成本、PnL、保证金、图表等真实数据必须在 dataContract 中标记 previewSample=true、dataBindingRequired=true、fallback=\"--\" 或 placeholder，正式运行来自后台或接口。",
     "不要把“交易成本/PnL/保证金/图表数据必须来自接口”理解成交易成本看板；只有管理员明确说首屏突出交易成本、成本效率、点差佣金看板或成本工作台时，才使用成本看板。",
@@ -4237,7 +6043,7 @@ function buildPrompt(payload, config = {}) {
     "不要输出无业务增益的英文 eyebrow，例如 AI Copytrading Match；标题能说明模块时直接展示标题。",
     "推广链接 referral_link_card 仅代理、IB、合作伙伴或租户开启推广链接功能时展示；它只展示推广链接、邀请码、复制/分享和基础统计，样式需要参考 ReferralLinkCard 积木内容后引申，不得变成完整代理中心。",
     "risk_disclosure、faq_section、support_contact、app_download 是正式可见模块；当管理员在引导中选择风险提示、FAQ、在线客服或 APP 下载时必须用这些模块承接。",
-    "support_contact 必须轻量化，不得占据大篇幅；只展示服务时间、客户经理/状态和一个联系按钮，不得编造在线状态或联系方式；app_download 不得编造下载链接或二维码；faq_section 和 risk_disclosure 的内容应来自后台配置或合规接口。",
+    "support_contact 必须轻量化，不得占据大篇幅；只展示服务时间、客户经理/状态和一个联系按钮，不得编造在线状态或联系方式；app_download 不得编造下载链接或二维码；faq_section 内容应来自后台配置；risk_disclosure 正式内容应来自合规接口，Demo 缺数据时可生成清晰标注的参考风险提示文案。",
     "必须参考首页积木编排规则，把需求映射到 brickPlan、sections、layout、moduleStyles 和 moduleSettings。",
     "必须返回 generationMode=\"brick-v2\"、blueprintVersion=5、brickPlan 和 brickTrace。",
     "首页布局必须自适应 auto layout：桌面按 12 栅格紧凑填充，移动端降级单列；不要依赖空白占位、固定大高度或孤立小模块撑出空区块。",
@@ -4247,8 +6053,8 @@ function buildPrompt(payload, config = {}) {
     "桌面端允许一行两个积木，推荐 8+4 或 6+6；同一行的两个积木必须等高，不能留下 8/12 内容旁边空 4/12 的区域。",
     "空间利用是硬约束：状态、步骤、快捷入口等轻量模块必须压缩高度并把信息靠近图标/编号，禁止内容贴底、编号漂浮或用无内容卡片制造高级感。",
     "不要默认让所有模块独占一栏；除非管理员明确要求独占、整栏、长模块、首屏大横幅，或模块本身是大型列表/表格/趋势图，否则应允许两个轻量相关模块组成一栏。",
-    "必须遵守首页布局语法：3x1/3x2 是 12 栅格整行，2x1/2x2 是 8 栅格主栏，1x1/1x2 是 4 栅格侧栏；不要发明 8x2、6*2 等非白名单尺寸。",
-    "只使用稳定行配方：3x 独占整行、2x1+1x1、2x2+1x2、2x1+2x1；禁止 2x2+1x1、3x2+任何同行模块。",
+    `必须遵守首页布局语法：${COMPONENT_SIZE_GUIDE}`,
+    "优先使用稳定行配方：3x/4x/5x 及以上独占整行、2x1+1x1、2x2+1x2、2x1+2x1；禁止 2x2+1x1、3x2+任何同行模块。",
     "交易账号列表、账号表现图表、钱包列表必须各自单独一个 full section / 3x 整横栏；不要把 trading_accounts_list 与 trading_account_highlight 放进同一个 section 或同一行左右分栏。",
     "列表/表格/钱包列表/账号表现图表/账号双列表不能使用 1x；8 个快捷入口不能使用 1x；广告轮播和交易账号列表不能同行。",
     "如果布局美观度和模块数量冲突，优先保证同一行完整、等高、少空白，再减少辅助模块。",
@@ -4278,8 +6084,8 @@ function buildPrompt(payload, config = {}) {
     "sections、layout 和 brickPlan 只能包含可渲染且启用的业务模块；禁止空 section、空 slots、东缺一块西缺一块的断裂拼版。",
     "brickPlan、brickTrace、brickName、brickReason 只用于系统调试和数据属性，不能作为用户端可见 UI 文案。",
     "如果管理员要求真实账号用卡片、模拟账号用列表，必须设置 moduleSettings.tradingAccounts.grouping = \"separated\"、viewMode = \"card\"、realViewMode = \"card\"、demoViewMode = \"list\"，前端会渲染成两个独立账号模块且不显示 tab。",
-    "真实账号卡片+模拟账号列表、真实/模拟分区、任一账号列表视图时，TradingAccounts 的 brickPlan size 必须是 3x2 且 zone=full；只有纯 combined card 账号证明才允许 size=2x2 zone=main。",
-    "AccountPerformance/trading_account_highlight 的 brickPlan size 必须是 3x2 且 zone=full；账号表现图表用整横栏展示账号上下文、主数值、ECharts 趋势和指标带，优先保证美观度和空间使用。",
+    "真实账号卡片+模拟账号列表、真实/模拟分区、任一账号列表视图时，TradingAccounts 的 brickPlan size 必须是 3x2 或更大宽幅尺寸且 zone=full；只有纯 combined card 账号证明才允许 size=2x2 zone=main。",
+    "AccountPerformance/trading_account_highlight 的 brickPlan size 必须是 3x2 或更大宽幅尺寸且 zone=full；账号表现图表用整横栏展示账号上下文、主数值、ECharts 趋势和指标带，优先保证美观度和空间使用。",
     "如果管理员要求交易账号分成两个列表、真实和模拟都列表、Live/Demo 都列表，必须设置 moduleSettings.tradingAccounts.grouping = \"separated\" 且 viewMode/realViewMode/demoViewMode 都为 \"list\"。",
     "如果管理员要求模拟账号列表在真实账号列表上面，必须在 aiSummary 或 layout reason 中保留 Demo 在上、Live 在下的排序意图，前端会按该顺序渲染。",
     "如果管理员要求 Demo 在 Live 上面、模拟账号在真实账号上面，必须设置 moduleSettings.tradingAccounts.demoFirst = true。",
@@ -4291,6 +6097,7 @@ function buildPrompt(payload, config = {}) {
     "如果管理员要求活动增长、交易大赛、奖池，并明确说明租户已配置活动，必须使用 promo_banner 作为活动模块；如果有 welcome_header，promo_banner 可紧跟在 welcome_header 后面。",
     "如果管理员要求欢迎模块、欢迎区或 welcome，保留轻量 welcome_header 首行；welcome 必须固定在页面最顶部，只提供用户上下文，不展示重复的个性化入口，也不改变业务 heroFocus。",
     "如果管理员要求淡金色、浅金色、轻金色、香槟金、金色调或 gold，themePreset 必须使用 lightGold，并通过 density/moduleStyles 做扁平、轻量、低阴影表达；只有明确黑金/VIP/高净值才使用 blackGold。",
+    "如果管理员要求翡翠、信任绿或资金安全绿，themePreset 必须使用 emeraldTrust；要求钴蓝、青绿或青蓝科技时使用 cobaltTeal；要求赤红、红色活动或红橙时使用 crimsonPromo；要求石墨、银色或机构灰时使用 graphiteSilver。",
     "如果管理员要求极简、极简白、淡色、浅色、白色、留白或 minimal，themePreset 必须使用 minimalWhite；白天模式不得出现大面积黑色、终端黑、黑色欢迎条或黑色图表容器。",
     "所有生成首页必须考虑白天模式和暗夜模式：默认返回 colorMode=\"auto\"，只在管理员明确只要暗夜时返回 dark、明确只要白天时返回 light；暗色大面板只能在 darkTech 或 colorMode=dark 下使用。",
     "如果管理员要求欢迎模块独占第一栏，layout 中必须包含 welcome_header 作为第一个 12 栅格轻量整行；它不能改变 heroFocus，heroFocus 仍应指向广告轮播等业务核心。",
@@ -4340,6 +6147,8 @@ function buildPrompt(payload, config = {}) {
       componentMorphPool: CORE_COMPONENT_MORPH_POOL,
       componentLibraryReference: componentLibraryPromptReference({ prompt, limit: 12 }),
       savedCompositionReference: savedCompositionPromptReference(6),
+      aestheticTraining: aestheticTrainingContext({ prompt }, { sampleLimit: 4, componentLimit: 10, feedbackLimit: 6 }),
+      designGovernance,
     }),
     "",
     "当前草稿配置:",
@@ -4409,6 +6218,9 @@ function buildOpenAiChatBody(config, promptParts) {
     delete body.max_tokens;
     body.max_completion_tokens = Math.min(config.maxOutputTokens, MINIMAX_MAX_COMPLETION_TOKENS);
     body.reasoning_split = true;
+    if (structuredJsonRequest) {
+      body.response_format = { type: "json_object" };
+    }
   } else if (config.provider === "kimi") {
     delete body.max_tokens;
     body.max_completion_tokens = config.maxOutputTokens;
@@ -4499,21 +6311,82 @@ function extractProviderFinishReason(data) {
 }
 
 function stripReasoningText(text) {
-  return String(text || "")
-    .replace(/<think>[\s\S]*?<\/think>/gi, "")
-    .trim();
+  let source = String(text || "").replace(/<think>[\s\S]*?<\/think>/gi, "");
+  const danglingThink = source.search(/<think>/i);
+  if (danglingThink >= 0) {
+    const afterThink = source.slice(danglingThink).replace(/^<think>/i, "");
+    const jsonStart = afterThink.indexOf("{");
+    source = jsonStart >= 0 ? `${source.slice(0, danglingThink)}${afterThink.slice(jsonStart)}` : source.slice(0, danglingThink);
+  }
+  return source.trim();
+}
+
+function addJsonCandidate(candidates, candidate) {
+  const normalized = String(candidate || "").trim().replace(/^\uFEFF/, "");
+  if (normalized && !candidates.includes(normalized)) candidates.push(normalized);
+}
+
+function balancedJsonObjectCandidates(source) {
+  const text = String(source || "");
+  const candidates = [];
+  let start = -1;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+
+    if (start < 0) {
+      if (char === "{") {
+        start = index;
+        depth = 1;
+        inString = false;
+        escaped = false;
+      }
+      continue;
+    }
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+    } else if (char === "{") {
+      depth += 1;
+    } else if (char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        addJsonCandidate(candidates, text.slice(start, index + 1));
+        start = -1;
+      }
+    }
+  }
+
+  return candidates;
 }
 
 function extractJsonObject(text) {
   const source = stripReasoningText(text);
   const candidates = [];
-  const fenced = source.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  if (fenced?.[1]) candidates.push(fenced[1].trim());
-  candidates.push(source);
+  const fencedBlocks = source.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi);
+  for (const fenced of fencedBlocks) {
+    if (fenced?.[1]) addJsonCandidate(candidates, fenced[1]);
+  }
+  addJsonCandidate(candidates, source);
+  balancedJsonObjectCandidates(source).forEach((candidate) => addJsonCandidate(candidates, candidate));
 
   const first = source.indexOf("{");
   const last = source.lastIndexOf("}");
-  if (first >= 0 && last > first) candidates.push(source.slice(first, last + 1));
+  if (first >= 0 && last > first) addJsonCandidate(candidates, source.slice(first, last + 1));
 
   for (const candidate of candidates) {
     try {
@@ -5117,7 +6990,7 @@ function mockHomepageConfig(payload, providerConfig) {
       promo: intent === "deposit" || isGrowth || intent === "brand" ? "high" : "low",
       accounts: isTrader || isAsset ? "high" : "medium",
     },
-    aiSummary: `已通过 ${providerConfig.name} / ${providerConfig.model} 生成${meta[5]}`,
+    aiSummary: `Mock 预览：当前服务启用了 HOME_AI_MOCK，未调用 ${providerConfig.name} / ${providerConfig.model} 真实模型；本地生成${meta[5]}`,
   };
 }
 
@@ -5228,7 +7101,7 @@ function ensureObject(value) {
 }
 
 const HOMEPAGE_MODULE_SETTING_DEFAULTS = {
-  adCarousel: { enabled: false },
+  adCarousel: { enabled: false, autoRotate: true, slideCount: 3 },
   promoHighlight: { enabled: true },
   quickActions: { enabled: true, count: 4, display: "iconText", actions: [] },
   wallet: { enabled: false, placement: "mergedWithAssets", showFundActions: false },
@@ -5287,7 +7160,15 @@ const HOMEPAGE_MODULE_SETTING_DEFAULTS = {
   copytrading: { enabled: false },
   announcements: { enabled: false },
   marketNews: { enabled: false },
-  riskDisclosure: { enabled: false },
+  riskDisclosure: {
+    enabled: false,
+    demoFallback: true,
+    demoCopy: [
+      "外汇、贵金属、差价合约及其他保证金产品涉及杠杆，价格波动可能导致本金损失。",
+      "交易前请确认您理解保证金要求、强平机制、滑点、流动性、系统中断及汇率波动等风险。",
+      "过往表现、收益展示或模拟交易结果不构成未来收益承诺。",
+    ],
+  },
   faq: { enabled: false },
   supportContact: { enabled: false },
   appDownload: { enabled: false },
@@ -5825,7 +7706,7 @@ function sanitizeHomepageAllowedBlocks(config, prompt = "", guidedIntake = null)
         brickId: cleanText(brick?.brickId || `${component}.generated`, `${component}.generated`, 90),
         brickName: cleanText(brick?.brickName || brick?.name || component, component, 80),
         family: cleanText(brick?.family || brick?.brickFamily || component, component, 48),
-        size: cleanText(brick?.size || brick?.brickSize || (component === "trading_accounts_list" ? "3x2" : "2x1"), "", 12),
+        size: normalizeComponentSize(brick?.size || brick?.brickSize, component === "trading_accounts_list" ? "3x2" : "2x1"),
         zone: ["hero", "main", "rail", "full"].includes(brick?.zone || brick?.brickZone) ? brick.zone || brick.brickZone : "main",
       };
     })
@@ -6265,6 +8146,49 @@ function clonePlain(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function mergeHomepageModelPatch(base, patch) {
+  const target = clonePlain(ensureObject(base));
+  const source = ensureObject(patch);
+  Object.entries(source).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+    if (
+      value &&
+      typeof value === "object" &&
+      !Array.isArray(value) &&
+      target[key] &&
+      typeof target[key] === "object" &&
+      !Array.isArray(target[key])
+    ) {
+      target[key] = mergeHomepageModelPatch(target[key], value);
+      return;
+    }
+    target[key] = value;
+  });
+  return target;
+}
+
+function prepareProviderHomepageConfig(payload, modelConfig, providerConfig = {}) {
+  const source = ensureObject(modelConfig);
+  const providerId = providerConfig.provider || "";
+  let next = source;
+
+  if (providerId === "minimax") {
+    next = mergeHomepageModelPatch(mockHomepageConfig(payload, providerConfig), source);
+    const patchSummary = cleanText(source.aiSummary, "", 120);
+    next.aiSummary = patchSummary || "MiniMax 短蓝图生成：已按首页意图返回紧凑 patch，服务端补齐完整配置。";
+    next.brickTrace = {
+      ...ensureObject(next.brickTrace),
+      source: "model/minimax-patch",
+      strategy: cleanText(next.brickTrace?.strategy, "MiniMax 短蓝图 patch", 80),
+    };
+  }
+
+  next.schemaVersion = Number.isFinite(Number(next.schemaVersion)) ? Number(next.schemaVersion) : 4;
+  next.blueprintVersion = Number.isFinite(Number(next.blueprintVersion)) ? Number(next.blueprintVersion) : 5;
+  next.generationMode = cleanText(next.generationMode, "brick-v2", 40);
+  return next;
+}
+
 function normalizeServerAutoLayoutBreakpoint(source, fallback) {
   const value = ensureObject(source);
   return {
@@ -6401,6 +8325,7 @@ const GUIDED_SLOT_SECTIONS = {
 
 function guidedRequiredHomepageSlots(guidedIntake) {
   const slots = [];
+  const explicitBlocks = guidedExplicitBlockSet(guidedIntake);
   const addSlot = (value) => {
     const slot = canonicalHomeBlock(value);
     if (slot && CANONICAL_HOME_BLOCKS.includes(slot) && !slots.includes(slot)) slots.push(slot);
@@ -6409,7 +8334,12 @@ function guidedRequiredHomepageSlots(guidedIntake) {
   (Array.isArray(guidedIntake?.modules) ? guidedIntake.modules : []).forEach((module) => {
     (Array.isArray(module?.canonicalTargets) ? module.canonicalTargets : []).forEach(addSlot);
   });
-  (Array.isArray(guidedIntake?.canonical?.mustHave) ? guidedIntake.canonical.mustHave : []).forEach(addSlot);
+  (Array.isArray(guidedIntake?.canonical?.mustHave) ? guidedIntake.canonical.mustHave : []).forEach((value) => {
+    const slot = canonicalHomeBlock(value);
+    if (!slot) return;
+    if (GUIDED_EXPLICIT_ONLY_BLOCKS.has(slot) && !explicitBlocks.has(slot)) return;
+    addSlot(slot);
+  });
   if (guidedIntake?.moduleSettings?.assets?.enabled) addSlot("asset_overview");
 
   return slots.sort((a, b) => {
@@ -6492,8 +8422,11 @@ function enableGuidedHomepageSlot(config, settings, slot, fields) {
 
   if (slot === "promo_banner") {
     mergeGuidedHomepageSetting(settings, "promoHighlight", { enabled: true });
+    mergeGuidedHomepageSetting(settings, "adCarousel", { enabled: true, autoRotate: true, slideCount: 3 });
     config.modules.PromotionBanner = config.modules.PromotionBanner || { variant: "imageBanner" };
     config.moduleStyles.promoHighlight = config.moduleStyles.promoHighlight || "clean";
+    config.moduleStyles.adCarousel = config.moduleStyles.adCarousel || "clean";
+    config.moduleStyles.promo_banner = config.moduleStyles.promo_banner || "clean";
   }
 
   if (slot === "pamm_products") {
@@ -6527,7 +8460,7 @@ function enableGuidedHomepageSlot(config, settings, slot, fields) {
   }
 
   if (slot === "risk_disclosure") {
-    mergeGuidedHomepageSetting(settings, "riskDisclosure", { enabled: true });
+    mergeGuidedHomepageSetting(settings, "riskDisclosure", { enabled: true, demoFallback: true });
     config.modules.RiskDisclosure = config.modules.RiskDisclosure || { variant: "legalStrip" };
     config.moduleStyles.risk_disclosure = "legal-strip";
   }
@@ -6557,7 +8490,12 @@ function applyGuidedIntakeOverrides(config, guidedIntake) {
   const settings = ensureHomepageModuleSettings(config.moduleSettings);
   const fields = normalizeAssetVisibleFields(guidedIntake.moduleSettings?.assets?.visibleFields || []);
   const wantsAccountOverview = Boolean(guidedIntake.moduleSettings?.assets?.enabled || guidedIntakeHasModule(guidedIntake, "accountOverview"));
+  const themePreset = oneOfList(guidedIntake.theme?.themePreset || guidedIntake.theme?.id, HOMEPAGE_THEME_PRESETS, "");
 
+  if (themePreset) {
+    config.themePreset = themePreset;
+    config.theme = themePreset;
+  }
   if (guidedIntake.theme?.customInput) {
     config.themeCustom = { input: guidedIntake.theme.customInput };
   }
@@ -7386,11 +9324,11 @@ function enforceHomepagePromptIntent(payload, config) {
 
 function mockGeneratedComponent(payload, providerConfig) {
   const family = oneOfList(payload.family, COMPONENT_FAMILIES, "ClientHomeAtoms");
-  const size = oneOfList(payload.size, COMPONENT_SIZES, "2x1");
+  const size = normalizeComponentSize(payload.size, autoComponentSizeForFamily(family));
   const root = safeId(`${family}-${Date.now().toString(36)}`, "ai-brick");
   const prompt = cleanText(payload.prompt, componentFamilySpec(family).purpose, 160);
 	  const baseCss = `
-	    .${root}{min-height:${size.endsWith("2") ? "220px" : "168px"};display:grid;gap:14px;padding:18px;border:1px solid var(--home-border);border-radius:var(--home-radius-md,8px);background:var(--home-card-bg);color:var(--home-text);font-family:Inter,system-ui,sans-serif}
+		    .${root}{min-height:${componentSizeRows(size) >= 3 ? "300px" : componentSizeRows(size) >= 2 ? "220px" : "168px"};display:grid;gap:14px;padding:18px;border:1px solid var(--home-border);border-radius:var(--home-radius-md,8px);background:var(--home-card-bg);color:var(--home-text);font-family:Inter,system-ui,sans-serif}
 	    .${root} *{box-sizing:border-box}
 	    .${root} span,.${root} small{color:var(--home-text-muted);font-size:12px;font-weight:850}
 	    .${root} strong{color:var(--home-text-strong);font-weight:950;letter-spacing:0}
@@ -7429,7 +9367,7 @@ function mockGeneratedComponent(payload, providerConfig) {
     PromotionBanner: {
       name: "活动增长横幅",
       description: "承接交易比赛、奖池权益和入金转化的首页活动积木。",
-      html: `<section class="${root}"><span>Trading Contest</span><strong>五月盈利王挑战赛</strong><p>${prompt}</p><div><b>奖池 $9,600</b><b>剩余 28 天</b><button class="primary" type="button">查看详情</button></div></section>`,
+      html: `<section class="${root}"><span>Trading Contest</span><strong>五月盈利王挑战赛</strong><p>活动权益、报名状态和展示周期以后台活动配置为准。</p><div><b>奖池 $9,600</b><b>剩余 28 天</b><button class="primary" type="button">查看详情</button></div></section>`,
 	      css: `${baseCss}.${root}{align-content:center;background:var(--home-banner-bg);color:var(--home-banner-text);border-color:var(--home-banner-border)}.${root} strong{color:var(--home-banner-text);font-size:26px}.${root} p{margin:0;color:var(--home-banner-muted)}.${root} div{display:flex;gap:8px;flex-wrap:wrap}.${root} b{padding:8px 10px;border:1px solid color-mix(in srgb,var(--home-banner-text) 24%,transparent);border-radius:var(--home-radius-sm,8px);color:var(--home-banner-text)}`,
       dataRequirements: ["campaignTitle", "reward", "remainingDays", "ctaUrl"],
     },
@@ -7482,6 +9420,20 @@ function mockGeneratedComponent(payload, providerConfig) {
 	      css: `${baseCss}.${root} header{display:flex;align-items:center;justify-content:space-between;gap:10px}.${root} .wallets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.${root} article{display:grid;gap:12px;padding:14px;border:1px solid var(--home-border);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft)}.${root} article span{display:flex;align-items:center;gap:9px}.${root} article i{width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--home-border);border-radius:999px;background:var(--home-surface);color:var(--home-text);font-style:normal;font-weight:950}.${root} article b{font-size:15px;color:var(--home-text)}.${root} article strong{font-size:24px}@media(max-width:720px){.${root} .wallets{grid-template-columns:1fr}}`,
       dataRequirements: ["walletRows", "currency", "balance", "currencyIcon"],
     },
+    RiskDisclosure: {
+      name: "风险披露提示条",
+      description: "展示外汇、差价合约、杠杆和保证金风险披露的合规提示组件。",
+      html: `<section class="${root}" role="note" aria-label="风险提示"><header><span>Risk Disclosure</span><strong>风险提示</strong></header><div class="risk-grid"><p><b>杠杆风险</b><small>杠杆交易可能放大亏损，亏损可能超过初始投入。</small></p><p><b>保证金风险</b><small>市场快速波动时可能触发追加保证金或强制平仓。</small></p><p><b>合规披露</b><small>正式风险披露、地区限制和条款链接以后台合规配置为准。</small></p></div><footer>交易前请结合自身财务状况、交易经验和风险承受能力独立判断。</footer></section>`,
+      css: `${baseCss}.${root}{min-height:156px;border-style:solid;background:var(--home-surface-soft)}.${root} header{display:flex;justify-content:space-between;gap:12px;align-items:center}.${root} header strong{font-size:18px}.${root} .risk-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.${root} p{display:grid;gap:6px;margin:0;padding:12px;border:1px solid var(--home-border);border-radius:var(--home-radius-sm,8px);background:var(--home-card-bg)}.${root} b{color:var(--home-text-strong);font-size:13px}.${root} small{color:var(--home-text-muted);font-size:12px;line-height:1.55}.${root} footer{padding-top:10px;border-top:1px solid var(--home-border);color:var(--home-text-muted);font-size:12px;font-weight:850;line-height:1.55}@media(max-width:720px){.${root} .risk-grid{grid-template-columns:1fr}}`,
+      dataRequirements: ["riskDisclosureCopy", "marginPolicy", "productRiskLevel", "complianceLinks"],
+    },
+    SupportContact: {
+      name: "在线客服服务卡",
+      description: "展示在线客服、客户经理、服务时间、工单和帮助入口的首页客服积木。",
+      html: `<section class="${root}"><header><strong>在线客服</strong><span>服务状态</span></header><div class="support-grid"><p><small>服务时间</small><b>后台配置</b></p><p><small>在线状态</small><b>接口同步</b></p><p><small>客户经理</small><b>待分配</b></p></div><div class="ticket"><span>最近工单</span><b>#CS-1024 出金审核咨询</b><small>处理中 · 预计 24h 内回复</small></div><div class="actions"><a class="primary" data-home-action="contactSupport" href="#support">联系客服</a><a data-home-action="supportCenter" href="#support-center">帮助中心</a></div></section>`,
+      css: `${baseCss}.${root}{min-height:168px;align-content:start;background:var(--home-card-bg)}.${root} header{display:flex;align-items:center;justify-content:space-between;gap:12px}.${root} header strong{font-size:18px}.${root} header span{padding:4px 8px;border-radius:var(--home-radius-sm,8px);background:var(--home-primary-soft);color:var(--home-primary);font-size:11px}.${root} .support-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.${root} p,.${root} .ticket{display:grid;gap:5px;margin:0;padding:10px;border:1px solid var(--home-border);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft)}.${root} b{color:var(--home-text-strong);font-size:13px}.${root} .ticket{grid-template-columns:auto minmax(0,1fr) auto;align-items:center}.${root} .ticket b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.${root} .actions{display:flex;gap:8px;flex-wrap:wrap}.${root} .actions a{min-width:112px}@media(max-width:720px){.${root} .support-grid,.${root} .ticket{grid-template-columns:1fr}.${root} .actions a{width:100%}}`,
+      dataRequirements: ["serviceHours", "supportStatus", "accountManager", "ticketSummary", "supportLinks"],
+    },
     CreateAccountForm: {
       name: "真实账号创建表单",
       description: "展示平台、账号类型、币种、杠杆和创建动作的开户表单积木。",
@@ -7492,7 +9444,7 @@ function mockGeneratedComponent(payload, providerConfig) {
     ClientHomeAtoms: {
       name: "首页业务小组件",
       description: "可嵌入首页卡片的细颗粒业务组件。",
-      html: `<section class="${root}"><span>Client Home Atom</span><strong>${prompt}</strong><div><b>KYC Verified</b><b>Wallet 52,306.00</b></div><button class="primary" type="button">Open Account</button></section>`,
+      html: `<section class="${root}"><strong>账户服务快捷卡</strong><div><b>KYC 状态：接口同步</b><b>钱包余额：后台字段</b></div><button class="primary" type="button">查看详情</button></section>`,
 	      css: `${baseCss}.${root} strong{font-size:20px}.${root} div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.${root} b{padding:9px;border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft);color:var(--home-text-soft);font-size:12px}`,
       dataRequirements: ["title", "status", "action"],
     },
@@ -7693,7 +9645,7 @@ function mockEditedComponent(payload, component, providerConfig) {
 }
 
 function mockComposition(payload, providerConfig) {
-  const components = Array.isArray(payload.components) ? payload.components : [];
+  const components = sortComponentsForAiUse(Array.isArray(payload.components) ? payload.components : [], payload);
   return normalizeComposition(
     {
       name: "AI 首页积木组合",
@@ -7702,7 +9654,7 @@ function mockComposition(payload, providerConfig) {
         componentId: component.id,
         size: component.size,
         zone: index === 0 ? "hero" : component.size.startsWith("1x") ? "rail" : "main",
-        reason: `${component.name} 用于承接 ${component.family} 业务路径。`,
+        reason: `${component.name} 评分 ${normalizeComponentScore(component.score, 5)}/10，优先承接 ${component.family} 业务路径。`,
       })),
       themeAdvice: "保持蓝白金融底色，重要按钮使用主蓝色，表格和表单降低装饰感。",
       polishInstructions: "首屏优先放资产、快捷入口或开户动作；右侧承载用户状态和表单；下方放交易账号和钱包长列表。",
@@ -7723,12 +9675,46 @@ async function callProviderWithPrompt(payload, promptParts, schema, schemaName =
   return requestAndParseProviderJson(config, apiKey, promptParts, schema || payload.context?.schema, schemaName);
 }
 
+function minimaxJsonModeUnsupported(error) {
+  const status = Number(error?.providerStatus || error?.details?.providerStatus);
+  if (status && status !== 400) return false;
+  return /response_format|json_object|json mode|unsupported|not support|not supported|invalid parameter|invalid param|不支持|无效|非法/i.test(String(error?.message || ""));
+}
+
+async function requestProviderJsonWithJsonModeFallback(config, headers, body) {
+  try {
+    return await requestProviderJson(config, headers, body);
+  } catch (error) {
+    if (config.provider !== "minimax" || !body?.response_format || !minimaxJsonModeUnsupported(error)) {
+      throw error;
+    }
+
+    const fallbackBody = { ...body };
+    delete fallbackBody.response_format;
+    const retry = await requestProviderJson(config, headers, fallbackBody);
+    retry.attempts = [
+      ...(error.details?.attempts || []),
+      {
+        provider: config.provider,
+        providerName: config.name,
+        model: config.model,
+        apiMode: config.apiMode,
+        baseUrl: config.baseUrl,
+        endpoint: config.endpoint,
+        message: "MiniMax rejected response_format; retried without JSON mode.",
+      },
+      ...(retry.attempts || []),
+    ];
+    return retry;
+  }
+}
+
 async function requestAndParseProviderJson(config, apiKey, promptParts, schema, schemaName = "ai_output", previousError = null) {
   const { headers, body } = buildProviderRequest(config, apiKey, promptParts, schema, schemaName);
 
   let providerResult;
   try {
-    providerResult = await requestProviderJson(config, headers, body);
+    providerResult = await requestProviderJsonWithJsonModeFallback(config, headers, body);
   } catch (error) {
     throw error.details ? error : enrichProviderError(error, config, null);
   }
@@ -7805,9 +9791,637 @@ async function testProviderConnection(payload) {
   };
 }
 
+const AUTH_STYLE_PRESETS = ["blueSplit", "clientOnboarding", "securityReset", "softPlatform", "photoDark"];
+const AUTH_SCREEN_KEYS = ["login", "register", "forgot"];
+
+function isObjectRecord(value) {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function deepMergeObjects(base, override) {
+  const output = { ...(isObjectRecord(base) ? base : {}) };
+  if (!isObjectRecord(override)) return output;
+
+  Object.entries(override).forEach(([key, value]) => {
+    if (isObjectRecord(value) && isObjectRecord(output[key])) {
+      output[key] = deepMergeObjects(output[key], value);
+      return;
+    }
+    if (Array.isArray(value)) {
+      output[key] = value.slice();
+      return;
+    }
+    if (value !== undefined && value !== null && value !== "") {
+      output[key] = value;
+    }
+  });
+  return output;
+}
+
+function authPromptText(payload = {}) {
+  const guided = payload.guidedIntake && typeof payload.guidedIntake === "object" ? payload.guidedIntake : {};
+  return [
+    payload.prompt,
+    payload.intent,
+    payload.options?.stylePreset,
+    payload.options?.screen,
+    payload.options?.brandName,
+    payload.options?.intent,
+    payload.options?.audience,
+    payload.options?.registerDepth,
+    payload.options?.designStyle,
+    payload.options?.theme,
+    ...(Array.isArray(payload.options?.features) ? payload.options.features : []),
+    guided.intent,
+    guided.audience,
+    guided.registerDepth,
+    guided.designStyle,
+    guided.theme,
+    ...(Array.isArray(guided.features) ? guided.features : []),
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function inferAuthStylePreset(payload = {}) {
+  const explicit = cleanText(payload.stylePreset || payload.options?.stylePreset, "", 40);
+  if (AUTH_STYLE_PRESETS.includes(explicit)) return explicit;
+
+  const guidedText = authPromptText(payload).toLowerCase();
+  if (/compliance|合规|clientonboarding/.test(guidedText)) return "clientOnboarding";
+  if (/premium|blackgold|高净值|黑金|graphite|高级/.test(guidedText)) return "photoDark";
+  if (/soft|friendly|亲和|轻量/.test(guidedText)) return "softPlatform";
+  if (/secure|security|twofactor|双重|科技安全/.test(guidedText)) return "securityReset";
+  const text = authPromptText(payload).toLowerCase();
+  if (/找回|重置|密码|reset|forgot|security|安全/.test(text)) return "securityReset";
+  if (/开户|注册流程|kyc|资料|问卷|投资|onboarding|client/.test(text)) return "clientOnboarding";
+  if (/照片|城市|移民|护照|haame|statue|photo|dark|深色/.test(text)) return "photoDark";
+  if (/平台|咨询|数字化|浅蓝|soft|轻/.test(text)) return "softPlatform";
+  return "blueSplit";
+}
+
+function inferAuthDefaultScreen(payload = {}) {
+  const explicit = cleanText(payload.defaultScreen || payload.screen || payload.options?.screen, "", 40);
+  if (AUTH_SCREEN_KEYS.includes(explicit)) return explicit;
+  const text = authPromptText(payload).toLowerCase();
+  if (/注册|开户|open account|sign up|register/.test(text)) return "register";
+  if (/找回|忘记|重置|reset|forgot/.test(text)) return "forgot";
+  return "login";
+}
+
+function normalizeAuthHex(value, fallback) {
+  const raw = cleanText(value, "", 24);
+  if (/^#[0-9a-f]{3}(?:[0-9a-f]{3})?$/i.test(raw)) return raw;
+  return fallback;
+}
+
+function authOptionList(value) {
+  return Array.isArray(value) ? value.map((item) => cleanText(item, "", 60)).filter(Boolean) : [];
+}
+
+function authHasFeature(features = [], text = "", feature, pattern) {
+  return features.includes(feature) || pattern.test(String(text || ""));
+}
+
+function authAccentFallback(options = {}, stylePreset = "blueSplit") {
+  const theme = cleanText(options.theme, "", 40).toLowerCase();
+  if (/blackgold/.test(theme)) return "#b7791f";
+  if (/emerald/.test(theme)) return "#059669";
+  if (/graphite/.test(theme)) return "#334155";
+  if (/rose/.test(theme)) return "#e11d48";
+  if (stylePreset === "photoDark") return "#e65b8d";
+  return "#2563eb";
+}
+
+function authAudienceCopy(audience = "", defaultScreen = "login") {
+  const map = {
+    highNetWorth: ["专属账户安全中心", "为高净值客户提供更克制、更私密的开户注册体验。"],
+    ibPartner: ["合作伙伴认证入口", "邀请码、联系资料与合作身份会在注册流程中清晰关联。"],
+    returningTrader: ["欢迎回到交易账户", "快速登录、可靠找回和安全验证帮助客户顺畅回到交易。"],
+    campaignLead: ["领取活动权益并完成开户", "以更短注册路径承接活动线索，同时保留必要风险提示。"],
+    newTrader: ["创建您的交易账户", "用清晰步骤帮助新客户完成注册、安全设置和后续开户。"],
+  };
+  if (map[audience]) return map[audience];
+  return [
+    defaultScreen === "register" ? "创建您的交易账户" : defaultScreen === "forgot" ? "安全重置密码，放心回到您的账户" : "Welcome Back",
+    defaultScreen === "register" ? "填写后台配置的注册信息，系统会自动创建客户资料并进入后续账户流程。" : "Sign in to access your account",
+  ];
+}
+
+function defaultAuthScheme(payload = {}, providerConfig = {}, meta = {}) {
+  const stylePreset = inferAuthStylePreset(payload);
+  const defaultScreen = inferAuthDefaultScreen(payload);
+  const options = payload.options && typeof payload.options === "object" ? payload.options : {};
+  const guided = payload.guidedIntake && typeof payload.guidedIntake === "object" ? payload.guidedIntake : {};
+  const features = authOptionList(options.features).length ? authOptionList(options.features) : authOptionList(guided.features);
+  const promptText = authPromptText(payload);
+  const audience = cleanText(options.audience || guided.audience, "newTrader", 40);
+  const intent = cleanText(options.intent || guided.intent, "openAccount", 40);
+  const registerDepth = cleanText(options.registerDepth || guided.registerDepth, "standard", 40);
+  const designStyle = cleanText(options.designStyle || guided.designStyle, "trustClean", 40);
+  const theme = cleanText(options.theme || guided.theme, "blueTrust", 40);
+  const brandName = cleanText(options.brandName || payload.brandName, "ForexCRM", 40);
+  const language = cleanText(options.language || payload.language, "zh-CN", 20);
+  const accent = normalizeAuthHex(options.accent || guided.accent, authAccentFallback({ ...options, theme }, stylePreset));
+  const accent2 = normalizeAuthHex(options.accent2, stylePreset === "softPlatform" ? "#24b7aa" : "#1d4ed8");
+  const density = ["compact", "comfortable", "spacious"].includes(options.density) ? options.density : stylePreset === "clientOnboarding" ? "compact" : "comfortable";
+  const hasInvite = authHasFeature(features, promptText, "inviteCode", /推荐码|邀请码|invite|ib/i);
+  const hasCaptcha = authHasFeature(features, promptText, "captcha", /验证码|captcha|hcaptcha/i);
+  const hasTwoFactor = authHasFeature(features, promptText, "twoFactor", /双重|2fa|two-factor|two factor/i);
+  const hasSocial = authHasFeature(features, promptText, "socialLogin", /google|apple|第三方|social/i);
+  const needsCompliance = registerDepth === "compliance" || authHasFeature(features, promptText, "riskConsent", /风险|risk|合规/i);
+
+  const registerTitle = registerDepth === "light" ? "快速创建账户" : stylePreset === "clientOnboarding" ? "客户注册流程" : stylePreset === "photoDark" ? "账号注册" : "创建您的交易账户";
+  const registerSubtitle = registerDepth === "light" ? "先完成必要信息，后续再补充开户地址和 KYC。" : stylePreset === "clientOnboarding" ? "标准客户注册，收集基本信息并自动进入后续审核。" : "填写注册信息，系统将自动创建客户资料并进入后续账户流程。";
+  const [heroTitle, heroSubtitle] = authAudienceCopy(audience, defaultScreen);
+
+  return {
+    id: `auth-${Date.now().toString(36)}`,
+    name: cleanText(options.name || payload.name, `${brandName} 认证中心`, 60),
+    summary: cleanText(
+      meta.summary || "",
+      `${stylePreset === "photoDark" ? "深色品牌登录注册" : stylePreset === "clientOnboarding" ? "客户开户注册流程" : "蓝白金融认证界面"}，包含登录、注册和找回密码。`,
+      260,
+    ),
+    language,
+    stylePreset,
+    defaultScreen,
+    sourceType: meta.sourceType || "local-fallback",
+    mock: Boolean(meta.mock),
+    isFallback: Boolean(meta.isFallback),
+    fallbackReason: cleanText(meta.fallbackReason, "", 220),
+    provider: providerConfig.provider || "",
+    model: providerConfig.model || "",
+    brand: {
+      name: brandName,
+      tagline: cleanText(options.tagline, stylePreset === "softPlatform" ? "人工智能 + 全过程咨询服务平台" : "安全账户服务中心", 80),
+      serviceLine: cleanText(options.serviceLine, "Client Portal", 60),
+    },
+    visual: {
+      accent,
+      accent2,
+      panelTone: stylePreset === "photoDark" ? "dark" : "light",
+      density,
+      radius: stylePreset === "photoDark" ? "10px" : "18px",
+      cardShadow: stylePreset === "clientOnboarding" ? "soft" : "elevated",
+    },
+    experience: {
+      audience,
+      intent,
+      registerDepth,
+      designStyle,
+      theme,
+      features,
+    },
+    hero: {
+      title: cleanText(options.heroTitle, heroTitle, 80),
+      subtitle: cleanText(
+        options.heroSubtitle,
+        heroSubtitle,
+        160,
+      ),
+      bullets: [
+        hasCaptcha || hasTwoFactor ? "验证码与安全校验降低账户风险" : "安全提交客户资料",
+        hasInvite ? "支持推荐码自动关联" : "注册后可继续完成 KYC 与开户",
+        registerDepth === "light" ? "移动端友好的轻量注册路径" : "注册信息按步骤清晰拆分",
+      ],
+    },
+    screens: {
+      login: {
+        title: language.startsWith("zh") ? "登录你的账户" : "Welcome Back",
+        subtitle: language.startsWith("zh") ? "使用邮箱、手机号或第三方方式进入账户" : "Sign in to access your account",
+        identifierLabel: language.startsWith("zh") ? "邮箱或手机号" : "Email Address",
+        identifierPlaceholder: language.startsWith("zh") ? "请输入您的邮箱或手机号" : "n02badd@gmail.com",
+        passwordLabel: language.startsWith("zh") ? "密码" : "Password",
+        passwordPlaceholder: language.startsWith("zh") ? "请输入密码" : "••••••••",
+        rememberLabel: language.startsWith("zh") ? "记住账号" : "Remember me",
+        forgotLabel: language.startsWith("zh") ? "忘记密码?" : "Forgot password?",
+        primaryAction: language.startsWith("zh") ? "登录" : "Sign In",
+        registerPrompt: language.startsWith("zh") ? "没有账号？" : "Don't have an account?",
+        registerAction: language.startsWith("zh") ? "立即注册" : "Open Account",
+        socialProviders: hasSocial ? ["Google", "Apple"] : [],
+        extraFields: [
+          ...(hasCaptcha ? [{ id: "loginCaptcha", label: "验证码", type: "text", placeholder: "请输入验证码" }] : []),
+          ...(hasTwoFactor ? [{ id: "twoFactorCode", label: "双重验证码", type: "text", placeholder: "请输入动态验证码" }] : []),
+        ],
+        helperNotice: hasTwoFactor ? "已启用双重验证提示，保护账户登录安全" : "您的信息受到严格保护，安全加密传输",
+      },
+      register: {
+        title: registerTitle,
+        subtitle: registerSubtitle,
+        modeTabs: ["手机号", "邮箱"],
+        sections: [
+          {
+            title: "基本信息",
+            description: "请填写您的个人基本信息",
+              fields: [
+                { id: "name", label: "姓名", type: "text", placeholder: "请输入您的真实姓名", required: true, span: "full" },
+                { id: "country", label: "国家/地区", type: "select", placeholder: "Select country...", required: true },
+                ...(registerDepth === "light" ? [] : [{ id: "birthDate", label: "出生日期", type: "date", placeholder: "年 / 月 / 日" }]),
+                { id: "email", label: "邮箱", type: "email", placeholder: "请输入邮箱", required: true, span: "full" },
+                ...(hasInvite ? [{ id: "inviteCode", label: "推荐码 / 邀请码", type: "text", placeholder: "如有请填写", span: "full" }] : []),
+              ],
+            },
+            ...(registerDepth === "light" ? [] : [{
+              title: "投资背景",
+              description: "帮助我们了解您的投资经验",
+              fields: [
+                { id: "experience", label: "交易经验", type: "select", placeholder: "请选择", required: true },
+                { id: "income", label: "年收入范围", type: "select", placeholder: "请选择" },
+                { id: "goal", label: "投资目的", type: "radio", options: ["资产增值", "收益稳定", "短期投机", "对冲风险"], required: true, span: "full" },
+                { id: "fundSource", label: "资金来源", type: "select", placeholder: "请选择" },
+              ],
+            }]),
+            {
+              title: "账户安全",
+              fields: [
+                { id: "password", label: "密码", type: "password", placeholder: "至少 8 位字符", required: true },
+                { id: "confirmPassword", label: "确认密码", type: "password", placeholder: "再次输入密码", required: true },
+                ...(hasCaptcha ? [{ id: "captcha", label: "图形验证码", type: "text", placeholder: "请输入验证码", span: "full" }] : []),
+              ],
+            },
+            ...(needsCompliance ? [{
+              title: "风险确认",
+              fields: [
+                { id: "riskAgreement", label: "我了解保证金交易存在较高风险", type: "radio", options: ["已了解并继续", "稍后再看"], required: true, span: "full" },
+              ],
+            }] : []),
+          ],
+        termsText: "我已阅读并同意 服务条款、隐私政策及风险披露，确认提交的信息真实有效。",
+        primaryAction: language.startsWith("zh") ? "提交注册" : "Create Account",
+        backAction: language.startsWith("zh") ? "返回登录" : "Back to Login",
+          trustNotice: hasCaptcha ? "注册成功前需要完成验证码校验" : "注册成功后将向邮箱发送验证码",
+        },
+      forgot: {
+        title: language.startsWith("zh") ? "Reset Password" : "Reset Password",
+        subtitle: language.startsWith("zh") ? "输入邮箱，我们会发送受保护的重置链接。" : "Enter your email and we'll send you a reset link.",
+        identifierLabel: language.startsWith("zh") ? "邮箱地址" : "Email Address",
+        identifierPlaceholder: "your@email.com",
+        primaryAction: language.startsWith("zh") ? "发送重置链接" : "Send Reset Link",
+        backAction: language.startsWith("zh") ? "返回登录" : "Back to Login",
+        registerAction: language.startsWith("zh") ? "去注册" : "Create Account",
+        steps: ["使用邮箱", "验证身份", "设置新密码"],
+      },
+    },
+    securityNotes: [
+      hasTwoFactor ? "双重验证提示提升高风险登录安全" : "加密链接验证，保护账户安全",
+      "密码不会通过邮件明文发送",
+      hasCaptcha ? "验证码占位可接入真实风控服务" : "官方品牌页面，降低钓鱼风险",
+    ],
+    designNotes: [
+      "参考界面仅作为质量学习标准，生成结果按当前业务目标重新组织。",
+      "登录、注册和找回密码共享品牌与安全语义，但每个流程独立渲染。",
+    ],
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+function normalizeAuthFields(fields, fallbackFields) {
+  const source = Array.isArray(fields) && fields.length ? fields : fallbackFields;
+  return source
+    .filter(Boolean)
+    .slice(0, 16)
+    .map((field, index) => ({
+      id: safeId(field.id || field.label || `field-${index}`, "auth-field"),
+      label: cleanText(field.label, `字段 ${index + 1}`, 40),
+      type: cleanText(field.type, "text", 24),
+      placeholder: cleanText(field.placeholder, "", 80),
+      required: Boolean(field.required),
+      span: field.span === "full" ? "full" : "",
+      options: Array.isArray(field.options) ? field.options.map((item) => cleanText(item, "", 40)).filter(Boolean).slice(0, 8) : [],
+    }));
+}
+
+function normalizeAuthScheme(source, payload = {}, providerConfig = {}, meta = {}) {
+  const fallback = defaultAuthScheme(payload, providerConfig, meta);
+  const raw = isObjectRecord(source?.scheme) ? source.scheme : source;
+  const merged = deepMergeObjects(fallback, isObjectRecord(raw) ? raw : {});
+  const stylePreset = AUTH_STYLE_PRESETS.includes(merged.stylePreset) ? merged.stylePreset : fallback.stylePreset;
+  const defaultScreen = AUTH_SCREEN_KEYS.includes(merged.defaultScreen) ? merged.defaultScreen : fallback.defaultScreen;
+
+  const normalized = {
+    ...merged,
+    id: cleanText(merged.id, fallback.id, 80),
+    name: cleanText(merged.name, fallback.name, 60),
+    summary: cleanText(merged.summary, fallback.summary, 260),
+    language: cleanText(merged.language, fallback.language, 20),
+    stylePreset,
+    defaultScreen,
+    sourceType: cleanText(meta.sourceType || merged.sourceType, fallback.sourceType, 40),
+    mock: Boolean(meta.mock || merged.mock),
+    isFallback: Boolean(meta.isFallback || merged.isFallback),
+    fallbackReason: cleanText(meta.fallbackReason || merged.fallbackReason, "", 220),
+    provider: providerConfig.provider || cleanText(merged.provider, "", 40),
+    model: providerConfig.model || cleanText(merged.model, "", 80),
+    generatedAt: new Date().toISOString(),
+  };
+
+  normalized.brand = {
+    ...fallback.brand,
+    ...(isObjectRecord(merged.brand) ? merged.brand : {}),
+    name: cleanText(merged.brand?.name, fallback.brand.name, 40),
+    tagline: cleanText(merged.brand?.tagline, fallback.brand.tagline, 80),
+    serviceLine: cleanText(merged.brand?.serviceLine, fallback.brand.serviceLine, 60),
+  };
+  normalized.visual = {
+    ...fallback.visual,
+    ...(isObjectRecord(merged.visual) ? merged.visual : {}),
+    accent: normalizeAuthHex(merged.visual?.accent, fallback.visual.accent),
+    accent2: normalizeAuthHex(merged.visual?.accent2, fallback.visual.accent2),
+    density: ["compact", "comfortable", "spacious"].includes(merged.visual?.density) ? merged.visual.density : fallback.visual.density,
+  };
+  normalized.experience = {
+    ...(isObjectRecord(fallback.experience) ? fallback.experience : {}),
+    ...(isObjectRecord(merged.experience) ? merged.experience : {}),
+    audience: cleanText(merged.experience?.audience, fallback.experience?.audience || "", 40),
+    intent: cleanText(merged.experience?.intent, fallback.experience?.intent || "", 40),
+    registerDepth: cleanText(merged.experience?.registerDepth, fallback.experience?.registerDepth || "", 40),
+    designStyle: cleanText(merged.experience?.designStyle, fallback.experience?.designStyle || "", 40),
+    theme: cleanText(merged.experience?.theme, fallback.experience?.theme || "", 40),
+    features: authOptionList(merged.experience?.features || fallback.experience?.features).slice(0, 12),
+  };
+  normalized.hero = {
+    ...fallback.hero,
+    ...(isObjectRecord(merged.hero) ? merged.hero : {}),
+    title: cleanText(merged.hero?.title, fallback.hero.title, 80),
+    subtitle: cleanText(merged.hero?.subtitle, fallback.hero.subtitle, 160),
+    bullets: (Array.isArray(merged.hero?.bullets) ? merged.hero.bullets : fallback.hero.bullets).map((item) => cleanText(item, "", 80)).filter(Boolean).slice(0, 5),
+  };
+
+  const screens = isObjectRecord(merged.screens) ? merged.screens : {};
+  normalized.screens = {
+    login: deepMergeObjects(fallback.screens.login, screens.login),
+    register: deepMergeObjects(fallback.screens.register, screens.register),
+    forgot: deepMergeObjects(fallback.screens.forgot, screens.forgot),
+  };
+
+  normalized.screens.register.sections = (Array.isArray(normalized.screens.register.sections) ? normalized.screens.register.sections : fallback.screens.register.sections)
+    .filter(Boolean)
+    .slice(0, 5)
+    .map((section, index) => {
+      const fallbackSection = fallback.screens.register.sections[index] || { title: "注册信息", fields: [] };
+      return {
+        title: cleanText(section.title, fallbackSection.title, 50),
+        description: cleanText(section.description, fallbackSection.description || "", 100),
+        fields: normalizeAuthFields(section.fields, fallbackSection.fields || []),
+      };
+    });
+  normalized.screens.login.socialProviders = (Array.isArray(normalized.screens.login.socialProviders) ? normalized.screens.login.socialProviders : fallback.screens.login.socialProviders)
+    .map((item) => cleanText(item, "", 30))
+    .filter(Boolean)
+    .slice(0, 4);
+  normalized.screens.login.extraFields = normalizeAuthFields(normalized.screens.login.extraFields, fallback.screens.login.extraFields || []).slice(0, 4);
+  normalized.securityNotes = (Array.isArray(merged.securityNotes) ? merged.securityNotes : fallback.securityNotes).map((item) => cleanText(item, "", 100)).filter(Boolean).slice(0, 6);
+  normalized.designNotes = (Array.isArray(merged.designNotes) ? merged.designNotes : fallback.designNotes).map((item) => cleanText(item, "", 140)).filter(Boolean).slice(0, 8);
+
+  return normalized;
+}
+
+function buildAuthPrompt(payload = {}, config = {}) {
+  const options = payload.options && typeof payload.options === "object" ? payload.options : {};
+  const guided = payload.guidedIntake && typeof payload.guidedIntake === "object" ? payload.guidedIntake : null;
+  const prompt = cleanText(payload.prompt, "生成一套 ForexCRM 登录、注册和找回密码认证界面。", 1200);
+  const stylePreset = inferAuthStylePreset(payload);
+  const defaultScreen = inferAuthDefaultScreen(payload);
+  const referenceLearning = [
+    "内部学习标准（不要作为模板名输出，也不要照搬版式）：",
+    "参考素材展示了金融认证页应有的可信品牌区、低噪声表单、清晰开户注册步骤、安全找回密码、移动端友好按钮、验证码/Captcha 占位、第三方登录和合规协议表达。",
+    "你的任务是基于用户需求重新组合一个个性化认证模块，让客户感觉这是为当前品牌和客群生成的，而不是通用登录模板。",
+  ].join("\n");
+  const system = [
+    "你是 ForexCRM / 金融平台开户认证界面生成器。",
+    "只返回 JSON，不要返回 Markdown，不要返回 HTML/CSS，不要解释。",
+    "生成的是独立登录/注册/找回密码业务，不要引用首页 AI、首页模块、交易账号首页组件或其它业务代码。",
+    "输出必须包含 login、register、forgot 三个 screen；三者共享 brand/visual，但流程文案、字段、按钮要各自完整。",
+    "界面要像真实生产级金融平台开户认证页：克制、清晰、安全、对移动端友好；同时需要有明确的客群差异和品牌差异，避免千篇一律。",
+    "字段只描述配置，不生成真实认证逻辑；验证码、Captcha、第三方登录可以作为 UI 占位。",
+    "stylePreset 只是内部渲染适配字段，请选择最接近的值，但不要让它限制创意；真正的个性化要体现在 brand、visual、hero、screens、experience、securityNotes 和 designNotes。",
+  ].join("\n");
+  const user = [
+    referenceLearning,
+    "",
+    "用户需求:",
+    prompt,
+    "",
+    guided
+      ? [
+          "引导式选项:",
+          compactJson({
+            audience: guided.labels?.audience || guided.audience,
+            intent: guided.labels?.intent || guided.intent,
+            registerDepth: guided.labels?.registerDepth || guided.registerDepth,
+            designStyle: guided.labels?.designStyle || guided.designStyle,
+            theme: guided.labels?.theme || guided.theme,
+            features: guided.labels?.features || guided.features,
+            accent: guided.accent,
+            note: guided.note,
+          }),
+          "",
+        ].join("\n")
+      : "",
+    "当前选择:",
+    compactJson({
+      stylePreset,
+      defaultScreen,
+      brandName: options.brandName || "ForexCRM",
+      language: options.language || "zh-CN",
+      accent: options.accent || "#2563eb",
+      density: options.density || "comfortable",
+      audience: options.audience || "",
+      intent: options.intent || "",
+      registerDepth: options.registerDepth || "",
+      designStyle: options.designStyle || "",
+      theme: options.theme || "",
+      features: options.features || [],
+      provider: config.name,
+      model: config.model,
+    }),
+    "",
+    "请返回符合 schema 的 auth UI JSON。必须生成完整登录、注册、找回密码三套 screen。stylePreset 必须是 blueSplit、clientOnboarding、securityReset、softPlatform、photoDark 之一，但这是内部适配字段。",
+    "建议额外返回 experience: { audience, registerDepth, designStyle, theme, features }，并可在 login.extraFields 中加入验证码/双重验证等字段配置。",
+  ].join("\n");
+  return { system, user };
+}
+
+async function callAuthProvider(payload = {}) {
+  const config = normalizeProviderConfig(payload.modelConfig || {});
+  const apiKey = resolveApiKey(config);
+  const fallback = (reason, mock = false) => ({
+    scheme: normalizeAuthScheme(null, payload, config, {
+      sourceType: reason ? "local-fallback" : "local",
+      mock,
+      isFallback: Boolean(reason),
+      fallbackReason: reason,
+    }),
+    provider: config.provider,
+    model: config.model,
+    rawText: "",
+    mock,
+    localFallback: Boolean(reason),
+    fallbackReason: reason,
+  });
+
+  if (process.env.AUTH_AI_MOCK === "true" || process.env.HOME_AI_MOCK === "true") {
+    return fallback("AUTH_AI_MOCK/HOME_AI_MOCK 已启用，使用本地认证界面草稿。", true);
+  }
+
+  if (!apiKey) {
+    return fallback(`Missing API key. Set ${config.keyEnv.join(" or ")} or enter a temporary key in the UI.`, true);
+  }
+
+  try {
+    const result = await requestAndParseProviderJson(config, apiKey, buildAuthPrompt(payload, config), AUTH_UI_JSON_SCHEMA, "auth_ui_scheme");
+    return {
+      scheme: normalizeAuthScheme(result.json, payload, { ...config, provider: result.provider, model: result.model }, { sourceType: "model" }),
+      provider: result.provider,
+      model: result.model,
+      rawText: result.rawText,
+      usage: result.usage,
+    };
+  } catch (error) {
+    const reason = cleanText(providerFailureSummary(error), "认证界面 AI 生成失败，已使用本地安全草稿。", 220);
+    return fallback(reason, false);
+  }
+}
+
+function authRecordSnapshot(scheme = {}) {
+  return {
+    name: safeRecordText(scheme.name, 80),
+    stylePreset: safeRecordText(scheme.stylePreset, 40),
+    defaultScreen: safeRecordText(scheme.defaultScreen, 40),
+    language: safeRecordText(scheme.language, 20),
+    brand: safeRecordText(scheme.brand?.name, 40),
+    sourceType: safeRecordText(scheme.sourceType, 40),
+    fallbackReason: safeRecordText(scheme.fallbackReason, 180),
+    audience: safeRecordText(scheme.experience?.audience, 40),
+    registerDepth: safeRecordText(scheme.experience?.registerDepth, 40),
+    screens: AUTH_SCREEN_KEYS.filter((key) => Boolean(scheme.screens?.[key])),
+  };
+}
+
+async function handleAuthGenerate(req, res) {
+  const startedAt = Date.now();
+  let payload = null;
+  let historyConfig = null;
+  let failedCallRecord = null;
+
+  try {
+    payload = await readJsonBody(req);
+    historyConfig = callHistoryConfig(payload);
+    const result = await callAuthProvider(payload);
+    const status = result.localFallback ? "fallback" : result.mock ? "mock" : "success";
+    const callRecord = addAuthCallHistoryRecord({
+      action: "auth-generate",
+      providerId: result.provider || historyConfig.provider,
+      provider: historyConfig.name,
+      model: result.model || historyConfig.model,
+      apiMode: historyConfig.apiMode,
+      callMode: "serverProxy",
+      baseUrl: historyConfig.baseUrl,
+      endpoint: historyConfig.endpoint,
+      temperature: historyConfig.temperature,
+      maxOutputTokens: historyConfig.maxOutputTokens,
+      status,
+      mock: Boolean(result.mock),
+      durationMs: Date.now() - startedAt,
+      prompt: safeRecordText(payload.prompt),
+      message: result.scheme?.name || result.fallbackReason || "登录注册界面生成成功",
+      schemeSnapshot: authRecordSnapshot(result.scheme),
+      usage: result.usage || null,
+    });
+    sendJson(res, 200, { ok: true, ...result, callRecord });
+  } catch (error) {
+    if (payload) {
+      const config = historyConfig || callHistoryConfig(payload);
+      failedCallRecord = addAuthCallHistoryRecord({
+        action: "auth-generate",
+        providerId: config.provider,
+        provider: config.name,
+        model: config.model,
+        apiMode: config.apiMode,
+        callMode: "serverProxy",
+        baseUrl: config.baseUrl,
+        endpoint: config.endpoint,
+        temperature: config.temperature,
+        maxOutputTokens: config.maxOutputTokens,
+        status: "failed",
+        durationMs: Date.now() - startedAt,
+        prompt: safeRecordText(payload.prompt),
+        message: safeRecordText(error.message || "Auth UI generation failed", 900),
+      });
+    }
+    const status = error.statusCode && error.statusCode >= 400 && error.statusCode < 600 ? error.statusCode : 500;
+    sendJson(res, status, {
+      ok: false,
+      error: error.message || "Auth UI generation failed",
+      details: error.details || null,
+      callRecord: failedCallRecord,
+    });
+  }
+}
+
+async function handleAuthTest(req, res) {
+  const startedAt = Date.now();
+  let payload = null;
+  let historyConfig = null;
+  let failedCallRecord = null;
+
+  try {
+    payload = await readJsonBody(req);
+    historyConfig = callHistoryConfig(payload);
+    const result = await testProviderConnection(payload);
+    const callRecord = addAuthCallHistoryRecord({
+      action: "connectivity-test",
+      providerId: result.provider || historyConfig.provider,
+      provider: result.providerName || historyConfig.name,
+      model: result.model || historyConfig.model,
+      apiMode: result.apiMode || historyConfig.apiMode,
+      callMode: "serverProxy",
+      baseUrl: result.baseUrl || historyConfig.baseUrl,
+      endpoint: result.endpoint || historyConfig.endpoint,
+      temperature: historyConfig.temperature,
+      maxOutputTokens: historyConfig.maxOutputTokens,
+      status: "success",
+      durationMs: result.durationMs || Date.now() - startedAt,
+      prompt: "认证模块连通性测试",
+      message: result.message || result.url || "连通成功",
+      usage: result.usage || null,
+    });
+    sendJson(res, 200, { ok: true, ...result, callRecord });
+  } catch (error) {
+    if (payload) {
+      const config = historyConfig || callHistoryConfig(payload);
+      failedCallRecord = addAuthCallHistoryRecord({
+        action: "connectivity-test",
+        providerId: config.provider,
+        provider: config.name,
+        model: config.model,
+        apiMode: config.apiMode,
+        callMode: "serverProxy",
+        baseUrl: config.baseUrl,
+        endpoint: config.endpoint,
+        temperature: config.temperature,
+        maxOutputTokens: config.maxOutputTokens,
+        status: "failed",
+        durationMs: Date.now() - startedAt,
+        prompt: "认证模块连通性测试",
+        message: safeRecordText(error.message || "AI provider test failed", 900),
+      });
+    }
+    const status = error.statusCode && error.statusCode >= 400 && error.statusCode < 600 ? error.statusCode : 500;
+    sendJson(res, status, {
+      ok: false,
+      error: error.message || "AI provider test failed",
+      details: error.details || null,
+      callRecord: failedCallRecord,
+    });
+  }
+}
+
 async function callProvider(payload) {
   const config = normalizeProviderConfig(payload.modelConfig);
   const renderMode = homepageRenderMode(payload);
+  const compactAiHtmlProvider = providerUsesCompactAiHtml(config);
 
   if (process.env.HOME_AI_MOCK === "true") {
     const mockConfig = enforceHomepagePromptIntent(payload, mockHomepageConfig(payload, config));
@@ -7817,12 +10431,13 @@ async function callProvider(payload) {
         ...mockConfig,
         renderMode,
         htmlGenerationEnabled: renderModeWantsAiHtml(renderMode),
-        activeRenderMode: renderMode === "aiHtml" ? "aiHtml" : "config",
+        skeletonHtmlEnabled: renderMode === "skeletonHtml",
+        activeRenderMode: activeRenderModeForRequest(renderMode, htmlScheme),
         ...(htmlScheme ? { htmlScheme } : {}),
       },
       ...(htmlScheme ? { htmlScheme } : {}),
       renderMode,
-      activeRenderMode: renderMode === "aiHtml" ? "aiHtml" : "config",
+      activeRenderMode: activeRenderModeForRequest(renderMode, htmlScheme),
       provider: config.provider,
       model: config.model,
       rawText: "",
@@ -7832,39 +10447,54 @@ async function callProvider(payload) {
 
   let freeHtmlResult = null;
   let freeHtmlError = null;
-  if (renderModeWantsAiHtml(renderMode)) {
+  if (renderModeWantsAiHtml(renderMode) && !compactAiHtmlProvider) {
     try {
-      freeHtmlResult = await callProviderWithPrompt(payload, buildFreeAiHtmlPrompt(payload), AI_HTML_SCHEME_JSON_SCHEMA, "homepage_ai_html_free");
+      freeHtmlResult = await callProviderWithPrompt(payload, aiHtmlPromptForProvider(config, payload, {}, { free: true }), AI_HTML_SCHEME_JSON_SCHEMA, "homepage_ai_html_free");
     } catch (error) {
       freeHtmlError = error;
     }
   }
 
   const result = await callProviderWithPrompt(payload, buildPrompt(payload, config), payload.context?.schema, "homepage_config");
-  const homepageConfig = enforceHomepagePromptIntent(payload, result.json);
+  const homepageConfig = enforceHomepagePromptIntent(
+    payload,
+    prepareProviderHomepageConfig(payload, result.json, { ...config, provider: result.provider, model: result.model }),
+  );
+  const resultProviderConfig = { ...config, provider: result.provider, model: result.model };
+  const htmlPayload = {
+    ...payload,
+    modelConfig: {
+      ...(payload.modelConfig || {}),
+      provider: resultProviderConfig.provider,
+      model: resultProviderConfig.model,
+      apiMode: resultProviderConfig.apiMode,
+      baseUrl: resultProviderConfig.baseUrl,
+      endpoint: resultProviderConfig.endpoint,
+    },
+  };
   let htmlScheme = null;
   let htmlUsage = null;
   let htmlRawText = "";
 
-  if (renderModeWantsAiHtml(renderMode)) {
-    if (freeHtmlResult?.json) {
-	      htmlScheme = repairAiHtmlScheme(freeHtmlResult.json, payload, homepageConfig, config, {
-	        sourceType: "model/free-html",
+	  if (renderModeWantsAiHtml(renderMode)) {
+	    if (freeHtmlResult?.json) {
+      htmlScheme = repairAiHtmlScheme(freeHtmlResult.json, payload, homepageConfig, resultProviderConfig, {
+        sourceType: "model/free-html",
 	        generationPipeline: "free-html-first",
 	        modelAttempted: true,
 	        mock: false,
 	      });
       htmlUsage = freeHtmlResult.usage || null;
       htmlRawText = freeHtmlResult.rawText || "";
-      if (htmlScheme.qualityStatus !== "passed") {
+      if (htmlScheme.qualityStatus !== "passed" && config.provider !== "minimax") {
         const qualityReport = evaluateAiHtmlQuality(htmlScheme, payload, homepageConfig);
-        try {
-          const htmlResult = await callProviderWithPrompt(
-            payload,
-            buildAiHtmlPrompt(payload, homepageConfig, { qualityReport, previousScheme: htmlScheme }),
-            AI_HTML_SCHEME_JSON_SCHEMA,
-            "homepage_ai_html_quality_repair",
-          );
+	        try {
+	          const htmlResult = await callProviderWithPrompt(
+	            htmlPayload,
+	            aiHtmlPromptForProvider(resultProviderConfig, payload, homepageConfig, { qualityReport, previousScheme: htmlScheme }),
+	            AI_HTML_SCHEME_JSON_SCHEMA,
+	            "homepage_ai_html_quality_repair",
+	          );
           const previousHtmlScheme = htmlScheme;
           const repairedHtmlScheme = repairAiHtmlScheme(
             {
@@ -7875,11 +10505,11 @@ async function callProvider(payload) {
                 ...(Array.isArray(htmlResult.json?.correctionNotes) ? htmlResult.json.correctionNotes : []),
               ],
             },
-            payload,
-            homepageConfig,
-            config,
-	            { sourceType: "model-repair", generationPipeline: "free-html-quality-gate", modelAttempted: true, mock: false },
-	          );
+	            payload,
+	            homepageConfig,
+	            resultProviderConfig,
+		            { sourceType: "model-repair", generationPipeline: "free-html-quality-gate", modelAttempted: true, mock: false },
+		          );
           const previousScore = Number(previousHtmlScheme.qualityScore);
           const repairedScore = Number(repairedHtmlScheme.qualityScore);
           if (Number.isFinite(previousScore) && Number.isFinite(repairedScore) && repairedScore < previousScore) {
@@ -7902,55 +10532,64 @@ async function callProvider(payload) {
               ...htmlScheme,
               correctionNotes: [
                 ...(Array.isArray(htmlScheme.correctionNotes) ? htmlScheme.correctionNotes : []),
-                `质量返修调用失败，保留已清洗自由 HTML：${cleanText(error.message, "", 140)}`,
+                `质量返修调用失败，保留已清洗自由 HTML：${cleanText(providerFailureSummary(error), "", 140)}`,
               ],
             },
-            payload,
-            homepageConfig,
-            config,
-	            { sourceType: htmlScheme.sourceType || "model/free-html", generationPipeline: "free-html-quality-gate", modelAttempted: true, mock: false },
-	          );
+	            payload,
+	            homepageConfig,
+	            resultProviderConfig,
+		            { sourceType: htmlScheme.sourceType || "model/free-html", generationPipeline: "free-html-quality-gate", modelAttempted: true, mock: false },
+		          );
         }
       }
-    } else {
-      try {
-        const htmlResult = await callProviderWithPrompt(
-          payload,
-          buildAiHtmlPrompt(payload, homepageConfig),
-          AI_HTML_SCHEME_JSON_SCHEMA,
-          "homepage_ai_html_repair",
-        );
-        htmlScheme = repairAiHtmlScheme(
-          {
-            ...htmlResult.json,
-            correctionNotes: [
-              `自由 HTML 首次生成失败，已改用配置参考修正版：${cleanText(freeHtmlError?.message, "", 120)}`,
-              ...(Array.isArray(htmlResult.json?.correctionNotes) ? htmlResult.json.correctionNotes : []),
-            ],
-          },
-          payload,
-          homepageConfig,
-          config,
-	          { sourceType: "model-repair", generationPipeline: "config-guided-repair", modelAttempted: true, mock: false },
-	        );
+	    } else {
+	      try {
+        const compactHtmlGeneration = providerUsesCompactAiHtml(resultProviderConfig);
+		        const htmlResult = await callProviderWithPrompt(
+		          htmlPayload,
+		          aiHtmlPromptForProvider(resultProviderConfig, payload, homepageConfig, { previousError: freeHtmlError }),
+		          AI_HTML_SCHEME_JSON_SCHEMA,
+		          compactHtmlGeneration ? `homepage_ai_html_${resultProviderConfig.provider}_compact` : "homepage_ai_html_repair",
+		        );
+	        htmlScheme = repairAiHtmlScheme(
+	          {
+	            ...htmlResult.json,
+	            correctionNotes: [
+	              compactHtmlGeneration
+                  ? `${resultProviderConfig.name} 已使用短输出 AI HTML 通道，并参考组件库与配置契约生成。`
+                  : `自由 HTML 首次生成失败，已改用配置参考修正版：${cleanText(providerFailureSummary(freeHtmlError), "", 120)}`,
+	              ...(Array.isArray(htmlResult.json?.correctionNotes) ? htmlResult.json.correctionNotes : []),
+	            ],
+	          },
+	          payload,
+	          homepageConfig,
+	          resultProviderConfig,
+			          {
+                  sourceType: compactHtmlGeneration ? `model/${resultProviderConfig.provider}-ai-html` : "model-repair",
+                  generationPipeline: compactHtmlGeneration ? `${resultProviderConfig.provider}-compact-ai-html` : "config-guided-repair",
+                  modelAttempted: true,
+                  mock: false,
+                },
+			        );
         htmlUsage = htmlResult.usage || null;
         htmlRawText = htmlResult.rawText || "";
-      } catch (error) {
-	        htmlScheme = {
-	          ...mockAiHtmlScheme(payload, homepageConfig, config),
-	          summary: `AI HTML 生成失败，已使用安全 mock 草稿：${cleanText(error.message || freeHtmlError?.message, "", 180)}`,
-	          safetyNotes: ["AI HTML 通道生成失败，当前为本地 mock 草稿。"],
-	          correctionNotes: ["自由 HTML 和修正版 HTML 均失败，已回退本地安全草稿。"],
-	          generationPipeline: "fallback-mock",
-	          correctionStatus: "fallback",
-	          sourceType: "fallback/mock",
-	          isFallback: true,
-	          fallbackReason: cleanText(error.message || freeHtmlError?.message, "AI HTML 模型调用失败", 220),
-	          modelAttempted: true,
-	          mock: true,
-	          qualityStatus: "fallback-preview",
-	        };
-      }
+	      } catch (error) {
+        const failureSummary = providerFailureSummary(error || freeHtmlError);
+        htmlScheme = configBackedAiHtmlScheme(payload, homepageConfig, resultProviderConfig, {
+          providerName: resultProviderConfig.name,
+          sourceType: `model/${resultProviderConfig.provider}-config-html`,
+          generationPipeline: `${resultProviderConfig.provider}-config-backed-html`,
+          failureSummary,
+          summary: `${resultProviderConfig.name} 已成功生成首页配置；AI HTML 长输出失败后，服务端改用配置蓝图装配可预览 HTML。`,
+          visualBrief: "保留模型生成的首页意图、模块编排和主题，不再把 HTML 预览失败标记为整次生成回退。",
+          correctionNotes: [
+            freeHtmlError ? `自由 HTML 首次生成未采用：${cleanText(providerFailureSummary(freeHtmlError), "", 120)}` : "",
+            `配置参考 HTML 未采用：${cleanText(providerFailureSummary(error), "", 120)}`,
+          ].filter(Boolean),
+        });
+        htmlUsage = null;
+        htmlRawText = "";
+	      }
     }
   }
 
@@ -7959,17 +10598,47 @@ async function callProvider(payload) {
       ...homepageConfig,
       renderMode,
       htmlGenerationEnabled: renderModeWantsAiHtml(renderMode),
-      activeRenderMode: renderMode === "aiHtml" ? "aiHtml" : "config",
+      skeletonHtmlEnabled: renderMode === "skeletonHtml",
+      activeRenderMode: activeRenderModeForRequest(renderMode, htmlScheme),
       ...(htmlScheme ? { htmlScheme } : {}),
     },
     ...(htmlScheme ? { htmlScheme } : {}),
     renderMode,
-    activeRenderMode: renderMode === "aiHtml" ? "aiHtml" : "config",
+    activeRenderMode: activeRenderModeForRequest(renderMode, htmlScheme),
     provider: result.provider,
     model: result.model,
     rawText: [result.rawText, htmlRawText].filter(Boolean).join("\n\n--- ai html ---\n\n"),
     usage: htmlUsage ? { config: result.usage || null, html: htmlUsage } : result.usage,
   };
+}
+
+function buildComponentPromptForProvider(payload, config = {}) {
+  if (config.provider === "minimax") return buildMiniMaxComponentPrompt(payload, config);
+  return buildComponentPrompt(payload);
+}
+
+function buildComponentEditPromptForProvider(payload, component, config = {}) {
+  if (config.provider === "minimax") return buildMiniMaxComponentEditPrompt(payload, component, config);
+  return buildComponentEditPrompt(payload, component);
+}
+
+function componentProviderCanUseLocalFallback(config, error) {
+  if (config.provider !== "minimax") return false;
+  const status = Number(error?.providerStatus || error?.details?.providerStatus || error?.statusCode);
+  if ([400, 401, 403, 404].includes(status) && !/valid JSON object|Provider returned an empty/i.test(String(error?.message || ""))) {
+    return false;
+  }
+  const details = error?.details || {};
+  return (
+    /valid JSON object|Provider returned an empty|timed out|timeout/i.test(String(error?.message || "")) ||
+    Boolean(details.rawTextSnippet) ||
+    Boolean(details.likelyTruncated) ||
+    /length|max_tokens|content_filter/i.test(String(details.finishReason || ""))
+  );
+}
+
+function componentProviderFallbackReason(error, fallback) {
+  return cleanText(providerFailureSummary(error, fallback), fallback, 260);
 }
 
 async function callComponentProvider(payload) {
@@ -7986,9 +10655,24 @@ async function callComponentProvider(payload) {
     };
   }
 
-  const result = await callProviderWithPrompt(payload, buildComponentPrompt(payload), GENERATED_COMPONENT_JSON_SCHEMA, "homepage_component");
+  let result;
+  try {
+    result = await callProviderWithPrompt(payload, buildComponentPromptForProvider(payload, config), GENERATED_COMPONENT_JSON_SCHEMA, "homepage_component");
+  } catch (error) {
+    if (!componentProviderCanUseLocalFallback(config, error)) throw error;
+    const reason = componentProviderFallbackReason(error, `${config.name} 输出不是可解析 JSON，已使用本地安全组件兜底。`);
+    return {
+      component: saveComponent(mockGeneratedComponent(payload, config)),
+      provider: config.provider,
+      model: config.model,
+      rawText: "",
+      usage: null,
+      localFallback: true,
+      fallbackReason: reason,
+    };
+  }
   const normalized = normalizeGeneratedComponent(result.json, payload);
-  const component = saveComponent(generatedComponentTooGeneric(normalized) ? mockGeneratedComponent(payload, config) : normalized);
+  const component = saveComponent(generatedComponentTooGeneric(normalized) || generatedComponentViolatesFamily(normalized, payload) ? mockGeneratedComponent(payload, config) : normalized);
   return {
     component,
     provider: result.provider,
@@ -8013,7 +10697,22 @@ async function callComponentEditProvider(payload) {
     };
   }
 
-  const result = await callProviderWithPrompt(payload, buildComponentEditPrompt(payload, currentComponent), GENERATED_COMPONENT_JSON_SCHEMA, "homepage_component_edit");
+  let result;
+  try {
+    result = await callProviderWithPrompt(payload, buildComponentEditPromptForProvider(payload, currentComponent, config), GENERATED_COMPONENT_JSON_SCHEMA, "homepage_component_edit");
+  } catch (error) {
+    if (!componentProviderCanUseLocalFallback(config, error)) throw error;
+    const reason = componentProviderFallbackReason(error, `${config.name} 输出不是可解析 JSON，已使用本地安全编辑兜底。`);
+    return {
+      component: saveComponent(mockEditedComponent(payload, currentComponent, config)),
+      provider: config.provider,
+      model: config.model,
+      rawText: "",
+      usage: null,
+      localFallback: true,
+      fallbackReason: reason,
+    };
+  }
   const sourcePrompt = cleanText(currentComponent.sourcePrompt, "", 500);
   const normalized = normalizeGeneratedComponent(
     {
@@ -8029,7 +10728,14 @@ async function callComponentEditProvider(payload) {
       prompt: sourcePrompt,
     },
   );
-  const component = saveComponent(generatedComponentTooGeneric(normalized) ? mockEditedComponent(payload, currentComponent, config) : normalized);
+  const violatesFamily = generatedComponentViolatesFamily(normalized, { ...payload, family: currentComponent.family });
+  const component = saveComponent(
+    generatedComponentTooGeneric(normalized) || violatesFamily
+      ? violatesFamily
+        ? mockGeneratedComponent({ ...payload, family: currentComponent.family, size: currentComponent.size, prompt: payload.instruction || currentComponent.sourcePrompt }, config)
+        : mockEditedComponent(payload, currentComponent, config)
+      : normalized,
+  );
   return {
     component,
     provider: result.provider,
@@ -8062,6 +10768,217 @@ async function callCompositionProvider(payload) {
     rawText: result.rawText,
     usage: result.usage,
   };
+}
+
+async function generateAestheticCandidate(payload = {}, index = 0, groupId = "") {
+  const providerConfig = normalizeProviderConfig(payload.modelConfig || {});
+  const renderMode = homepageRenderMode(payload);
+  const candidatePayload = {
+    ...payload,
+    variant: Number.isFinite(Number(payload.variant)) ? Number(payload.variant) + index : index,
+    context: {
+      ...(payload.context || {}),
+      aestheticTraining: aestheticTrainingContext(payload, { sampleLimit: 4, componentLimit: 10, feedbackLimit: 6 }),
+      candidateIndex: index,
+      candidateGroupId: groupId,
+    },
+  };
+
+  let result = null;
+  let errorMessageText = "";
+  try {
+    result = await callProvider(candidatePayload);
+  } catch (error) {
+    errorMessageText = cleanText(error.message, "模型候选生成失败，已使用本地安全候选。", 260);
+    const fallbackConfig = enforceHomepagePromptIntent(candidatePayload, mockHomepageConfig(candidatePayload, providerConfig));
+    const htmlScheme = renderModeWantsAiHtml(renderMode)
+      ? mockAiHtmlScheme(candidatePayload, fallbackConfig, providerConfig)
+      : null;
+    result = {
+      config: {
+        ...fallbackConfig,
+        renderMode,
+        htmlGenerationEnabled: renderModeWantsAiHtml(renderMode),
+        skeletonHtmlEnabled: renderMode === "skeletonHtml",
+        activeRenderMode: activeRenderModeForRequest(renderMode, htmlScheme),
+        ...(htmlScheme ? { htmlScheme: { ...htmlScheme, sourceType: "local-fallback", fallbackReason: errorMessageText, isFallback: true } } : {}),
+      },
+      renderMode,
+      activeRenderMode: activeRenderModeForRequest(renderMode, htmlScheme),
+      provider: providerConfig.provider,
+      model: providerConfig.model,
+      mock: false,
+      localFallback: true,
+      error: errorMessageText,
+    };
+  }
+
+  const config = result.config || {};
+  const aesthetic = evaluateHomepageAesthetic(candidatePayload, config);
+  const record = addAestheticScoreRecord({
+    action: "candidate-score",
+    candidateGroupId: groupId,
+    candidateIndex: index,
+    prompt: safeRecordText(candidatePayload.prompt),
+    source: result.localFallback ? "local-fallback" : result.mock ? "mock" : "model",
+    providerId: result.provider || providerConfig.provider,
+    provider: PROVIDERS[result.provider || providerConfig.provider]?.name || providerConfig.name,
+    model: result.model || providerConfig.model,
+    renderMode,
+    status: aesthetic.status,
+    score: aesthetic.score,
+    label: config.name || `候选方案 ${index + 1}`,
+    message: errorMessageText || config.aiSummary || "候选方案已评分",
+    configSnapshot: aesthetic.configSnapshot,
+    categories: aesthetic.categories,
+    issues: aesthetic.issues,
+    suggestions: aesthetic.suggestions,
+    strengths: aesthetic.strengths,
+    sampleReferences: aesthetic.sampleReferences.map((item) => ({ id: item.id, name: item.name, pageIntent: item.pageIntent })),
+    componentReferences: aesthetic.componentReferences.map((item) => ({ id: item.id, name: item.name, family: item.family })),
+  });
+
+  return {
+    id: record.id,
+    index,
+    score: aesthetic.score,
+    status: aesthetic.status,
+    label: config.name || `候选方案 ${index + 1}`,
+    source: record.source,
+    provider: record.provider,
+    model: record.model,
+    message: record.message,
+    config,
+    aesthetic,
+    scoreRecord: record,
+  };
+}
+
+async function handleAestheticCandidates(req, res) {
+  try {
+    const payload = await readJsonBody(req);
+    const count = Math.max(2, Math.min(Number(payload.count) || 3, 4));
+    const groupId = `candidate-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const candidates = [];
+
+    for (let index = 0; index < count; index += 1) {
+      candidates.push(await generateAestheticCandidate(payload, index, groupId));
+    }
+
+    const ranked = candidates.slice().sort((a, b) => b.score - a.score);
+    sendJson(res, 200, {
+      ok: true,
+      groupId,
+      bestCandidateId: ranked[0]?.id || "",
+      candidates,
+    });
+  } catch (error) {
+    const status = error.statusCode && error.statusCode >= 400 && error.statusCode < 600 ? error.statusCode : 500;
+    sendJson(res, status, {
+      ok: false,
+      error: error.message || "Candidate generation failed",
+      details: error.details || null,
+    });
+  }
+}
+
+async function handleAestheticScore(req, res) {
+  try {
+    const payload = await readJsonBody(req);
+    const config = payload.config && typeof payload.config === "object" ? payload.config : {};
+    const report = evaluateHomepageAesthetic(payload, config);
+    const record = addAestheticScoreRecord({
+      action: payload.action || "manual-score",
+      candidateGroupId: cleanText(payload.candidateGroupId, "", 80),
+      candidateIndex: Number.isFinite(Number(payload.candidateIndex)) ? Number(payload.candidateIndex) : null,
+      prompt: safeRecordText(payload.prompt),
+      source: cleanText(payload.source, "manual", 40),
+      providerId: cleanText(payload.providerId, "", 40),
+      provider: cleanText(payload.provider, "", 80),
+      model: cleanText(payload.model, "", 80),
+      renderMode: homepageRenderMode(payload),
+      status: report.status,
+      score: report.score,
+      label: config.name || payload.label || "手动评分",
+      message: cleanText(payload.message || config.aiSummary || "", "", 420),
+      configSnapshot: report.configSnapshot,
+      categories: report.categories,
+      issues: report.issues,
+      suggestions: report.suggestions,
+      strengths: report.strengths,
+      sampleReferences: report.sampleReferences.map((item) => ({ id: item.id, name: item.name, pageIntent: item.pageIntent })),
+      componentReferences: report.componentReferences.map((item) => ({ id: item.id, name: item.name, family: item.family })),
+    });
+    sendJson(res, 200, { ok: true, report, record, records: readAestheticScoreRecords() });
+  } catch (error) {
+    const status = error.statusCode && error.statusCode >= 400 && error.statusCode < 600 ? error.statusCode : 500;
+    sendJson(res, status, {
+      ok: false,
+      error: error.message || "Aesthetic scoring failed",
+    });
+  }
+}
+
+async function handleFeedbackMemorySave(req, res) {
+  try {
+    const payload = await readJsonBody(req);
+    const config = payload.config && typeof payload.config === "object" ? payload.config : {};
+    const scoreRecord = cleanText(payload.scoreRecordId, "", 90)
+      ? readAestheticScoreRecords().find((record) => record.id === cleanText(payload.scoreRecordId, "", 90))
+      : null;
+    const rating = Number.isFinite(Number(payload.rating)) ? Math.max(1, Math.min(5, Number(payload.rating))) : 3;
+    const decision = cleanText(payload.decision, rating >= 4 ? "approve" : rating <= 2 ? "reject" : "neutral", 40);
+    const note = cleanText(payload.note, "", 900);
+    const manualDimensions = payload.manualDimensions && typeof payload.manualDimensions === "object"
+      ? Object.fromEntries(
+          Object.entries(payload.manualDimensions)
+            .map(([key, value]) => [cleanText(key, "", 40), Math.max(0, Math.min(10, Number(value) || 0))])
+            .filter(([key]) => key),
+        )
+      : {};
+    const referenceAssets = (Array.isArray(payload.referenceAssets) ? payload.referenceAssets : [])
+      .map((asset) => ({
+        id: cleanText(asset?.id, "", 90),
+        name: cleanText(asset?.name, "", 120),
+        tags: (Array.isArray(asset?.tags) ? asset.tags : []).map((tag) => cleanText(tag, "", 36)).filter(Boolean).slice(0, 8),
+      }))
+      .filter((asset) => asset.id || asset.name)
+      .slice(0, 8);
+    const preferenceSignals = [
+      ...(Array.isArray(payload.preferenceSignals) ? payload.preferenceSignals : []),
+      ...(decision === "approve" ? ["保留类似首屏结构", "复用命中的漂亮积木块"] : []),
+      ...(decision === "reject" ? ["避免类似低分结构", "下次生成需要更强视觉焦点"] : []),
+    ]
+      .map((item) => cleanText(item, "", 100))
+      .filter(Boolean)
+      .slice(0, 10);
+    const record = addFeedbackMemoryRecord({
+      prompt: safeRecordText(payload.prompt || scoreRecord?.prompt),
+      scoreRecordId: cleanText(payload.scoreRecordId, "", 90),
+      candidateGroupId: cleanText(payload.candidateGroupId || scoreRecord?.candidateGroupId, "", 80),
+      candidateIndex: Number.isFinite(Number(payload.candidateIndex)) ? Number(payload.candidateIndex) : scoreRecord?.candidateIndex ?? null,
+      decision,
+      rating,
+      note,
+      tags: (Array.isArray(payload.tags) ? payload.tags : []).map((tag) => cleanText(tag, "", 36)).filter(Boolean).slice(0, 10),
+      preferenceSignals,
+      pageIntent: cleanText(payload.pageIntent || config.pageIntent?.primaryIntent || config.brickTrace?.intent || scoreRecord?.configSnapshot?.intent, "", 60),
+      visualStyle: cleanText(payload.visualStyle || config.themePreset || config.theme || scoreRecord?.configSnapshot?.themePreset, "", 80),
+      score: Number.isFinite(Number(payload.score)) ? Number(payload.score) : scoreRecord?.score ?? null,
+      manualScore: Number.isFinite(Number(payload.manualScore)) ? Math.max(0, Math.min(100, Math.round(Number(payload.manualScore)))) : null,
+      machineScore: Number.isFinite(Number(payload.machineScore)) ? Math.max(0, Math.min(100, Math.round(Number(payload.machineScore)))) : scoreRecord?.score ?? null,
+      manualDimensions,
+      referenceAssets,
+      configSnapshot: homepageRecordSnapshot(config),
+    });
+    sendJson(res, 200, { ok: true, record, records: readFeedbackMemoryRecords() });
+  } catch (error) {
+    const status = error.statusCode && error.statusCode >= 400 && error.statusCode < 600 ? error.statusCode : 500;
+    sendJson(res, status, {
+      ok: false,
+      error: error.message || "Feedback save failed",
+    });
+  }
 }
 
 async function handleAiComplete(req, res) {
@@ -8216,11 +11133,11 @@ async function handleComponentGenerate(req, res) {
       endpoint: historyConfig.endpoint,
       temperature: historyConfig.temperature,
       maxOutputTokens: historyConfig.maxOutputTokens,
-      status: "success",
+      status: result.localFallback ? "fallback" : "success",
       mock: Boolean(result.mock),
       durationMs: Date.now() - startedAt,
       prompt: safeRecordText(payload.prompt),
-      message: result.component?.name || "组件生成成功",
+      message: result.localFallback ? result.fallbackReason || result.component?.name || "组件生成已回退" : result.component?.name || "组件生成成功",
       usage: result.usage || null,
     });
     sendJson(res, 200, { ok: true, ...result, library: readComponentLibrary(), callRecord });
@@ -8275,11 +11192,11 @@ async function handleComponentEdit(req, res) {
       endpoint: historyConfig.endpoint,
       temperature: historyConfig.temperature,
       maxOutputTokens: historyConfig.maxOutputTokens,
-      status: "success",
+      status: result.localFallback ? "fallback" : "success",
       mock: Boolean(result.mock),
       durationMs: Date.now() - startedAt,
       prompt: safeRecordText(payload.instruction || payload.prompt),
-      message: result.component?.name || "组件编辑成功",
+      message: result.localFallback ? result.fallbackReason || result.component?.name || "组件编辑已回退" : result.component?.name || "组件编辑成功",
       usage: result.usage || null,
     });
     sendJson(res, 200, { ok: true, ...result, library: readComponentLibrary(), callRecord });
@@ -8352,7 +11269,10 @@ async function handleComponentCompose(req, res) {
     historyConfig = callHistoryConfig(payload);
     const library = readComponentLibrary();
     const requestedIds = new Set(Array.isArray(payload.componentIds) ? payload.componentIds : []);
-    const components = requestedIds.size ? library.components.filter((component) => requestedIds.has(component.id)) : library.components;
+    const components = sortComponentsForAiUse(
+      requestedIds.size ? library.components.filter((component) => requestedIds.has(component.id)) : library.components,
+      payload,
+    );
     const result = await callCompositionProvider({ ...payload, components });
     const callRecord = addCallHistoryRecord({
       action: "component-compose",
@@ -8436,6 +11356,61 @@ function handleStatic(req, res, pathname) {
 const server = http.createServer(async (req, res) => {
   const requestUrl = new URL(req.url, `http://${req.headers.host || `127.0.0.1:${PORT}`}`);
 
+  if (req.method === "OPTIONS") {
+    sendOptions(res);
+    return;
+  }
+
+  if (req.method === "GET" && requestUrl.pathname === "/api/auth-ai/providers") {
+    sendJson(res, 200, {
+      ok: true,
+      providers: Object.fromEntries(
+        Object.entries(PROVIDERS).map(([id, provider]) => {
+          const config = normalizeProviderConfig({ provider: id });
+          return [
+            id,
+            {
+              name: provider.name,
+              apiMode: config.apiMode,
+              model: config.model,
+              baseUrl: config.baseUrl,
+              endpoint: config.endpoint,
+              ...providerKeyStatus(provider),
+            },
+          ];
+        }),
+      ),
+    });
+    return;
+  }
+
+  if (req.method === "GET" && requestUrl.pathname === "/api/auth-ai/calls") {
+    sendJson(res, 200, {
+      ok: true,
+      records: readAuthCallHistory(),
+    });
+    return;
+  }
+
+  if (req.method === "DELETE" && requestUrl.pathname === "/api/auth-ai/calls") {
+    writeAuthCallHistory([]);
+    sendJson(res, 200, {
+      ok: true,
+      records: [],
+    });
+    return;
+  }
+
+  if (req.method === "POST" && requestUrl.pathname === "/api/auth-ai/generate") {
+    await handleAuthGenerate(req, res);
+    return;
+  }
+
+  if (req.method === "POST" && requestUrl.pathname === "/api/auth-ai/test") {
+    await handleAuthTest(req, res);
+    return;
+  }
+
   if (req.method === "GET" && requestUrl.pathname === "/api/home-ai/providers") {
     sendJson(res, 200, {
       ok: true,
@@ -8473,6 +11448,113 @@ const server = http.createServer(async (req, res) => {
       ok: true,
       records: [],
     });
+    return;
+  }
+
+  if (req.method === "GET" && requestUrl.pathname === "/api/home-ai/design-samples") {
+    const prompt = requestUrl.searchParams.get("prompt") || "";
+    sendJson(res, 200, {
+      ok: true,
+      ...readDesignSamples(),
+      rankedSamples: rankDesignSamplesForPrompt(prompt, 6).map(summarizeDesignSampleForPrompt),
+      beautifulComponents: beautifulComponentReferences({ prompt, limit: 10 }),
+      feedbackMemory: feedbackMemoryPromptReference(prompt, 8),
+      referenceAssets: referenceAssetsForPrompt(prompt, { limit: 6 }),
+    });
+    return;
+  }
+
+  if (req.method === "POST" && requestUrl.pathname === "/api/home-ai/design-samples") {
+    try {
+      const payload = await readJsonBody(req);
+      const result = saveDesignSample(payload.sample || payload);
+      sendJson(res, 200, { ok: true, ...result });
+    } catch (error) {
+      const status = error.statusCode && error.statusCode >= 400 && error.statusCode < 600 ? error.statusCode : 500;
+      sendJson(res, status, { ok: false, error: error.message || "Design sample save failed" });
+    }
+    return;
+  }
+
+  if (req.method === "GET" && requestUrl.pathname === "/api/home-ai/aesthetic-scores") {
+    sendJson(res, 200, {
+      ok: true,
+      records: readAestheticScoreRecords(),
+    });
+    return;
+  }
+
+  if (req.method === "DELETE" && requestUrl.pathname === "/api/home-ai/aesthetic-scores") {
+    writeAestheticScoreRecords([]);
+    sendJson(res, 200, { ok: true, records: [] });
+    return;
+  }
+
+  if (req.method === "POST" && requestUrl.pathname === "/api/home-ai/aesthetic-score") {
+    await handleAestheticScore(req, res);
+    return;
+  }
+
+  if (req.method === "POST" && requestUrl.pathname === "/api/home-ai/candidates") {
+    await handleAestheticCandidates(req, res);
+    return;
+  }
+
+  if (req.method === "GET" && requestUrl.pathname === "/api/home-ai/reference-assets") {
+    const prompt = requestUrl.searchParams.get("prompt") || "";
+    sendJson(res, 200, {
+      ok: true,
+      records: readReferenceAssets(),
+      rankedReferences: referenceAssetsForPrompt(prompt, { limit: 8 }),
+    });
+    return;
+  }
+
+  if (req.method === "DELETE" && requestUrl.pathname === "/api/home-ai/reference-assets") {
+    readReferenceAssets().forEach((asset) => {
+      const filePath = path.join(ROOT_DIR, asset.storagePath || "");
+      if (asset.storagePath && filePath.startsWith(ROOT_DIR) && fs.existsSync(filePath)) {
+        try {
+          fs.unlinkSync(filePath);
+        } catch (error) {
+          // Best effort cleanup; metadata is still cleared below.
+        }
+      }
+    });
+    writeReferenceAssets([]);
+    sendJson(res, 200, { ok: true, records: [] });
+    return;
+  }
+
+  if (req.method === "POST" && requestUrl.pathname === "/api/home-ai/reference-assets") {
+    try {
+      const payload = await readJsonBody(req);
+      const assets = Array.isArray(payload.assets) ? payload.assets : [payload.asset || payload];
+      assets.filter(Boolean).slice(0, 12).forEach((asset) => saveReferenceAsset(asset));
+      sendJson(res, 200, { ok: true, records: readReferenceAssets() });
+    } catch (error) {
+      const status = error.statusCode && error.statusCode >= 400 && error.statusCode < 600 ? error.statusCode : 500;
+      sendJson(res, status, { ok: false, error: error.message || "Reference asset save failed" });
+    }
+    return;
+  }
+
+  if (req.method === "GET" && requestUrl.pathname === "/api/home-ai/feedback") {
+    sendJson(res, 200, {
+      ok: true,
+      records: readFeedbackMemoryRecords(),
+    });
+    return;
+  }
+
+  if (req.method === "DELETE" && requestUrl.pathname === "/api/home-ai/feedback") {
+    writeFeedbackMemoryRecords([]);
+    sendJson(res, 200, { ok: true, records: [] });
+    return;
+  }
+
+  if (req.method === "POST" && requestUrl.pathname === "/api/home-ai/feedback") {
+    await handleFeedbackMemorySave(req, res);
     return;
   }
 

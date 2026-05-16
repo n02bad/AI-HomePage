@@ -273,6 +273,79 @@ async function run() {
 	  assert.strictEqual(normalizedAiHtml.htmlScheme.qualityStatus, "passed");
 	  assert.deepStrictEqual(normalizedAiHtml.htmlScheme.aestheticChecks, ["使用首页主题 token。"]);
 
+  const normalizedSkeletonHtml = home.normalizeConfig({
+    schemaVersion: 4,
+    renderMode: "skeletonHtml",
+    activeRenderMode: "skeletonHtml",
+    sections: [
+      { id: "skeleton-hero", type: "hero", title: "骨架首屏", slots: ["asset_overview", "quick_actions"] },
+      { id: "skeleton-accounts", type: "full", title: "交易账号", slots: ["trading_accounts_list"] },
+    ],
+  });
+  assert.strictEqual(normalizedSkeletonHtml.renderMode, "skeletonHtml");
+  assert.strictEqual(normalizedSkeletonHtml.activeRenderMode, "skeletonHtml");
+  assert.strictEqual(normalizedSkeletonHtml.htmlScheme.enabled, false);
+  assert.strictEqual(normalizedSkeletonHtml.skeletonHtmlScheme.enabled, true);
+  assert(normalizedSkeletonHtml.skeletonHtmlScheme.skeletonHtml.includes("data-home-skeleton-slot"), "skeleton mode must generate slot placeholder HTML");
+  assert(
+    normalizedSkeletonHtml.skeletonHtmlScheme.slots.some((slot) => slot.id === "asset_overview"),
+    "skeleton scheme must expose individual slot records",
+  );
+  assert.strictEqual(typeof home.buildSkeletonHtmlScheme, "function", "skeleton builder must be exported for admin slot refresh");
+
+  const normalizedFilledSkeletonHtml = home.normalizeConfig({
+    schemaVersion: 4,
+    renderMode: "skeletonHtml",
+    activeRenderMode: "skeletonHtml",
+    skeletonHtmlScheme: {
+      enabled: true,
+      status: "review",
+      skeletonHtml:
+        '<section data-home-skeleton-root><article data-home-skeleton-slot="asset_overview"><div data-home-skeleton-placeholder></div></article></section>',
+      slots: [{ id: "asset_overview", label: "账户概览", status: "filled" }],
+      slotComponents: {
+        asset_overview: {
+          id: "asset-overview-ai-slot",
+          name: "资产概览组件",
+          family: "AssetOverview",
+          html: '<article class="asset-overview-ai-slot">资产概览</article>',
+          css: ".asset-overview-ai-slot{display:grid}",
+          locked: true,
+        },
+      },
+    },
+  });
+  assert.strictEqual(normalizedFilledSkeletonHtml.skeletonHtmlScheme.status, "review");
+  assert.strictEqual(normalizedFilledSkeletonHtml.skeletonHtmlScheme.slotComponents.asset_overview.locked, true);
+  assert.strictEqual(normalizedFilledSkeletonHtml.skeletonHtmlScheme.slots[0].status, "locked");
+
+  const normalizedLeakedSupportSlot = home.normalizeConfig({
+    schemaVersion: 4,
+    renderMode: "skeletonHtml",
+    activeRenderMode: "skeletonHtml",
+    skeletonHtmlScheme: {
+      enabled: true,
+      status: "review",
+      skeletonHtml:
+        '<section data-home-skeleton-root><article data-home-skeleton-slot="support_contact"><div data-home-skeleton-placeholder></div></article></section>',
+      slots: [{ id: "support_contact", label: "在线客服", status: "filled" }],
+      slotComponents: {
+        support_contact: {
+          id: "support-contact-bad-slot",
+          name: "首页业务小组件",
+          family: "SupportContact",
+          html: '<section class="bad-support"><span>Client Home Atom</span><strong>首页目标：生成这个 slot 的完整组件</strong><b>KYC Verified</b><button>Open Account</button></section>',
+          css: ".bad-support{display:grid}",
+        },
+      },
+    },
+  });
+  assert.strictEqual(
+    normalizedLeakedSupportSlot.skeletonHtmlScheme.slotComponents.support_contact,
+    undefined,
+    "support_contact skeleton components must drop leaked prompt/wrong-module cached HTML",
+  );
+
   const normalizedAssetTriplet = home.normalizeConfig({
     schemaVersion: 4,
     moduleSettings: {
@@ -572,14 +645,20 @@ async function run() {
   assert(clientHomeSource.includes("account-card-flat-meta"), "trading account cards must use a flat metadata strip");
   assert(!clientHomeSource.includes("account-value-grid"), "trading account cards must not render a nested metric grid");
   const personalizationCss = fs.readFileSync(path.join(ROOT, "home-personalization.css"), "utf8");
+  const commonLayoutSource = fs.readFileSync(path.join(ROOT, "common-layout.js"), "utf8");
   assert(personalizationCss.includes(".ai-accounts-feature .accounts-list-view[hidden]"), "inactive account view must stay hidden in AI preview CSS");
   const serverSource = fs.readFileSync(path.join(ROOT, "server.js"), "utf8");
+  const adminSource = fs.readFileSync(path.join(ROOT, "home-layout-admin.js"), "utf8");
   assert(serverSource.includes("空间利用是硬约束"), "AI prompt must treat space utilization as a hard constraint");
   assert(serverSource.includes("同一组账号数据不得在同一个模块里同时渲染上方摘要卡/摘要行和下方列表/表格"), "AI prompt must forbid duplicate account card plus table views");
   assert(serverSource.includes("账号类型(accountKind=Live/Demo)和账户类型(accountType=ECN Standard/Demo ECN)"), "AI prompt must distinguish account kind and account type");
   const componentLibrary = JSON.parse(fs.readFileSync(path.join(ROOT, "home-component-library.json"), "utf8"));
   const tradingAccountsBrick = componentLibrary.components.find((component) => component.id === "trading-accounts-separated-list");
-  assert(tradingAccountsBrick.sourcePrompt.includes("不能上方摘要卡片下方再重复完整表格"), "TradingAccounts library contract must forbid duplicate summary/table views");
+  const tradingAccountsContract = tradingAccountsBrick?.sourcePrompt || serverSource;
+  assert(
+    tradingAccountsContract.includes("不能上方摘要卡片下方再重复完整表格") || tradingAccountsContract.includes("摘要卡片和完整表格上下重复"),
+    "TradingAccounts generation contract must forbid duplicate summary/table views",
+  );
   assert(serverSource.includes("const MINIMAX_MAX_COMPLETION_TOKENS = 2048"), "MiniMax should keep the documented OpenAI-compatible completion token cap");
   assert(serverSource.includes('const KIMI_DEFAULT_MODEL = "kimi-k2.6"'), "Kimi preset should use the current default model");
   assert(serverSource.includes('const KIMI_CN_BASE_URL = "https://api.moonshot.cn/v1"'), "Kimi should default to the China API domain");
@@ -590,11 +669,40 @@ async function run() {
   assert(!serverSource.includes('["minimax", "kimi"].includes(config.provider) ? Math.min(config.temperature, 0.6)'), "Kimi structured JSON requests must not be clamped below its required temperature");
 	  assert(serverSource.includes("buildLowLatencyHomepagePrompt"), "MiniMax and Kimi should use a short homepage prompt to avoid provider timeouts");
 	  assert(serverSource.includes("质量门禁"), "AI HTML generation must include an aesthetic quality gate");
+	  assert(serverSource.includes("designRulesPromptReference"), "AI generation must load design.md as prompt governance");
+	  assert(serverSource.includes("design.md 设计治理"), "AI prompts must explicitly reference design.md governance");
+	  assert(serverSource.includes("硬编码颜色过多"), "AI HTML quality gate must penalize hard-coded color drift");
+	  assert(serverSource.includes("装饰性渐变过多"), "AI HTML quality gate must penalize decorative gradient drift");
+	  assert(serverSource.includes("按钮仍像原生控件"), "AI HTML quality gate must penalize native-looking browser controls");
+	  assert(serverSource.includes("组件库参考是硬约束"), "AI HTML prompts must treat component-library references as a hard constraint");
+	  assert(serverSource.includes("componentReferences 至少覆盖 3 个 requiredModules"), "AI HTML prompts must require broad component-library reference coverage");
 	  assert(serverSource.includes("componentReferenceHints"), "AI HTML generation must use component-library reference hints");
 	  assert(serverSource.includes("implementationContract"), "AI HTML generation must require per-module implementation contracts");
 	  assert(serverSource.includes("无法证明 AI HTML 不是静态外观空壳"), "AI HTML quality gate must reject static shell drafts");
 	  assert(serverSource.includes("质量返修得分"), "AI HTML quality repair must not replace a higher-scoring free HTML draft");
 	  assert(serverSource.includes("aiHtmlResponsiveFallbackCss"), "AI HTML repair must add a responsive fallback when the model omits media rules");
+	  assert(serverSource.includes("aiHtmlControlFallbackCss"), "AI HTML repair must add scoped control styles when the model leaves native buttons");
+		  assert(serverSource.includes("buildCompactAiHtmlPrompt"), "DeepSeek/Kimi AI HTML calls should use a compact JSON-first prompt");
+		  assert(serverSource.includes('return ["minimax", "deepseek", "kimi"].includes(config.provider)'), "MiniMax, DeepSeek and Kimi should all use compact model-generated AI HTML instead of skipping HTML generation");
+		  assert(serverSource.includes("componentId: item.componentId"), "compact AI HTML prompts must pass real component ids from reference hints");
+		  assert(serverSource.includes("requiredFamily"), "AI HTML component references must preserve the required target family for alias coverage");
+		  assert(serverSource.includes("synthesizeAiHtmlImplementationContract"), "compact AI HTML repair must synthesize implementation contracts when short-output models omit them");
+		  assert(serverSource.includes("AI_UI_GENERATION_PROTOCOL.md"), "AI generation must include the UI protocol governance reference");
+		  assert(serverSource.includes("providerFailureSummary"), "AI HTML fallback reasons should include parse/finish diagnostics");
+	  assert(serverSource.includes("风险披露提示条"), "RiskDisclosure skeleton component fallback must render a real risk disclosure component");
+	  assert(serverSource.includes("在线客服、客户经理、服务时间和帮助入口"), "SupportContact generation must have a dedicated family contract");
+	  assert(serverSource.includes("在线客服服务卡"), "SupportContact mock fallback must render a real support card");
+	  assert(!serverSource.includes("<strong>${prompt}</strong>"), "component fallbacks must not paste the administrator prompt into the customer UI");
+	  assert(serverSource.includes("generatedComponentViolatesFamily"), "component generation must reject family-mismatched RiskDisclosure output");
+	  assert(adminSource.includes("在线客服硬性要求"), "skeleton slot prompt must include SupportContact-specific constraints");
+	  assert(adminSource.includes("isRealModelAiHtmlScheme"), "admin distinct-generation guard must preserve real model AI HTML");
+	  assert(adminSource.includes("serverHtmlLooksModelGenerated"), "admin history must not mislabel model/free-html as fallback when server metadata is older");
+	  assert(adminSource.includes("prepareConfigForPublish"), "publishing must normalize skeleton drafts into a clean final customer config");
+	  assert(personalizationCss.includes(".home-skeleton-render-host.is-published-skeleton"), "published skeleton pages must hide editor shell markers");
+	  assert(personalizationCss.includes(".home-skeleton-section-split .home-skeleton-slot:only-child"), "single-slot split skeleton sections must span the full row");
+	  assert(personalizationCss.includes('body[data-home-preview="content-only"] > .sidebar'), "iframe previews must stay content-only");
+	  assert(!personalizationCss.includes('body[data-home-published="true"] > .sidebar'), "published customer pages must keep the shared sidebar");
+	  assert(!commonLayoutSource.includes('params.has("published")'), "published customer pages must still mount common chrome");
 	  assert(!/\.ai-copy-signal-metrics span\s*\{[\s\S]{0,220}border-left:\s*1px/.test(personalizationCss), "recommendation metric rows should not be divided by heavy vertical lines");
   assert(!/\.ai-copy-curve\s*\{[\s\S]{0,260}repeating-linear-gradient/.test(personalizationCss), "recommendation charts should not default to dense grid backgrounds");
   assert(/\.ai-guide-card\s*\{[\s\S]{0,220}min-height:\s*96px/.test(personalizationCss), "onboarding guide cards should avoid tall empty cards");
@@ -695,13 +803,47 @@ async function run() {
 	    assert.strictEqual(guidedCoreResponse.config.moduleSettings.faq.enabled, false);
 	    assert.strictEqual(guidedCoreResponse.config.moduleSettings.appDownload.enabled, false);
 	    assert.strictEqual(guidedCoreResponse.config.moduleSettings.riskDisclosure.enabled, false);
+	    assert.strictEqual(guidedCoreResponse.config.moduleSettings.adCarousel.enabled, true);
+	    assert.strictEqual(guidedCoreResponse.config.moduleSettings.adCarousel.autoRotate, true);
+	    assert.strictEqual(guidedCoreResponse.config.moduleSettings.adCarousel.slideCount, 3);
 	    assert(["workbench", "calm-table", "ops-table"].includes(guidedCoreResponse.config.moduleStyles.tradingAccounts));
 	    assert.strictEqual(guidedCoreResponse.config.moduleSettings.tradingAccounts.viewMode, "list");
 
-	    const guidedAccountOverviewResponse = await postJson(port, {
-	      inputMode: "guided",
-	      prompt:
-	        "请生成开户引导首页，必须可见模块：账户概览、新手引导、交易账号。账户概览字段仅展示余额总额和交易账号余额。视觉自定义色值 #0EA5E9。",
+		    const guidedPollutionResponse = await postJson(port, {
+		      inputMode: "guided",
+		      prompt:
+		        "请生成开户引导首页，设计风格简约留白，视觉蓝色金融。快捷入口说明里可能提到联系客服，但表单没有选择在线客服，不要生成未选择的辅助模块。",
+		      guidedIntake: {
+		        source: "guided-builder",
+		        theme: { id: "blueFinance", label: "蓝色金融", themePreset: "blueFinance" },
+		        designStyle: { id: "minimalClean", label: "简约留白" },
+		        canonical: {
+		          primaryIntent: "onboarding",
+		          layoutPreset: "onboardingJourney",
+		          heroFocus: "onboarding_guide",
+		          mustHave: ["asset_overview", "quick_actions", "onboarding_guide", "trading_accounts_list", "support_contact"],
+		        },
+		        modules: [
+		          { id: "accountOverview", label: "账户概览", canonicalTargets: ["asset_overview"] },
+		          { id: "quickActions", label: "快捷入口", canonicalTargets: ["quick_actions"] },
+		          { id: "openingFlow", label: "新手引导", canonicalTargets: ["onboarding_guide"] },
+		          { id: "tradingAccounts", label: "交易账号", canonicalTargets: ["trading_accounts_list"] },
+		        ],
+		      },
+		      modelConfig: { provider: "openai" },
+		    });
+		    assert.strictEqual(guidedPollutionResponse.ok, true);
+		    assertOnlyAllowedBlocks(guidedPollutionResponse.config);
+		    assert.strictEqual(hasBlock(guidedPollutionResponse.config, "support_contact"), false);
+		    assert.strictEqual(guidedPollutionResponse.config.moduleSettings.supportContact.enabled, false);
+		    assert.deepStrictEqual(guidedPollutionResponse.config.moduleSettings.quickActions.actions, []);
+		    assert.strictEqual(guidedPollutionResponse.config.themePreset, "blueFinance");
+		    assert.strictEqual(guidedPollutionResponse.config.theme, "blueFinance");
+
+		    const guidedAccountOverviewResponse = await postJson(port, {
+		      inputMode: "guided",
+		      prompt:
+		        "请生成开户引导首页，必须可见模块：账户概览、新手引导、交易账号。账户概览字段仅展示余额总额和交易账号余额。视觉自定义色值 #0EA5E9。",
 	      guidedIntake: {
 	        source: "guided-builder",
 	        theme: { id: "blueFinance", label: "蓝色金融", customInput: "#0EA5E9 国际科技蓝" },
@@ -732,8 +874,10 @@ async function run() {
 		    assert.deepStrictEqual(guidedAccountOverviewResponse.config.moduleSettings.assets.visibleFields, ["total", "wallet", "tradingAccount"]);
 		    assert.strictEqual(guidedAccountOverviewResponse.config.moduleSettings.assets.showAccountBreakdown, true);
 		    assert.strictEqual(guidedAccountOverviewResponse.config.moduleSettings.assets.showWalletBreakdown, true);
-		    assert.strictEqual(guidedAccountOverviewResponse.config.moduleSettings.wallet.enabled, true);
-		    assert.strictEqual(guidedAccountOverviewResponse.config.themeCustom.input, "#0EA5E9 国际科技蓝");
+			    assert.strictEqual(guidedAccountOverviewResponse.config.moduleSettings.wallet.enabled, true);
+			    assert.strictEqual(guidedAccountOverviewResponse.config.themePreset, "blueFinance");
+			    assert.strictEqual(guidedAccountOverviewResponse.config.theme, "blueFinance");
+			    assert.strictEqual(guidedAccountOverviewResponse.config.themeCustom.input, "#0EA5E9 国际科技蓝");
 		    assert.strictEqual(guidedAccountOverviewResponse.config.themeCustom.primaryColor, "#0ea5e9");
 		    assert(guidedAccountOverviewResponse.config.themeCustom.backgroundStyle, "custom theme text should expand into a palette");
 
@@ -764,6 +908,9 @@ async function run() {
     assert.strictEqual(hasBlock(guidedResponse.config, "support_contact"), true);
     assert.strictEqual(hasBlock(guidedResponse.config, "app_download"), true);
     assert.strictEqual(guidedResponse.config.moduleSettings.riskDisclosure.enabled, true);
+    assert.strictEqual(guidedResponse.config.moduleSettings.riskDisclosure.demoFallback, true);
+    assert(Array.isArray(guidedResponse.config.moduleSettings.riskDisclosure.demoCopy));
+    assert(guidedResponse.config.moduleSettings.riskDisclosure.demoCopy.length >= 3);
     assert.strictEqual(guidedResponse.config.moduleSettings.faq.enabled, true);
     assert.strictEqual(guidedResponse.config.moduleSettings.supportContact.enabled, true);
     assert.strictEqual(guidedResponse.config.moduleSettings.appDownload.enabled, true);
@@ -921,6 +1068,21 @@ async function run() {
 	    assert.strictEqual(aiHtmlResponse.config.brickTrace.intent, "onboarding");
 	    assert.strictEqual(aiHtmlResponse.callRecord.status, "mock");
 	    assert.strictEqual(aiHtmlResponse.callRecord.configSnapshot.htmlMock, true);
+
+    const skeletonResponse = await postJson(port, {
+      prompt: "生成一个开户引导首页，使用骨架 HTML 填充方式预览，保留资产概览、快捷入口和交易账号。",
+      renderMode: "skeletonHtml",
+      modelConfig: { provider: "openai" },
+    });
+    assert.strictEqual(skeletonResponse.ok, true);
+    assert.strictEqual(skeletonResponse.renderMode, "skeletonHtml");
+    assert.strictEqual(skeletonResponse.activeRenderMode, "skeletonHtml");
+    assert.strictEqual(skeletonResponse.config.renderMode, "skeletonHtml");
+    assert.strictEqual(skeletonResponse.config.activeRenderMode, "skeletonHtml");
+    assert.strictEqual(skeletonResponse.config.htmlGenerationEnabled, false);
+    assert.strictEqual(skeletonResponse.config.skeletonHtmlEnabled, true);
+    assert.strictEqual(Boolean(skeletonResponse.config.htmlScheme), false, "skeleton mode must not reuse the AI HTML scheme payload");
+    assert.strictEqual(skeletonResponse.callRecord.configSnapshot.renderMode, "skeletonHtml");
 
     const referralCoreResponse = await postJson(port, {
       prompt:

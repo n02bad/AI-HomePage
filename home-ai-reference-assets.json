@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "updatedAt": "2026-05-15T06:45:52.775Z",
+  "records": [
+    {
+      "id": "reference-1778827552768-50441fb7e2547",
+      "at": "2026-05-15T06:45:52.768Z",
+      "name": "xbroker顶部布局 V 4.0@2x.jpg",
+      "type": "image",
+      "mime": "image/jpeg",
+      "size": 2027023,
+      "fileName": "reference-1778827552768-50441fb7e2547-xbroker-v-4-0-2x.jpg",
+      "storagePath": "artifacts/home-ai-reference-assets/reference-1778827552768-50441fb7e2547-xbroker-v-4-0-2x.jpg",
+      "url": "/artifacts/home-ai-reference-assets/reference-1778827552768-50441fb7e2547-xbroker-v-4-0-2x.jpg",
+      "note": "资产概览模块很完善；快捷入口是新的设计风格；交易账号列表处理的不错。",
+      "tags": [
+        "简约扁平"
+      ],
+      "textExcerpt": "",
+      "createdAt": "2026-05-15T06:45:52.768Z"
+    }
+  ]
+}

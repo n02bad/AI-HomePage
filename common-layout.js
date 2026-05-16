@@ -27,7 +27,9 @@
       items: [
         navItem("client-home", "Account Overview", "./client-home.html", "grid"),
         navItem("home-layout-admin", "首页个性化", "./home-layout-admin.html", "settings"),
+        navItem("auth-layout-admin", "登录注册生成", "./auth-layout-admin.html", "settings"),
         navItem("home-model-calls", "调用记录", "./home-model-calls.html", "activity"),
+        navItem("home-ai-training", "审美训练", "./home-ai-training.html", "activity"),
         navItem("home-module-preview", "积木组件库", "./home-module-preview.html", "grid"),
       ],
     },
@@ -45,7 +47,21 @@
       tabs: [
         { label: "Account Overview", href: "./client-home.html" },
         { label: "首页个性化", href: "./home-layout-admin.html", active: true },
+        { label: "登录注册生成", href: "./auth-layout-admin.html" },
         { label: "调用记录", href: "./home-model-calls.html" },
+        { label: "审美训练", href: "./home-ai-training.html" },
+        { label: "积木组件库", href: "./home-module-preview.html" },
+      ],
+    },
+    "auth-layout-admin": {
+      activeNav: "auth-layout-admin",
+      search: "搜索登录注册界面、认证流程、找回密码方案...",
+      tabs: [
+        { label: "Account Overview", href: "./client-home.html" },
+        { label: "首页个性化", href: "./home-layout-admin.html" },
+        { label: "登录注册生成", href: "./auth-layout-admin.html", active: true },
+        { label: "调用记录", href: "./home-model-calls.html" },
+        { label: "审美训练", href: "./home-ai-training.html" },
         { label: "积木组件库", href: "./home-module-preview.html" },
       ],
     },
@@ -55,7 +71,9 @@
       tabs: [
         { label: "Account Overview", href: "./client-home.html" },
         { label: "首页个性化", href: "./home-layout-admin.html", active: true },
+        { label: "登录注册生成", href: "./auth-layout-admin.html" },
         { label: "调用记录", href: "./home-model-calls.html" },
+        { label: "审美训练", href: "./home-ai-training.html" },
         { label: "积木组件库", href: "./home-module-preview.html" },
       ],
     },
@@ -66,6 +84,18 @@
         { label: "Account Overview", href: "./client-home.html" },
         { label: "首页个性化", href: "./home-layout-admin.html" },
         { label: "调用记录", href: "./home-model-calls.html", active: true },
+        { label: "审美训练", href: "./home-ai-training.html" },
+        { label: "积木组件库", href: "./home-module-preview.html" },
+      ],
+    },
+    "home-ai-training": {
+      activeNav: "home-ai-training",
+      search: "搜索样本、审美评分、反馈记忆、漂亮积木...",
+      tabs: [
+        { label: "Account Overview", href: "./client-home.html" },
+        { label: "首页个性化", href: "./home-layout-admin.html" },
+        { label: "调用记录", href: "./home-model-calls.html" },
+        { label: "审美训练", href: "./home-ai-training.html", active: true },
         { label: "积木组件库", href: "./home-module-preview.html" },
       ],
     },
@@ -76,6 +106,7 @@
         { label: "Account Overview", href: "./client-home.html" },
         { label: "首页个性化", href: "./home-layout-admin.html" },
         { label: "调用记录", href: "./home-model-calls.html" },
+        { label: "审美训练", href: "./home-ai-training.html" },
         { label: "积木组件库", href: "./home-module-preview.html", active: true },
       ],
     },
@@ -101,6 +132,15 @@
   function pageKeyFromPath() {
     const file = window.location.pathname.split("/").pop() || "index.html";
     return file.replace(/\.html$/i, "") || "client-home";
+  }
+
+  function shouldSkipCommonChrome() {
+    const pageKey = document.body.dataset.layoutPage || pageKeyFromPath();
+    if (pageKey !== "client-home") return false;
+    const params = new URLSearchParams(window.location.search);
+    const skip = params.has("preview") || document.body.dataset.homePreview === "content-only";
+    if (params.has("preview")) document.body.dataset.homePreview = "content-only";
+    return skip;
   }
 
   function resolveConfig() {
@@ -346,6 +386,10 @@
   function mount() {
     const main = document.querySelector("[data-layout-main], main.app");
     if (!main) return;
+    if (shouldSkipCommonChrome()) {
+      document.body.dataset.commonChrome = "hidden";
+      return;
+    }
 
     window.localStorage.setItem(STORAGE_KEY, portal.key);
     document.body.dataset.portal = portal.key;

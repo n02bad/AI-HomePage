@@ -1,0 +1,219 @@
+{
+  "version": 1,
+  "updatedAt": "2026-05-15T00:00:00.000Z",
+  "samples": [
+    {
+      "id": "vip-capital-desk-sample",
+      "name": "高净值资产中枢",
+      "scenario": "高净值客户、黑金品牌、首屏强调资产安全感和资金动作",
+      "pageIntent": "vip",
+      "visualStyle": "blackGold premium wealth desk",
+      "aestheticScore": 94,
+      "tags": ["高净值", "黑金", "VIP", "资产", "入金", "轮播"],
+      "page": {
+        "name": "私行资产服务台",
+        "layout": "首屏 8+4：左侧资产 Hero，右侧资金 Dock 与开户状态；第二行广告轮播；交易账号下沉为 full section。",
+        "hero": "大数字资产、风险安全提示、一个主 CTA，右侧用小状态面板承接 KYC/开户。",
+        "navigation": "资金动作只保留一个主行动，其他入口弱化为 Dock。",
+        "mobile": "资产 Hero、资金动作、广告轮播、交易账号依次单列。"
+      },
+      "functions": [
+        {
+          "name": "资产概览",
+          "objective": "让高净值客户第一眼看到资产规模和资金安全感。",
+          "modules": ["asset_overview", "wallet_list"],
+          "data": ["totalAssets", "walletBalance", "tradingAccountBalance"],
+          "actions": ["deposit"]
+        },
+        {
+          "name": "资金动作",
+          "objective": "将入金作为主动作，出金和钱包作为辅助。",
+          "modules": ["quick_actions"],
+          "data": ["quickActionList"],
+          "actions": ["deposit", "wallet"]
+        },
+        {
+          "name": "权益曝光",
+          "objective": "以广告轮播承接 VIP 活动和服务权益。",
+          "modules": ["promo_banner"],
+          "data": ["campaignConfig"],
+          "actions": ["deposit"]
+        }
+      ],
+      "sampleBlocks": [
+        {
+          "id": "vip-asset-hero",
+          "name": "VIP 资产 Hero",
+          "page": "首屏左侧主视觉",
+          "function": "展示总资产、钱包、交易账号余额和一个主入金动作。",
+          "componentRefs": ["asset-overview-vip-hero", "fund-actions-priority-dock"],
+          "visualNotes": ["大数字优先", "黑金强调但不全黑", "指标层级不等权"],
+          "dataFields": ["totalAssets", "walletBalance", "tradingAccountBalance"]
+        },
+        {
+          "id": "vip-campaign-carousel",
+          "name": "黑金权益轮播",
+          "page": "首屏下方整横栏",
+          "function": "展示活动或 VIP 权益，并带分页、下一张和主 CTA。",
+          "componentRefs": ["ad-carousel-hero-campaign", "promo-banner-deposit-ladder"],
+          "visualNotes": ["整横栏", "图文分区", "轮播点位轻量"],
+          "dataFields": ["campaignConfig"]
+        }
+      ],
+      "componentRefs": ["asset-overview-vip-hero", "fund-actions-priority-dock", "ad-carousel-hero-campaign", "promo-banner-deposit-ladder"],
+      "goodPatterns": ["首屏有一个强视觉焦点", "资产、入金、广告不要全部等权", "黑金可以用局部高光，不要整页压黑"],
+      "avoidPatterns": ["所有模块都是白卡", "主 CTA 在多个模块重复放大", "为了高级感制造大面积空白"],
+      "promptSeeds": ["高净值黑金首页，首屏突出资产安全感、入金动作和广告轮播，交易账号下沉，整体像私行服务台。"]
+    },
+    {
+      "id": "pro-trader-console-sample",
+      "name": "专业交易指挥中心",
+      "scenario": "专业交易客户、账号表现图表、持仓/订单/MT5 操作入口",
+      "pageIntent": "trader",
+      "visualStyle": "professional trading console",
+      "aestheticScore": 93,
+      "tags": ["专业交易", "图表", "MT5", "账号表现", "持仓", "订单"],
+      "page": {
+        "name": "交易工作台首页",
+        "layout": "顶部命令条 + 账号状态；账号表现图表独占整横栏；交易账号列表独立 full section。",
+        "hero": "不是营销大横幅，而是交易命令中心：账号、持仓、订单、MT5 操作进入同一逻辑区。",
+        "navigation": "操作入口用 command/dock，而不是普通按钮网格。",
+        "mobile": "命令条横向滚动或两列，图表在账号上下文下方。"
+      },
+      "functions": [
+        {
+          "name": "交易命令入口",
+          "objective": "让交易型客户快速进入持仓、订单、资金和 MT5。",
+          "modules": ["quick_actions"],
+          "data": ["quickActionList"],
+          "actions": ["positions", "orders", "downloadMt5"]
+        },
+        {
+          "name": "账号表现",
+          "objective": "用折线或面积曲线展示净值、PnL 和保证金状态。",
+          "modules": ["trading_account_highlight"],
+          "data": ["equityCurve", "pnlTrend", "marginState"],
+          "actions": ["accounts"]
+        },
+        {
+          "name": "交易账号列表",
+          "objective": "用单一列表/表格/卡片视图展示 Live 和 Demo 账号，不重复堆叠。",
+          "modules": ["trading_accounts_list"],
+          "data": ["tradingAccounts"],
+          "actions": ["accounts"]
+        }
+      ],
+      "sampleBlocks": [
+        {
+          "id": "trader-command-dock",
+          "name": "交易操作 Dock",
+          "page": "首屏顶部命令区",
+          "function": "承接订单、持仓、资金、MT5 等高频动作。",
+          "componentRefs": ["quick-actions-action-dock"],
+          "visualNotes": ["横向操作坞", "按钮权重不同", "不要做成普通六宫格"],
+          "dataFields": ["quickActionList"]
+        },
+        {
+          "id": "trader-performance-chart",
+          "name": "账号表现图表",
+          "page": "主内容整横栏",
+          "function": "展示 Balance、Equity、Credit、PnL 趋势。",
+          "componentRefs": ["account-performance-pro-chart"],
+          "visualNotes": ["图表独占空间", "指标带低干扰", "日期轴补足下半区域"],
+          "dataFields": ["equityCurve", "pnlTrend", "marginState"]
+        }
+      ],
+      "componentRefs": ["quick-actions-action-dock", "account-performance-pro-chart", "user-kyc-rail-profile-wallet"],
+      "goodPatterns": ["交易页应像工作台，不像活动落地页", "图表用整横栏保证信息密度", "快捷入口用命令条或操作坞"],
+      "avoidPatterns": ["账号表现卡片里再套很多小卡", "折线需求被画成柱状装饰", "交易账号摘要和完整表格上下重复"],
+      "promptSeeds": ["专业交易客户首页，首屏突出交易账号状态、账户表现图表、持仓入口和 MT5 操作入口。"]
+    },
+    {
+      "id": "onboarding-journey-sample",
+      "name": "新客开户旅程",
+      "scenario": "新用户、KYC、创建真实账户、首次入金三步",
+      "pageIntent": "onboarding",
+      "visualStyle": "guided onboarding journey",
+      "aestheticScore": 92,
+      "tags": ["新客", "开户", "KYC", "首次入金", "旅程", "转化"],
+      "page": {
+        "name": "三步开户注册页",
+        "layout": "首屏 journey hero + 下一步操作；右侧开户操作台；下方 FAQ 和风险提示。",
+        "hero": "用旅程、进度或任务板表达，不固定三等分方格。",
+        "navigation": "主 CTA 是开真实账户，入金和客服作为下一步辅助。",
+        "mobile": "任务步骤单列，当前步骤置顶，开户按钮固定在步骤后。"
+      },
+      "functions": [
+        {
+          "name": "开户进度",
+          "objective": "让新客知道自己处于 KYC、开真实账户、首次入金哪一步。",
+          "modules": ["onboarding_guide"],
+          "data": ["kycStatus", "accountOpeningSteps"],
+          "actions": ["openAccount", "deposit"]
+        },
+        {
+          "name": "创建账号",
+          "objective": "承接开真实账户、开模拟账户和绑定账号入口。",
+          "modules": ["trading_accounts_list", "quick_actions"],
+          "data": ["tradingAccounts", "quickActionList"],
+          "actions": ["openAccount", "accounts"]
+        }
+      ],
+      "sampleBlocks": [
+        {
+          "id": "onboarding-master-path",
+          "name": "3 步成为交易大师",
+          "page": "首屏主任务",
+          "function": "用状态、图标和下一步 CTA 推动 KYC、开户、入金。",
+          "componentRefs": ["onboarding-progress-checklist", "open-account-side-panel"],
+          "visualNotes": ["旅程感", "当前任务突出", "步骤状态可见"],
+          "dataFields": ["kycStatus", "accountOpeningSteps"]
+        }
+      ],
+      "componentRefs": ["onboarding-progress-checklist", "open-account-side-panel", "create-account-real-form"],
+      "goodPatterns": ["把步骤包装成有目标感的旅程", "当前步骤必须更突出", "FAQ 和风险提示低干扰放后面"],
+      "avoidPatterns": ["固定三等分方格", "所有步骤一样重", "编造赠金或收益"],
+      "promptSeeds": ["新用户 Onboarding 首页，主线是 KYC 状态、创建真实账户、首次入金三步，要有完成下一步的欲望。"]
+    },
+    {
+      "id": "ib-growth-console-sample",
+      "name": "代理推广增长控制台",
+      "scenario": "代理/IB 用户、开户链接、邀请码、基础转化统计",
+      "pageIntent": "ib",
+      "visualStyle": "partner growth console",
+      "aestheticScore": 90,
+      "tags": ["代理", "IB", "推广链接", "邀请码", "分享", "转化"],
+      "page": {
+        "name": "推广链接首页",
+        "layout": "推广链接卡作为首屏主功能，统计轻量跟随；不要扩展成完整代理后台。",
+        "hero": "链接优先或邀请码优先，两者不要都做巨大卡片。",
+        "navigation": "复制、分享、查看开户链接是主要动作。",
+        "mobile": "链接字段可折行，复制按钮不挤压内容。"
+      },
+      "functions": [
+        {
+          "name": "推广链接",
+          "objective": "展示开户链接、邀请码、复制/分享动作和基础统计。",
+          "modules": ["referral_link_card"],
+          "data": ["promoLink", "inviteCode", "registrationCount"],
+          "actions": ["copyLink", "share"]
+        }
+      ],
+      "sampleBlocks": [
+        {
+          "id": "referral-link-first",
+          "name": "链接优先推广卡",
+          "page": "首屏主功能",
+          "function": "长链接可读、可复制，邀请码和统计作为辅助。",
+          "componentRefs": ["referral-link-growth-console", "referral-link-card-compact"],
+          "visualNotes": ["输入框式链接区域", "复制按钮清晰", "统计低干扰"],
+          "dataFields": ["promoLink", "inviteCode"]
+        }
+      ],
+      "componentRefs": ["referral-link-growth-console", "referral-link-card-compact"],
+      "goodPatterns": ["推广链接模块轻量而聚焦", "统计只做辅助", "链接和邀请码不能被装饰遮挡"],
+      "avoidPatterns": ["生成返佣后台", "下级客户列表", "团队层级树"],
+      "promptSeeds": ["代理/IB 首页，重点是推广链接、邀请码、复制动作和基础统计，不要做完整代理中心。"]
+    }
+  ]
+}

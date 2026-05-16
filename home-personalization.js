@@ -143,6 +143,10 @@
     blueFinance: "蓝色金融",
     darkTech: "暗色科技",
     minimalWhite: "极简白",
+    emeraldTrust: "翡翠信任",
+    cobaltTeal: "钴蓝青绿",
+    crimsonPromo: "赤红活动",
+    graphiteSilver: "石墨银",
   };
 
   const LEGACY_THEME_MAP = {
@@ -224,6 +228,54 @@
       fontDensity: 0.96,
       numberStyle: "quiet",
       bannerStyle: "paper-band",
+    },
+    emeraldTrust: {
+      primaryColor: "#059669",
+      accentColor: "#0ea5e9",
+      backgroundStyle: "emerald-trust-air",
+      cardStyle: "clean-white",
+      cardRadius: "8px",
+      cardShadow: "trust-soft",
+      buttonStyle: "emerald-blue-gradient",
+      fontDensity: 1,
+      numberStyle: "financial",
+      bannerStyle: "emerald-trust-campaign",
+    },
+    cobaltTeal: {
+      primaryColor: "#0f766e",
+      accentColor: "#2563eb",
+      backgroundStyle: "cobalt-teal-grid",
+      cardStyle: "clean-white",
+      cardRadius: "8px",
+      cardShadow: "finance-soft",
+      buttonStyle: "cobalt-teal-gradient",
+      fontDensity: 1,
+      numberStyle: "financial",
+      bannerStyle: "cobalt-teal-campaign",
+    },
+    crimsonPromo: {
+      primaryColor: "#be123c",
+      accentColor: "#f97316",
+      backgroundStyle: "crimson-promo-air",
+      cardStyle: "warm-white",
+      cardRadius: "8px",
+      cardShadow: "promo-soft",
+      buttonStyle: "crimson-orange-gradient",
+      fontDensity: 1,
+      numberStyle: "tabular",
+      bannerStyle: "crimson-promo-campaign",
+    },
+    graphiteSilver: {
+      primaryColor: "#334155",
+      accentColor: "#0ea5e9",
+      backgroundStyle: "graphite-silver-air",
+      cardStyle: "flat-white",
+      cardRadius: "6px",
+      cardShadow: "low",
+      buttonStyle: "graphite-silver",
+      fontDensity: 0.98,
+      numberStyle: "quiet",
+      bannerStyle: "graphite-silver-campaign",
     },
   };
 
@@ -1245,6 +1297,8 @@
             type: "object",
             properties: {
               enabled: { type: "boolean" },
+              demoFallback: { type: "boolean" },
+              demoCopy: { type: "array" },
             },
           },
           faq: {
@@ -1587,7 +1641,7 @@
     "home.announcements.summary": "系统公告、活动公告和维护通知由接口返回。",
     "home.riskDisclosure.eyebrow": "",
     "home.riskDisclosure.title": "风险提示",
-    "home.riskDisclosure.summary": "以下风险披露文案应由后台富文本或合规接口返回，首页仅负责在页面底部稳定承载。",
+    "home.riskDisclosure.summary": "以下风险披露正式内容应由后台富文本或合规接口返回；缺少数据时使用 Demo 参考文案展示界面效果。",
     "home.riskDisclosure.cta": "查看风险说明",
     "home.faq.eyebrow": "",
     "home.faq.title": "常见问题",
@@ -1809,7 +1863,7 @@
   }, {});
 
   const DEFAULT_MODULE_SETTINGS = {
-    adCarousel: { enabled: false },
+    adCarousel: { enabled: false, autoRotate: true, slideCount: 3 },
     promoHighlight: { enabled: true },
     quickActions: { enabled: true, count: 4, display: "iconText", actions: [] },
     wallet: { enabled: false, placement: "mergedWithAssets", showFundActions: false },
@@ -1868,7 +1922,15 @@
     copytrading: { enabled: false },
     announcements: { enabled: false },
     marketNews: { enabled: false },
-    riskDisclosure: { enabled: false },
+    riskDisclosure: {
+      enabled: false,
+      demoFallback: true,
+      demoCopy: [
+        "外汇、贵金属、差价合约及其他保证金产品涉及杠杆，价格波动可能导致本金损失。",
+        "交易前请确认您理解保证金要求、强平机制、滑点、流动性、系统中断及汇率波动等风险。",
+        "过往表现、收益展示或模拟交易结果不构成未来收益承诺。",
+      ],
+    },
     faq: { enabled: false },
     supportContact: { enabled: false },
     appDownload: { enabled: false },
@@ -4710,7 +4772,7 @@
 
   function normalizeHomepageRenderMode(value, fallback = "config") {
     const raw = cleanMetaText(value, fallback, 24);
-    return ["config", "aiHtml", "compare"].includes(raw) ? raw : fallback;
+    return ["config", "aiHtml", "skeletonHtml", "compare"].includes(raw) ? raw : fallback;
   }
 
   function normalizeHomeColorMode(value, fallback = "auto") {
@@ -4733,6 +4795,10 @@
 
   function renderModeWantsAiHtml(mode) {
     return mode === "aiHtml" || mode === "compare";
+  }
+
+  function renderModeWantsSkeletonHtml(mode) {
+    return mode === "skeletonHtml";
   }
 
   function sanitizeAiHtmlMarkup(value) {
@@ -4868,6 +4934,217 @@
         .map((item) => cleanMetaText(item, "", 140))
         .filter(Boolean)
         .slice(0, 8),
+    };
+  }
+
+  function skeletonSlotKey(value) {
+    return cleanMetaText(value, "", 80).replace(/[^a-zA-Z0-9_-]/g, "");
+  }
+
+  function skeletonSectionClass(type) {
+    return `home-skeleton-section-${cleanMetaText(type, "full", 24).replace(/[^a-zA-Z0-9_-]/g, "")}`;
+  }
+
+  function normalizeSkeletonStatus(value, fallback = "pending-fill") {
+    const raw = cleanMetaText(value, fallback, 32);
+    return ["pending-fill", "generating", "filled", "locked", "failed", "review", "final"].includes(raw) ? raw : fallback;
+  }
+
+  function normalizeSkeletonSlotComponent(component, slot) {
+    const source = component && typeof component === "object" ? component.component || component : {};
+    const slotKey = skeletonSlotKey(component?.slot || slot);
+    const html = sanitizeAiHtmlMarkup(source.html || component?.html);
+    const css = sanitizeAiHtmlCss(source.css || component?.css);
+    const id = cleanMetaText(source.id || source.componentId || component?.componentId || `${slotKey}-component`, "", 90);
+    if (!slotKey || (!id && !html && !css)) return null;
+    if (slotKey === "support_contact") {
+      const supportSource = `${source.name || ""} ${source.description || ""} ${html}`;
+      const leaksAdminPrompt = /首页目标|当前步骤|slot：|模块名称：|Client Home Atom/i.test(supportSource);
+      const looksLikeWrongModule = /KYC Verified|Wallet\s+\d|Open Account|账户余额|钱包余额|开真实账户/i.test(supportSource);
+      const hasSupportSemantics = /在线客服|联系客服|客服|客户经理|服务时间|帮助中心|工单|实时对话|Support|Contact|Ticket|Live Chat/i.test(supportSource);
+      if (leaksAdminPrompt || looksLikeWrongModule || !hasSupportSemantics) return null;
+    }
+
+    return {
+      id,
+      slot: slotKey,
+      name: cleanMetaText(source.name || component?.name || featureLabel(slotKey), featureLabel(slotKey), 80),
+      family: cleanMetaText(source.family || component?.family, "", 80),
+      size: cleanMetaText(source.size || component?.size, "", 24),
+      description: cleanMetaText(source.description || component?.description, "", 220),
+      tags: (Array.isArray(source.tags || component?.tags) ? source.tags || component.tags : [])
+        .map((item) => cleanMetaText(item, "", 32))
+        .filter(Boolean)
+        .slice(0, 8),
+      html,
+      css,
+      sourceType: cleanMetaText(source.sourceType || component?.sourceType, "component-ai", 48),
+      model: cleanMetaText(source.model || component?.model, "", 80),
+      provider: cleanMetaText(source.provider || component?.provider, "", 48),
+      generatedAt: cleanMetaText(source.generatedAt || source.updatedAt || component?.generatedAt, "", 48),
+      locked: Boolean(source.locked || component?.locked),
+    };
+  }
+
+  function normalizeSkeletonSlotComponents(source) {
+    const components = source && typeof source === "object" && !Array.isArray(source) ? source : {};
+    return Object.fromEntries(
+      Object.entries(components)
+        .map(([slot, component]) => {
+          const slotKey = skeletonSlotKey(slot);
+          const normalized = normalizeSkeletonSlotComponent(component, slotKey);
+          return slotKey && normalized ? [slotKey, normalized] : null;
+        })
+        .filter(Boolean),
+    );
+  }
+
+  function skeletonSlotRecord(slot, config, section, index) {
+    const moduleId = moduleKeyFor(slot);
+    const variant = moduleId ? config?.modules?.[moduleId]?.variant || MODULE_VARIANT_DEFAULTS[moduleId] || "" : "";
+    const morph = moduleId ? config?.componentMorphs?.[moduleId]?.morphId || "" : "";
+    return {
+      id: skeletonSlotKey(slot),
+      slot: skeletonSlotKey(slot),
+      label: cleanMetaText(featureLabel(slot), slot, 80),
+      sectionId: cleanMetaText(section?.id, "", 64),
+      sectionTitle: cleanMetaText(section?.title, "", 80),
+      sectionType: cleanMetaText(section?.type, "full", 24),
+      moduleId,
+      variant,
+      morph,
+      status: "pending-fill",
+      filledAt: "",
+      index,
+    };
+  }
+
+  function buildSkeletonHtmlMarkup(sections, slots) {
+    const slotByKey = Object.fromEntries(slots.map((slot) => [slot.id, slot]));
+    return `
+      <section class="home-skeleton-html-page" data-home-skeleton-root>
+        <header class="home-skeleton-top">
+          <span>Skeleton HTML</span>
+          <strong>整页骨架 HTML</strong>
+          <small>此层只声明 section 与 slot，占位完成后再按 slot 填充模块内容。</small>
+        </header>
+        <main class="home-skeleton-flow">
+          ${sections
+            .map((section, sectionIndex) => {
+              const sectionSlots = (section.slots || []).map((slot) => slotByKey[skeletonSlotKey(slot)]).filter(Boolean);
+              if (!sectionSlots.length) return "";
+              return `
+                <section class="home-skeleton-section ${skeletonSectionClass(section.type)}" data-home-skeleton-section="${escapeHtml(section.id || `section-${sectionIndex + 1}`)}" data-home-skeleton-section-type="${escapeHtml(section.type || "full")}">
+                  <header class="home-skeleton-section-head">
+                    <span>${escapeHtml(section.type || "full")}</span>
+                    <strong>${escapeHtml(section.title || `Section ${sectionIndex + 1}`)}</strong>
+                  </header>
+                  <div class="home-skeleton-slot-grid" data-home-skeleton-section-slots>
+                    ${sectionSlots
+                      .map(
+                        (slot, slotIndex) => `
+                          <article class="home-skeleton-slot" data-home-skeleton-slot="${escapeHtml(slot.id)}" data-home-skeleton-module="${escapeHtml(slot.moduleId)}" data-home-skeleton-variant="${escapeHtml(slot.variant)}" data-home-skeleton-slot-index="${slotIndex}">
+                            <div class="home-skeleton-placeholder" data-home-skeleton-placeholder>
+                              <span>slot ${String(slotIndex + 1).padStart(2, "0")}</span>
+                              <strong>${escapeHtml(slot.label)}</strong>
+                              <small>${escapeHtml(slot.id)} · 等待填充</small>
+                            </div>
+                          </article>
+                        `,
+                      )
+                      .join("")}
+                  </div>
+                </section>
+              `;
+            })
+            .join("")}
+        </main>
+      </section>
+    `;
+  }
+
+  function buildSkeletonHtmlScheme(config, options = {}) {
+    const normalized = config?.sections && config?.layout ? config : normalizeConfig(config);
+    const sections = (Array.isArray(normalized.sections) ? normalized.sections : [])
+      .map((section) => ({
+        ...section,
+        slots: expandSlots(section.slots || [], normalized),
+      }))
+      .filter((section) => section.slots.length);
+    const slots = sections.flatMap((section) => (section.slots || []).map((slot, index) => skeletonSlotRecord(slot, normalized, section, index)));
+    return normalizeSkeletonHtmlScheme(
+      {
+        enabled: true,
+        name: cleanMetaText(options.name || `${normalized.name || "AI 首页"}骨架填充`, "骨架 HTML 填充", 56),
+        summary: cleanMetaText(options.reason || "先生成整页骨架 HTML，再按 slot 填充模块内容。", "骨架 HTML 填充", 220),
+        sourceType: cleanMetaText(options.sourceType, "local-skeleton", 48),
+        generatedAt: new Date().toISOString(),
+        status: normalizeSkeletonStatus(options.status, "pending-fill"),
+        slots,
+        skeletonHtml: buildSkeletonHtmlMarkup(sections, slots),
+        slotComponents: options.slotComponents && typeof options.slotComponents === "object" ? options.slotComponents : {},
+        slotRegenerationLog: Array.isArray(options.slotRegenerationLog) ? options.slotRegenerationLog : [],
+      },
+      true,
+    );
+  }
+
+  function normalizeSkeletonHtmlScheme(source, enabled = false) {
+    const scheme = source && typeof source === "object" ? source : {};
+    const slotComponents = normalizeSkeletonSlotComponents(scheme.slotComponents);
+    const slots = (Array.isArray(scheme.slots) ? scheme.slots : [])
+      .map((item, index) => {
+        const id = skeletonSlotKey(item?.id || item?.slot);
+        if (!id) return null;
+        const component = slotComponents[id];
+        const locked = Boolean(item.locked || component?.locked);
+        const status = locked ? "locked" : component?.html ? "filled" : normalizeSkeletonStatus(item.status);
+        return {
+          id,
+          slot: id,
+          label: cleanMetaText(item.label || featureLabel(id), id, 80),
+          sectionId: cleanMetaText(item.sectionId, "", 64),
+          sectionTitle: cleanMetaText(item.sectionTitle, "", 80),
+          sectionType: cleanMetaText(item.sectionType, "full", 24),
+          moduleId: cleanMetaText(item.moduleId, "", 80),
+          variant: cleanMetaText(item.variant, "", 80),
+          morph: cleanMetaText(item.morph || item.morphId, "", 80),
+          status,
+          filledAt: cleanMetaText(item.filledAt, "", 48),
+          componentId: cleanMetaText(item.componentId || component?.id, "", 90),
+          locked,
+          index: Number.isFinite(Number(item.index)) ? Number(item.index) : index,
+        };
+      })
+      .filter(Boolean)
+      .slice(0, 32);
+    const skeletonHtml = sanitizeAiHtmlMarkup(scheme.skeletonHtml || scheme.html);
+    const filledCount = slots.filter((slot) => ["filled", "locked", "final"].includes(slot.status)).length;
+    const schemeStatus = normalizeSkeletonStatus(
+      scheme.status,
+      slots.length && filledCount >= slots.length ? "review" : filledCount > 0 ? "filled" : "pending-fill",
+    );
+    return {
+      enabled: Boolean(enabled || scheme.enabled) && Boolean(skeletonHtml || slots.length),
+      name: cleanMetaText(scheme.name, "骨架 HTML 填充", 56),
+      summary: cleanMetaText(scheme.summary, "先生成整页骨架 HTML，再按 slot 填充模块内容。", 220),
+      sourceType: cleanMetaText(scheme.sourceType, "local-skeleton", 48),
+      generatedAt: cleanMetaText(scheme.generatedAt, "", 48),
+      status: schemeStatus,
+      skeletonHtml,
+      slots,
+      slotComponents,
+      slotRegenerationLog: (Array.isArray(scheme.slotRegenerationLog) ? scheme.slotRegenerationLog : [])
+        .map((item) => ({
+          slot: skeletonSlotKey(item?.slot),
+          label: cleanMetaText(item?.label, "", 80),
+          action: cleanMetaText(item?.action, "", 32),
+          moduleId: cleanMetaText(item?.moduleId, "", 80),
+          variant: cleanMetaText(item?.variant, "", 80),
+          at: cleanMetaText(item?.at, "", 48),
+        }))
+        .filter((item) => item.slot)
+        .slice(0, 20),
     };
   }
 
@@ -5345,8 +5622,12 @@
   function themePresetForPrompt(strategy, prompt, intent) {
     const text = positiveIntentText(prompt);
     if (includesAny(text, ["极简白", "极简", "白色", "minimal"])) return "minimalWhite";
-    if (includesAny(text, ["黑金", "高净值", "vip", "尊贵", "机构", "大客户"])) return "blackGold";
+    if (!includesAny(text, ["机构灰"]) && includesAny(text, ["黑金", "高净值", "vip", "尊贵", "机构", "大客户"])) return "blackGold";
     if (includesAny(text, ["淡金", "浅金", "轻金", "香槟金", "金色", "金色调", "gold"])) return "lightGold";
+    if (includesAny(text, ["翡翠", "信任绿", "资金安全绿", "emerald"])) return "emeraldTrust";
+    if (includesAny(text, ["钴蓝", "青绿", "青蓝科技", "teal", "cobalt"])) return "cobaltTeal";
+    if (includesAny(text, ["赤红", "红色活动", "红橙", "crimson"])) return "crimsonPromo";
+    if (includesAny(text, ["石墨", "银色", "机构灰", "graphite", "silver"])) return "graphiteSilver";
     if (includesAny(text, ["淡蓝", "浅蓝", "蓝色金融", "light blue"])) return "blueFinance";
     if (intent === "growth" && includesAny(text, ["轻快", "清晰", "清爽", "明亮", "浅色", "轻量"])) return "blueFinance";
     return strategy.themePreset;
@@ -5378,11 +5659,19 @@
   }
 
   function spanFromBrickSize(size) {
-    const normalized = String(size || "").trim().toLowerCase();
-    if (/^3x[12]$/.test(normalized)) return 12;
-    if (/^2x[12]$/.test(normalized)) return 8;
-    if (/^1x[12]$/.test(normalized)) return 4;
+    const normalized = String(size || "").trim().toLowerCase().replace(/[×*]/g, "x");
+    const match = normalized.match(/^([1-9]\d?)x([1-9]\d?)$/);
+    if (!match) return 0;
+    const columns = Number(match[1]);
+    if (columns >= 3) return 12;
+    if (columns === 2) return 8;
+    if (columns === 1) return 4;
     return 0;
+  }
+
+  function rowUnitsFromBrickSize(size) {
+    const match = String(size || "").trim().toLowerCase().replace(/[×*]/g, "x").match(/^[1-9]\d?x([1-9]\d?)$/);
+    return match ? Number(match[1]) || 1 : 1;
   }
 
   function accountListNeedsFullRow(moduleSettings) {
@@ -5445,7 +5734,7 @@
 
     if (component === "account_performance" || component === "trading_account_highlight") {
       const isCostBoard = String(block.brickId || "").includes("costBoard");
-      if (block.slot !== "full" || !/^3x/.test(size)) {
+      if (block.slot !== "full" || spanFromBrickSize(size) < 12) {
         return isCostBoard
           ? {
               ...block,
@@ -5495,7 +5784,7 @@
       }
 
       if (item.component === "account_performance" || item.component === "trading_account_highlight") {
-        if (item.zone !== "full" || !/^3x/.test(size)) {
+        if (item.zone !== "full" || spanFromBrickSize(size) < 12) {
           return String(item.brickId || "").includes("costBoard")
             ? {
                 ...item,
@@ -5538,12 +5827,12 @@
     return LAYOUT_SLOT_SPANS[block.slot] || 12;
   }
 
-	  function isHomepageFullRowBlock(block) {
-	    if (block.component === "welcome_header") return true;
-	    if (block.component === "risk_disclosure") return true;
-	    if (block.slot === "full" && LARGE_FULL_ROW_HOME_BLOCKS.has(canonicalHomeBlock(block.component) || block.component)) return true;
-	    return ["account_list", "trading_accounts_list", "account_performance", "trading_account_highlight", "wallet_list"].includes(block.component) && /^3x/i.test(String(block.brickSize || ""));
-	  }
+  function isHomepageFullRowBlock(block) {
+    if (block.component === "welcome_header") return true;
+    if (block.component === "risk_disclosure") return true;
+    if (block.slot === "full" && LARGE_FULL_ROW_HOME_BLOCKS.has(canonicalHomeBlock(block.component) || block.component)) return true;
+    return ["account_list", "trading_accounts_list", "account_performance", "trading_account_highlight", "wallet_list"].includes(block.component) && spanFromBrickSize(block.brickSize) >= 12;
+  }
 
   function isHomepageCompactBlock(block) {
     return ["quick_actions", "onboarding_guide", "pamm_products", "copytrading_signals", "referral_link_card", "announcements", "market_news", "risk_disclosure", "faq_section", "support_contact", "app_download", "fund_actions", "wallet_balance", "open_account_panel", "user_kyc_rail", "create_account_form", "market_insight", "risk_notice", "copytrading_summary"].includes(block.component);
@@ -5573,10 +5862,12 @@
   function rowMinHeightForBlocks(blocks) {
     const components = new Set(blocks.map((block) => block.component));
     const sizes = new Set(blocks.map((block) => String(block.brickSize || "").toLowerCase()));
+    const maxRows = Math.max(1, ...[...sizes].map((size) => rowUnitsFromBrickSize(size)));
 
     if (components.has("ad_carousel")) return 260;
     if (components.has("trading_accounts_list") || components.has("wallet_list") || components.has("account_performance") || components.has("trading_account_highlight")) return 240;
-    if ([...sizes].some((size) => size.endsWith("2"))) return 220;
+    if (maxRows >= 3) return 300;
+    if (maxRows >= 2) return 220;
     if (components.has("asset_overview") || components.has("asset_summary")) return 210;
     return 180;
   }
@@ -6784,6 +7075,8 @@
     const normalized = {
       adCarousel: {
         enabled: boolValue(adCarousel.enabled, defaults.adCarousel.enabled),
+        autoRotate: boolValue(adCarousel.autoRotate, defaults.adCarousel.autoRotate),
+        slideCount: Math.min(6, Math.max(1, Number(adCarousel.slideCount || defaults.adCarousel.slideCount || 3))),
       },
       promoHighlight: {
         enabled: boolValue(promoHighlight.enabled, defaults.promoHighlight.enabled),
@@ -6868,6 +7161,8 @@
       },
       riskDisclosure: {
         enabled: boolValue(riskDisclosure.enabled, defaults.riskDisclosure.enabled),
+        demoFallback: boolValue(riskDisclosure.demoFallback, defaults.riskDisclosure.demoFallback),
+        demoCopy: Array.isArray(riskDisclosure.demoCopy) && riskDisclosure.demoCopy.length ? riskDisclosure.demoCopy.slice(0, 4) : defaults.riskDisclosure.demoCopy,
       },
       faq: {
         enabled: boolValue(faq.enabled, defaults.faq.enabled),
@@ -7585,10 +7880,16 @@
       : normalizedLayout.layout;
     const layout = enforceHomepageLayoutSafety(hydratedLayout, moduleSettings);
     const brickPlan = sourceBrickPlan.length ? sourceBrickPlan : shouldHydrateBricks ? brickPlanFromLayout(layout) : [];
-    const renderMode = normalizeHomepageRenderMode(source.renderMode, source.htmlGenerationEnabled ? "compare" : "config");
+    const renderMode = normalizeHomepageRenderMode(
+      source.renderMode,
+      source.skeletonHtmlEnabled ? "skeletonHtml" : source.htmlGenerationEnabled ? "compare" : "config",
+    );
     const htmlScheme = normalizeAiHtmlScheme(source.htmlScheme, renderModeWantsAiHtml(renderMode) || Boolean(source.htmlGenerationEnabled));
-    const requestedActiveRenderMode = source.activeRenderMode || (renderMode === "aiHtml" ? "aiHtml" : "config");
-    const activeRenderMode = requestedActiveRenderMode === "aiHtml" && htmlScheme.enabled ? "aiHtml" : "config";
+    const skeletonHtmlScheme = normalizeSkeletonHtmlScheme(source.skeletonHtmlScheme, renderModeWantsSkeletonHtml(renderMode) || Boolean(source.skeletonHtmlEnabled));
+    const requestedActiveRenderMode = source.activeRenderMode || (renderMode === "aiHtml" ? "aiHtml" : renderMode === "skeletonHtml" ? "skeletonHtml" : "config");
+    let activeRenderMode = "config";
+    if (requestedActiveRenderMode === "aiHtml" && htmlScheme.enabled) activeRenderMode = "aiHtml";
+    if (requestedActiveRenderMode === "skeletonHtml" && (skeletonHtmlScheme.enabled || renderModeWantsSkeletonHtml(renderMode))) activeRenderMode = "skeletonHtml";
 
     const normalized = {
       schemaVersion: 4,
@@ -7639,10 +7940,24 @@
       annotations: Array.isArray(source.annotations) ? source.annotations.slice(0, 24) : [],
       renderMode,
       htmlGenerationEnabled: htmlScheme.enabled,
+      skeletonHtmlEnabled: skeletonHtmlScheme.enabled || renderModeWantsSkeletonHtml(renderMode),
       activeRenderMode,
       htmlScheme,
+      skeletonHtmlScheme,
+      publishedRenderMode: normalizeHomepageRenderMode(source.publishedRenderMode, ""),
+      publishedRenderModeLabel: cleanMetaText(source.publishedRenderModeLabel, "", 32),
+      publishedAt: cleanMetaText(source.publishedAt, "", 48),
       validationErrors: normalizedLayout.validationErrors,
     };
+
+    if (renderModeWantsSkeletonHtml(renderMode) && !normalized.skeletonHtmlScheme.enabled) {
+      normalized.skeletonHtmlScheme = buildSkeletonHtmlScheme(normalized, {
+        reason: "按当前首页配置生成整页 slot 骨架。",
+        sourceType: "local-skeleton",
+      });
+      normalized.skeletonHtmlEnabled = true;
+      normalized.activeRenderMode = requestedActiveRenderMode === "skeletonHtml" ? "skeletonHtml" : normalized.activeRenderMode;
+    }
 
     return sanitizeCanonicalHomepageConfig(applyPageGovernanceRules(normalized, source), source);
   }
@@ -7720,7 +8035,11 @@
     if (includesAny(lower + text, ["活动", "增长", "营销", "比赛", "大赛", "转化"])) setTheme("darkTech");
     if (includesAny(lower + text, ["科技", "蓝", "清爽", "国际", "global", "金融"])) setTheme("blueFinance");
     if (includesAny(lower + text, ["淡金", "浅金", "轻金", "香槟金", "金色", "金色调", "gold"])) setTheme("lightGold");
-    if (includesAny(lower + text, ["高净值", "vip", "黑金", "尊贵", "机构"])) setTheme("blackGold");
+    if (includesAny(lower + text, ["翡翠", "信任绿", "资金安全绿", "emerald"])) setTheme("emeraldTrust");
+    if (includesAny(lower + text, ["钴蓝", "青绿", "青蓝科技", "teal", "cobalt"])) setTheme("cobaltTeal");
+    if (includesAny(lower + text, ["赤红", "红色活动", "红橙", "crimson"])) setTheme("crimsonPromo");
+    if (includesAny(lower + text, ["石墨", "银色", "机构灰", "graphite", "silver"])) setTheme("graphiteSilver");
+    if (!includesAny(lower + text, ["机构灰"]) && includesAny(lower + text, ["高净值", "vip", "黑金", "尊贵", "机构"])) setTheme("blackGold");
     if (includesAny(lower + text, ["极简", "白色", "极简白", "minimal"])) setTheme("minimalWhite");
 
     config.colorMode = colorModeFromPromptText(prompt, config.colorMode);
@@ -9401,8 +9720,8 @@
     return feature;
   }
 
-  function renderAdCarousel(doc, config) {
-    const feature = wrapFeature(doc, "adCarousel", "ai-ad-carousel-feature", config);
+  function renderAdCarousel(doc, config, props = {}, featureSlot = "adCarousel") {
+    const feature = wrapFeature(doc, featureSlot, "ai-ad-carousel-feature", config);
     const isCampaign = config.layoutPreset === "conversionFirst" || moduleVariant(config, "adCarousel") === "gradientHero";
     const slides = isCampaign
       ? [
@@ -9486,6 +9805,13 @@
       </div>
     `;
     return feature;
+  }
+
+  function renderPromotionBanner(doc, config, props = {}) {
+    if (config.moduleSettings?.adCarousel?.enabled) {
+      return renderAdCarousel(doc, config, props, "promo_banner");
+    }
+    return renderPromoHighlight(doc, config, props);
   }
 
   function renderQuickActions(doc, config, props = {}) {
@@ -10329,15 +10655,17 @@
 	    const feature = wrapFeature(doc, "risk_disclosure", "ai-risk-feature", config);
 	    const safeProps = sanitizeComponentProps("risk_disclosure", props, []);
     const morphId = moduleMorphId(config, "RiskDisclosure") || "legalStrip";
+    const riskSettings = config.moduleSettings?.riskDisclosure || {};
+    const fallbackCopy = Array.isArray(riskSettings.demoCopy) && riskSettings.demoCopy.length ? riskSettings.demoCopy : DEFAULT_MODULE_SETTINGS.riskDisclosure.demoCopy;
 	    feature.id = "risk";
     const titleMarkup = featureTitleHtml(safeProps);
     const summaryMarkup = `<p>${escapeHtml(t(safeProps.summaryKey))}</p>`;
     const richTextMarkup = `
       <div class="ai-risk-richtext">
-        <p><strong>风险披露：</strong> 外汇、贵金属、差价合约及其他保证金产品涉及杠杆，价格波动可能导致本金损失，亦可能产生超出初始投入的亏损。</p>
-        <p>交易前请确认您理解产品规则、保证金要求、强平机制、滑点、流动性、系统中断及汇率波动等风险，并结合自身财务状况、投资经验和风险承受能力独立判断。</p>
+        <p><strong>${riskSettings.demoFallback !== false ? "Demo 参考风险提示：" : "风险披露："}</strong>${escapeHtml(fallbackCopy[0] || "交易产品涉及风险，请以后台合规披露为准。")}</p>
+        <p>${escapeHtml(fallbackCopy[1] || "交易前请结合自身财务状况、投资经验和风险承受能力独立判断。")}</p>
         <ul>
-          <li>过往表现、收益展示或模拟交易结果不构成未来收益承诺。</li>
+          ${fallbackCopy.slice(2, 5).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
           <li>平台展示的风险披露、监管声明、条款链接和地区限制应以后台合规配置为准。</li>
           <li>若您不理解相关风险，应先咨询独立专业意见，再决定是否交易。</li>
         </ul>
@@ -10655,7 +10983,7 @@
     support_contact: renderSupportContact,
     app_download: renderAppDownload,
     ad_carousel: renderAdCarousel,
-    promo_banner: renderPromoHighlight,
+    promo_banner: renderPromotionBanner,
     asset_summary: renderBalanceTotal,
     wallet_balance: renderWalletBalance,
     fund_actions: renderFundActions,
@@ -10746,7 +11074,7 @@
     if (slot === "onboarding_guide") return renderOnboardingProgress(doc, config);
     if (slot === "trading_account_highlight") return renderAccountPerformance(doc, config);
     if (slot === "trading_accounts_list") return renderTradingAccounts(doc, config);
-    if (slot === "promo_banner") return renderPromoHighlight(doc, config);
+    if (slot === "promo_banner") return renderPromotionBanner(doc, config);
     if (slot === "pamm_products") return renderPammProducts(doc, config);
     if (slot === "copytrading_signals") return renderCopyTradingSummary(doc, config);
     if (slot === "referral_link_card") return renderReferralLinkCard(doc, config);
@@ -10792,8 +11120,9 @@
       return;
     }
 
-    shell.querySelectorAll(".client-welcome, [data-home-row], [data-home-module], [data-layout-section], [data-home-feature], [data-ai-html-render-host]").forEach((node) => node.remove());
+    shell.querySelectorAll(".client-welcome, [data-home-row], [data-home-module], [data-layout-section], [data-home-feature], [data-ai-html-render-host], [data-home-skeleton-render-host]").forEach((node) => node.remove());
     shell.classList.remove("is-blueprint-home");
+    shell.classList.remove("is-skeleton-html-home");
     shell.classList.add("is-ai-html-home");
     shell.dataset.aiHtmlScheme = scheme.name;
 
@@ -10835,6 +11164,176 @@
           detail: { action: actionTarget.dataset.homeAction || "" },
         }),
       );
+    });
+
+    shell.appendChild(host);
+  }
+
+  function skeletonSourceLabel(scheme) {
+    if (!scheme?.enabled) return "";
+    return scheme.sourceType === "local-fallback" ? "本地骨架回退" : "骨架 HTML 填充";
+  }
+
+  function skeletonSlotStatusLabel(status) {
+    return {
+      "pending-fill": "等待填充",
+      generating: "正在生成",
+      filled: "已填充",
+      locked: "已锁定",
+      failed: "生成失败",
+      review: "待定稿",
+      final: "已定稿",
+    }[status] || "等待填充";
+  }
+
+  function renderSkeletonSlotTools(doc, slot, label, slotRecord = {}) {
+    const tools = doc.createElement("div");
+    tools.className = "home-skeleton-slot-tools";
+    tools.dataset.homeSkeletonSlotTools = "";
+    const locked = Boolean(slotRecord.locked || slotRecord.status === "locked" || slotRecord.status === "final");
+    const generating = slotRecord.status === "generating";
+    const hasComponent = Boolean(slotRecord.componentId || slotRecord.status === "filled" || locked);
+    tools.classList.toggle("is-generating", generating);
+    tools.setAttribute("aria-live", "polite");
+    if (generating) {
+      tools.innerHTML = `
+        <span>${escapeHtml(label)}</span>
+        <button class="is-loading" type="button" disabled>生成中</button>
+      `;
+      return tools;
+    }
+    tools.innerHTML = `
+      <span>${escapeHtml(label)}</span>
+      ${
+        locked
+          ? `<button type="button" data-home-skeleton-action="unlock" data-home-skeleton-action-slot="${escapeHtml(slot)}">解锁</button>`
+          : `
+            <button type="button" data-home-skeleton-action="regenerate" data-home-skeleton-action-slot="${escapeHtml(slot)}">${hasComponent ? "重生成" : "生成"}</button>
+            ${hasComponent ? `<button type="button" data-home-skeleton-action="style" data-home-skeleton-action-slot="${escapeHtml(slot)}">换样式</button>` : ""}
+            ${hasComponent ? `<button type="button" data-home-skeleton-action="lock" data-home-skeleton-action-slot="${escapeHtml(slot)}">锁定</button>` : ""}
+          `
+      }
+    `;
+    return tools;
+  }
+
+  function renderSkeletonSlotComponent(doc, slot, component) {
+    const wrapper = doc.createElement("div");
+    wrapper.className = "home-skeleton-ai-component";
+    wrapper.dataset.homeSkeletonSlotComponent = slot;
+    wrapper.dataset.homeSkeletonComponentId = component.id || "";
+    wrapper.dataset.homeSkeletonComponentFamily = component.family || "";
+
+    if (component.css) {
+      const style = doc.createElement("style");
+      style.textContent = component.css;
+      wrapper.appendChild(style);
+    }
+
+    const body = doc.createElement("div");
+    body.className = "home-skeleton-ai-component-body";
+    body.innerHTML = component.html || `<article class="home-skeleton-local-component"><strong>${escapeHtml(component.name || featureLabel(slot))}</strong></article>`;
+    wrapper.appendChild(body);
+    return wrapper;
+  }
+
+  function renderSkeletonHtmlScheme(config, target) {
+    const shell = target.querySelector("[data-home-shell]");
+    const scheme = normalizeSkeletonHtmlScheme(config.skeletonHtmlScheme, true);
+    const effectiveScheme = scheme.enabled ? scheme : buildSkeletonHtmlScheme(config);
+    if (!shell || !effectiveScheme.enabled) {
+      renderBlueprint(config, target);
+      return;
+    }
+
+    const doc = target;
+    shell.querySelectorAll(".client-welcome, [data-home-row], [data-home-module], [data-layout-section], [data-home-feature], [data-ai-html-render-host], [data-home-skeleton-render-host]").forEach((node) => node.remove());
+    shell.classList.remove("is-blueprint-home");
+    shell.classList.remove("is-ai-html-home");
+    shell.classList.add("is-skeleton-html-home");
+    shell.dataset.skeletonHtmlScheme = effectiveScheme.name;
+    shell.dataset.skeletonHtmlSource = effectiveScheme.sourceType || "";
+
+    const host = doc.createElement("section");
+    host.className = "home-skeleton-render-host";
+    host.dataset.homeSkeletonRenderHost = "";
+    host.dataset.homeSkeletonSource = effectiveScheme.sourceType || "";
+    host.dataset.homeSkeletonSourceLabel = skeletonSourceLabel(effectiveScheme);
+    host.dataset.homeSkeletonStatus = effectiveScheme.status || "pending-fill";
+    host.setAttribute("aria-label", effectiveScheme.name || "骨架 HTML 填充首页预览");
+    host.innerHTML = effectiveScheme.skeletonHtml || buildSkeletonHtmlScheme(config).skeletonHtml;
+
+    const isEditableSkeletonPreview = target.body?.dataset?.homePreview === "content-only";
+    const isPublishedSkeleton = !isEditableSkeletonPreview || effectiveScheme.status === "final";
+    host.classList.toggle("is-published-skeleton", isPublishedSkeleton);
+    host.querySelector("[data-home-skeleton-root]")?.classList.toggle("is-published-skeleton-page", isPublishedSkeleton);
+    if (isPublishedSkeleton) {
+      host.querySelectorAll(".home-skeleton-top, .home-skeleton-section-head").forEach((node) => node.remove());
+    }
+
+    const canEditSlots = isEditableSkeletonPreview && effectiveScheme.status !== "final";
+    const slotRecords = Object.fromEntries(effectiveScheme.slots.map((slot) => [slot.id, slot]));
+    host.querySelectorAll("[data-home-skeleton-slot]").forEach((slotNode) => {
+      const slot = skeletonSlotKey(slotNode.dataset.homeSkeletonSlot);
+      const slotRecord = slotRecords[slot] || { id: slot, label: featureLabel(slot), status: "pending-fill" };
+      const label = slotRecord.label || featureLabel(slot);
+      const component = effectiveScheme.slotComponents?.[slot];
+      const status = normalizeSkeletonStatus(slotRecord.status, component?.html ? "filled" : "pending-fill");
+      const placeholder = slotNode.querySelector("[data-home-skeleton-placeholder]");
+      slotNode.dataset.homeSkeletonStatus = status;
+      slotNode.setAttribute("aria-busy", status === "generating" ? "true" : "false");
+      slotNode.classList.toggle("is-generating", status === "generating");
+      slotNode.classList.toggle("is-filled", Boolean(component?.html));
+      slotNode.classList.toggle("is-locked", status === "locked" || status === "final");
+      slotNode.classList.toggle("is-failed", status === "failed");
+      if (isPublishedSkeleton) {
+        slotNode.classList.add("home-skeleton-published-slot");
+        slotNode.innerHTML = "";
+        const content = component?.html ? renderSkeletonSlotComponent(doc, slot, component) : renderSlot(doc, slot, config);
+        content.classList.add("home-skeleton-slot-content");
+        content.dataset.homeSkeletonPublishedSlot = slot;
+        content.dataset.homeSkeletonFillMode = component?.html ? "ai-component" : "config-fallback";
+        slotNode.appendChild(content);
+        return;
+      }
+      placeholder?.classList.toggle("is-filled", Boolean(component?.html));
+      placeholder?.classList.toggle("is-generating", status === "generating");
+      placeholder?.classList.toggle("is-failed", status === "failed");
+      if (placeholder) {
+        placeholder.dataset.homeSkeletonStatus = status;
+        placeholder.setAttribute("aria-live", "polite");
+        const title = placeholder.querySelector("strong");
+        const statusText = placeholder.querySelector("small");
+        const progress = placeholder.querySelector("[data-home-skeleton-progress]");
+        if (title) title.textContent = label;
+        if (statusText) statusText.textContent = status === "generating" ? `${slot} · 正在生成，请稍候...` : `${slot} · ${skeletonSlotStatusLabel(slotRecord.status)}`;
+        if (status === "generating" && !progress) {
+          const progressNode = doc.createElement("div");
+          progressNode.className = "home-skeleton-generation-progress";
+          progressNode.dataset.homeSkeletonProgress = "";
+          progressNode.innerHTML = "<i aria-hidden=\"true\"></i><em>AI 正在生成模块内容</em>";
+          placeholder.appendChild(progressNode);
+        } else if (status !== "generating") {
+          progress?.remove();
+        }
+      }
+      if (component?.html) {
+        const content = renderSkeletonSlotComponent(doc, slot, component);
+        content.classList.add("home-skeleton-slot-content");
+        content.dataset.homeSkeletonFilledSlot = slot;
+        content.dataset.homeSkeletonFillMode = "ai-component";
+        slotNode.appendChild(content);
+      }
+      if (canEditSlots) slotNode.appendChild(renderSkeletonSlotTools(doc, slot, label, slotRecord));
+    });
+
+    host.addEventListener("click", (event) => {
+      const button = event.target?.closest?.("[data-home-skeleton-action]");
+      if (!button) return;
+      event.preventDefault();
+      const action = ["style", "lock", "unlock"].includes(button.dataset.homeSkeletonAction) ? button.dataset.homeSkeletonAction : "regenerate";
+      const slot = button.dataset.homeSkeletonActionSlot || button.closest("[data-home-skeleton-slot]")?.dataset.homeSkeletonSlot || "";
+      target.defaultView?.parent?.postMessage?.({ type: "home-skeleton-slot-action", action, slot }, "*");
     });
 
     shell.appendChild(host);
@@ -10884,9 +11383,10 @@
     const renderableBlocks = config.layout.filter((block) => COMPONENT_MAP[block.component] && componentEnabled(block.component, config));
     const heroBlocks = renderableBlocks.filter((block) => block.slot === "hero" && block.component !== "welcome_header");
 
-    shell.querySelectorAll(".client-welcome, [data-home-row], [data-home-module], [data-layout-section], [data-home-feature], [data-ai-html-render-host]").forEach((node) => node.remove());
+    shell.querySelectorAll(".client-welcome, [data-home-row], [data-home-module], [data-layout-section], [data-home-feature], [data-ai-html-render-host], [data-home-skeleton-render-host]").forEach((node) => node.remove());
     shell.classList.add("is-blueprint-home");
     shell.classList.remove("is-ai-html-home");
+    shell.classList.remove("is-skeleton-html-home");
     shell.className = shell.className
       .split(/\s+/)
       .filter((className) => className && !className.startsWith("ai-blueprint-layout-"))
@@ -10935,6 +11435,7 @@
 
       shell.appendChild(rowNode);
     });
+
   }
 
 	  const CUSTOM_THEME_STYLE_PROPS = [
@@ -11113,6 +11614,8 @@
     body.dataset.homeLayout = normalized.layoutPreset;
     body.dataset.homeRenderMode = normalized.activeRenderMode || "config";
     body.dataset.homeHtmlEnabled = normalized.htmlScheme?.enabled ? "true" : "false";
+    body.dataset.homeSkeletonEnabled = normalized.skeletonHtmlScheme?.enabled ? "true" : "false";
+    body.dataset.homePublished = normalized.publishedAt ? "true" : "false";
     body.dataset.homeGenome = normalized.designGenome;
     body.dataset.homeStory = normalized.pageStory;
     body.dataset.homeHero = normalized.heroFocus;
@@ -11146,6 +11649,8 @@
     if (body.dataset.layoutPage === "client-home") {
       if (normalized.activeRenderMode === "aiHtml" && normalized.htmlScheme?.enabled) {
         renderAiHtmlScheme(normalized, target);
+      } else if (normalized.activeRenderMode === "skeletonHtml" && normalized.skeletonHtmlScheme?.enabled) {
+        renderSkeletonHtmlScheme(normalized, target);
       } else {
         renderBlueprint(normalized, target);
       }
@@ -11264,6 +11769,9 @@
         label: "组件变体",
         value: variants,
         reason:
+          normalized.skeletonHtmlScheme?.enabled && normalized.renderMode === "skeletonHtml"
+            ? `当前使用 ${normalized.skeletonHtmlScheme.name}：先保留整页 slot 骨架，再按 slot 填充模块。`
+            :
           normalized.htmlScheme?.enabled && normalized.renderMode !== "config"
             ? `当前同时保留组件化配置和 ${normalized.htmlScheme.name}，管理员可切换预览/发布方式。`
             : "组件形态来自白名单形态池，AI 只选择 JSON 配置，不生成页面代码。",
@@ -11286,7 +11794,13 @@
       .join(" / ");
 
 	    choices.push(settings.wallet.enabled && settings.wallet.placement === "standalone" ? "钱包独立展示" : "钱包聚合到资产");
-	    choices.push(normalized.htmlScheme?.enabled ? `${aiHtmlSourceLabel(normalized.htmlScheme)}：${normalized.activeRenderMode === "aiHtml" ? "当前预览 HTML 版" : "当前预览组件版"}` : "AI HTML 未启用");
+	    choices.push(
+	      normalized.activeRenderMode === "skeletonHtml" && normalized.skeletonHtmlScheme?.enabled
+	        ? `骨架填充：${normalized.skeletonHtmlScheme.slots.length} 个 slot`
+	        : normalized.htmlScheme?.enabled
+	        ? `${aiHtmlSourceLabel(normalized.htmlScheme)}：${normalized.activeRenderMode === "aiHtml" ? "当前预览 HTML 版" : "当前预览组件版"}`
+	        : "AI HTML 未启用",
+	    );
 	    choices.push(settings.quickActions.enabled ? `快捷入口保留 ${settings.quickActions.count} 个` : "弱化快捷入口");
     choices.push(settings.adCarousel.enabled ? "保留广告曝光" : "隐藏广告轮播");
     choices.push(settings.referral.enabled ? "保留邀请转化" : "隐藏邀请模块");
@@ -11337,6 +11851,7 @@
     TENANT_THEME_TOKENS: clone(TENANT_THEME_TOKENS),
     THEMES,
     applyConfig,
+    buildSkeletonHtmlScheme,
     clearDraft,
     densityLabel,
     describeDecision,
@@ -11352,6 +11867,7 @@
     moduleVariantLabel,
     moduleVariantSummary,
     normalizeConfig,
+    normalizeSkeletonHtmlScheme,
     optimizeConfig,
     promptToConfig,
     randomConfig,
@@ -11370,7 +11886,9 @@
       const params = new URLSearchParams(window.location.search);
       const tenantTheme = params.get("tenantTheme") || params.get("tenant-theme");
       if (params.has("preview")) document.body.dataset.homePreview = "content-only";
-      const config = params.has("preview") ? loadDraft() : loadConfig();
+      if (params.has("published")) document.body.dataset.homePublished = "true";
+      const storedConfig = params.has("preview") ? loadDraft() : loadConfig();
+      const config = params.has("published") && !storedConfig.publishedAt ? { ...storedConfig, publishedAt: new Date().toISOString() } : storedConfig;
       applyConfig(tenantTheme ? { ...config, themePreset: normalizeThemeId(tenantTheme), theme: normalizeThemeId(tenantTheme) } : config, document);
     }
   }

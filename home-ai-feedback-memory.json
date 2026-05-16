@@ -1,0 +1,249 @@
+{
+  "records": [
+    {
+      "id": "feedback-1778863680981-52bc46b45d659",
+      "at": "2026-05-15T16:48:00.981Z",
+      "prompt": "请为 ForexCRM 用户端首页生成可发布的首页方案。分级：增长版，在基础能力上加入活动权益、按钮和转化承接。设计风格：精致美观：强调细腻层次、精致图标感、柔和过渡和成熟金融产品质感。视觉：蓝色金融，清爽专业。语气：专业稳健。必选模块（不可撤销）：账户概览：使用 asset_overview 展示账户摘要，包含账户余额，钱包余额，交易账号余额，单位：USD，可以参考积木块、快捷入口：展示操作入口，4-10个快捷入口位置，icon或者icon+文字，样式可自行发挥、交易账号列表：必须同时包含真实交易账号和模拟交易账号的列表，列表可参考交易账号积木块，列表或卡片形式皆可、新手 Onboarding 引导：KYC -> 开真实账户 -> 首次入金 -> 首次交易，帮助新用户完成基础流程，其中首次交易可要可不要。交易账号模块必须同时包含真实交易账号和模拟交易账号。选填模块：欢迎模块：必须在页面的第一栏，展示见客户姓名、问候、CopyTrading 信号源推荐区，使用独立的 copytrading_signals 模块，展示信号源名称、收益率、总收益(USD)、最大回撤、收益率折线图仅在租户开启 CopyTrading 且接口返回信号源时展示，演示界面可制造数据，风格可参考币安、推广链接：参考 ReferralLinkCard 积木字段，链接、邀请码优先展示、二维码，数据统计可要可不要。允许在白名单内重排 sections、brickPlan、模块变体和密度，优先让所选模块和分级决定首屏。不要编造收益、下载链接、后台未提供的数据或未选择的辅助模块",
+      "scoreRecordId": "score-1778863581970-80c1a43d41ae6",
+      "candidateGroupId": "",
+      "candidateIndex": 0,
+      "decision": "reject",
+      "rating": 1,
+      "note": "",
+      "tags": [
+        "blueFinance",
+        "onboardingJourney",
+        "copytrading"
+      ],
+      "preferenceSignals": [
+        "首屏 1/10",
+        "层级 3/10",
+        "品牌感 3/10",
+        "组件美感 3/10",
+        "业务清晰 2/10",
+        "移动端 2/10",
+        "避免类似低分结构",
+        "下次生成需要更强视觉焦点"
+      ],
+      "pageIntent": "copytrading",
+      "visualStyle": "blueFinance",
+      "score": 16,
+      "manualScore": 16,
+      "machineScore": 96,
+      "manualDimensions": {
+        "visualFocus": 1,
+        "hierarchy": 3,
+        "brand": 3,
+        "craft": 3,
+        "business": 2,
+        "mobile": 2
+      },
+      "referenceAssets": [
+        {
+          "id": "reference-1778827552768-50441fb7e2547",
+          "name": "xbroker顶部布局 V 4.0@2x.jpg",
+          "tags": [
+            "简约扁平"
+          ]
+        }
+      ],
+      "configSnapshot": {
+        "name": "AI 新客跟单驾驶舱",
+        "layoutPreset": "onboardingJourney",
+        "themePreset": "blueFinance",
+        "colorMode": "auto",
+        "density": "compact",
+        "intent": "onboarding",
+        "strategy": "新客开户服务端意图纠偏",
+        "renderMode": "aiHtml",
+        "htmlScheme": "AI 新客跟单驾驶舱 HTML 预览",
+        "htmlSourceType": "model/minimax-config-html",
+        "htmlPipeline": "minimax-config-backed-html",
+        "htmlIsFallback": false,
+        "htmlMock": false,
+        "htmlQualityStatus": "needs-polish",
+        "htmlFallbackReason": "",
+        "skeletonScheme": "",
+        "skeletonSlots": 0,
+        "brickIds": [
+          "assetOverview.flexible",
+          "copytradingSignals.curveCards",
+          "onboardingProgress.nextStepHero",
+          "quickActions.tileBoard",
+          "tradingAccounts.separatedList",
+          "referralLinkCard.compact"
+        ],
+        "sections": [
+          "hero:welcome_header",
+          "full:onboarding_guide",
+          "split:copytrading_signals",
+          "split:quick_actions+asset_overview",
+          "full:trading_accounts_list",
+          "split:referral_link_card"
+        ]
+      }
+    },
+    {
+      "id": "feedback-1778863637340-7f419710a65f",
+      "at": "2026-05-15T16:47:17.340Z",
+      "prompt": "请为 ForexCRM 用户端首页生成可发布的首页方案。分级：增长版，在基础能力上加入活动权益、按钮和转化承接。设计风格：精致美观：强调细腻层次、精致图标感、柔和过渡和成熟金融产品质感。视觉：蓝色金融，清爽专业。语气：专业稳健。必选模块（不可撤销）：账户概览：使用 asset_overview 展示账户摘要，包含账户余额，钱包余额，交易账号余额，单位：USD，可以参考积木块、快捷入口：展示操作入口，4-10个快捷入口位置，icon或者icon+文字，样式可自行发挥、交易账号列表：必须同时包含真实交易账号和模拟交易账号的列表，列表可参考交易账号积木块，列表或卡片形式皆可、新手 Onboarding 引导：KYC -> 开真实账户 -> 首次入金 -> 首次交易，帮助新用户完成基础流程，其中首次交易可要可不要。交易账号模块必须同时包含真实交易账号和模拟交易账号。选填模块：欢迎模块：必须在页面的第一栏，展示见客户姓名、问候、CopyTrading 信号源推荐区，使用独立的 copytrading_signals 模块，展示信号源名称、收益率、总收益(USD)、最大回撤、收益率折线图仅在租户开启 CopyTrading 且接口返回信号源时展示，演示界面可制造数据，风格可参考币安、推广链接：参考 ReferralLinkCard 积木字段，链接、邀请码优先展示、二维码，数据统计可要可不要。允许在白名单内重排 sections、brickPlan、模块变体和密度，优先让所选模块和分级决定首屏。不要编造收益、下载链接、后台未提供的数据或未选择的辅助模块",
+      "scoreRecordId": "score-1778863581970-80c1a43d41ae6",
+      "candidateGroupId": "",
+      "candidateIndex": 0,
+      "decision": "neutral",
+      "rating": 4,
+      "note": "",
+      "tags": [
+        "blueFinance",
+        "onboardingJourney",
+        "copytrading"
+      ],
+      "preferenceSignals": [
+        "首屏 2/10",
+        "层级 2/10",
+        "品牌感 4/10",
+        "组件美感 5/10",
+        "业务清晰 0/10",
+        "移动端 5/10"
+      ],
+      "pageIntent": "copytrading",
+      "visualStyle": "blueFinance",
+      "score": 88,
+      "manualScore": 88,
+      "machineScore": 96,
+      "manualDimensions": {
+        "visualFocus": 2,
+        "hierarchy": 2,
+        "brand": 4,
+        "craft": 5,
+        "business": 0,
+        "mobile": 5
+      },
+      "referenceAssets": [
+        {
+          "id": "reference-1778827552768-50441fb7e2547",
+          "name": "xbroker顶部布局 V 4.0@2x.jpg",
+          "tags": [
+            "简约扁平"
+          ]
+        }
+      ],
+      "configSnapshot": {
+        "name": "AI 新客跟单驾驶舱",
+        "layoutPreset": "onboardingJourney",
+        "themePreset": "blueFinance",
+        "colorMode": "auto",
+        "density": "compact",
+        "intent": "onboarding",
+        "strategy": "新客开户服务端意图纠偏",
+        "renderMode": "aiHtml",
+        "htmlScheme": "AI 新客跟单驾驶舱 HTML 预览",
+        "htmlSourceType": "model/minimax-config-html",
+        "htmlPipeline": "minimax-config-backed-html",
+        "htmlIsFallback": false,
+        "htmlMock": false,
+        "htmlQualityStatus": "needs-polish",
+        "htmlFallbackReason": "",
+        "skeletonScheme": "",
+        "skeletonSlots": 0,
+        "brickIds": [
+          "assetOverview.flexible",
+          "copytradingSignals.curveCards",
+          "onboardingProgress.nextStepHero",
+          "quickActions.tileBoard",
+          "tradingAccounts.separatedList",
+          "referralLinkCard.compact"
+        ],
+        "sections": [
+          "hero:welcome_header",
+          "full:onboarding_guide",
+          "split:copytrading_signals",
+          "split:quick_actions+asset_overview",
+          "full:trading_accounts_list",
+          "split:referral_link_card"
+        ]
+      }
+    },
+    {
+      "id": "feedback-1778863609882-77d3673bd8e1b",
+      "at": "2026-05-15T16:46:49.882Z",
+      "prompt": "请为 ForexCRM 用户端首页生成可发布的首页方案。分级：增长版，在基础能力上加入活动权益、按钮和转化承接。设计风格：精致美观：强调细腻层次、精致图标感、柔和过渡和成熟金融产品质感。视觉：蓝色金融，清爽专业。语气：专业稳健。必选模块（不可撤销）：账户概览：使用 asset_overview 展示账户摘要，包含账户余额，钱包余额，交易账号余额，单位：USD，可以参考积木块、快捷入口：展示操作入口，4-10个快捷入口位置，icon或者icon+文字，样式可自行发挥、交易账号列表：必须同时包含真实交易账号和模拟交易账号的列表，列表可参考交易账号积木块，列表或卡片形式皆可、新手 Onboarding 引导：KYC -> 开真实账户 -> 首次入金 -> 首次交易，帮助新用户完成基础流程，其中首次交易可要可不要。交易账号模块必须同时包含真实交易账号和模拟交易账号。选填模块：欢迎模块：必须在页面的第一栏，展示见客户姓名、问候、CopyTrading 信号源推荐区，使用独立的 copytrading_signals 模块，展示信号源名称、收益率、总收益(USD)、最大回撤、收益率折线图仅在租户开启 CopyTrading 且接口返回信号源时展示，演示界面可制造数据，风格可参考币安、推广链接：参考 ReferralLinkCard 积木字段，链接、邀请码优先展示、二维码，数据统计可要可不要。允许在白名单内重排 sections、brickPlan、模块变体和密度，优先让所选模块和分级决定首屏。不要编造收益、下载链接、后台未提供的数据或未选择的辅助模块",
+      "scoreRecordId": "score-1778863581970-80c1a43d41ae6",
+      "candidateGroupId": "",
+      "candidateIndex": 0,
+      "decision": "neutral",
+      "rating": 4,
+      "note": "",
+      "tags": [
+        "blueFinance",
+        "onboardingJourney",
+        "copytrading"
+      ],
+      "preferenceSignals": [
+        "首屏 3/10",
+        "层级 2/10",
+        "品牌感 1/10",
+        "组件美感 6/10",
+        "业务清晰 5/10",
+        "移动端 2/10"
+      ],
+      "pageIntent": "copytrading",
+      "visualStyle": "blueFinance",
+      "score": 88,
+      "manualScore": 88,
+      "machineScore": 96,
+      "manualDimensions": {
+        "visualFocus": 3,
+        "hierarchy": 2,
+        "brand": 1,
+        "craft": 6,
+        "business": 5,
+        "mobile": 2
+      },
+      "referenceAssets": [
+        {
+          "id": "reference-1778827552768-50441fb7e2547",
+          "name": "xbroker顶部布局 V 4.0@2x.jpg",
+          "tags": [
+            "简约扁平"
+          ]
+        }
+      ],
+      "configSnapshot": {
+        "name": "AI 新客跟单驾驶舱",
+        "layoutPreset": "onboardingJourney",
+        "themePreset": "blueFinance",
+        "colorMode": "auto",
+        "density": "compact",
+        "intent": "onboarding",
+        "strategy": "新客开户服务端意图纠偏",
+        "renderMode": "aiHtml",
+        "htmlScheme": "AI 新客跟单驾驶舱 HTML 预览",
+        "htmlSourceType": "model/minimax-config-html",
+        "htmlPipeline": "minimax-config-backed-html",
+        "htmlIsFallback": false,
+        "htmlMock": false,
+        "htmlQualityStatus": "needs-polish",
+        "htmlFallbackReason": "",
+        "skeletonScheme": "",
+        "skeletonSlots": 0,
+        "brickIds": [
+          "assetOverview.flexible",
+          "copytradingSignals.curveCards",
+          "onboardingProgress.nextStepHero",
+          "quickActions.tileBoard",
+          "tradingAccounts.separatedList",
+          "referralLinkCard.compact"
+        ],
+        "sections": [
+          "hero:welcome_header",
+          "full:onboarding_guide",
+          "split:copytrading_signals",
+          "split:quick_actions+asset_overview",
+          "full:trading_accounts_list",
+          "split:referral_link_card"
+        ]
+      }
+    }
+  ]
+}

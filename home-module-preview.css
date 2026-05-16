@@ -68,7 +68,7 @@
   cursor: pointer;
 }
 
-.brick-head-actions a.primary,
+.brick-head-actions .primary,
 .brick-filter-bar button.active {
   border-color: #2563eb;
   background: #2563eb;
@@ -98,11 +98,16 @@
   background: #fff;
 }
 
-.brick-ai-copy h2 {
+.brick-ai-copy h2,
+.brick-ai-copy h3 {
   margin: 8px 0;
   color: #0f172a;
   font-size: 22px;
   letter-spacing: 0;
+}
+
+.brick-ai-copy h3 {
+  font-size: 18px;
 }
 
 .brick-ai-copy p,
@@ -241,6 +246,76 @@
   color: #fff;
 }
 
+.brick-ai-modal[hidden] {
+  display: none;
+}
+
+.brick-ai-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 92;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.brick-ai-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(8px);
+}
+
+.brick-ai-dialog {
+  position: relative;
+  width: min(1040px, 100%);
+  max-height: min(820px, calc(100vh - 48px));
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+}
+
+.brick-ai-dialog-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.brick-ai-dialog-head h2 {
+  margin: 6px 0;
+  color: #0f172a;
+  font-size: 22px;
+  letter-spacing: 0;
+}
+
+.brick-ai-dialog-head p {
+  margin: 0;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.brick-ai-dialog .brick-ai-workbench {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.brick-ai-close {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 20px;
+  cursor: pointer;
+}
+
 .brick-composition-card {
   padding: 16px;
   border: 1px solid #dfe7f2;
@@ -282,8 +357,12 @@
 }
 
 .brick-generated-card .brick-canvas {
-  min-height: 210px;
+  min-height: var(--component-preview-min, 210px);
   background: #f8fafc;
+}
+
+.brick-card[data-component-size] {
+  grid-column: span var(--component-grid-span, 1);
 }
 
 .generated-preview-host {
@@ -329,22 +408,98 @@
   letter-spacing: 0;
 }
 
-.brick-filter-bar {
+.brick-filter-panel {
   position: sticky;
   top: calc(var(--app-chrome-height, 0px) + 12px);
   z-index: 5;
+  display: grid;
+  gap: 12px;
+  margin-bottom: 28px;
+  padding: 14px;
+  border: 1px solid #dfe7f2;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(12px);
+}
+
+.brick-filter-summary {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.brick-filter-summary h2 {
+  margin: 5px 0 0;
+  color: #0f172a;
+  font-size: 18px;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.brick-filter-summary strong {
+  min-width: 86px;
+  padding: 8px 12px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #f8fbff;
+  color: #1d4ed8;
+  text-align: center;
+  font-size: 13px;
+}
+
+.brick-filter-bar {
   display: flex;
   gap: 8px;
-  margin-bottom: 28px;
-  padding: 8px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(12px);
+  flex-wrap: wrap;
 }
 
 .brick-filter-bar button {
   padding: 0 14px;
+}
+
+.brick-filter-controls {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.35fr) minmax(150px, 0.75fr) minmax(132px, 0.55fr) minmax(132px, 0.55fr);
+  gap: 10px;
+}
+
+.brick-filter-controls label {
+  display: grid;
+  gap: 6px;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.brick-filter-controls select,
+.brick-filter-controls input {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #fff;
+  color: #172033;
+  outline: 0;
+}
+
+.brick-filter-controls select {
+  padding: 0 10px;
+}
+
+.brick-filter-controls input {
+  padding: 0 12px;
+}
+
+.brick-filter-empty {
+  margin: -8px 0 28px;
+  padding: 14px 16px;
+  border: 1px dashed #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 850;
 }
 
 .brick-family {
@@ -352,6 +507,11 @@
 }
 
 .brick-family[hidden] {
+  display: none;
+}
+
+.brick-card[hidden],
+.brick-filter-empty[hidden] {
   display: none;
 }
 
@@ -414,6 +574,7 @@
   justify-content: flex-end;
   gap: 8px;
   margin-left: auto;
+  flex-wrap: wrap;
 }
 
 .brick-card > header span {
@@ -479,6 +640,45 @@
 .brick-ai-danger-action:disabled {
   opacity: 0.58;
   cursor: wait;
+}
+
+.brick-score-control {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.brick-score-control select {
+  width: 48px;
+  height: 24px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 900;
+  outline: 0;
+}
+
+.brick-score-control[data-score-tier="high"] {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.brick-score-control[data-score-tier="low"] {
+  border-color: #fed7aa;
+  background: #fff7ed;
+  color: #c2410c;
 }
 
 .brick-canvas {
@@ -1601,7 +1801,7 @@
 }
 
 .component-editor-preview-card,
-.component-editor-chat {
+.component-editor-panel {
   min-width: 0;
   border: 1px solid #dfe7f2;
   border-radius: 8px;
@@ -1652,71 +1852,70 @@
   background-size: 28px 28px;
 }
 
-.component-editor-chat {
+.component-editor-panel {
   display: grid;
-  grid-template-rows: minmax(260px, 1fr) auto;
   overflow: hidden;
   background: #fff;
 }
 
-.component-editor-messages {
-  max-height: 470px;
-  overflow: auto;
-  display: grid;
-  align-content: start;
-  gap: 10px;
-  padding: 14px;
-}
-
-.component-editor-messages article {
-  width: min(92%, 520px);
-  display: grid;
-  gap: 5px;
-  padding: 10px 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #f8fafc;
-}
-
-.component-editor-messages article.user {
-  justify-self: end;
-  border-color: #bfdbfe;
-  background: #eff6ff;
-}
-
-.component-editor-messages span {
-  color: #2563eb;
-  font-size: 11px;
-  font-weight: 900;
-}
-
-.component-editor-messages p {
-  margin: 0;
-  color: #334155;
-  font-size: 13px;
-  line-height: 1.5;
-  white-space: pre-wrap;
-}
-
 .component-editor-form {
   display: grid;
-  gap: 10px;
+  gap: 12px;
   padding: 14px;
-  border-top: 1px solid #e2e8f0;
   background: #fff;
 }
 
+.component-editor-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.component-editor-form label {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.component-editor-form input,
+.component-editor-form select,
 .component-editor-form textarea {
   width: 100%;
-  min-height: 104px;
-  resize: vertical;
   padding: 12px;
   border: 1px solid #dbe3ef;
   border-radius: 8px;
   background: #fff;
   color: #172033;
+  font: inherit;
   line-height: 1.5;
   outline: 0;
+}
+
+.component-editor-size-control {
+  display: grid;
+  grid-template-columns: minmax(128px, 0.78fr) minmax(0, 1fr);
+  gap: 8px;
+}
+
+.component-editor-form small {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.component-editor-form textarea {
+  min-height: 104px;
+  resize: vertical;
+}
+
+.component-editor-form textarea.code {
+  min-height: 178px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
 }
 
 .component-editor-form footer {
@@ -1743,6 +1942,8 @@
 }
 
 .component-editor-form button:disabled,
+.component-editor-form input:disabled,
+.component-editor-form select:disabled,
 .component-editor-form textarea:disabled {
   opacity: 0.62;
   cursor: wait;
@@ -1990,6 +2191,7 @@
   }
 
   .brick-ai-workbench,
+  .brick-filter-controls,
   .brick-composition-card > div,
   .component-editor-layout,
   .ai-model-provider-grid,
@@ -2009,6 +2211,7 @@
   }
 
   .component-editor-modal,
+  .brick-ai-modal,
   .ai-model-modal {
     padding: 12px;
   }
@@ -2019,6 +2222,7 @@
   }
 
   .brick-page-head,
+  .brick-ai-dialog-head,
   .brick-family-head {
     align-items: flex-start;
     flex-direction: column;
@@ -2029,8 +2233,15 @@
     grid-template-columns: 1fr;
   }
 
-  .brick-filter-bar {
+  .brick-card[data-component-size] {
+    grid-column: span 1;
+  }
+
+  .brick-filter-panel {
     position: static;
+  }
+
+  .brick-filter-bar {
     overflow-x: auto;
   }
 
