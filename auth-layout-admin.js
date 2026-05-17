@@ -208,6 +208,7 @@
     referenceSummary: document.querySelector("[data-auth-reference-summary]"),
     referenceFile: document.querySelector("[data-auth-reference-file]"),
     referenceRefresh: document.querySelector("[data-auth-reference-refresh]"),
+    referenceList: document.querySelector("[data-auth-reference-list]"),
   };
 
   const GUIDED_STEPS = ["intent", "flow", "brand"];
@@ -664,7 +665,28 @@
     if (els.referenceSummary) {
       els.referenceSummary.textContent = total
         ? `当前生成会读取 ${selected} 个认证视觉参考，学习分格、表单密度、按钮层级和风格提示词。`
-        : "直接上传 1-3 张登录/注册/找回密码稿件，上传后本次生成会立即参考。";
+        : "直接上传 1-3 张登录/注册/找回密码稿件，上传后本次生成会立即参考。保存位置：auth-ai-reference-assets.json 和 artifacts/auth-ai-reference-assets/。";
+    }
+    if (els.referenceList) {
+      const selectedIds = new Set(referenceIdsForGeneration());
+      els.referenceList.innerHTML = state.authReferences.length
+        ? state.authReferences.slice(0, 6).map((asset) => {
+            const selectedClass = selectedIds.has(asset.id) ? " is-selected" : "";
+            const meta = [asset.flow || asset.type || "参考稿", ...(Array.isArray(asset.tags) ? asset.tags.slice(0, 2) : [])].filter(Boolean).join(" · ");
+            const thumb = asset.type === "image" && asset.url
+              ? `<img src="${escapeHtml(asset.url)}" alt="${escapeHtml(asset.name)}" />`
+              : `<span>${escapeHtml((asset.type || "file").toUpperCase())}</span>`;
+            return `
+              <article class="auth-reference-inline-card${selectedClass}">
+                <div class="auth-reference-inline-thumb">${thumb}</div>
+                <div>
+                  <strong>${escapeHtml(asset.name || "认证视觉参考")}</strong>
+                  <small>${escapeHtml(meta || "已保存到认证视觉库")}</small>
+                </div>
+              </article>
+            `;
+          }).join("")
+        : `<p>暂无已保存参考稿。上传后会在这里回显，重启后从本地文件重新读取。</p>`;
     }
   }
 
