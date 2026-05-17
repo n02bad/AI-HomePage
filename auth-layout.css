@@ -1225,6 +1225,71 @@
   border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
+.auth-hero-artifact {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 14px;
+  width: min(430px, 100%);
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.12);
+  color: inherit;
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.14);
+}
+
+.auth-artifact-head,
+.auth-artifact-lines span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.auth-artifact-head span {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.auth-artifact-head svg {
+  width: 17px;
+  height: 17px;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  fill: none;
+}
+
+.auth-artifact-head b {
+  margin-right: auto;
+  font-size: 13px;
+  letter-spacing: 0;
+}
+
+.auth-artifact-lines {
+  display: grid;
+  gap: 8px;
+}
+
+.auth-artifact-lines span {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.auth-artifact-lines b {
+  color: currentColor;
+  font-size: 11px;
+  opacity: 0.72;
+}
+
 .auth-form-side {
   position: relative;
   display: grid;
@@ -1889,6 +1954,311 @@
 .auth-style-photoDark .auth-mode-tabs button.active {
   background: rgba(255, 255, 255, 0.12);
   color: #fff;
+}
+
+.auth-composition-splitTrust .auth-hero-artifact {
+  align-self: start;
+}
+
+.auth-composition-floatingConsole {
+  background:
+    linear-gradient(90deg, #0f172a 0%, #172033 58%, #eef3f8 58%, #eef3f8 100%);
+}
+
+.auth-composition-floatingConsole .auth-preview-grid {
+  grid-template-columns: minmax(430px, 1.08fr) minmax(410px, 0.92fr);
+}
+
+.auth-composition-floatingConsole .auth-hero-panel {
+  align-content: end;
+  padding-bottom: clamp(46px, 7vw, 104px);
+  color: #eaf2ff;
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 44px),
+    linear-gradient(145deg, #111827 0%, #172033 58%, #24314a 100%);
+}
+
+.auth-style-photoDark.auth-composition-floatingConsole .auth-hero-center,
+.auth-style-photoDark.auth-composition-floatingConsole .auth-hero-bullets {
+  display: grid;
+}
+
+.auth-composition-floatingConsole .auth-hero-center {
+  max-width: 500px;
+}
+
+.auth-composition-floatingConsole .auth-hero-icon {
+  display: none;
+}
+
+.auth-composition-floatingConsole .auth-hero-artifact {
+  border-color: rgba(148, 163, 184, 0.28);
+  background: rgba(15, 23, 42, 0.78);
+}
+
+.auth-composition-floatingConsole .auth-form-side {
+  background:
+    linear-gradient(180deg, #f8fafc, #eef3f8);
+}
+
+.auth-composition-floatingConsole .auth-form-card {
+  border-radius: 10px;
+  box-shadow: 0 30px 56px rgba(15, 23, 42, 0.16);
+}
+
+.auth-composition-stepperRail {
+  background: #eef5ff;
+}
+
+.auth-composition-stepperRail .auth-preview-grid {
+  grid-template-columns: minmax(330px, 430px) minmax(540px, 1fr);
+}
+
+.auth-composition-stepperRail .auth-hero-panel {
+  align-content: stretch;
+  color: #102033;
+  background:
+    linear-gradient(180deg, #ffffff 0%, #eef6ff 100%);
+  border-right: 1px solid #d8e6f5;
+}
+
+.auth-composition-stepperRail .auth-brand-mark,
+.auth-composition-stepperRail .auth-hero-icon,
+.auth-composition-stepperRail .auth-artifact-head span {
+  background: #dbeafe;
+  color: var(--auth-accent);
+}
+
+.auth-composition-stepperRail .auth-hero-center {
+  align-self: center;
+  margin-top: 86px;
+}
+
+.auth-composition-stepperRail .auth-hero-bullets {
+  display: none;
+}
+
+.auth-composition-stepperRail .auth-hero-artifact {
+  margin-top: auto;
+  border-color: #d8e6f5;
+  background: #ffffff;
+  color: #1e293b;
+  box-shadow: none;
+}
+
+.auth-composition-stepperRail .auth-artifact-lines {
+  gap: 0;
+  border-left: 2px solid color-mix(in srgb, var(--auth-accent) 28%, #d8e6f5);
+  padding-left: 16px;
+}
+
+.auth-composition-stepperRail .auth-artifact-lines span {
+  position: relative;
+  justify-content: flex-start;
+  background: transparent;
+}
+
+.auth-composition-stepperRail .auth-artifact-lines span::before {
+  content: "";
+  position: absolute;
+  left: -22px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--auth-accent);
+}
+
+.auth-composition-identityLedger {
+  background: #f7fafc;
+}
+
+.auth-composition-identityLedger .auth-hero-panel {
+  color: #162033;
+  background:
+    repeating-linear-gradient(0deg, rgba(148, 163, 184, 0.14) 0 1px, transparent 1px 38px),
+    linear-gradient(180deg, #ffffff, #f3f7fb);
+}
+
+.auth-composition-identityLedger .auth-brand-mark,
+.auth-composition-identityLedger .auth-hero-icon,
+.auth-composition-identityLedger .auth-artifact-head span {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.auth-composition-identityLedger .auth-hero-artifact {
+  border-color: #d6dee9;
+  background: rgba(255, 255, 255, 0.88);
+  color: #1e293b;
+  box-shadow: none;
+}
+
+.auth-composition-identityLedger .auth-artifact-lines span {
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.auth-composition-identityLedger .auth-form-side {
+  background:
+    linear-gradient(90deg, #f8fafc, #eef3f8);
+}
+
+.auth-composition-campaignPassport {
+  background:
+    linear-gradient(90deg, #fff7ed 0%, #fff1f2 48%, #f8fafc 48%, #f8fafc 100%);
+}
+
+.auth-composition-campaignPassport .auth-preview-grid {
+  grid-template-columns: minmax(380px, 0.9fr) minmax(460px, 1.1fr);
+}
+
+.auth-composition-campaignPassport .auth-hero-panel {
+  color: #3d2030;
+  background:
+    linear-gradient(135deg, rgba(225, 29, 72, 0.12) 0 28%, transparent 28%),
+    linear-gradient(180deg, #fff7ed, #fff1f2);
+}
+
+.auth-composition-campaignPassport .auth-brand-mark,
+.auth-composition-campaignPassport .auth-hero-icon,
+.auth-composition-campaignPassport .auth-artifact-head span {
+  background: #ffe4e6;
+  color: #be123c;
+}
+
+.auth-composition-campaignPassport .auth-hero-artifact {
+  border: 1px dashed rgba(190, 18, 60, 0.32);
+  background: #fff;
+  color: #3d2030;
+  box-shadow: 0 20px 36px rgba(190, 18, 60, 0.1);
+}
+
+.auth-composition-campaignPassport .auth-artifact-lines span {
+  background: #fff7ed;
+}
+
+.auth-composition-campaignPassport .auth-primary-action {
+  background: linear-gradient(90deg, #be123c, var(--auth-accent));
+}
+
+.auth-composition-vaultMinimal {
+  background: #f8fafc;
+}
+
+.auth-composition-vaultMinimal .auth-preview-grid {
+  grid-template-columns: minmax(360px, 500px) minmax(360px, 500px);
+  place-content: center;
+  gap: 28px;
+  padding: clamp(42px, 6vw, 86px);
+}
+
+.auth-composition-vaultMinimal .auth-hero-panel {
+  min-height: 560px;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  color: #172033;
+  background: #fff;
+  box-shadow: none;
+}
+
+.auth-composition-vaultMinimal .auth-form-side {
+  padding: 0;
+  background: transparent;
+}
+
+.auth-composition-vaultMinimal .auth-form-card {
+  border-radius: 18px;
+  box-shadow: none;
+}
+
+.auth-composition-vaultMinimal .auth-brand-mark,
+.auth-composition-vaultMinimal .auth-hero-icon,
+.auth-composition-vaultMinimal .auth-artifact-head span {
+  background: #f1f5f9;
+  color: var(--auth-accent);
+}
+
+.auth-style-photoDark.auth-composition-vaultMinimal .auth-hero-center,
+.auth-style-photoDark.auth-composition-vaultMinimal .auth-hero-bullets,
+.auth-style-photoDark.auth-composition-vaultMinimal .auth-security-tiles {
+  display: grid;
+}
+
+.auth-style-photoDark.auth-composition-stepperRail,
+.auth-style-photoDark.auth-composition-identityLedger,
+.auth-style-photoDark.auth-composition-campaignPassport,
+.auth-style-photoDark.auth-composition-vaultMinimal {
+  color: #0f172a;
+}
+
+.auth-style-photoDark.auth-composition-stepperRail .auth-form-card,
+.auth-style-photoDark.auth-composition-identityLedger .auth-form-card,
+.auth-style-photoDark.auth-composition-campaignPassport .auth-form-card,
+.auth-style-photoDark.auth-composition-vaultMinimal .auth-form-card {
+  border-color: #e6edf5;
+  background: #fff;
+  color: #0f172a;
+}
+
+.auth-style-photoDark.auth-composition-stepperRail .auth-form-head h2,
+.auth-style-photoDark.auth-composition-stepperRail .auth-field,
+.auth-style-photoDark.auth-composition-stepperRail .auth-radio-field legend,
+.auth-style-photoDark.auth-composition-identityLedger .auth-form-head h2,
+.auth-style-photoDark.auth-composition-identityLedger .auth-field,
+.auth-style-photoDark.auth-composition-identityLedger .auth-radio-field legend,
+.auth-style-photoDark.auth-composition-campaignPassport .auth-form-head h2,
+.auth-style-photoDark.auth-composition-campaignPassport .auth-field,
+.auth-style-photoDark.auth-composition-campaignPassport .auth-radio-field legend,
+.auth-style-photoDark.auth-composition-vaultMinimal .auth-form-head h2,
+.auth-style-photoDark.auth-composition-vaultMinimal .auth-field,
+.auth-style-photoDark.auth-composition-vaultMinimal .auth-radio-field legend {
+  color: #0f172a;
+}
+
+.auth-style-photoDark.auth-composition-stepperRail .auth-form-head p,
+.auth-style-photoDark.auth-composition-stepperRail .auth-checkbox,
+.auth-style-photoDark.auth-composition-stepperRail .auth-switch-copy,
+.auth-style-photoDark.auth-composition-stepperRail .auth-trust-line,
+.auth-style-photoDark.auth-composition-identityLedger .auth-form-head p,
+.auth-style-photoDark.auth-composition-identityLedger .auth-checkbox,
+.auth-style-photoDark.auth-composition-identityLedger .auth-switch-copy,
+.auth-style-photoDark.auth-composition-identityLedger .auth-trust-line,
+.auth-style-photoDark.auth-composition-campaignPassport .auth-form-head p,
+.auth-style-photoDark.auth-composition-campaignPassport .auth-checkbox,
+.auth-style-photoDark.auth-composition-campaignPassport .auth-switch-copy,
+.auth-style-photoDark.auth-composition-campaignPassport .auth-trust-line,
+.auth-style-photoDark.auth-composition-vaultMinimal .auth-form-head p,
+.auth-style-photoDark.auth-composition-vaultMinimal .auth-checkbox,
+.auth-style-photoDark.auth-composition-vaultMinimal .auth-switch-copy,
+.auth-style-photoDark.auth-composition-vaultMinimal .auth-trust-line {
+  color: #64748b;
+}
+
+.auth-style-photoDark.auth-composition-stepperRail .auth-field input,
+.auth-style-photoDark.auth-composition-stepperRail .auth-field select,
+.auth-style-photoDark.auth-composition-identityLedger .auth-field input,
+.auth-style-photoDark.auth-composition-identityLedger .auth-field select,
+.auth-style-photoDark.auth-composition-campaignPassport .auth-field input,
+.auth-style-photoDark.auth-composition-campaignPassport .auth-field select,
+.auth-style-photoDark.auth-composition-vaultMinimal .auth-field input,
+.auth-style-photoDark.auth-composition-vaultMinimal .auth-field select {
+  border-color: #d8e1ee;
+  background: #fff;
+  color: #0f172a;
+}
+
+.auth-style-photoDark.auth-composition-stepperRail .auth-field input::placeholder,
+.auth-style-photoDark.auth-composition-identityLedger .auth-field input::placeholder,
+.auth-style-photoDark.auth-composition-campaignPassport .auth-field input::placeholder,
+.auth-style-photoDark.auth-composition-vaultMinimal .auth-field input::placeholder {
+  color: #94a3b8;
+}
+
+.auth-composition-vaultMinimal .auth-hero-artifact {
+  border-color: #e2e8f0;
+  background: #f8fafc;
+  color: #1e293b;
+  box-shadow: none;
 }
 
 .ai-model-modal {

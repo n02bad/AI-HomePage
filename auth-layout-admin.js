@@ -425,6 +425,7 @@
       `视觉气质：${guidedLabel("designStyle", guidedState.designStyle)}，主题倾向：${guidedLabel("theme", guidedState.theme)}，主色 ${guidedState.accent}。`,
       `增强能力：${compactList(guidedState.features.map((feature) => guidedLabel("features", feature)), "保持标准登录注册能力")}。`,
       "请生成的是一个个性化认证业务模块，不要套用固定模板；参考界面只作为质量标准学习，不能把参考版式当作可见模板名输出。",
+      "需要有让人耳目一新的构图差异，不能只改颜色、标题或按钮文案；请明确选择适合业务目标的首屏骨架和信息表达方式。",
       "需要包含登录、注册、找回密码三条流程的字段、状态、按钮文案、安全提示、合规提示和移动端适配策略。",
     ];
     if (guidedState.note.trim()) lines.push(`补充要求：${guidedState.note.trim()}`);

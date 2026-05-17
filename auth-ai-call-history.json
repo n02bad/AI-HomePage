@@ -1,6 +1,43 @@
 {
   "records": [
     {
+      "id": "auth-1778987683614-26927a5950c71",
+      "at": "2026-05-17T03:14:43.614Z",
+      "source": "authServerProxy",
+      "action": "auth-generate",
+      "providerId": "minimax",
+      "provider": "MiniMax",
+      "model": "MiniMax-M2.7",
+      "apiMode": "openai-chat",
+      "callMode": "serverProxy",
+      "baseUrl": "https://api.minimaxi.com/v1",
+      "endpoint": "/chat/completions",
+      "temperature": 0.6,
+      "maxOutputTokens": 2048,
+      "status": "fallback",
+      "mock": false,
+      "durationMs": 29857,
+      "prompt": "为 ForexCRM 生成一套完整的登录、注册、找回密码认证模块。 模块主旨：开户链接。 客户对象：新手开户客户。 注册深度：专业版。 视觉气质：亲和轻量，主题倾向：蓝色信任，主色 #2563eb。 增强能力：手机号 / 邮箱登录、第三方登录、验证码 / Captcha、双重验证、KYC 前置说明、风险披露确认、注册送礼 / 活动奖励。 请生成的是一个个性化认证业务模块，不要套用固定模板；参考界面只作为质量标准学习，不能把参考版式当作可见模板名输出。 需要包含登录、注册、找回密码三条流程的字段、状态、按钮文案、安全提示、合规提示和移动端适配策略。",
+      "message": "ForexCRM 认证中心",
+      "schemeSnapshot": {
+        "name": "ForexCRM 认证中心",
+        "stylePreset": "clientOnboarding",
+        "defaultScreen": "login",
+        "language": "zh-CN",
+        "brand": "ForexCRM",
+        "sourceType": "local-fallback",
+        "fallbackReason": "MiniMax 调用失败：AI response did not contain a valid JSON object；finish: length；模型返回片段：```json { \"stylePreset\": \"clientOnboarding\", \"defaultScreen\": \"login\", \"brandName\": \"ForexCRM\", \"",
+        "audience": "newTrader",
+        "registerDepth": "standard",
+        "screens": [
+          "login",
+          "register",
+          "forgot"
+        ]
+      },
+      "usage": null
+    },
+    {
       "id": "auth-1778987035017-ecccf94beca17",
       "at": "2026-05-17T03:03:55.017Z",
       "source": "authServerProxy",

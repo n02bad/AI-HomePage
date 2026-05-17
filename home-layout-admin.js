@@ -1439,9 +1439,67 @@
   ];
 
   const GUIDED_REQUIRED_MODULE_IDS = ["accountOverview", "quickActions", "tradingAccounts", "openingFlow"];
+  const GUIDED_PAGE_GOAL_TO_INTENT = {
+    openAccount: "onboarding",
+    deposit: "deposit",
+    startTrading: "trader",
+    contactSupport: "brand",
+    downloadApp: "mobile",
+    learnMore: "standard",
+  };
+  const GUIDED_PAGE_GOAL_TO_ACTION = {
+    openAccount: { action: "openAccount", label: "立即开户" },
+    deposit: { action: "deposit", label: "立即入金" },
+    startTrading: { action: "accounts", label: "查看交易账号" },
+    contactSupport: { action: "contactSupport", label: "联系客服" },
+    downloadApp: { action: "downloadApp", label: "下载 APP / MT5" },
+    learnMore: { action: "learnMore", label: "了解更多" },
+  };
+  const GUIDED_PAGE_GOAL_HERO_FOCUS = {
+    openAccount: "onboarding_guide",
+    deposit: "asset_overview",
+    startTrading: "trading_accounts_list",
+    contactSupport: "asset_overview",
+    downloadApp: "app_download",
+    learnMore: "asset_overview",
+  };
+  const GUIDED_MODULE_MATERIAL_REQUIREMENTS = {
+    heroBanner: ["campaignConfig"],
+    accountBenefits: ["performanceData"],
+    depositBonus: ["campaignConfig"],
+    rewardRules: ["campaignConfig"],
+    pammProducts: ["pammData"],
+    copyTrading: ["copyTradingData"],
+    rewardActivity: ["campaignConfig"],
+    referralLink: ["referralData"],
+    appDownload: ["downloadLinks"],
+    customerService: ["supportConfig"],
+    faq: ["faqContent"],
+    riskDisclosure: ["riskCopy"],
+  };
 
   function isGuidedRequiredModule(value) {
     return GUIDED_REQUIRED_MODULE_IDS.includes(value);
+  }
+
+  function guidedModuleMaterialRequirements(value) {
+    return GUIDED_MODULE_MATERIAL_REQUIREMENTS[value] || [];
+  }
+
+  function guidedModuleEligible(value, materialValues) {
+    if (isGuidedRequiredModule(value)) return true;
+    const requirements = guidedModuleMaterialRequirements(value);
+    if (!requirements.length) return true;
+    const materialSet = new Set(Array.isArray(materialValues) ? materialValues : []);
+    return requirements.some((item) => materialSet.has(item));
+  }
+
+  function guidedPrimaryActionForGoal(goal) {
+    return GUIDED_PAGE_GOAL_TO_ACTION[goal] || GUIDED_PAGE_GOAL_TO_ACTION.openAccount;
+  }
+
+  function guidedCanonicalIntentForGoal(goal) {
+    return GUIDED_PAGE_GOAL_TO_INTENT[goal] || "onboarding";
   }
 
   function ensureGuidedRequiredModules(values) {
@@ -1449,6 +1507,14 @@
   }
 
   const GUIDED_PROMPT_COPY = {
+    pageGoal: {
+      openAccount: "页面目标：推动客户开真实账户；全页主 CTA 统一为“立即开户”",
+      deposit: "页面目标：推动首次入金；全页主 CTA 统一为“立即入金”",
+      startTrading: "页面目标：让客户进入交易账号和交易操作；主 CTA 指向交易账号或持仓/订单入口",
+      contactSupport: "页面目标：建立信任并引导客户联系人工协助；主 CTA 指向客服或客户经理",
+      downloadApp: "页面目标：引导下载 APP 或 MT5；主 CTA 指向下载入口，不能编造真实链接",
+      learnMore: "页面目标：让客户理解首页价值和下一步路径；主 CTA 保持低干扰",
+    },
 	    level: {
 	      basic: "基础版，保留首屏、主 CTA 和核心说明",
 	      growth: "增长版，在基础能力上加入活动权益、按钮和转化承接",
@@ -1480,6 +1546,18 @@
       faq: "FAQ 常见问题：展示一些平台设置的常见问题，demo 可以放 4-10 条",
       riskDisclosure: "风险提示：展示一段风险解释的文案",
     },
+    materials: {
+      performanceData: "账号表现数据：允许生成 trading_account_highlight，趋势、PnL、净值和指标来自接口或预览样例",
+      campaignConfig: "活动 / Banner 配置：允许生成 promo_banner、活动权益、奖励规则或入金奖励承接",
+      pammData: "PAMM 产品数据：允许生成 pamm_products，产品字段来自接口或预览样例",
+      copyTradingData: "CopyTrading 信号源：允许生成 copytrading_signals，收益、回撤和曲线来自接口或预览样例",
+      referralData: "推广链接 / 邀请码：允许生成 referral_link_card，链接、邀请码和基础统计来自后台",
+      faqContent: "FAQ 内容：允许生成 faq_section，问题答案来自后台配置",
+      supportConfig: "客服配置：允许生成 support_contact，客服状态、时间和入口来自后台",
+      riskCopy: "风险披露文案：允许生成 risk_disclosure，正式文案来自合规后台",
+      downloadLinks: "下载链接 / 二维码：允许生成 app_download，不能编造下载地址",
+      walletData: "多币种钱包数据：允许生成 wallet_list，多币种余额来自接口",
+    },
     theme: {
       blueFinance: "蓝色金融，清爽专业",
       blackGold: "黑金高净值，高端稳重",
@@ -1507,7 +1585,7 @@
     accountOverview: ["asset_overview"],
     quickActions: ["quick_actions"],
     openingFlow: ["onboarding_guide"],
-    accountBenefits: ["onboarding_guide", "trading_accounts_list"],
+    accountBenefits: ["trading_account_highlight"],
     kycGuide: ["onboarding_guide"],
     depositBonus: ["promo_banner", "asset_overview"],
     rewardRules: ["promo_banner", "announcements"],
@@ -1597,7 +1675,9 @@
     const state = {
       audience: selectedGuidedValues("audience"),
       level: selectedGuidedValue("level"),
+      pageGoal: selectedGuidedValue("pageGoal"),
       modules: selectedGuidedValues("modules"),
+      materials: selectedGuidedValues("materials"),
       assetFields: selectedGuidedValues("assetFields"),
       designStyle: selectedGuidedValue("designStyle"),
       theme: selectedGuidedValue("theme"),
@@ -1608,6 +1688,7 @@
 
     if (!state.audience.length) state.audience = [guidedButtonsFor("audience")[0]?.dataset.guidedValue].filter(Boolean);
     if (!state.modules.length) state.modules = [guidedButtonsFor("modules")[0]?.dataset.guidedValue].filter(Boolean);
+    if (!state.pageGoal) state.pageGoal = "openAccount";
     if (!state.assetFields.length) state.assetFields = ["total", "wallet", "tradingAccount"];
     return state;
   }
@@ -1622,22 +1703,40 @@
 
   function buildGuidedAiIntake() {
     const state = readGuidedState();
-    const modules = state.modules.map((value) => ({
-      ...guidedChoiceDescriptor("modules", value),
-      canonicalTargets: GUIDED_CANONICAL_TARGETS[value] || [],
-    }));
+    const materialSet = new Set(state.materials);
+    const pageGoal = guidedChoiceDescriptor("pageGoal", state.pageGoal);
+    const primaryAction = guidedPrimaryActionForGoal(state.pageGoal);
+    const allModules = state.modules.map((value) => {
+      const requirements = guidedModuleMaterialRequirements(value);
+      const matchedMaterials = requirements.filter((item) => materialSet.has(item));
+      return {
+        ...guidedChoiceDescriptor("modules", value),
+        canonicalTargets: GUIDED_CANONICAL_TARGETS[value] || [],
+        materialRequirements: requirements,
+        materialMatched: matchedMaterials,
+        eligible: guidedModuleEligible(value, state.materials),
+      };
+    });
+    const modules = allModules.filter((module) => module.eligible);
+    const excludedModules = allModules.filter((module) => !module.eligible);
     const canonicalMustHave = uniqueList([
       modules.map((module) => module.canonicalTargets || []),
     ]);
     const accountOverviewEnabled = hasGuidedAccountOverview(state.modules);
     const visibleAssetFields = accountOverviewEnabled ? state.assetFields : [];
+    const heroFocus = GUIDED_PAGE_GOAL_HERO_FOCUS[state.pageGoal] || canonicalMustHave[0] || "";
 
     return {
       source: "guided-builder",
+      materialGateEnabled: true,
+      pageGoal,
+      primaryAction,
       audience: state.audience.map((value) => guidedChoiceDescriptor("audience", value)),
       level: guidedChoiceDescriptor("level", state.level),
       designStyle: guidedChoiceDescriptor("designStyle", state.designStyle),
       modules,
+      excludedModules,
+      materials: state.materials.map((value) => guidedChoiceDescriptor("materials", value)),
       theme: {
         ...guidedChoiceDescriptor("theme", state.theme),
         themePreset: state.theme,
@@ -1653,9 +1752,9 @@
         },
       },
       canonical: {
-        primaryIntent: "",
+        primaryIntent: guidedCanonicalIntentForGoal(state.pageGoal),
         layoutPreset: "",
-        heroFocus: canonicalMustHave[0] || "",
+        heroFocus: heroFocus && canonicalMustHave.includes(heroFocus) ? heroFocus : canonicalMustHave[0] || heroFocus,
         mustHave: canonicalMustHave,
       },
       note: state.note,
@@ -1670,23 +1769,35 @@
   function buildGuidedPrompt() {
     const state = readGuidedState();
     const requiredModules = GUIDED_REQUIRED_MODULE_IDS.map((value) => guidedPromptCopy("modules", value));
-    const optionalModules = state.modules.filter((value) => !isGuidedRequiredModule(value)).map((value) => guidedPromptCopy("modules", value));
+    const optionalModuleIds = state.modules.filter((value) => !isGuidedRequiredModule(value));
+    const eligibleOptionalModules = optionalModuleIds.filter((value) => guidedModuleEligible(value, state.materials));
+    const excludedOptionalModules = optionalModuleIds.filter((value) => !guidedModuleEligible(value, state.materials));
+    const optionalModules = eligibleOptionalModules.map((value) => guidedPromptCopy("modules", value));
+    const selectedMaterials = state.materials.map((value) => guidedPromptCopy("materials", value));
+    const primaryAction = guidedPrimaryActionForGoal(state.pageGoal);
     const designInstruction = guidedPromptCopy("designStyle", state.designStyle);
     const visualInstruction = state.themeCustom
       ? `${guidedPromptCopy("theme", state.theme)}；自定义色值或风格文案：${state.themeCustom}`
       : guidedPromptCopy("theme", state.theme);
     const parts = [
       "请为 ForexCRM 用户端首页生成可发布的首页方案",
+      guidedPromptCopy("pageGoal", state.pageGoal),
+      `主 CTA：${primaryAction.label}（data-home-action=${primaryAction.action}）`,
       `分级：${guidedPromptCopy("level", state.level)}`,
       `设计风格：${designInstruction}`,
       `视觉：${visualInstruction}`,
       `语气：${guidedPromptCopy("tone", state.tone)}`,
       `必选模块（不可撤销）：${requiredModules.join("、")}`,
       "交易账号模块必须同时包含真实交易账号和模拟交易账号",
+      `已提供素材：${selectedMaterials.length ? selectedMaterials.join("、") : "无"}`,
       `选填模块：${optionalModules.length ? optionalModules.join("、") : "无"}`,
+      excludedOptionalModules.length
+        ? `以下选填模块因缺少对应素材，不要生成：${excludedOptionalModules.map((value) => guidedLabel("modules", value)).join("、")}`
+        : "",
       "允许在白名单内重排 sections、brickPlan、模块变体和密度，优先让所选模块和分级决定首屏",
+      "选填模块必须通过素材准入：没有活动配置就不要生成 Banner/活动，没有 FAQ 内容就不要生成 FAQ，没有下载链接就不要生成 APP 下载，没有客服配置就不要生成客服模块",
       "不要编造收益、下载链接、后台未提供的数据或未选择的辅助模块",
-    ];
+    ].filter(Boolean);
 
     if (state.note) parts.push(`补充要求：${state.note}`);
     return parts.join("。");
@@ -2115,14 +2226,17 @@
     const state = readGuidedState();
     const optionalModules = state.modules.filter((value) => !isGuidedRequiredModule(value));
     const themeLabel = state.themeCustom || guidedLabel("theme", state.theme);
+    const selectedMaterials = state.materials.map((value) => guidedLabel("materials", value));
     const rows = [
+      ["目标", guidedLabel("pageGoal", state.pageGoal)],
       ["分级", guidedLabel("level", state.level)],
       ["设计", guidedLabel("designStyle", state.designStyle)],
       ["风格", `${themeLabel} · ${guidedLabel("tone", state.tone)}`],
       ["模块", guidedModuleCountText(optionalModules)],
+      ["素材", selectedMaterials.length ? selectedMaterials.join("、") : "未提供"],
     ];
 
-    if (els.guidedSummaryTitle) els.guidedSummaryTitle.textContent = `${guidedLabel("level", state.level)}方案`;
+    if (els.guidedSummaryTitle) els.guidedSummaryTitle.textContent = `${guidedLabel("pageGoal", state.pageGoal)}方案`;
     els.guidedSummary.innerHTML = rows
       .map(
         ([label, value]) => `

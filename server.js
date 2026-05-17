@@ -1827,6 +1827,7 @@ const AUTH_UI_JSON_SCHEMA = {
         panelTone: { type: "string" },
         radius: { type: "string" },
         density: { enum: ["compact", "comfortable", "spacious"] },
+        composition: { enum: ["splitTrust", "floatingConsole", "stepperRail", "identityLedger", "campaignPassport", "vaultMinimal"] },
       },
     },
     experience: {
@@ -1848,6 +1849,7 @@ const AUTH_UI_JSON_SCHEMA = {
         title: { type: "string" },
         subtitle: { type: "string" },
         bullets: { type: "array", items: { type: "string" } },
+        proofPoints: { type: "array", items: { type: "string" } },
       },
     },
     screens: {
@@ -5916,6 +5918,9 @@ function compactGuidedChoice(choice) {
     id: cleanText(choice.id, "", 48),
     label: cleanText(choice.label, "", 80),
     instruction: cleanText(choice.instruction, "", 240),
+    eligible: typeof choice.eligible === "boolean" ? choice.eligible : undefined,
+    materialRequirements: Array.isArray(choice.materialRequirements) ? choice.materialRequirements.map((item) => cleanText(item, "", 48)).filter(Boolean).slice(0, 8) : [],
+    materialMatched: Array.isArray(choice.materialMatched) ? choice.materialMatched.map((item) => cleanText(item, "", 48)).filter(Boolean).slice(0, 8) : [],
     canonicalTargets: Array.isArray(choice.canonicalTargets)
       ? choice.canonicalTargets.filter((item) => CANONICAL_HOME_BLOCKS.includes(item)).slice(0, 8)
       : [],
@@ -5956,11 +5961,22 @@ function guidedAiIntakeFromPayload(payload) {
 
   return {
     source: cleanText(source.source, "guided-builder", 48),
+    materialGateEnabled: Boolean(source.materialGateEnabled),
+    pageGoal: compactGuidedChoice(source.pageGoal),
+    primaryAction:
+      source.primaryAction && typeof source.primaryAction === "object"
+        ? {
+            action: cleanText(source.primaryAction.action, "", 48),
+            label: cleanText(source.primaryAction.label, "", 80),
+          }
+        : null,
     intent: compactGuidedChoice(source.intent),
     audience: Array.isArray(source.audience) ? source.audience.map(compactGuidedChoice).filter(Boolean).slice(0, 8) : [],
     level: compactGuidedChoice(source.level),
     designStyle: compactGuidedChoice(source.designStyle),
     modules: Array.isArray(source.modules) ? source.modules.map(compactGuidedChoice).filter(Boolean).slice(0, 16) : [],
+    excludedModules: Array.isArray(source.excludedModules) ? source.excludedModules.map(compactGuidedChoice).filter(Boolean).slice(0, 16) : [],
+    materials: Array.isArray(source.materials) ? source.materials.map(compactGuidedChoice).filter(Boolean).slice(0, 16) : [],
     theme: themeChoice ? { ...themeChoice, customInput: themeCustomInput } : null,
     tone: compactGuidedChoice(source.tone),
     cta: compactGuidedChoice(source.cta),
@@ -10538,6 +10554,7 @@ async function testProviderConnection(payload) {
 
 const AUTH_STYLE_PRESETS = ["blueSplit", "clientOnboarding", "securityReset", "softPlatform", "photoDark"];
 const AUTH_SCREEN_KEYS = ["login", "register", "forgot"];
+const AUTH_COMPOSITION_PRESETS = ["splitTrust", "floatingConsole", "stepperRail", "identityLedger", "campaignPassport", "vaultMinimal"];
 
 function isObjectRecord(value) {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
@@ -10561,6 +10578,12 @@ function deepMergeObjects(base, override) {
     }
   });
   return output;
+}
+
+function stableTextHash(value = "") {
+  return String(value)
+    .split("")
+    .reduce((hash, char) => ((hash << 5) - hash + char.charCodeAt(0)) | 0, 0);
 }
 
 function authPromptText(payload = {}) {
@@ -10614,6 +10637,21 @@ function inferAuthDefaultScreen(payload = {}) {
   return "login";
 }
 
+function inferAuthComposition(payload = {}, stylePreset = "blueSplit") {
+  const explicit = cleanText(payload.options?.composition || payload.options?.visual?.composition || payload.visual?.composition, "", 40);
+  if (AUTH_COMPOSITION_PRESETS.includes(explicit)) return explicit;
+
+  const text = authPromptText(payload).toLowerCase();
+  if (/活动|campaign|promo|奖励|转化|lead|注册送/.test(text)) return "campaignPassport";
+  if (/找回|忘记|重置|安全|双重|2fa|secure|reset|vault/.test(text)) return "vaultMinimal";
+  if (/ib|代理|渠道|partner|invite|邀请码|推荐码/.test(text)) return "identityLedger";
+  if (/高净值|黑金|premium|private|隐私|专属/.test(text) || stylePreset === "photoDark") return "floatingConsole";
+  if (/kyc|合规|问卷|投资|开户注册|开户|onboarding|资料/.test(text)) return "stepperRail";
+
+  const pool = ["splitTrust", "floatingConsole", "identityLedger"];
+  return pool[Math.abs(stableTextHash(text || stylePreset)) % pool.length];
+}
+
 function normalizeAuthHex(value, fallback) {
   const raw = cleanText(value, "", 24);
   if (/^#[0-9a-f]{3}(?:[0-9a-f]{3})?$/i.test(raw)) return raw;
@@ -10653,9 +10691,30 @@ function authAudienceCopy(audience = "", defaultScreen = "login") {
   ];
 }
 
+function authCompositionProofPoints(composition, language = "zh-CN") {
+  const zh = {
+    splitTrust: ["官方安全入口", "资料加密传输", "开户链接承接 KYC"],
+    floatingConsole: ["专属身份校验", "账户安全审阅", "私密开户注册"],
+    stepperRail: ["1 基础资料", "2 安全验证", "3 开户审核"],
+    identityLedger: ["邀请关系确认", "合作身份归档", "协议授权留痕"],
+    campaignPassport: ["手机号验证码", "活动权益锁定", "风险披露确认"],
+    vaultMinimal: ["官方域名校验", "设备与邮箱验证", "安全重置保护"],
+  };
+  const en = {
+    splitTrust: ["Official secure access", "Encrypted profile submission", "KYC-ready account opening"],
+    floatingConsole: ["Private identity check", "Account security review", "Discreet onboarding"],
+    stepperRail: ["1 Profile", "2 Security", "3 Review"],
+    identityLedger: ["Invitation matched", "Partner identity filed", "Agreement recorded"],
+    campaignPassport: ["Mobile verification", "Reward eligibility", "Risk disclosure"],
+    vaultMinimal: ["Official domain check", "Device and email verification", "Protected reset"],
+  };
+  return (String(language).startsWith("zh") ? zh : en)[composition] || zh.splitTrust;
+}
+
 function defaultAuthScheme(payload = {}, providerConfig = {}, meta = {}) {
   const stylePreset = inferAuthStylePreset(payload);
   const defaultScreen = inferAuthDefaultScreen(payload);
+  const composition = inferAuthComposition(payload, stylePreset);
   const options = payload.options && typeof payload.options === "object" ? payload.options : {};
   const guided = payload.guidedIntake && typeof payload.guidedIntake === "object" ? payload.guidedIntake : {};
   const features = authOptionList(options.features).length ? authOptionList(options.features) : authOptionList(guided.features);
@@ -10709,6 +10768,7 @@ function defaultAuthScheme(payload = {}, providerConfig = {}, meta = {}) {
       density,
       radius: stylePreset === "photoDark" ? "10px" : "18px",
       cardShadow: stylePreset === "clientOnboarding" ? "soft" : "elevated",
+      composition,
     },
     experience: {
       audience,
@@ -10725,6 +10785,7 @@ function defaultAuthScheme(payload = {}, providerConfig = {}, meta = {}) {
         heroSubtitle,
         160,
       ),
+      proofPoints: authCompositionProofPoints(composition, language),
       bullets: [
         hasCaptcha || hasTwoFactor ? "验证码与安全校验降低账户风险" : "安全提交客户资料",
         hasInvite ? "支持推荐码自动关联" : "注册后可继续完成 KYC 与开户",
@@ -10843,6 +10904,7 @@ function normalizeAuthScheme(source, payload = {}, providerConfig = {}, meta = {
   const merged = deepMergeObjects(fallback, isObjectRecord(raw) ? raw : {});
   const stylePreset = AUTH_STYLE_PRESETS.includes(merged.stylePreset) ? merged.stylePreset : fallback.stylePreset;
   const defaultScreen = AUTH_SCREEN_KEYS.includes(merged.defaultScreen) ? merged.defaultScreen : fallback.defaultScreen;
+  const composition = AUTH_COMPOSITION_PRESETS.includes(merged.visual?.composition) ? merged.visual.composition : fallback.visual.composition;
 
   const normalized = {
     ...merged,
@@ -10874,6 +10936,7 @@ function normalizeAuthScheme(source, payload = {}, providerConfig = {}, meta = {
     accent: normalizeAuthHex(merged.visual?.accent, fallback.visual.accent),
     accent2: normalizeAuthHex(merged.visual?.accent2, fallback.visual.accent2),
     density: ["compact", "comfortable", "spacious"].includes(merged.visual?.density) ? merged.visual.density : fallback.visual.density,
+    composition,
   };
   normalized.experience = {
     ...(isObjectRecord(fallback.experience) ? fallback.experience : {}),
@@ -10890,6 +10953,7 @@ function normalizeAuthScheme(source, payload = {}, providerConfig = {}, meta = {
     ...(isObjectRecord(merged.hero) ? merged.hero : {}),
     title: cleanText(merged.hero?.title, fallback.hero.title, 80),
     subtitle: cleanText(merged.hero?.subtitle, fallback.hero.subtitle, 160),
+    proofPoints: (Array.isArray(merged.hero?.proofPoints) ? merged.hero.proofPoints : fallback.hero.proofPoints || []).map((item) => cleanText(item, "", 80)).filter(Boolean).slice(0, 5),
     bullets: (Array.isArray(merged.hero?.bullets) ? merged.hero.bullets : fallback.hero.bullets).map((item) => cleanText(item, "", 80)).filter(Boolean).slice(0, 5),
   };
 
@@ -10940,6 +11004,9 @@ function buildAuthPrompt(payload = {}, config = {}) {
     "输出必须包含 login、register、forgot 三个 screen；三者共享 brand/visual，但流程文案、字段、按钮要各自完整。",
     "界面要像真实生产级金融平台开户认证页：克制、清晰、安全、对移动端友好；同时需要有明确的客群差异和品牌差异，避免千篇一律。",
     "字段只描述配置，不生成真实认证逻辑；验证码、Captcha、第三方登录可以作为 UI 占位。",
+    "为了避免同质化，必须显式返回 visual.composition，并从 splitTrust、floatingConsole、stepperRail、identityLedger、campaignPassport、vaultMinimal 中选择最贴合业务目标的一种。",
+    "composition 不是主题色，而是首屏骨架：splitTrust=经典信任分栏；floatingConsole=深色/专属控制台感；stepperRail=开户注册步骤轨道；identityLedger=身份/邀请/协议台账；campaignPassport=活动通行证；vaultMinimal=极简安全金库。",
+    "不要只替换颜色或标题。每次生成都要让 hero.proofPoints、注册 section 组织方式、登录辅助信息、安全提示和按钮语气与 composition 一起变化。",
     "stylePreset 只是内部渲染适配字段，请选择最接近的值，但不要让它限制创意；真正的个性化要体现在 brand、visual、hero、screens、experience、securityNotes 和 designNotes。",
   ].join("\n");
   const user = [
@@ -10982,8 +11049,9 @@ function buildAuthPrompt(payload = {}, config = {}) {
       model: config.model,
     }),
     "",
-    "请返回符合 schema 的 auth UI JSON。必须生成完整登录、注册、找回密码三套 screen。stylePreset 必须是 blueSplit、clientOnboarding、securityReset、softPlatform、photoDark 之一，但这是内部适配字段。",
+    "请返回符合 schema 的 auth UI JSON。必须生成完整登录、注册、找回密码三套 screen。stylePreset 必须是 blueSplit、clientOnboarding、securityReset、softPlatform、photoDark 之一；visual.composition 必须是 splitTrust、floatingConsole、stepperRail、identityLedger、campaignPassport、vaultMinimal 之一。",
     "建议额外返回 experience: { audience, registerDepth, designStyle, theme, features }，并可在 login.extraFields 中加入验证码/双重验证等字段配置。",
+    "建议返回 hero.proofPoints 3-5 条，用短句表达这个构图下最关键的安全、身份、活动或开户注册证据。",
   ].join("\n");
   return { system, user };
 }

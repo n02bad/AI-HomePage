@@ -1,6 +1,7 @@
 (function () {
   const STYLE_PRESETS = ["blueSplit", "clientOnboarding", "securityReset", "softPlatform", "photoDark"];
   const SCREEN_KEYS = ["login", "register", "forgot"];
+  const COMPOSITION_PRESETS = ["splitTrust", "floatingConsole", "stepperRail", "identityLedger", "campaignPassport", "vaultMinimal"];
 
   const icons = {
     arrowRight: '<path d="M5 12h14" /><path d="m13 6 6 6-6 6" />',
@@ -33,6 +34,12 @@
   function cleanText(value, fallback = "", limit = 220) {
     const text = String(value || fallback).replace(/\s+/g, " ").trim();
     return text.slice(0, limit);
+  }
+
+  function stableHash(value = "") {
+    return String(value)
+      .split("")
+      .reduce((hash, char) => ((hash << 5) - hash + char.charCodeAt(0)) | 0, 0);
   }
 
   function isObject(value) {
@@ -81,6 +88,33 @@
     return "login";
   }
 
+  function inferComposition(prompt = "", options = {}, stylePreset = "blueSplit") {
+    const explicit = cleanText(options.composition || options.visual?.composition, "", 40);
+    if (COMPOSITION_PRESETS.includes(explicit)) return explicit;
+
+    const text = [
+      prompt,
+      options.intent,
+      options.audience,
+      options.registerDepth,
+      options.designStyle,
+      options.theme,
+      ...(Array.isArray(options.features) ? options.features : []),
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    if (/活动|campaign|promo|奖励|转化|lead|注册送/.test(text)) return "campaignPassport";
+    if (/找回|忘记|重置|安全|双重|2fa|secure|reset|vault/.test(text)) return "vaultMinimal";
+    if (/ib|代理|渠道|partner|invite|邀请码|推荐码/.test(text)) return "identityLedger";
+    if (/高净值|黑金|premium|private|隐私|专属/.test(text) || stylePreset === "photoDark") return "floatingConsole";
+    if (/kyc|合规|问卷|投资|开户注册|开户|onboarding|资料/.test(text)) return "stepperRail";
+
+    const pool = ["splitTrust", "floatingConsole", "identityLedger"];
+    return pool[Math.abs(stableHash(text || stylePreset)) % pool.length];
+  }
+
   function normalizeHex(value, fallback) {
     const raw = String(value || "").trim();
     return /^#[0-9a-f]{3}(?:[0-9a-f]{3})?$/i.test(raw) ? raw : fallback;
@@ -113,6 +147,26 @@
       newTrader: ["创建您的交易账户", "用清晰步骤帮助新客户完成注册、安全设置和后续开户。"],
     };
     return map[audience] || fallback;
+  }
+
+  function compositionProofPoints(composition, isZh = true) {
+    const zh = {
+      splitTrust: ["官方安全入口", "资料加密传输", "开户链接承接 KYC"],
+      floatingConsole: ["专属身份校验", "账户安全审阅", "私密开户注册"],
+      stepperRail: ["1 基础资料", "2 安全验证", "3 开户审核"],
+      identityLedger: ["邀请关系确认", "合作身份归档", "协议授权留痕"],
+      campaignPassport: ["手机号验证码", "活动权益锁定", "风险披露确认"],
+      vaultMinimal: ["官方域名校验", "设备与邮箱验证", "安全重置保护"],
+    };
+    const en = {
+      splitTrust: ["Official secure access", "Encrypted profile submission", "KYC-ready account opening"],
+      floatingConsole: ["Private identity check", "Account security review", "Discreet onboarding"],
+      stepperRail: ["1 Profile", "2 Security", "3 Review"],
+      identityLedger: ["Invitation matched", "Partner identity filed", "Agreement recorded"],
+      campaignPassport: ["Mobile verification", "Reward eligibility", "Risk disclosure"],
+      vaultMinimal: ["Official domain check", "Device and email verification", "Protected reset"],
+    };
+    return (isZh ? zh : en)[composition] || (isZh ? zh.splitTrust : en.splitTrust);
   }
 
   function buildRegisterSections(options = {}, prompt = "", isZh = true) {
@@ -191,6 +245,7 @@
     const prompt = options.prompt || "";
     const stylePreset = inferStylePreset(prompt, options);
     const defaultScreen = inferScreen(prompt, options);
+    const composition = inferComposition(prompt, options, stylePreset);
     const language = cleanText(options.language, "zh-CN", 20);
     const brandName = cleanText(options.brandName, "ForexCRM", 40);
     const features = listValue(options.features);
@@ -242,10 +297,12 @@
         panelTone: stylePreset === "photoDark" ? "dark" : "light",
         density: stylePreset === "clientOnboarding" ? "compact" : "comfortable",
         radius: stylePreset === "photoDark" ? "10px" : "18px",
+        composition,
       },
       hero: {
         title: audienceTitle,
         subtitle: audienceSubtitle,
+        proofPoints: compositionProofPoints(composition, isZh),
         bullets: [
           hasCaptcha || hasTwoFactor ? "验证码与安全校验降低账户风险" : "安全提交客户资料",
           hasFeature(features, prompt, "inviteCode", /推荐码|邀请码|invite|ib/i) ? "支持推荐码自动关联" : "注册后可继续完成 KYC 与开户",
@@ -305,6 +362,7 @@
     const merged = merge(fallback, raw);
     const stylePreset = STYLE_PRESETS.includes(merged.stylePreset) ? merged.stylePreset : fallback.stylePreset;
     const defaultScreen = SCREEN_KEYS.includes(merged.defaultScreen) ? merged.defaultScreen : fallback.defaultScreen;
+    const composition = COMPOSITION_PRESETS.includes(merged.visual?.composition) ? merged.visual.composition : fallback.visual.composition;
     const normalized = {
       ...merged,
       stylePreset,
@@ -314,9 +372,11 @@
         ...merge(fallback.visual, merged.visual),
         accent: normalizeHex(merged.visual?.accent, fallback.visual.accent),
         accent2: normalizeHex(merged.visual?.accent2, fallback.visual.accent2),
+        composition,
       },
       hero: {
         ...merge(fallback.hero, merged.hero),
+        proofPoints: (Array.isArray(merged.hero?.proofPoints) ? merged.hero.proofPoints : fallback.hero.proofPoints || []).slice(0, 5),
         bullets: (Array.isArray(merged.hero?.bullets) ? merged.hero.bullets : fallback.hero.bullets).slice(0, 5),
       },
       screens: {
@@ -359,6 +419,18 @@
   function renderHero(scheme, screen) {
     const bullets = (scheme.hero.bullets || []).map((item) => `<li>${svg("shield")}${escapeHtml(item)}</li>`).join("");
     const securityTiles = (scheme.securityNotes || []).map((item, index) => `<li>${svg(index === 1 ? "lock" : "shield")}<span>${escapeHtml(item)}</span></li>`).join("");
+    const proofPoints = (scheme.hero.proofPoints || scheme.securityNotes || []).slice(0, 3);
+    const proofMarkup = proofPoints.map((item, index) => `<span><b>${String(index + 1).padStart(2, "0")}</b>${escapeHtml(item)}</span>`).join("");
+    const composition = scheme.visual?.composition || "splitTrust";
+    const artifact = `
+      <div class="auth-hero-artifact" aria-hidden="true">
+        <div class="auth-artifact-head">
+          <span>${svg(screen === "forgot" ? "mail" : composition === "vaultMinimal" ? "lock" : "shield")}</span>
+          <b>${escapeHtml(scheme.brand.serviceLine || "Client Portal")}</b>
+        </div>
+        <div class="auth-artifact-lines">${proofMarkup}</div>
+      </div>
+    `;
     return `
       <aside class="auth-hero-panel" aria-label="认证品牌说明">
         ${renderBrandMark(scheme)}
@@ -368,6 +440,7 @@
           <p>${escapeHtml(scheme.hero.subtitle)}</p>
           <ul class="auth-hero-bullets">${bullets}</ul>
         </div>
+        ${artifact}
         <ul class="auth-security-tiles">${securityTiles}</ul>
       </aside>
     `;
@@ -587,7 +660,7 @@
     host.dataset.authPreviewMounted = "true";
     host.innerHTML = `
       <section
-        class="auth-preview-shell auth-style-${escapeHtml(style)} auth-screen-${escapeHtml(screen)}"
+        class="auth-preview-shell auth-style-${escapeHtml(style)} auth-composition-${escapeHtml(scheme.visual.composition || "splitTrust")} auth-screen-${escapeHtml(screen)}"
         style="--auth-accent:${escapeHtml(scheme.visual.accent)};--auth-accent-2:${escapeHtml(scheme.visual.accent2)}"
       >
         <div class="auth-preview-meta">
