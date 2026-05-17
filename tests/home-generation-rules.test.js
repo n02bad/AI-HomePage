@@ -110,6 +110,17 @@ function assertOnlyAllowedBlocks(config) {
   }
 }
 
+function assertLegalHomepageSections(config) {
+  const heroSections = (config.sections || []).filter((section) => section.type === "hero");
+  assert(heroSections.length <= 1, "homepage config must not contain duplicate hero sections");
+  (config.sections || []).forEach((section) => {
+    const slots = Array.isArray(section.slots) ? section.slots : [];
+    if (section.type === "split") assert.strictEqual(slots.length, 2, `split section must have two modules: ${section.id}`);
+    if (section.type === "full") assert.strictEqual(slots.length, 1, `full section must have one module: ${section.id}`);
+    if (section.type === "hero") assert(slots.length >= 1 && slots.length <= 2, `hero section must have one or two modules: ${section.id}`);
+  });
+}
+
 function hasBlock(config, blockId) {
   return collectBlocks(config).includes(blockId);
 }
@@ -682,9 +693,14 @@ async function run() {
 	  assert(serverSource.includes("质量返修得分"), "AI HTML quality repair must not replace a higher-scoring free HTML draft");
 	  assert(serverSource.includes("aiHtmlResponsiveFallbackCss"), "AI HTML repair must add a responsive fallback when the model omits media rules");
 	  assert(serverSource.includes("aiHtmlControlFallbackCss"), "AI HTML repair must add scoped control styles when the model leaves native buttons");
-		  assert(serverSource.includes("buildCompactAiHtmlPrompt"), "DeepSeek/Kimi AI HTML calls should use a compact JSON-first prompt");
-		  assert(serverSource.includes('return ["minimax", "deepseek", "kimi"].includes(config.provider)'), "MiniMax, DeepSeek and Kimi should all use compact model-generated AI HTML instead of skipping HTML generation");
-		  assert(serverSource.includes("componentId: item.componentId"), "compact AI HTML prompts must pass real component ids from reference hints");
+			  assert(serverSource.includes("buildCompactAiHtmlPrompt"), "DeepSeek/Kimi AI HTML calls should use a compact JSON-first prompt");
+			  assert(serverSource.includes('return ["minimax", "deepseek", "kimi"].includes(config.provider)'), "MiniMax, DeepSeek and Kimi should all use compact model-generated AI HTML instead of skipping HTML generation");
+			  assert(serverSource.includes("function validateHomepageConfig"), "server must validate homepage config before HTML generation");
+			  assert(serverSource.includes("function repairHomepageConfig"), "server must repair homepage config before HTML generation");
+			  assert(serverSource.includes("homepageRepairedConfigPromptContract"), "AI HTML prompts must receive repairedConfig sections");
+			  assert(serverSource.includes("必须严格按照 repairedConfig.sections 渲染"), "AI HTML prompt must forbid adding, deleting, or reordering modules");
+			  assert(serverSource.includes("AI HTML generation waits for repairedConfig"), "server must not generate free HTML from raw config before repair");
+			  assert(serverSource.includes("componentId: item.componentId"), "compact AI HTML prompts must pass real component ids from reference hints");
 		  assert(serverSource.includes("requiredFamily"), "AI HTML component references must preserve the required target family for alias coverage");
 		  assert(serverSource.includes("synthesizeAiHtmlImplementationContract"), "compact AI HTML repair must synthesize implementation contracts when short-output models omit them");
 		  assert(serverSource.includes("AI_UI_GENERATION_PROTOCOL.md"), "AI generation must include the UI protocol governance reference");
@@ -1032,11 +1048,19 @@ async function run() {
 	      modelConfig: { provider: "openai" },
 	    });
     assert.strictEqual(aiHtmlResponse.ok, true);
-    assert.strictEqual(aiHtmlResponse.renderMode, "aiHtml");
+	    assert.strictEqual(aiHtmlResponse.renderMode, "aiHtml");
     assert.strictEqual(aiHtmlResponse.activeRenderMode, "aiHtml");
     assert.strictEqual(aiHtmlResponse.config.renderMode, "aiHtml");
     assert.strictEqual(aiHtmlResponse.config.activeRenderMode, "aiHtml");
-		    assert.strictEqual(aiHtmlResponse.config.htmlScheme.enabled, true);
+		    assert(aiHtmlResponse.validation, "server response must include homepage config validation");
+		    assert(Array.isArray(aiHtmlResponse.repairActions), "server response must include repair actions");
+		    assert(Number.isFinite(aiHtmlResponse.qualityScore), "server response must include final quality score");
+		    assert(["publishable", "needs-polish", "needs-repair", "fallback"].includes(aiHtmlResponse.quality.status), "server response must expose mapped quality.status");
+		    assert.strictEqual(aiHtmlResponse.htmlQualityStatus, aiHtmlResponse.quality.status);
+		    assert.strictEqual(aiHtmlResponse.config.htmlQualityStatus, aiHtmlResponse.quality.status);
+		    assertLegalHomepageSections(aiHtmlResponse.config);
+		    assert.strictEqual(aiHtmlResponse.validation.invalidSections.length, 0);
+    assert.strictEqual(aiHtmlResponse.config.htmlScheme.enabled, true);
 		    assert.strictEqual(aiHtmlResponse.htmlScheme.enabled, true);
 		    assert.strictEqual(aiHtmlResponse.htmlScheme.generationPipeline, "mock-free-html");
 		    assert.strictEqual(aiHtmlResponse.htmlScheme.sourceType, "mock");

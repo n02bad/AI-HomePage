@@ -4,14 +4,18 @@
   if (!home) return;
 
   const PROMPT_KEY = "forexcrm.home.personalization.prompt";
+  const ACTIVE_GENERATION_JOB_KEY = "forexcrm.home.ai.activeGenerationJob";
   const PREVIEW_SIZE_KEY = "forexcrm.home.preview.size";
   const PREVIEW_COLOR_MODE_KEY = "forexcrm.home.preview.colorMode";
   const RENDER_MODE_KEY = "forexcrm.home.ai.render.mode";
-  const MODEL_CONFIG_KEY = "forexcrm.home.ai.model.config";
+  const modelSettings = window.ForexCRMModelSettings;
+  const MODEL_CONFIG_KEY = modelSettings?.STORAGE_KEY || "forexcrm.ai.model.config";
   const MODEL_HISTORY_KEY = "forexcrm.home.ai.call.history";
   const SUGGESTION_HISTORY_KEY = "forexcrm.home.ai.suggestion.history";
   const MAX_MODEL_HISTORY = 120;
   const MODEL_HISTORY_PREVIEW_LIMIT = 5;
+  const BACKGROUND_JOB_POLL_MS = 1100;
+  const BACKGROUND_JOB_MAX_WAIT_MS = 20 * 60 * 1000;
   const MINIMAX_CN_BASE_URL = "https://api.minimaxi.com/v1";
   const MINIMAX_CN_TYPED_ALIAS_BASE_URL = "https://api.minimaxi.cn/v1";
   const MINIMAX_GLOBAL_BASE_URL = "https://api.minimax.io/v1";
@@ -476,6 +480,7 @@
   function labelDensity(density) {
     return {
       compact: "紧凑",
+      comfortable: "舒适",
       balanced: "平衡",
       spacious: "舒展",
     }[density] || density;
@@ -2424,6 +2429,7 @@
   }
 
   function loadModelConfig() {
+    if (modelSettings) return sanitizeModelConfig(modelSettings.loadModelConfig());
     try {
       const saved = JSON.parse(window.localStorage.getItem(MODEL_CONFIG_KEY) || "null");
       return sanitizeModelConfig(saved || DEFAULT_MODEL_CONFIG);
@@ -2434,7 +2440,11 @@
 
   function saveModelConfig(config) {
     const normalized = sanitizeModelConfig(config);
-    window.localStorage.setItem(MODEL_CONFIG_KEY, JSON.stringify(normalized));
+    if (modelSettings) {
+      modelSettings.saveModelConfig(normalized, { source: "home-layout-admin" });
+    } else {
+      window.localStorage.setItem(MODEL_CONFIG_KEY, JSON.stringify(normalized));
+    }
     return normalized;
   }
 
@@ -3032,6 +3042,23 @@
   }
 
   function openModelConfigModal() {
+    if (modelSettings?.openModelPicker) {
+      modelSettings.openModelPicker({
+        title: "选择首页生成模型",
+        description: "这里只选择当前想用的模型。API Key、Base URL、Endpoint 等大模型信息请到统一配置页维护，保存过的 Key 会自动沿用。",
+        activeConfig: aiModelConfig,
+        providerStatus: providerRuntimeStatus,
+        source: "home-layout-admin",
+        saveLabel: "用于首页生成",
+        onSave: (config) => {
+          aiModelConfig = sanitizeModelConfig(config);
+          renderModelConfigSummary();
+          renderModelHistory();
+          showToast(`已选择 ${providerPreset(aiModelConfig.provider).name} / ${aiModelConfig.model}`);
+        },
+      });
+      return;
+    }
     editingModelConfig = sanitizeModelConfig(aiModelConfig);
     modelTestState = { tone: "", message: "尚未测试" };
     const modal = ensureModelConfigModal();
@@ -3041,6 +3068,7 @@
   }
 
   function closeModelConfigModal() {
+    if (modelSettings?.closeModelPicker) modelSettings.closeModelPicker();
     const modal = document.querySelector("[data-model-config-modal]");
     if (modal) modal.hidden = true;
     editingModelConfig = null;
@@ -3049,6 +3077,12 @@
   function initModelConfig() {
     renderModelConfigSummary();
     refreshProviderRuntimeStatus();
+
+    window.addEventListener("forexcrm:model-config-change", (event) => {
+      if (!event.detail?.config) return;
+      aiModelConfig = sanitizeModelConfig(event.detail.config);
+      renderModelConfigSummary();
+    });
 
     document.addEventListener("click", (event) => {
       const openButton = event.target.closest("[data-model-config-open]");
@@ -3092,6 +3126,14 @@
       button.disabled = busy;
       button.classList.toggle("is-loading", busy);
     });
+    if (els.guidedGenerate) {
+      if (!els.guidedGenerate.dataset.defaultLabel) els.guidedGenerate.dataset.defaultLabel = els.guidedGenerate.textContent.trim();
+      const defaultLabel = els.guidedGenerate.dataset.defaultLabel || "生成预览";
+      els.guidedGenerate.textContent = busy ? "正在生成" : defaultLabel;
+      els.guidedGenerate.setAttribute("aria-busy", busy ? "true" : "false");
+      els.guidedGenerate.setAttribute("aria-label", busy ? label : defaultLabel);
+      els.guidedGenerate.title = busy ? label : defaultLabel;
+    }
     if (els.reset) els.reset.disabled = busy;
     if (els.prompt) els.prompt.readOnly = busy;
     if (els.guidedNote) els.guidedNote.readOnly = busy;
@@ -3288,12 +3330,120 @@
     return [...new Set(candidates)];
   }
 
+  function sleep(ms) {
+    return new Promise((resolve) => window.setTimeout(resolve, ms));
+  }
+
+  function jobEndpointForCompleteEndpoint(endpoint) {
+    const target = new URL(endpoint, window.location.href);
+    target.pathname = target.pathname.replace(/\/complete\/?$/i, "/jobs");
+    if (!/\/jobs\/?$/i.test(target.pathname)) target.pathname = "/api/home-ai/jobs";
+    target.search = "";
+    return target.toString();
+  }
+
+  function readActiveGenerationJob() {
+    try {
+      const raw = window.localStorage.getItem(ACTIVE_GENERATION_JOB_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+      return parsed && typeof parsed === "object" ? parsed : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function saveActiveGenerationJob(job) {
+    window.localStorage.setItem(ACTIVE_GENERATION_JOB_KEY, JSON.stringify(job));
+  }
+
+  function clearActiveGenerationJob(jobId = "") {
+    const current = readActiveGenerationJob();
+    if (!jobId || current?.jobId === jobId) {
+      window.localStorage.removeItem(ACTIVE_GENERATION_JOB_KEY);
+    }
+  }
+
+  async function pollBackgroundGenerationJob(statusUrl, jobId) {
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < BACKGROUND_JOB_MAX_WAIT_MS) {
+      const response = await fetch(statusUrl, { headers: { accept: "application/json" }, cache: "no-store" });
+      const data = await response.json().catch(() => null);
+      if (!response.ok || data?.ok === false) {
+        throw new Error(data?.error || `${response.status} ${response.statusText}`);
+      }
+
+      const job = data.job || {};
+      if (job.status === "success") return job.result || {};
+      if (job.status === "failed") {
+        const error = new Error(job.error?.message || "后台生成失败");
+        error.proxyPayload = {
+          details: job.error?.details || null,
+          callRecord: job.error?.callRecord || null,
+        };
+        throw error;
+      }
+
+      const current = readActiveGenerationJob();
+      if (current?.jobId === jobId) {
+        saveActiveGenerationJob({ ...current, status: job.status || "running", updatedAt: Date.now() });
+      }
+      await sleep(BACKGROUND_JOB_POLL_MS);
+    }
+
+    throw new Error("后台生成等待超时");
+  }
+
+  async function requestBackgroundGeneration(config, payload) {
+    const endpoints = proxyEndpointCandidates(config, "complete").map(jobEndpointForCompleteEndpoint);
+    let lastMessage = "";
+
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "content-type": "application/json", accept: "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json().catch(() => null);
+
+        if (response.ok && data?.ok !== false && data?.jobId) {
+          const statusUrl = new URL(data.job?.statusPath || `/api/home-ai/jobs/${data.jobId}`, endpoint).toString();
+          saveActiveGenerationJob({
+            jobId: data.jobId,
+            statusUrl,
+            prompt: payload.prompt || "",
+            variant: payload.variant || 0,
+            renderMode: payload.renderMode || "config",
+            inputMode: payload.inputMode || "quick",
+            modelConfig: payload.modelConfig || null,
+            startedAt: Date.now(),
+            updatedAt: Date.now(),
+          });
+          try {
+            return await pollBackgroundGenerationJob(statusUrl, data.jobId);
+          } catch (error) {
+            error.backgroundJobStarted = true;
+            throw error;
+          }
+        }
+
+        lastMessage = data?.error || `${response.status} ${response.statusText}`;
+        if (![404, 405, 501].includes(response.status)) break;
+      } catch (error) {
+        if (error?.backgroundJobStarted) throw error;
+        lastMessage = String(error?.message || error || "Failed to fetch");
+      }
+    }
+
+    throw new Error(`${lastMessage || "Failed to start background job"} · 已尝试 ${endpoints.join(" -> ")}`);
+  }
+
   function fetchFailureMessage(error, endpoints) {
     const base = String(error?.message || error || "Failed to fetch");
     return `无法连接本地后端代理：${base}。请确认是用 npm start 启动并从 http://127.0.0.1:5174 打开页面。已尝试 ${endpoints.join(" -> ")}`;
   }
 
-  async function requestAiProxy(config, action, payload) {
+  async function requestDirectAiProxy(config, action, payload) {
     const endpoints = proxyEndpointCandidates(config, action);
     let lastMessage = "";
 
@@ -3324,6 +3474,19 @@
     }
 
     throw new Error(lastMessage || fetchFailureMessage("Failed to fetch", endpoints));
+  }
+
+  async function requestAiProxy(config, action, payload) {
+    if (action === "complete") {
+      try {
+        return await requestBackgroundGeneration(config, payload);
+      } catch (error) {
+        if (error?.backgroundJobStarted) throw error;
+        return await requestDirectAiProxy(config, action, payload);
+      }
+    }
+
+    return await requestDirectAiProxy(config, action, payload);
   }
 
 	  async function generateConfigFromModel(prompt, options = {}) {
@@ -3429,7 +3592,7 @@
 		    const quality = String(value.qualityStatus || value.htmlQualityStatus || "").toLowerCase();
 		    if (sourceType.startsWith("model/") || sourceType === "model-repair") return true;
 		    if (pipeline.includes("free-html") && !pipeline.includes("fallback")) return true;
-		    return quality === "passed" && !sourceType.includes("fallback") && !pipeline.includes("fallback");
+		    return ["passed", "publishable"].includes(quality) && !sourceType.includes("fallback") && !pipeline.includes("fallback");
 		  }
 
 		  function isRealModelAiHtmlScheme(configOrScheme = {}) {
@@ -3498,8 +3661,10 @@
       if (result.usedModel) {
         showToast(result.mock ? "已通过代理 mock 生成首页方案" : `已通过 ${result.label} 生成首页方案`);
       }
+      clearActiveGenerationJob();
 	      return finalConfig;
 	    } catch (error) {
+      clearActiveGenerationJob();
 		      const fallback = attachRenderModeToConfig(ensureDistinctHomepageConfig(prompt, home.promptToConfig(prompt, options.variant || 0), options), prompt, { renderMode, reason: "大模型失败后本地回退" });
 		      fallback.aiSummary = `大模型调用失败，已使用本地安全方案回退：${errorMessage(error, 220)}`;
 	      const fallbackInfo = aiHtmlSourceInfo(fallback);
@@ -3576,6 +3741,60 @@
     savePrompt();
     currentConfig = normalized;
     window.location.href = "./home-layout-preview.html";
+  }
+
+  function configFromBackgroundResult(payload = {}, job = {}) {
+    const requestConfig = sanitizeModelConfig(job.modelConfig || aiModelConfig);
+    const renderMode = normalizeRenderMode(job.renderMode || payload.renderMode || currentGenerationRenderMode());
+    const provider = providerPreset(payload.provider || requestConfig.provider);
+    const usedModel = payload.model || requestConfig.model;
+    const aiConfig = {
+      generationMode: "brick-v2",
+      ...(payload.config || {}),
+      renderMode: payload.renderMode || renderMode,
+      activeRenderMode: payload.activeRenderMode || (renderMode === "aiHtml" ? "aiHtml" : renderMode === "skeletonHtml" ? "skeletonHtml" : "config"),
+      htmlGenerationEnabled: renderMode === "aiHtml" || renderMode === "compare",
+      skeletonHtmlEnabled: renderMode === "skeletonHtml",
+      ...(payload.htmlScheme ? { htmlScheme: payload.htmlScheme } : {}),
+      aiSummary:
+        payload.config?.aiSummary ||
+        `已通过 ${provider.name} / ${usedModel} 在后台生成首页蓝图，并完成前端安全标准化。`,
+    };
+
+    return home.normalizeConfig(
+      attachRenderModeToConfig(aiConfig, job.prompt || promptValue(), { renderMode, reason: `${provider.name} / ${usedModel}` }),
+    );
+  }
+
+  async function resumeActiveGenerationJob() {
+    const job = readActiveGenerationJob();
+    if (!job?.jobId || !job.statusUrl) return;
+    if (Date.now() - Number(job.startedAt || 0) > BACKGROUND_JOB_MAX_WAIT_MS) {
+      clearActiveGenerationJob(job.jobId);
+      return;
+    }
+
+    setAiBusy(true, "正在恢复后台首页生成...");
+    updateStatus("后台生成仍在进行，正在接回结果...", false);
+    try {
+      const result = await pollBackgroundGenerationJob(job.statusUrl, job.jobId);
+      clearActiveGenerationJob(job.jobId);
+      const config = configFromBackgroundResult(result, job);
+      showToast("后台首页生成已完成");
+      generatePreview(config);
+    } catch (error) {
+      clearActiveGenerationJob(job.jobId);
+      const fallback = attachRenderModeToConfig(home.promptToConfig(job.prompt || promptValue(), job.variant || 0), job.prompt || promptValue(), {
+        renderMode: normalizeRenderMode(job.renderMode || currentGenerationRenderMode()),
+        reason: "后台生成失败后本地回退",
+      });
+      fallback.aiSummary = `后台生成未能完成，已使用本地安全方案回退：${errorMessage(error, 180)}`;
+      currentConfig = home.saveDraft(fallback);
+      updateStatus("后台生成失败，已保留本地草稿", false);
+      showToast("后台生成失败，已回退本地草稿");
+    } finally {
+      setAiBusy(false);
+    }
   }
 
   function renderModuleOutline() {
@@ -4084,6 +4303,7 @@
 
   if (els.intakePage) {
     setConfig(home.promptToConfig(promptValue(), interpretationRound), "已完成文案解读");
+    resumeActiveGenerationJob();
   }
 
   if (els.previewPage) {

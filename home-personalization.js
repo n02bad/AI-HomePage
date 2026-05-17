@@ -1066,7 +1066,7 @@
           return properties;
         }, {}),
       },
-      density: { enum: ["compact", "balanced", "spacious"] },
+      density: { enum: ["compact", "comfortable", "balanced", "spacious"] },
       heroFocus: { enum: COMPONENT_WHITELIST },
       layout: {
         type: "array",
@@ -7915,7 +7915,7 @@
         variants[moduleId] = modules[moduleId].variant;
         return variants;
       }, {}),
-      density: ["compact", "balanced", "spacious"].includes(source.density) ? source.density : DEFAULT_CONFIG.density,
+      density: ["compact", "comfortable", "balanced", "spacious"].includes(source.density) ? source.density : DEFAULT_CONFIG.density,
       heroFocus: componentFromFeature(source.heroFocus || DEFAULT_CONFIG.heroFocus),
       moduleStyles,
       componentMorphs: normalizeComponentMorphs(source.componentMorphs, modules, moduleStyles),
@@ -11697,6 +11697,7 @@
   function densityLabel(id) {
     return {
       compact: "紧凑",
+      comfortable: "舒适",
       balanced: "平衡",
       spacious: "舒展",
     }[id] || id;

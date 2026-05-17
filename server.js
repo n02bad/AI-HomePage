@@ -127,6 +127,131 @@ const PROVIDERS = {
   },
 };
 
+const BACKGROUND_JOBS = new Map();
+const MAX_BACKGROUND_JOBS = 80;
+const BACKGROUND_JOB_TTL_MS = 45 * 60 * 1000;
+
+function backgroundJobId(type) {
+  return `${type}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function pruneBackgroundJobs() {
+  const now = Date.now();
+  const jobs = [...BACKGROUND_JOBS.values()].sort((a, b) => a.createdAtMs - b.createdAtMs);
+  jobs.forEach((job) => {
+    if (job.status !== "running" && now - job.updatedAtMs > BACKGROUND_JOB_TTL_MS) {
+      BACKGROUND_JOBS.delete(job.id);
+    }
+  });
+
+  const remaining = [...BACKGROUND_JOBS.values()].sort((a, b) => a.createdAtMs - b.createdAtMs);
+  while (remaining.length > MAX_BACKGROUND_JOBS) {
+    const job = remaining.shift();
+    if (job?.status !== "running") BACKGROUND_JOBS.delete(job.id);
+    else remaining.push(job);
+    if (remaining.every((item) => item.status === "running")) break;
+  }
+}
+
+function publicBackgroundJob(job, includeResult = true) {
+  if (!job) return null;
+  return {
+    id: job.id,
+    type: job.type,
+    status: job.status,
+    createdAt: job.createdAt,
+    updatedAt: job.updatedAt,
+    completedAt: job.completedAt || null,
+    statusPath: job.statusPath,
+    result: includeResult && job.status === "success" ? job.result : null,
+    error: includeResult && job.status === "failed" ? job.error : null,
+  };
+}
+
+function createBackgroundJob(type, payload, runner, statusPathForId) {
+  pruneBackgroundJobs();
+  const id = backgroundJobId(type);
+  const now = Date.now();
+  const job = {
+    id,
+    type,
+    status: "running",
+    createdAtMs: now,
+    updatedAtMs: now,
+    createdAt: new Date(now).toISOString(),
+    updatedAt: new Date(now).toISOString(),
+    completedAt: "",
+    statusPath: statusPathForId(id),
+    result: null,
+    error: null,
+  };
+  BACKGROUND_JOBS.set(id, job);
+
+  Promise.resolve()
+    .then(() => runner(payload))
+    .then((result) => {
+      const completedAt = Date.now();
+      job.status = "success";
+      job.result = result;
+      job.updatedAtMs = completedAt;
+      job.updatedAt = new Date(completedAt).toISOString();
+      job.completedAt = job.updatedAt;
+    })
+    .catch((error) => {
+      const completedAt = Date.now();
+      job.status = "failed";
+      job.error = {
+        message: error?.message || "Background job failed",
+        details: error?.details || null,
+        callRecord: error?.callRecord || null,
+        statusCode: error?.statusCode || 500,
+      };
+      job.updatedAtMs = completedAt;
+      job.updatedAt = new Date(completedAt).toISOString();
+      job.completedAt = job.updatedAt;
+    });
+
+  return job;
+}
+
+async function handleBackgroundJobStart(req, res, type, runner, statusPathForId) {
+  try {
+    const payload = await readJsonBody(req);
+    const job = createBackgroundJob(type, payload, runner, statusPathForId);
+    sendJson(res, 202, {
+      ok: true,
+      jobId: job.id,
+      status: job.status,
+      job: publicBackgroundJob(job, false),
+    });
+  } catch (error) {
+    const status = error.statusCode && error.statusCode >= 400 && error.statusCode < 600 ? error.statusCode : 500;
+    sendJson(res, status, {
+      ok: false,
+      error: error.message || "Background job start failed",
+      details: error.details || null,
+    });
+  }
+}
+
+function handleBackgroundJobStatus(res, jobId) {
+  pruneBackgroundJobs();
+  const job = BACKGROUND_JOBS.get(jobId);
+  if (!job) {
+    sendJson(res, 404, {
+      ok: false,
+      error: "Background job not found",
+    });
+    return;
+  }
+  sendJson(res, 200, {
+    ok: true,
+    jobId: job.id,
+    status: job.status,
+    job: publicBackgroundJob(job, true),
+  });
+}
+
 function envValue(names = []) {
   for (const name of names) {
     const value = process.env[name];
@@ -479,6 +604,586 @@ function splitLargeHomepageSections(sections = []) {
 
     return splitSections;
   });
+}
+
+const HOMEPAGE_BLOCK_REPAIR_META = {
+  welcome_header: { brickId: "system.welcomeHeader", brickName: "欢迎头部", family: "WelcomeHeader", size: "3x1", zone: "hero", title: "欢迎" },
+  asset_overview: { brickId: "assetOverview.flexible", brickName: "账户概览", family: "AssetOverview", size: "2x1", zone: "hero", title: "资产概览" },
+  wallet_list: { brickId: "walletList.tiles", brickName: "钱包列表", family: "WalletList", size: "3x2", zone: "full", title: "钱包列表" },
+  quick_actions: { brickId: "quickActions.configDriven", brickName: "快捷操作", family: "QuickActions", size: "2x1", zone: "main", title: "快捷操作" },
+  onboarding_guide: { brickId: "onboardingProgress.missionBoard", brickName: "开户进度", family: "OnboardingProgress", size: "2x1", zone: "main", title: "开户进度" },
+  trading_account_highlight: { brickId: "accountPerformance.proChart", brickName: "账户表现", family: "AccountPerformance", size: "3x2", zone: "full", title: "账户表现" },
+  trading_accounts_list: { brickId: "tradingAccounts.list", brickName: "交易账号列表", family: "TradingAccounts", size: "3x2", zone: "full", title: "交易账号" },
+  promo_banner: { brickId: "promoBanner.imageHero", brickName: "活动 Banner", family: "PromotionBanner", size: "3x1", zone: "full", title: "活动权益" },
+  pamm_products: { brickId: "pammProducts.recommendations", brickName: "PAMM 产品推荐", family: "PammProducts", size: "2x1", zone: "main", title: "PAMM 产品" },
+  copytrading_signals: { brickId: "copytradingSignals.curveCards", brickName: "CopyTrading 信号源", family: "CopytradingSignals", size: "3x1", zone: "full", title: "CopyTrading" },
+  referral_link_card: { brickId: "referralLinkCard.compact", brickName: "推广链接", family: "ReferralLinkCard", size: "1x1", zone: "rail", title: "推广链接" },
+  announcements: { brickId: "announcements.list", brickName: "公告通知", family: "Announcements", size: "2x1", zone: "main", title: "公告通知" },
+  market_news: { brickId: "marketNews.feed", brickName: "市场资讯", family: "MarketNews", size: "2x1", zone: "main", title: "市场资讯" },
+  risk_disclosure: { brickId: "riskDisclosure.legalStrip", brickName: "风险提示", family: "RiskDisclosure", size: "3x1", zone: "full", title: "风险提示" },
+  faq_section: { brickId: "faqSection.accordion", brickName: "FAQ", family: "FaqSection", size: "2x1", zone: "main", title: "FAQ" },
+  support_contact: { brickId: "supportContact.serviceCard", brickName: "在线客服", family: "SupportContact", size: "1x1", zone: "rail", title: "在线客服" },
+  app_download: { brickId: "appDownload.qrCard", brickName: "APP 下载", family: "AppDownload", size: "1x1", zone: "rail", title: "APP 下载" },
+};
+
+const HOMEPAGE_RECOMMENDED_SECTION_ORDERS = {
+  basic: [
+    "hero:welcome_header+asset_overview",
+    "split:quick_actions+onboarding_guide",
+    "full:trading_accounts_list",
+    "full:faq_section",
+    "full:risk_disclosure",
+  ],
+  growth: [
+    "hero:welcome_header+asset_overview",
+    "split:quick_actions+onboarding_guide",
+    "full:promo_banner",
+    "split:referral_link_card+faq_section",
+    "full:trading_accounts_list",
+    "full:risk_disclosure",
+  ],
+  pro: [
+    "hero:welcome_header+asset_overview",
+    "split:quick_actions+trading_account_highlight",
+    "full:trading_accounts_list",
+    "split:referral_link_card+faq_section",
+    "full:risk_disclosure",
+  ],
+};
+
+function normalizeHomepageSectionType(type, slotCount = 0) {
+  const value = cleanText(type, "", 16).toLowerCase();
+  if (value === "hero") return "hero";
+  if (value === "split") return "split";
+  if (value === "full") return "full";
+  if (value === "rail") return slotCount > 1 ? "split" : "full";
+  if (slotCount > 1) return "split";
+  return "full";
+}
+
+function parseHomepageSectionInput(section, index = 0) {
+  if (typeof section === "string") {
+    const match = section.match(/^([a-z_ -]+)\s*:\s*(.+)$/i);
+    const rawType = match ? match[1] : "";
+    const rawSlots = (match ? match[2] : section).split("+");
+    const slots = rawSlots.map((slot) => canonicalHomeBlock(slot)).filter(Boolean);
+    return {
+      id: `section-${index + 1}`,
+      type: normalizeHomepageSectionType(rawType, slots.length),
+      title: "",
+      slots,
+    };
+  }
+
+  const value = ensureObject(section);
+  const slots = (Array.isArray(value.slots) ? value.slots : [])
+    .map((slot) => canonicalHomeBlock(slot))
+    .filter(Boolean);
+  return {
+    ...value,
+    id: cleanText(value.id, `section-${index + 1}`, 48),
+    type: normalizeHomepageSectionType(value.type, slots.length),
+    title: cleanText(value.title, "", 40),
+    slots,
+  };
+}
+
+function homepageSectionSignature(section) {
+  return `${section?.type || ""}:${(Array.isArray(section?.slots) ? section.slots : []).join("+")}`;
+}
+
+function homepageBlockMeta(slot) {
+  const canonical = canonicalHomeBlock(slot);
+  return canonical ? HOMEPAGE_BLOCK_REPAIR_META[canonical] || {} : {};
+}
+
+function repairedHomepageSectionFromString(value, index = 0) {
+  return parseHomepageSectionInput(value, index);
+}
+
+function homepageSectionForSingleSlot(slot, index = 0, type = "full") {
+  const canonical = canonicalHomeBlock(slot);
+  const meta = homepageBlockMeta(canonical);
+  return {
+    id: `${canonical.replace(/_/g, "-")}-${index + 1}`,
+    type,
+    title: meta.title || canonical,
+    slots: [canonical],
+  };
+}
+
+function normalizeHomepageGuidedSnapshot(guidedSnapshot = {}) {
+  const source = guidedSnapshot && typeof guidedSnapshot === "object" ? guidedSnapshot : {};
+  const explicitBlocks = new Set();
+  const addBlock = (value) => {
+    const block = canonicalHomeBlock(value);
+    if (block) explicitBlocks.add(block);
+  };
+
+  (Array.isArray(source.explicitBlocks) ? source.explicitBlocks : []).forEach(addBlock);
+  (Array.isArray(source.selectedOptionalModules) ? source.selectedOptionalModules : []).forEach(addBlock);
+  (Array.isArray(source.modules) ? source.modules : []).forEach((module) => {
+    if (typeof module === "string") {
+      addBlock(module);
+      return;
+    }
+    (Array.isArray(module?.canonicalTargets) ? module.canonicalTargets : []).forEach(addBlock);
+    addBlock(module?.canonicalTarget);
+    addBlock(module?.block);
+    addBlock(module?.id);
+  });
+
+  const mustHave = mergeUnique([
+    Array.isArray(source.mustHave) ? source.mustHave.map(canonicalHomeBlock).filter(Boolean) : [],
+    Array.isArray(source.requiredModules) ? source.requiredModules.map(canonicalHomeBlock).filter(Boolean) : [],
+  ]).filter((slot) => CANONICAL_HOME_BLOCKS.includes(slot));
+  const heroFocus = canonicalHomeBlock(source.heroFocus) || "";
+  const level = cleanText(source.level?.id || source.level || source.version || "", "", 24);
+  const styleText = [
+    source.styleText,
+    source.style,
+    source.designStyle,
+    source.designStyle?.id,
+    source.designStyle?.label,
+    source.designStyle?.instruction,
+    source.theme,
+    source.theme?.id,
+    source.theme?.label,
+    source.themePreset,
+  ]
+    .map((item) => (typeof item === "string" ? item : ""))
+    .join(" ");
+
+  return {
+    ...source,
+    heroFocus,
+    mustHave,
+    level: ["basic", "growth", "pro"].includes(level) ? level : "",
+    explicitBlocks: [...explicitBlocks],
+    styleText,
+    hasExplicitModuleSelection: Boolean(
+      (Array.isArray(source.modules) && source.modules.length) ||
+        (Array.isArray(source.selectedOptionalModules) && source.selectedOptionalModules.length) ||
+        (Array.isArray(source.explicitBlocks) && source.explicitBlocks.length),
+    ),
+  };
+}
+
+function homepageGuidedSnapshotFromPayload(payload = {}, config = {}) {
+  const guidedIntake = guidedAiIntakeFromPayload(payload);
+  if (!guidedIntake) {
+    return {
+      heroFocus: canonicalHomeBlock(config.heroFocus || config.pageIntent?.heroFocus) || "",
+      mustHave: Array.isArray(config.pageIntent?.mustHave) ? config.pageIntent.mustHave.map(canonicalHomeBlock).filter(Boolean) : [],
+      level: "",
+      explicitBlocks: [],
+      styleText: [payload.prompt, config.themePreset, config.theme, config.density].filter(Boolean).join(" "),
+      hasExplicitModuleSelection: false,
+    };
+  }
+
+  return {
+    intent: guidedIntake.intent,
+    canonicalIntent: guidedIntake.canonical.primaryIntent,
+    heroFocus: guidedIntake.canonical.heroFocus,
+    level: guidedIntake.level?.id || "",
+    designStyle: guidedIntake.designStyle,
+    theme: guidedIntake.theme,
+    modules: guidedIntake.modules,
+    mustHave: guidedRequiredHomepageSlots(guidedIntake),
+    explicitBlocks: [...guidedExplicitBlockSet(guidedIntake)],
+    selectedOptionalModules: [...guidedExplicitBlockSet(guidedIntake)].filter((slot) => GUIDED_EXPLICIT_ONLY_BLOCKS.has(slot)),
+    hasExplicitModuleSelection: Boolean(guidedIntake.modules.length),
+  };
+}
+
+function homepageBlocksFromSections(sections = []) {
+  return [
+    ...new Set(
+      (Array.isArray(sections) ? sections : [])
+        .flatMap((section) => (Array.isArray(section?.slots) ? section.slots : []))
+        .map((slot) => canonicalHomeBlock(slot))
+        .filter(Boolean),
+    ),
+  ];
+}
+
+function homepageBlocksFromBrickPlan(brickPlan = []) {
+  return [
+    ...new Set(
+      (Array.isArray(brickPlan) ? brickPlan : [])
+        .flatMap((brick) => [brick?.component, brick?.feature, brick?.brickId])
+        .map((value) => canonicalHomeBlock(value))
+        .filter(Boolean),
+    ),
+  ];
+}
+
+function homepageSectionsContainSlot(sections, slot) {
+  const canonical = canonicalHomeBlock(slot);
+  return Boolean(canonical && (Array.isArray(sections) ? sections : []).some((section) => (section.slots || []).includes(canonical)));
+}
+
+function homepageConfigHasMinimalistStyle(config = {}, guidedSnapshot = {}) {
+  const source = [
+    guidedSnapshot.styleText,
+    guidedSnapshot.designStyle,
+    guidedSnapshot.designStyle?.id,
+    guidedSnapshot.designStyle?.label,
+    guidedSnapshot.designStyle?.instruction,
+    guidedSnapshot.theme,
+    guidedSnapshot.theme?.id,
+    guidedSnapshot.theme?.label,
+    config.themePreset,
+    config.theme,
+    config.style,
+    config.visualStyle,
+  ]
+    .map((item) => (typeof item === "string" ? item : ""))
+    .join(" ")
+    .toLowerCase();
+  return /minimal|minimalist|whitespace|white\s*space|留白|简约留白|极简|极简白|minimalwhite/.test(source);
+}
+
+function validateHomepageConfig(configSnapshot, guidedSnapshot = {}) {
+  const config = configSnapshot && typeof configSnapshot === "object" ? configSnapshot : {};
+  const guided = normalizeHomepageGuidedSnapshot(guidedSnapshot);
+  const sections = (Array.isArray(config.sections) ? config.sections : [])
+    .map(parseHomepageSectionInput)
+    .filter((section) => section.slots.length);
+  const brickPlan = Array.isArray(config.brickPlan) ? config.brickPlan : [];
+  const sectionBlocks = homepageBlocksFromSections(sections);
+  const brickBlocks = homepageBlocksFromBrickPlan(brickPlan);
+  const allBlocks = new Set([...sectionBlocks, ...brickBlocks]);
+  const invalidSections = [];
+  const warnings = [];
+
+  sections.forEach((section, index) => {
+    const slots = Array.isArray(section.slots) ? section.slots : [];
+    if (!["hero", "split", "full"].includes(section.type)) {
+      invalidSections.push({ index, reason: `invalid type ${section.type || "empty"}`, section: homepageSectionSignature(section) });
+    }
+    if (section.type === "split" && slots.length !== 2) {
+      invalidSections.push({ index, reason: "split must contain exactly two modules", section: homepageSectionSignature(section) });
+    }
+    if (section.type === "full" && slots.length !== 1) {
+      invalidSections.push({ index, reason: "full must contain exactly one module", section: homepageSectionSignature(section) });
+    }
+    if (section.type === "hero" && (slots.length < 1 || slots.length > 2)) {
+      invalidSections.push({ index, reason: "hero must contain one or two modules", section: homepageSectionSignature(section) });
+    }
+    slots.forEach((slot) => {
+      if (!CANONICAL_HOME_BLOCKS.includes(slot)) {
+        invalidSections.push({ index, reason: `unknown module ${slot}`, section: homepageSectionSignature(section) });
+      }
+    });
+  });
+
+  const duplicateHeroSections = sections
+    .map((section, index) => ({ section, index }))
+    .filter((item) => item.section.type === "hero")
+    .slice(1)
+    .map((item) => ({ index: item.index, section: homepageSectionSignature(item.section) }));
+
+  const missingRequiredModules = guided.mustHave.filter((slot) => !allBlocks.has(slot));
+  const heroFocus = guided.heroFocus || canonicalHomeBlock(config.heroFocus);
+  const firstTwoBlocks = new Set(homepageBlocksFromSections(sections.slice(0, 2)));
+  const heroFocusMismatch = Boolean(heroFocus && !firstTwoBlocks.has(heroFocus));
+  const unmappedBrickIds = brickPlan
+    .filter((brick) => {
+      const component = canonicalHomeBlock(brick?.component || brick?.feature);
+      return !component || (sectionBlocks.length && !sectionBlocks.includes(component));
+    })
+    .map((brick) => cleanText(brick?.brickId || brick?.component || brick?.feature, "", 80))
+    .filter(Boolean);
+  const densityStyleConflict = Boolean(homepageConfigHasMinimalistStyle(config, guided) && config.density === "compact");
+  const explicitBlocks = new Set(guided.explicitBlocks || []);
+  const optionalModuleMismatch = guided.hasExplicitModuleSelection
+    ? [...allBlocks].filter((slot) => GUIDED_EXPLICIT_ONLY_BLOCKS.has(slot) && !explicitBlocks.has(slot) && !guided.mustHave.includes(slot))
+    : [];
+
+  if (!sections.length) warnings.push("sections is empty; repair will use a version default layout.");
+  if (heroFocusMismatch) warnings.push(`heroFocus ${heroFocus} is not in the first two core sections.`);
+  if (densityStyleConflict) warnings.push("minimalist/whitespace style conflicts with compact density.");
+
+  return {
+    missingRequiredModules,
+    invalidSections,
+    duplicateHeroSections,
+    heroFocusMismatch,
+    unmappedBrickIds: [...new Set(unmappedBrickIds)],
+    densityStyleConflict,
+    optionalModuleMismatch,
+    warnings: [...new Set(warnings)].slice(0, 12),
+  };
+}
+
+function homepageRecommendedSectionsForSnapshot(guidedSnapshot = {}, config = {}) {
+  const guided = normalizeHomepageGuidedSnapshot(guidedSnapshot);
+  const level = guided.level || (config.pageIntent?.primaryIntent === "growth" ? "growth" : config.pageIntent?.primaryIntent === "trader" ? "pro" : "basic");
+  const defaults = HOMEPAGE_RECOMMENDED_SECTION_ORDERS[level] || HOMEPAGE_RECOMMENDED_SECTION_ORDERS.basic;
+  const sections = defaults.map(repairedHomepageSectionFromString).filter((section) => section.slots.length);
+  const wantsCopytrading =
+    Boolean(config.moduleSettings?.copytrading?.enabled) ||
+    guided.mustHave.includes("copytrading_signals") ||
+    (guided.explicitBlocks || []).includes("copytrading_signals");
+  if (wantsCopytrading && !sections.some((section) => section.slots.includes("copytrading_signals"))) {
+    sections.splice(Math.min(3, sections.length), 0, { id: "copytrading-signals", type: "full", title: "CopyTrading", slots: ["copytrading_signals"] });
+  }
+  return sections;
+}
+
+function repairHomepageSectionLegality(section, index = 0) {
+  const base = parseHomepageSectionInput(section, index);
+  const slots = [...new Set(base.slots)].filter(Boolean);
+  if (!slots.length) return [];
+
+  if (base.type === "hero") {
+    const heroSlots = slots.slice(0, 2);
+    const extraSlots = slots.slice(2);
+    return [
+      { ...base, type: "hero", slots: heroSlots },
+      ...extraSlots.map((slot, extraIndex) => homepageSectionForSingleSlot(slot, index + extraIndex + 1)),
+    ];
+  }
+
+  if (base.type === "split") {
+    if (slots.length === 1) return [{ ...base, type: "full", slots }];
+    const pairs = [];
+    for (let slotIndex = 0; slotIndex < slots.length; slotIndex += 2) {
+      const pair = slots.slice(slotIndex, slotIndex + 2);
+      pairs.push({
+        ...base,
+        id: slotIndex ? `${base.id}-${slotIndex / 2 + 1}` : base.id,
+        type: pair.length === 2 ? "split" : "full",
+        slots: pair,
+      });
+    }
+    return pairs;
+  }
+
+  return slots.map((slot, slotIndex) => ({
+    ...base,
+    id: slots.length > 1 ? `${base.id}-${slotIndex + 1}` : base.id,
+    type: "full",
+    title: homepageSectionTitleForSlot(slot, base.title),
+    slots: [slot],
+  }));
+}
+
+function insertHomepageSlotNearTop(sections, slot, preferredType = "full") {
+  const canonical = canonicalHomeBlock(slot);
+  if (!canonical || homepageSectionsContainSlot(sections, canonical)) return sections;
+  const insertIndex = sections[0]?.type === "hero" ? 1 : 0;
+  const next = sections.slice();
+  next.splice(insertIndex, 0, homepageSectionForSingleSlot(canonical, insertIndex, preferredType));
+  return next;
+}
+
+function removeHomepageSlotFromSections(sections, slot) {
+  const canonical = canonicalHomeBlock(slot);
+  if (!canonical) return sections;
+  return (Array.isArray(sections) ? sections : [])
+    .map((section) => ({ ...section, slots: (section.slots || []).filter((item) => item !== canonical) }))
+    .filter((section) => section.slots.length)
+    .flatMap(repairHomepageSectionLegality);
+}
+
+function moveHomepageHeroFocusIntoCore(sections, heroFocus) {
+  const focus = canonicalHomeBlock(heroFocus);
+  if (!focus) return sections;
+  const firstTwo = new Set(homepageBlocksFromSections(sections.slice(0, 2)));
+  if (firstTwo.has(focus)) return sections;
+
+  let next = removeHomepageSlotFromSections(sections, focus);
+  const heroIndex = next.findIndex((section) => section.type === "hero");
+  if (heroIndex >= 0 && next[heroIndex].slots.length < 2) {
+    next[heroIndex] = { ...next[heroIndex], slots: [...next[heroIndex].slots, focus] };
+    return next;
+  }
+  return insertHomepageSlotNearTop(next, focus, "full");
+}
+
+function moveRiskDisclosureToFooter(sections) {
+  const hadRisk = homepageSectionsContainSlot(sections, "risk_disclosure");
+  const withoutRisk = removeHomepageSlotFromSections(sections, "risk_disclosure");
+  return hadRisk
+    ? withoutRisk.concat([{ id: "risk-disclosure-footer", type: "full", title: "风险提示", variant: "legal-strip", slots: ["risk_disclosure"] }])
+    : withoutRisk;
+}
+
+function normalizeHomepageBrickForSlot(slot, existing = {}) {
+  const canonical = canonicalHomeBlock(slot);
+  const meta = homepageBlockMeta(canonical);
+  return {
+    ...ensureObject(existing),
+    brickId: meta.brickId || existing.brickId || canonical,
+    brickName: meta.brickName || existing.brickName || canonical,
+    family: meta.family || existing.family || "",
+    feature: canonical,
+    component: canonical,
+    size: meta.size || existing.size || "2x1",
+    zone: meta.zone || existing.zone || "main",
+    reason: cleanText(existing.reason, `${meta.brickName || canonical} 由服务端修复映射到稳定首页模块。`, 120),
+  };
+}
+
+function repairHomepageBrickPlan(config, sections) {
+  const existing = new Map();
+  (Array.isArray(config.brickPlan) ? config.brickPlan : []).forEach((brick) => {
+    const component = canonicalHomeBlock(brick?.component || brick?.feature || brick?.brickId);
+    if (component && !existing.has(component)) existing.set(component, brick);
+  });
+  return homepageBlocksFromSections(sections).map((slot) => normalizeHomepageBrickForSlot(slot, existing.get(slot)));
+}
+
+function removeHomepageOptionalModules(config, guidedSnapshot, actions) {
+  const guided = normalizeHomepageGuidedSnapshot(guidedSnapshot);
+  if (!guided.hasExplicitModuleSelection) return config;
+  const explicit = new Set(guided.explicitBlocks || []);
+  const keep = new Set(guided.mustHave || []);
+  const removeSet = new Set(
+    collectHomepageBlocks(config).filter((slot) => GUIDED_EXPLICIT_ONLY_BLOCKS.has(slot) && !explicit.has(slot) && !keep.has(slot)),
+  );
+  if (!removeSet.size) return config;
+
+  config.sections = (Array.isArray(config.sections) ? config.sections : [])
+    .map((section) => ({ ...section, slots: (section.slots || []).filter((slot) => !removeSet.has(slot)) }))
+    .filter((section) => section.slots.length)
+    .flatMap(repairHomepageSectionLegality);
+  config.layout = Array.isArray(config.layout) ? config.layout.filter((block) => !removeSet.has(canonicalHomeBlock(block?.component || block?.feature))) : config.layout;
+  config.brickPlan = Array.isArray(config.brickPlan) ? config.brickPlan.filter((brick) => !removeSet.has(canonicalHomeBlock(brick?.component || brick?.feature))) : config.brickPlan;
+
+  const settings = ensureHomepageModuleSettings(config.moduleSettings);
+  removeSet.forEach((slot) => {
+    const settingKey = HOMEPAGE_SLOT_TO_SETTING[slot];
+    if (settingKey) settings[settingKey] = { ...ensureObject(settings[settingKey]), enabled: false };
+  });
+  config.moduleSettings = settings;
+  actions.push(`移除未在引导表单选择的可选模块：${[...removeSet].join(", ")}`);
+  return config;
+}
+
+function repairHomepageConfig(configSnapshot, guidedSnapshot = {}) {
+  const actions = [];
+  const source = clonePlain(ensureObject(configSnapshot));
+  const guided = normalizeHomepageGuidedSnapshot(guidedSnapshot);
+  let next = source;
+  const initialValidation = validateHomepageConfig(next, guided);
+
+  let sections = (Array.isArray(next.sections) ? next.sections : [])
+    .map(parseHomepageSectionInput)
+    .filter((section) => section.slots.length);
+  if (!sections.length) {
+    sections = homepageRecommendedSectionsForSnapshot(guided, next);
+    actions.push("sections 为空或不可用，已使用首页版本默认顺序补齐。");
+  }
+
+  const seenSlots = new Set();
+  sections = sections
+    .map((section) => ({
+      ...section,
+      slots: section.slots.filter((slot) => {
+        if (seenSlots.has(slot)) return false;
+        seenSlots.add(slot);
+        return true;
+      }),
+    }))
+    .filter((section) => section.slots.length);
+
+  const heroSections = sections.filter((section) => section.type === "hero");
+  if (heroSections.length > 1) {
+    let firstHeroSeen = false;
+    sections = sections.flatMap((section, index) => {
+      if (section.type !== "hero") return [section];
+      if (!firstHeroSeen) {
+        firstHeroSeen = true;
+        return [section];
+      }
+      return repairHomepageSectionLegality({ ...section, type: section.slots.length === 2 ? "split" : "full" }, index);
+    });
+    actions.push("检测到多个 hero section，已仅保留首个 hero，其余改为合法业务 section。");
+  }
+
+  const beforeLegal = sections.map(homepageSectionSignature).join("|");
+  sections = sections.flatMap(repairHomepageSectionLegality);
+  if (sections.map(homepageSectionSignature).join("|") !== beforeLegal || initialValidation.invalidSections.length) {
+    actions.push("已修复 split/full/hero 的 slots 数量，保证 sections 不出现非法结构。");
+  }
+
+  const requiredSlots = mergeUnique([guided.hasExplicitModuleSelection ? guided.mustHave || [] : mergeUnique([guided.mustHave || [], next.pageIntent?.mustHave || []])])
+    .map(canonicalHomeBlock)
+    .filter((slot) => slot && CANONICAL_HOME_BLOCKS.includes(slot));
+  requiredSlots.forEach((slot) => {
+    if (!homepageSectionsContainSlot(sections, slot)) {
+      sections = insertHomepageSlotNearTop(sections, slot, LARGE_FULL_ROW_HOME_BLOCKS.has(slot) ? "full" : "full");
+      actions.push(`补齐必选模块 ${slot} 到 sections。`);
+    }
+  });
+
+  const heroFocus = guided.heroFocus || canonicalHomeBlock(next.heroFocus || next.pageIntent?.heroFocus);
+  if (heroFocus) {
+    const beforeHeroFocus = sections.map(homepageSectionSignature).join("|");
+    sections = moveHomepageHeroFocusIntoCore(sections, heroFocus);
+    next.heroFocus = heroFocus;
+    if (sections.map(homepageSectionSignature).join("|") !== beforeHeroFocus) {
+      actions.push(`已将 heroFocus=${heroFocus} 移入前两个核心 section。`);
+    }
+  }
+
+  if (homepageSectionsContainSlot(sections, "risk_disclosure")) {
+    const wasBottom = sections.at(-1)?.slots?.includes("risk_disclosure");
+    sections = moveRiskDisclosureToFooter(sections);
+    if (!wasBottom) actions.push("已将 risk_disclosure 移动到底部 full section。");
+  }
+
+  next.sections = sections.flatMap(repairHomepageSectionLegality);
+  next = removeHomepageOptionalModules(next, guided, actions);
+
+  if (homepageConfigHasMinimalistStyle(next, guided) && next.density === "compact") {
+    next.density = "comfortable";
+    actions.push("简约留白/minimalist 风格不使用 compact，density 已改为 comfortable。");
+  }
+
+  next.brickPlan = repairHomepageBrickPlan(next, next.sections);
+  actions.push("已按 canonical module 标准化 brickIds、feature 和 component 映射。");
+  next.layout = Array.isArray(next.layout)
+    ? next.layout
+        .map((block, index) => {
+          const component = canonicalHomeBlock(block?.component || block?.feature);
+          if (!component || !homepageSectionsContainSlot(next.sections, component)) return null;
+          return {
+            ...block,
+            id: cleanText(block?.id, `${component}-${index + 1}`, 48),
+            component,
+            slot: LARGE_FULL_ROW_HOME_BLOCKS.has(component) ? "full" : ["hero", "main", "rail", "full"].includes(block?.slot) ? block.slot : "main",
+          };
+        })
+        .filter(Boolean)
+    : next.layout;
+  if (Array.isArray(next.layout) && !next.layout.length) delete next.layout;
+
+  enableHomepageSettingsForSections(next);
+  if (homepageSectionsContainSlot(next.sections, "risk_disclosure")) {
+    const settings = ensureHomepageModuleSettings(next.moduleSettings);
+    settings.riskDisclosure = { ...ensureObject(settings.riskDisclosure), enabled: true };
+    next.moduleSettings = settings;
+    next.modules = { ...ensureObject(next.modules), RiskDisclosure: { variant: "legalStrip" } };
+    next.moduleStyles = { ...ensureObject(next.moduleStyles), risk_disclosure: "legal-strip" };
+  }
+  next.autoLayout = normalizeServerAutoLayout(next.autoLayout, next.sections, next.layout);
+  enforceServerComponentMorphs(next);
+
+  const validation = validateHomepageConfig(next, guided);
+  next.validation = validation;
+  next.repairActions = [...new Set(actions)].slice(0, 16);
+
+  return {
+    config: next,
+    validation,
+    repairActions: next.repairActions,
+    initialValidation,
+  };
 }
 
 function morphModuleForHomeBlock(value) {
@@ -1501,8 +2206,11 @@ function homepageRecordSnapshot(config) {
 	    htmlPipeline: source.htmlScheme?.enabled ? safeRecordText(source.htmlScheme.generationPipeline, 48) : "",
 	    htmlIsFallback: Boolean(source.htmlScheme?.enabled && source.htmlScheme.isFallback),
 	    htmlMock: Boolean(source.htmlScheme?.enabled && source.htmlScheme.mock),
-	    htmlQualityStatus: source.htmlScheme?.enabled ? safeRecordText(source.htmlScheme.qualityStatus, 40) : "",
+	    htmlQualityStatus: safeRecordText(source.htmlQualityStatus || source.quality?.status || (source.htmlScheme?.enabled ? source.htmlScheme.qualityStatus : ""), 40),
+	    qualityScore: Number.isFinite(Number(source.qualityScore || source.quality?.score || source.htmlScheme?.qualityScore)) ? Math.round(Number(source.qualityScore || source.quality?.score || source.htmlScheme?.qualityScore)) : null,
 	    htmlFallbackReason: source.htmlScheme?.enabled ? safeRecordText(source.htmlScheme.fallbackReason, 180) : "",
+	    validationWarnings: source.validation?.warnings?.length || 0,
+	    repairActions: Array.isArray(source.repairActions) ? source.repairActions.slice(0, 6) : [],
 	    skeletonScheme: source.skeletonHtmlScheme?.enabled ? safeRecordText(source.skeletonHtmlScheme.name || "骨架 HTML 填充", 80) : "",
 	    skeletonSlots: source.skeletonHtmlScheme?.enabled && Array.isArray(source.skeletonHtmlScheme.slots) ? source.skeletonHtmlScheme.slots.length : 0,
 	    brickIds: brickPlan.map((item) => safeRecordText(item?.brickId || item?.feature, 80)).filter(Boolean).slice(0, 12),
@@ -3105,23 +3813,31 @@ function aiHtmlRequiredModuleContracts(payload = {}, config = {}) {
   const guidedIntake = guidedAiIntakeFromPayload(payload);
   const intentProfile = applyGuidedIntentProfile(buildHomepageIntentProfile(prompt), guidedIntake);
   const blocks = new Set();
+  const configSectionBlocks = (Array.isArray(config?.sections) ? config.sections : [])
+    .flatMap((section) => (Array.isArray(section?.slots) ? section.slots : []))
+    .map((slot) => canonicalHomeBlock(slot))
+    .filter((block) => block && AI_HTML_MODULE_CONTRACTS[block]);
 
-  aiHtmlExplicitRequiredBlocksFromPrompt(prompt).forEach((block) => blocks.add(block));
-  (Array.isArray(intentProfile.mustHave) ? intentProfile.mustHave : []).forEach((item) => {
-    const block = canonicalHomeBlock(item) || item;
-    if (block && AI_HTML_MODULE_CONTRACTS[block]) blocks.add(block);
-  });
-  if (Array.isArray(config?.pageIntent?.mustHave)) {
-    config.pageIntent.mustHave.forEach((item) => {
+  if (configSectionBlocks.length) {
+    configSectionBlocks.forEach((block) => blocks.add(block));
+  } else {
+    aiHtmlExplicitRequiredBlocksFromPrompt(prompt).forEach((block) => blocks.add(block));
+    (Array.isArray(intentProfile.mustHave) ? intentProfile.mustHave : []).forEach((item) => {
       const block = canonicalHomeBlock(item) || item;
       if (block && AI_HTML_MODULE_CONTRACTS[block]) blocks.add(block);
     });
-  }
-  if (guidedIntake?.canonical?.mustHave) {
-    guidedIntake.canonical.mustHave.forEach((item) => {
-      const block = canonicalHomeBlock(item) || item;
-      if (block && AI_HTML_MODULE_CONTRACTS[block]) blocks.add(block);
-    });
+    if (Array.isArray(config?.pageIntent?.mustHave)) {
+      config.pageIntent.mustHave.forEach((item) => {
+        const block = canonicalHomeBlock(item) || item;
+        if (block && AI_HTML_MODULE_CONTRACTS[block]) blocks.add(block);
+      });
+    }
+    if (guidedIntake?.canonical?.mustHave) {
+      guidedIntake.canonical.mustHave.forEach((item) => {
+        const block = canonicalHomeBlock(item) || item;
+        if (block && AI_HTML_MODULE_CONTRACTS[block]) blocks.add(block);
+      });
+    }
   }
 
   if (blocks.size < 2) {
@@ -3927,15 +4643,57 @@ function evaluateHomepageAesthetic(payload = {}, config = {}) {
   };
 }
 
+function homepageQualityStatusFromScore(score) {
+  const value = Number.isFinite(Number(score)) ? Math.max(0, Math.min(100, Math.round(Number(score)))) : 0;
+  if (value >= 90) return "publishable";
+  if (value >= 75) return "needs-polish";
+  if (value >= 60) return "needs-repair";
+  return "fallback";
+}
+
+function homepageValidationHasBlockingErrors(validation = {}) {
+  return Boolean(
+    (Array.isArray(validation.missingRequiredModules) && validation.missingRequiredModules.length) ||
+      (Array.isArray(validation.invalidSections) && validation.invalidSections.length),
+  );
+}
+
+function finalizeHomepageQuality(payload = {}, config = {}, htmlScheme = null) {
+  const validation = config.validation || validateHomepageConfig(config, homepageGuidedSnapshotFromPayload(payload, config));
+  const aesthetic = evaluateHomepageAesthetic(payload, { ...config, ...(htmlScheme ? { htmlScheme } : {}) });
+  const htmlScore = Number(htmlScheme?.qualityScore);
+  const score = Number.isFinite(htmlScore) ? Math.max(0, Math.min(100, Math.round(htmlScore))) : aesthetic.score;
+  const blockingStructure = homepageValidationHasBlockingErrors(validation);
+  const status = blockingStructure ? "needs-repair" : homepageQualityStatusFromScore(score);
+  const structuralIssues = [
+    ...(validation.missingRequiredModules || []).map((slot) => `缺少必选模块 ${slot}`),
+    ...(validation.invalidSections || []).map((item) => `非法 section: ${item.section || item.reason}`),
+  ];
+
+  return {
+    score,
+    status,
+    htmlQualityStatus: status,
+    quality: {
+      status,
+      score,
+      structuralStatus: blockingStructure ? "needs-repair" : "passed",
+      visualStatus: homepageQualityStatusFromScore(score),
+      issues: [...new Set([...structuralIssues, ...(aesthetic.issues || [])])].slice(0, 10),
+      checks: htmlScheme?.aestheticChecks || aesthetic.strengths || [],
+    },
+    aesthetic,
+  };
+}
+
 function mockAiHtmlScheme(payload = {}, config = {}, providerConfig = {}) {
   const theme = escapeHtmlText(cleanText(config.themePreset || config.theme, "default", 40));
   const title = escapeHtmlText(cleanText(config.name, "AI 视觉首页", 42));
   const intent = config?.pageIntent?.primaryIntent || homepageIntentFromPrompt(payload.prompt);
   const bindings = aiHtmlDataBindingsFromConfig(config);
   const requiredModules = aiHtmlRequiredModuleContracts(payload, config);
-  const requiredBlocks = new Set(requiredModules.map((item) => item.component).filter(Boolean));
-  const has = (block) => requiredBlocks.has(block);
-  const addIf = (block, markup) => (has(block) ? markup : "");
+  const sectionBlocks = homepageBlocksFromSections(config.sections);
+  const orderedBlocks = (sectionBlocks.length ? sectionBlocks : requiredModules.map((item) => item.component)).filter(Boolean);
   const sourceClass = intent === "trader" ? "ai-html-trader" : intent === "growth" || intent === "deposit" ? "ai-html-growth" : intent === "onboarding" ? "ai-html-onboarding" : "ai-html-standard";
   const openingHero = `
     <header class="ai-html-opening-hero">
@@ -3988,56 +4746,23 @@ function mockAiHtmlScheme(payload = {}, config = {}, providerConfig = {}) {
     </header>
   `;
   const hero = intent === "trader" ? traderHero : intent === "growth" || intent === "deposit" ? growthHero : intent === "onboarding" ? openingHero : standardHero;
-  const moduleMarkup = [
-    addIf(
-      "asset_overview",
-      `<section class="ai-html-metrics" data-ai-html-module="asset_overview"><header><span>asset_overview</span><strong>账户摘要</strong></header><div><article><small>余额合计</small><b>Sample 125,430.80 USD</b></article><article><small>钱包余额</small><b>Sample 18,920.00</b></article><article><small>交易账号余额</small><b>Sample 106,510.80</b></article></div></section>`,
-    ),
-    addIf(
-      "onboarding_guide",
-      `<section class="ai-html-onboarding-rail" data-ai-html-module="onboarding_guide"><header><span>onboarding_guide</span><strong>KYC / 真实账户 / 首次入金</strong></header><ol><li><b>KYC</b><span>状态来自 CRM</span></li><li><b>开真实账户</b><span>下一步主任务</span></li><li><b>首次入金</b><span>准备钱包与风险确认</span></li></ol><a data-home-action="openAccount" href="#open-account">立即开户</a></section>`,
-    ),
-    addIf(
-      "quick_actions",
-      `<section class="ai-html-task-actions" data-ai-html-module="quick_actions"><header><span>quick_actions</span><strong>下一步操作</strong></header><nav><a data-home-action="openAccount" href="#open-account">立即开户</a><a data-home-action="deposit" href="#deposit">首次入金</a><a data-home-action="accounts" href="#accounts">交易账号</a><a data-home-action="contactSupport" href="#support">联系客服</a></nav></section>`,
-    ),
-    addIf(
-      "promo_banner",
-      `<section class="ai-html-benefits" data-ai-html-module="promo_banner"><header><span>promo_banner</span><strong>活动权益</strong></header><div><b>新客入金准备礼</b><p>Sample 活动权益，正式内容来自后台活动配置。</p><a data-home-action="deposit" href="#deposit">查看权益</a></div></section>`,
-    ),
-    addIf(
-      "pamm_products",
-      `<section class="ai-html-pamm" data-ai-html-module="pamm_products"><header><span>pamm_products</span><strong>PAMM 条件展示</strong></header><div><article><b>稳健策略 A</b><span>Sample 风险：中低</span><small>起投与周期来自后台配置</small></article><article><b>平衡策略 B</b><span>Sample 风险：中</span><small>收益字段仅作 demo</small></article></div></section>`,
-    ),
-    addIf(
-      "trading_account_highlight",
-      `<section class="ai-html-performance" data-ai-html-module="trading_account_highlight"><header><span>trading_account_highlight</span><strong>账户表现图表</strong></header><div class="ai-html-curve"><i></i><i></i><i></i><i></i><i></i></div><p>Equity、PnL、保证金等真实数据来自接口，缺失显示占位。</p></section>`,
-    ),
-    addIf(
-      "trading_accounts_list",
-      `<section class="ai-html-accounts-list" data-ai-html-module="trading_accounts_list"><header><span>trading_accounts_list</span><strong>交易账号列表</strong></header><div><article><b>Live</b><strong>80010</strong><span>MT5 · HCHoldings-Live2 · Equity Sample 12,726.40</span></article><article><b>Demo</b><strong>90021</strong><span>MT5 · HCHoldings-Demo · Equity Sample 51,280.60</span></article></div><a data-home-action="accounts" href="#accounts">查看账号</a></section>`,
-    ),
-    addIf(
-      "referral_link_card",
-      `<section class="ai-html-referral" data-ai-html-module="referral_link_card"><header><span>referral_link_card</span><strong>推广链接</strong></header><p>https://example.com/register?code=SAMPLE</p><div><b>邀请码 SAMPLE88</b><a data-home-action="copyLink" href="#copy">复制</a></div></section>`,
-    ),
-    addIf(
-      "app_download",
-      `<section class="ai-html-download" data-ai-html-module="app_download"><header><span>app_download</span><strong>下载入口</strong></header><div><b>Client Portal APP</b><b>MT5 下载</b></div><a data-home-action="downloadApp" href="#download">打开下载</a></section>`,
-    ),
-    addIf(
-      "support_contact",
-      `<section class="ai-html-support" data-ai-html-module="support_contact"><header><span>support_contact</span><strong>在线客服</strong></header><p>服务时间、在线状态和客户经理入口来自后台。</p><a data-home-action="contactSupport" href="#support">联系客服</a></section>`,
-    ),
-    addIf(
-      "faq_section",
-      `<section class="ai-html-faq" data-ai-html-module="faq_section"><header><span>faq_section</span><strong>FAQ 常见问题</strong></header><details open><summary>如何完成开户？</summary><p>先完成 KYC，再创建真实账户并准备首次入金。</p></details><details><summary>Demo 数据是否会发布？</summary><p>预览可用 Sample 数据，正式环境绑定后台数据。</p></details></section>`,
-    ),
-    addIf(
-      "risk_disclosure",
-      `<section class="ai-html-risk-strip" data-ai-html-module="risk_disclosure"><strong>风险提示</strong><p>外汇和差价合约交易涉及高风险，杠杆可能放大亏损，请确认自身风险承受能力。</p></section>`,
-    ),
-  ].filter(Boolean).join("\n");
+  const moduleMarkupByBlock = {
+    welcome_header: `<section class="ai-html-welcome" data-ai-html-module="welcome_header"><header><span>welcome_header</span><strong>欢迎回来</strong></header><p>客户姓名、账户状态和问候语来自 CRM 账户上下文。</p></section>`,
+    asset_overview: `<section class="ai-html-metrics" data-ai-html-module="asset_overview"><header><span>asset_overview</span><strong>账户摘要</strong></header><div><article><small>余额合计</small><b>Sample 125,430.80 USD</b></article><article><small>钱包余额</small><b>Sample 18,920.00</b></article><article><small>交易账号余额</small><b>Sample 106,510.80</b></article></div></section>`,
+    onboarding_guide: `<section class="ai-html-onboarding-rail" data-ai-html-module="onboarding_guide"><header><span>onboarding_guide</span><strong>KYC / 真实账户 / 首次入金</strong></header><ol><li><b>KYC</b><span>状态来自 CRM</span></li><li><b>开真实账户</b><span>下一步主任务</span></li><li><b>首次入金</b><span>准备钱包与风险确认</span></li></ol><a data-home-action="openAccount" href="#open-account">立即开户</a></section>`,
+    quick_actions: `<section class="ai-html-task-actions" data-ai-html-module="quick_actions"><header><span>quick_actions</span><strong>下一步操作</strong></header><nav><a data-home-action="openAccount" href="#open-account">立即开户</a><a data-home-action="deposit" href="#deposit">首次入金</a><a data-home-action="accounts" href="#accounts">交易账号</a><a data-home-action="contactSupport" href="#support">联系客服</a></nav></section>`,
+    promo_banner: `<section class="ai-html-benefits" data-ai-html-module="promo_banner"><header><span>promo_banner</span><strong>活动权益</strong></header><div><b>新客入金准备礼</b><p>Sample 活动权益，正式内容来自后台活动配置。</p><a data-home-action="deposit" href="#deposit">查看权益</a></div></section>`,
+    pamm_products: `<section class="ai-html-pamm" data-ai-html-module="pamm_products"><header><span>pamm_products</span><strong>PAMM 条件展示</strong></header><div><article><b>稳健策略 A</b><span>Sample 风险：中低</span><small>起投与周期来自后台配置</small></article><article><b>平衡策略 B</b><span>Sample 风险：中</span><small>收益字段仅作 demo</small></article></div></section>`,
+    copytrading_signals: `<section class="ai-html-copytrading" data-ai-html-module="copytrading_signals"><header><span>copytrading_signals</span><strong>CopyTrading 信号源</strong></header><div class="ai-html-curve"><i></i><i></i><i></i><i></i><i></i></div><p>信号源收益率、总收益、最大回撤和曲线来自接口，缺失显示占位。</p></section>`,
+    trading_account_highlight: `<section class="ai-html-performance" data-ai-html-module="trading_account_highlight"><header><span>trading_account_highlight</span><strong>账户表现图表</strong></header><div class="ai-html-curve"><i></i><i></i><i></i><i></i><i></i></div><p>Equity、PnL、保证金等真实数据来自接口，缺失显示占位。</p></section>`,
+    trading_accounts_list: `<section class="ai-html-accounts-list" data-ai-html-module="trading_accounts_list"><header><span>trading_accounts_list</span><strong>交易账号列表</strong></header><div><article><b>Live</b><strong>80010</strong><span>MT5 · HCHoldings-Live2 · Equity Sample 12,726.40</span></article><article><b>Demo</b><strong>90021</strong><span>MT5 · HCHoldings-Demo · Equity Sample 51,280.60</span></article></div><a data-home-action="accounts" href="#accounts">查看账号</a></section>`,
+    referral_link_card: `<section class="ai-html-referral" data-ai-html-module="referral_link_card"><header><span>referral_link_card</span><strong>推广链接</strong></header><p>https://example.com/register?code=SAMPLE</p><div><b>邀请码 SAMPLE88</b><a data-home-action="copyLink" href="#copy">复制</a></div></section>`,
+    app_download: `<section class="ai-html-download" data-ai-html-module="app_download"><header><span>app_download</span><strong>下载入口</strong></header><div><b>Client Portal APP</b><b>MT5 下载</b></div><a data-home-action="downloadApp" href="#download">打开下载</a></section>`,
+    support_contact: `<section class="ai-html-support" data-ai-html-module="support_contact"><header><span>support_contact</span><strong>在线客服</strong></header><p>服务时间、在线状态和客户经理入口来自后台。</p><a data-home-action="contactSupport" href="#support">联系客服</a></section>`,
+    faq_section: `<section class="ai-html-faq" data-ai-html-module="faq_section"><header><span>faq_section</span><strong>FAQ 常见问题</strong></header><details open><summary>如何完成开户？</summary><p>先完成 KYC，再创建真实账户并准备首次入金。</p></details><details><summary>Demo 数据是否会发布？</summary><p>预览可用 Sample 数据，正式环境绑定后台数据。</p></details></section>`,
+    risk_disclosure: `<section class="ai-html-risk-strip" data-ai-html-module="risk_disclosure"><strong>风险提示</strong><p>外汇和差价合约交易涉及高风险，杠杆可能放大亏损，请确认自身风险承受能力。</p></section>`,
+  };
+  const moduleMarkup = orderedBlocks.map((block) => moduleMarkupByBlock[block]).filter(Boolean).join("\n");
   const html = `
     <section class="ai-html-page ${sourceClass}" data-ai-html-theme="${theme}" data-ai-html-source="mock">
       ${hero}
@@ -4165,6 +4890,34 @@ function minimaxConfigBackedAiHtmlScheme(payload = {}, config = {}, providerConf
   });
 }
 
+function homepageRepairedConfigPromptContract(config = {}) {
+  const sections = (Array.isArray(config.sections) ? config.sections : [])
+    .map(parseHomepageSectionInput)
+    .filter((section) => section.slots.length)
+    .map((section, index) => ({
+      index,
+      id: cleanText(section.id, `section-${index + 1}`, 48),
+      type: section.type,
+      slots: section.slots,
+      signature: homepageSectionSignature(section),
+    }));
+  return {
+    name: config.name,
+    themePreset: config.themePreset || config.theme,
+    density: config.density,
+    heroFocus: config.heroFocus,
+    sections,
+    brickPlan: (Array.isArray(config.brickPlan) ? config.brickPlan : []).map((item) => ({
+      brickId: item.brickId,
+      component: item.component || item.feature,
+      size: item.size,
+      zone: item.zone,
+    })),
+    validation: config.validation || null,
+    repairActions: Array.isArray(config.repairActions) ? config.repairActions.slice(0, 8) : [],
+  };
+}
+
 function buildFreeAiHtmlPrompt(payload) {
   const prompt = cleanText(payload.prompt, "生成一个成熟券商用户端首页", 1200);
   const guidedIntake = guidedAiIntakeFromPayload(payload);
@@ -4278,7 +5031,8 @@ function buildAiHtmlPrompt(payload, configScheme = {}, options = {}) {
     "CSS 只能写当前 HTML 草稿需要的类，类名统一用 ai-html- 前缀；不要写 body/html 全局样式，不要 position:fixed。",
     "必须使用 CSS 变量承接主题，例如 var(--home-bg)、var(--home-card-bg)、var(--home-primary)、var(--home-text)、var(--home-border)、var(--home-radius-sm)。",
     "视觉目标：成熟券商客户端、信息层级清楚、留白克制、模块不像普通卡片堆叠；主金额、主操作、趋势图和账号状态要有明确层次。",
-    "你可以自由改 HTML 骨架，但必须保留用户要求模块，并参考组件库的业务字段、尺寸、状态标签、图表、账号卡片、任务流等审美基因。",
+    "必须严格按照 repairedConfig.sections 渲染，不允许新增、删除、重排模块；只允许优化视觉样式、文案、卡片层次、图标感、留白和响应式表现。",
+    "每个 repairedConfig.sections[].slots 都必须按原顺序生成 data-ai-html-module 可见区域，section 顺序也必须和 repairedConfig.sections 完全一致。",
     "组件库参考是硬约束：componentReferences 至少覆盖 3 个 requiredModules 或组件家族，并把参考转成结构差异，不要只写普通白卡片。",
     "必须同时参考 designTrainingContext：样本页面决定页面级构图和功能流，beautifulComponents 决定积木级细节，feedbackMemory 决定用户长期偏好。",
     "如果上一版问题指出模块缺失、token 不足、结构太平或占位符太多，这一版必须通过不同布局和更具体业务表达修复。",
@@ -4294,12 +5048,7 @@ function buildAiHtmlPrompt(payload, configScheme = {}, options = {}) {
     "",
     "已生成的组件化首页配置，可作为业务和数据契约参考:",
     compactJson({
-      name: configScheme.name,
-      themePreset: configScheme.themePreset || configScheme.theme,
-      density: configScheme.density,
-      heroFocus: configScheme.heroFocus,
-      sections: configScheme.sections,
-      brickPlan: configScheme.brickPlan,
+      ...homepageRepairedConfigPromptContract(configScheme),
       moduleSettings: configScheme.moduleSettings,
       pageIntent: configScheme.pageIntent,
     }),
@@ -4378,6 +5127,7 @@ function buildMiniMaxAiHtmlPrompt(payload, configScheme = {}, options = {}) {
 	    "HTML 只能用静态 section/header/main/div/article/nav/a/span/small/strong/b/p/ol/li；CSS 类名用 ai-html- 前缀，使用 var(--home-bg)、var(--home-card-bg)、var(--home-primary)、var(--home-text)、var(--home-border)、var(--home-radius-sm)。",
 	    "遵守 design.md 设计治理：金融 CRM、克制专业、信息层级清楚；不要营销式大 hero、随机渐变、厚重阴影或卡片套卡片。",
 	    "所有 a/button 必须显式样式化，不能保留浏览器默认按钮；至少让模块出现两种不同结构，不能全是同一种白卡片。",
+	    "必须严格按照 repairedConfig.sections 渲染，不允许新增、删除、重排模块；每个 slot 都要按顺序生成 data-ai-html-module 可见区域。",
 	    "每个 requiredModules 至少在 html 中有 data-ai-html-module 可见区域；模块内容必须短，可用 Sample 或 --。",
 	    "必须参考 referenceHints 的 componentId、name、visibleText 和 styleSignals；即使不返回完整 componentReferences，HTML 也要体现对应积木的字段密度、状态标签和布局语言。",
 	    "禁止 JS、script、iframe、form、input、事件属性、远程图片、真实下载链接或稳赚/监管承诺。",
@@ -4395,19 +5145,8 @@ function buildMiniMaxAiHtmlPrompt(payload, configScheme = {}, options = {}) {
       heroFocus: intentProfile.heroFocus,
     }),
     "",
-    "配置摘要:",
-    compactJson({
-      name: seedConfig.name,
-      themePreset: seedConfig.themePreset || seedConfig.theme,
-      density: seedConfig.density,
-      heroFocus: seedConfig.heroFocus,
-      sections: (Array.isArray(seedConfig.sections) ? seedConfig.sections : []).slice(0, 4),
-      brickPlan: (Array.isArray(seedConfig.brickPlan) ? seedConfig.brickPlan : []).slice(0, 6).map((item) => ({
-        component: item.component || item.feature,
-        size: item.size,
-        zone: item.zone,
-      })),
-    }),
+    "repairedConfig 严格渲染契约:",
+    compactJson(homepageRepairedConfigPromptContract(seedConfig)),
     "",
 	    "requiredModules:",
 	    compactJson(requiredModules.map((item) => ({
@@ -4443,7 +5182,7 @@ function buildMiniMaxAiHtmlPrompt(payload, configScheme = {}, options = {}) {
         ].join("\n")
       : "",
     "返回示例形状:{\"html\":\"<section class=\\\"ai-html-page\\\"><header><strong>标题</strong></header><main><article data-ai-html-module=\\\"asset_overview\\\"><b>Sample</b></article></main></section>\",\"css\":\".ai-html-page{display:grid;gap:12px;background:var(--home-bg);color:var(--home-text)}@media(max-width:860px){.ai-html-page{grid-template-columns:1fr}}\",\"qualityScore\":74,\"qualityStatus\":\"needs-polish\",\"correctionNotes\":[\"MiniMax compact\"]}",
-    "现在只返回最终短 JSON。html 用一个 ai-html-page 根 section，包含 hero 和 3-5 个模块；css 必须包含 @media(max-width:860px)。",
+    "现在只返回最终短 JSON。html 用一个 ai-html-page 根 section，并严格按 repairedConfig.sections 输出模块；css 必须包含 @media(max-width:860px)。",
   ].join("\n");
 
   return { system, user, promptMode: "minimax-ai-html-compact" };
@@ -4477,7 +5216,8 @@ function buildCompactAiHtmlPrompt(payload, configScheme = {}, options = {}) {
 	    "html/css 要短而完整：桌面端有清晰首屏和模块层级，移动端能单列降级；不要生成 JS、script、iframe、form、input、onclick/onload、远程图片或 javascript: URL。",
 	    "HTML 只能用静态 section/header/main/div/article/nav/a/button/span/small/strong/b/em/p/ul/ol/li/svg/path。",
 	    "CSS 类名统一用 ai-html- 前缀，并使用 var(--home-bg)、var(--home-card-bg)、var(--home-primary)、var(--home-text)、var(--home-border)、var(--home-radius-sm) 等主题变量。",
-	    "每个 requiredModules 都必须在 html 中有 data-ai-html-module 可见区域；服务端会根据配置补齐 implementationContract。",
+	    "必须严格按照 repairedConfig.sections 渲染，不允许新增、删除、重排模块；只允许优化视觉样式、文案、卡片层次、图标感、留白和响应式表现。",
+	    "每个 repairedConfig.sections[].slots 都必须按原顺序生成 data-ai-html-module 可见区域；服务端会根据配置补齐 implementationContract。",
 	    "组件库参考是硬约束：必须参考 referenceHints 的 componentId、name、visibleText 和 styleSignals，把积木字段密度、状态标签、按钮层级和图表/列表表达转成 HTML 结构。",
 	    "至少包含三种结构：首屏/指标/步骤或列表/风险提示中的三类；所有 a/button 必须显式样式化，不能保留浏览器默认按钮。",
 	    "真实数据缺失时用 Sample、-- 或后台绑定说明，不得编造稳赚收益、监管承诺、真实下载链接或后台未提供的数据。",
@@ -4494,6 +5234,9 @@ function buildCompactAiHtmlPrompt(payload, configScheme = {}, options = {}) {
       layoutPreset: intentProfile.layoutPreset,
       heroFocus: intentProfile.heroFocus,
     }),
+    "",
+    "repairedConfig 严格渲染契约:",
+    compactJson(homepageRepairedConfigPromptContract(seedConfig)),
     "",
     "必须承接的模块契约:",
     compactJson(requiredModules.map((item) => ({
@@ -5373,8 +6116,10 @@ function guidedRecordSnapshot(payload) {
     intent: cleanText(guidedIntake.intent?.label || guidedIntake.intent?.id, "", 80),
     canonicalIntent: cleanText(guidedIntake.canonical.primaryIntent, "", 40),
     heroFocus: cleanText(guidedIntake.canonical.heroFocus, "", 40),
+    level: cleanText(guidedIntake.level?.id || guidedIntake.level?.label, "", 40),
     modules: guidedIntake.modules.map((module) => cleanText(module.label || module.id, "", 60)).filter(Boolean).slice(0, 12),
     mustHave: guidedIntake.canonical.mustHave.slice(0, 12),
+    explicitBlocks: [...guidedExplicitBlockSet(guidedIntake)].slice(0, 12),
   };
 }
 
@@ -5498,7 +6243,7 @@ function buildMiniMaxPrompt(payload) {
       themePreset: ["default", "blackGold", "lightGold", "blueFinance", "darkTech", "minimalWhite", "emeraldTrust", "cobaltTeal", "crimsonPromo", "graphiteSilver"],
       colorMode: ["auto", "light", "dark"],
       personalizationStrength: ["subtle", "medium", "strong"],
-      density: ["compact", "balanced", "spacious"],
+      density: ["compact", "comfortable", "balanced", "spacious"],
       heroFocus: CANONICAL_HOME_BLOCKS,
       sectionType: ["hero", "split", "full", "rail"],
       sectionSlots: CANONICAL_HOME_BLOCKS,
@@ -5780,7 +6525,7 @@ function compactHomepageContract(intentProfile, prompt) {
     forbiddenBlocks: ["reward_tasks", "kyc_risk_notice", "ib_dashboard", "referralLink", "userKycRail", "riskNotice", "support_help"],
     layoutPreset: ["standardDashboard", "conversionFirst", "assetFirst", "tradingPro", "vipService", "magazineCampaign", "tradingCommand", "onboardingJourney", "privateWealthDesk", "accountOpsConsole"],
     themePreset: ["default", "blackGold", "lightGold", "blueFinance", "darkTech", "minimalWhite", "emeraldTrust", "cobaltTeal", "crimsonPromo", "graphiteSilver"],
-    density: ["compact", "balanced", "spacious"],
+    density: ["compact", "comfortable", "balanced", "spacious"],
     sectionType: ["hero", "split", "full", "rail"],
     brickSize: COMPONENT_SIZES,
     brickZone: ["hero", "main", "rail", "full"],
@@ -5984,7 +6729,7 @@ function buildMiniMaxHomepagePatchPrompt(payload, config = {}) {
     compactJson({
       layoutPreset: ["standardDashboard", "conversionFirst", "assetFirst", "tradingPro", "vipService", "magazineCampaign", "tradingCommand", "onboardingJourney", "privateWealthDesk", "accountOpsConsole"],
       themePreset: ["default", "blackGold", "lightGold", "blueFinance", "darkTech", "minimalWhite", "emeraldTrust", "cobaltTeal", "crimsonPromo", "graphiteSilver"],
-      density: ["compact", "balanced", "spacious"],
+      density: ["compact", "comfortable", "balanced", "spacious"],
       sizes: ["1x1", "2x1", "2x2", "3x1", "3x2", "4x1"],
       zones: ["hero", "main", "rail", "full"],
     }),
@@ -10299,14 +11044,11 @@ function authRecordSnapshot(scheme = {}) {
   };
 }
 
-async function handleAuthGenerate(req, res) {
-  const startedAt = Date.now();
-  let payload = null;
+async function runAuthGenerate(payload, startedAt = Date.now()) {
   let historyConfig = null;
   let failedCallRecord = null;
 
   try {
-    payload = await readJsonBody(req);
     historyConfig = callHistoryConfig(payload);
     const result = await callAuthProvider(payload);
     const status = result.localFallback ? "fallback" : result.mock ? "mock" : "success";
@@ -10329,7 +11071,7 @@ async function handleAuthGenerate(req, res) {
       schemeSnapshot: authRecordSnapshot(result.scheme),
       usage: result.usage || null,
     });
-    sendJson(res, 200, { ok: true, ...result, callRecord });
+    return { ok: true, ...result, callRecord };
   } catch (error) {
     if (payload) {
       const config = historyConfig || callHistoryConfig(payload);
@@ -10351,11 +11093,25 @@ async function handleAuthGenerate(req, res) {
       });
     }
     const status = error.statusCode && error.statusCode >= 400 && error.statusCode < 600 ? error.statusCode : 500;
+    const wrapped = new Error(error.message || "Auth UI generation failed");
+    wrapped.statusCode = status;
+    wrapped.details = error.details || null;
+    wrapped.callRecord = failedCallRecord;
+    throw wrapped;
+  }
+}
+
+async function handleAuthGenerate(req, res) {
+  try {
+    const payload = await readJsonBody(req);
+    sendJson(res, 200, await runAuthGenerate(payload));
+  } catch (error) {
+    const status = error.statusCode && error.statusCode >= 400 && error.statusCode < 600 ? error.statusCode : 500;
     sendJson(res, status, {
       ok: false,
       error: error.message || "Auth UI generation failed",
       details: error.details || null,
-      callRecord: failedCallRecord,
+      callRecord: error.callRecord || null,
     });
   }
 }
@@ -10424,11 +11180,23 @@ async function callProvider(payload) {
   const compactAiHtmlProvider = providerUsesCompactAiHtml(config);
 
   if (process.env.HOME_AI_MOCK === "true") {
-    const mockConfig = enforceHomepagePromptIntent(payload, mockHomepageConfig(payload, config));
+    const rawMockConfig = enforceHomepagePromptIntent(payload, mockHomepageConfig(payload, config));
+    const guidedSnapshot = homepageGuidedSnapshotFromPayload(payload, rawMockConfig);
+    const repaired = repairHomepageConfig(rawMockConfig, guidedSnapshot);
+    const mockConfig = repaired.config;
     const htmlScheme = renderModeWantsAiHtml(renderMode) ? mockAiHtmlScheme(payload, mockConfig, config) : null;
+    const finalQuality = finalizeHomepageQuality(payload, mockConfig, htmlScheme);
+    const finalConfig = {
+      ...mockConfig,
+      validation: repaired.validation,
+      repairActions: repaired.repairActions,
+      qualityScore: finalQuality.score,
+      quality: finalQuality.quality,
+      htmlQualityStatus: finalQuality.htmlQualityStatus,
+    };
     return {
       config: {
-        ...mockConfig,
+        ...finalConfig,
         renderMode,
         htmlGenerationEnabled: renderModeWantsAiHtml(renderMode),
         skeletonHtmlEnabled: renderMode === "skeletonHtml",
@@ -10436,6 +11204,11 @@ async function callProvider(payload) {
         ...(htmlScheme ? { htmlScheme } : {}),
       },
       ...(htmlScheme ? { htmlScheme } : {}),
+      validation: repaired.validation,
+      repairActions: repaired.repairActions,
+      qualityScore: finalQuality.score,
+      quality: finalQuality.quality,
+      htmlQualityStatus: finalQuality.htmlQualityStatus,
       renderMode,
       activeRenderMode: activeRenderModeForRequest(renderMode, htmlScheme),
       provider: config.provider,
@@ -10448,18 +11221,17 @@ async function callProvider(payload) {
   let freeHtmlResult = null;
   let freeHtmlError = null;
   if (renderModeWantsAiHtml(renderMode) && !compactAiHtmlProvider) {
-    try {
-      freeHtmlResult = await callProviderWithPrompt(payload, aiHtmlPromptForProvider(config, payload, {}, { free: true }), AI_HTML_SCHEME_JSON_SCHEMA, "homepage_ai_html_free");
-    } catch (error) {
-      freeHtmlError = error;
-    }
+    freeHtmlError = new Error("AI HTML generation waits for repairedConfig; free raw-config HTML is disabled.");
   }
 
   const result = await callProviderWithPrompt(payload, buildPrompt(payload, config), payload.context?.schema, "homepage_config");
-  const homepageConfig = enforceHomepagePromptIntent(
+  const rawHomepageConfig = enforceHomepagePromptIntent(
     payload,
     prepareProviderHomepageConfig(payload, result.json, { ...config, provider: result.provider, model: result.model }),
   );
+  const guidedSnapshot = homepageGuidedSnapshotFromPayload(payload, rawHomepageConfig);
+  const repaired = repairHomepageConfig(rawHomepageConfig, guidedSnapshot);
+  const homepageConfig = repaired.config;
   const resultProviderConfig = { ...config, provider: result.provider, model: result.model };
   const htmlPayload = {
     ...payload,
@@ -10593,9 +11365,19 @@ async function callProvider(payload) {
     }
   }
 
+  const finalQuality = finalizeHomepageQuality(payload, homepageConfig, htmlScheme);
+  const finalConfig = {
+    ...homepageConfig,
+    validation: repaired.validation,
+    repairActions: repaired.repairActions,
+    qualityScore: finalQuality.score,
+    quality: finalQuality.quality,
+    htmlQualityStatus: finalQuality.htmlQualityStatus,
+  };
+
   return {
     config: {
-      ...homepageConfig,
+      ...finalConfig,
       renderMode,
       htmlGenerationEnabled: renderModeWantsAiHtml(renderMode),
       skeletonHtmlEnabled: renderMode === "skeletonHtml",
@@ -10603,6 +11385,11 @@ async function callProvider(payload) {
       ...(htmlScheme ? { htmlScheme } : {}),
     },
     ...(htmlScheme ? { htmlScheme } : {}),
+    validation: repaired.validation,
+    repairActions: repaired.repairActions,
+    qualityScore: finalQuality.score,
+    quality: finalQuality.quality,
+    htmlQualityStatus: finalQuality.htmlQualityStatus,
     renderMode,
     activeRenderMode: activeRenderModeForRequest(renderMode, htmlScheme),
     provider: result.provider,
@@ -10981,14 +11768,11 @@ async function handleFeedbackMemorySave(req, res) {
   }
 }
 
-async function handleAiComplete(req, res) {
-  const startedAt = Date.now();
-  let payload = null;
+async function runHomeAiComplete(payload, startedAt = Date.now()) {
   let historyConfig = null;
   let failedCallRecord = null;
 
   try {
-	    payload = await readJsonBody(req);
 	    historyConfig = callHistoryConfig(payload);
 	    const result = await callProvider(payload);
 	    const htmlScheme = result.config?.htmlScheme || result.htmlScheme || null;
@@ -11012,7 +11796,8 @@ async function handleAiComplete(req, res) {
 	      htmlPipeline: htmlScheme?.generationPipeline || "",
 	      htmlIsFallback: Boolean(htmlScheme?.isFallback),
 	      htmlFallbackReason: htmlScheme?.fallbackReason || "",
-	      htmlQualityStatus: htmlScheme?.qualityStatus || "",
+	      htmlQualityStatus: result.htmlQualityStatus || result.config?.htmlQualityStatus || htmlScheme?.qualityStatus || "",
+	      qualityScore: Number.isFinite(Number(result.qualityScore)) ? result.qualityScore : null,
 		      durationMs: Date.now() - startedAt,
 	      prompt: safeRecordText(payload.prompt),
 	      guidedSnapshot: guidedRecordSnapshot(payload),
@@ -11020,7 +11805,7 @@ async function handleAiComplete(req, res) {
 	      configSnapshot: homepageRecordSnapshot(result.config),
 	      usage: result.usage || null,
 	    });
-    sendJson(res, 200, { ok: true, ...result, callRecord });
+    return { ok: true, ...result, callRecord };
   } catch (error) {
     if (payload) {
       const config = historyConfig || callHistoryConfig(payload);
@@ -11045,11 +11830,25 @@ async function handleAiComplete(req, res) {
       });
     }
     const status = error.statusCode && error.statusCode >= 400 && error.statusCode < 600 ? error.statusCode : 500;
+    const wrapped = new Error(error.message || "AI generation failed");
+    wrapped.statusCode = status;
+    wrapped.details = error.details || null;
+    wrapped.callRecord = failedCallRecord;
+    throw wrapped;
+  }
+}
+
+async function handleAiComplete(req, res) {
+  try {
+    const payload = await readJsonBody(req);
+    sendJson(res, 200, await runHomeAiComplete(payload));
+  } catch (error) {
+    const status = error.statusCode && error.statusCode >= 400 && error.statusCode < 600 ? error.statusCode : 500;
     sendJson(res, status, {
       ok: false,
       error: error.message || "AI generation failed",
       details: error.details || null,
-      callRecord: failedCallRecord,
+      callRecord: error.callRecord || null,
     });
   }
 }
@@ -11401,6 +12200,16 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === "POST" && requestUrl.pathname === "/api/auth-ai/jobs") {
+    await handleBackgroundJobStart(req, res, "auth-generate", runAuthGenerate, (id) => `/api/auth-ai/jobs/${id}`);
+    return;
+  }
+
+  if (req.method === "GET" && requestUrl.pathname.startsWith("/api/auth-ai/jobs/")) {
+    handleBackgroundJobStatus(res, decodeURIComponent(requestUrl.pathname.split("/").pop() || ""));
+    return;
+  }
+
   if (req.method === "POST" && requestUrl.pathname === "/api/auth-ai/generate") {
     await handleAuthGenerate(req, res);
     return;
@@ -11555,6 +12364,16 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === "POST" && requestUrl.pathname === "/api/home-ai/feedback") {
     await handleFeedbackMemorySave(req, res);
+    return;
+  }
+
+  if (req.method === "POST" && requestUrl.pathname === "/api/home-ai/jobs") {
+    await handleBackgroundJobStart(req, res, "homepage-generate", runHomeAiComplete, (id) => `/api/home-ai/jobs/${id}`);
+    return;
+  }
+
+  if (req.method === "GET" && requestUrl.pathname.startsWith("/api/home-ai/jobs/")) {
+    handleBackgroundJobStatus(res, decodeURIComponent(requestUrl.pathname.split("/").pop() || ""));
     return;
   }
 

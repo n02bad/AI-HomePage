@@ -4,11 +4,16 @@
 
   const STORAGE_KEY = "forexcrm.auth.generated.scheme";
   const PROMPT_KEY = "forexcrm.auth.ai.prompt";
-  const MODEL_CONFIG_KEY = "forexcrm.auth.ai.model.config";
+  const ACTIVE_AUTH_JOB_KEY = "forexcrm.auth.ai.activeGenerationJob";
+  const PREVIEW_URL = "./auth-layout-preview.html";
+  const modelSettings = window.ForexCRMModelSettings;
+  const MODEL_CONFIG_KEY = modelSettings?.STORAGE_KEY || "forexcrm.ai.model.config";
   const SUGGESTION_HISTORY_KEY = "forexcrm.auth.ai.suggestion.history";
   const MINIMAX_CN_BASE_URL = "https://api.minimaxi.com/v1";
   const KIMI_CN_BASE_URL = "https://api.moonshot.cn/v1";
   const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
+  const BACKGROUND_JOB_POLL_MS = 1100;
+  const BACKGROUND_JOB_MAX_WAIT_MS = 20 * 60 * 1000;
 
   const AI_MODEL_PRESETS = {
     openai: {
@@ -229,7 +234,7 @@
   function setStatus(message, tone = "") {
     if (!els.status) return;
     els.status.textContent = message || "";
-    els.status.className = `auth-chat-status${tone ? ` ${tone}` : ""}`;
+    els.status.className = `ai-chat-status${tone ? ` ${tone}` : ""}`;
   }
 
   function setBusy(isBusy, label = "正在生成认证模块") {
@@ -237,7 +242,7 @@
       button.disabled = isBusy;
       button.classList.toggle("is-loading", isBusy);
     });
-    document.querySelector(".auth-chat-composer")?.classList.toggle("is-generating", isBusy);
+    document.querySelector(".ai-chat-composer, .auth-chat-composer")?.classList.toggle("is-generating", isBusy);
     if (isBusy) setStatus(label, "is-loading");
   }
 
@@ -276,6 +281,7 @@
   }
 
   function loadModelConfig() {
+    if (modelSettings) return sanitizeModelConfig(modelSettings.loadModelConfig());
     try {
       return sanitizeModelConfig(JSON.parse(window.localStorage.getItem(MODEL_CONFIG_KEY) || "null") || DEFAULT_MODEL_CONFIG);
     } catch (error) {
@@ -285,7 +291,11 @@
 
   function saveModelConfig(config) {
     state.modelConfig = sanitizeModelConfig(config);
-    window.localStorage.setItem(MODEL_CONFIG_KEY, JSON.stringify(state.modelConfig));
+    if (modelSettings) {
+      modelSettings.saveModelConfig(state.modelConfig, { source: "auth-layout-admin" });
+    } else {
+      window.localStorage.setItem(MODEL_CONFIG_KEY, JSON.stringify(state.modelConfig));
+    }
     renderModelSummary();
     return state.modelConfig;
   }
@@ -336,6 +346,8 @@
   }
 
   function guidedLabel(group, value) {
+    const button = guidedButtonsFor(group).find((item) => item.dataset.authGuidedValue === value);
+    if (button?.dataset.authGuidedLabel) return button.dataset.authGuidedLabel;
     return GUIDED_LABELS[group]?.[value] || value || "";
   }
 
@@ -446,6 +458,104 @@
     return [...new Set(candidates)];
   }
 
+  function sleep(ms) {
+    return new Promise((resolve) => window.setTimeout(resolve, ms));
+  }
+
+  function readActiveAuthJob() {
+    try {
+      const raw = window.localStorage.getItem(ACTIVE_AUTH_JOB_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+      return parsed && typeof parsed === "object" ? parsed : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function saveActiveAuthJob(job) {
+    window.localStorage.setItem(ACTIVE_AUTH_JOB_KEY, JSON.stringify(job));
+  }
+
+  function clearActiveAuthJob(jobId = "") {
+    const current = readActiveAuthJob();
+    if (!jobId || current?.jobId === jobId) {
+      window.localStorage.removeItem(ACTIVE_AUTH_JOB_KEY);
+    }
+  }
+
+  async function pollBackgroundAuthJob(statusUrl, jobId) {
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < BACKGROUND_JOB_MAX_WAIT_MS) {
+      const response = await fetch(statusUrl, { headers: { accept: "application/json" }, cache: "no-store" });
+      const data = await response.json().catch(() => null);
+      if (!response.ok || data?.ok === false) {
+        throw new Error(data?.error || `${response.status} ${response.statusText}`);
+      }
+
+      const job = data.job || {};
+      if (job.status === "success") return job.result || {};
+      if (job.status === "failed") {
+        const error = new Error(job.error?.message || "后台认证模块生成失败");
+        error.proxyPayload = {
+          details: job.error?.details || null,
+          callRecord: job.error?.callRecord || null,
+        };
+        throw error;
+      }
+
+      const current = readActiveAuthJob();
+      if (current?.jobId === jobId) {
+        saveActiveAuthJob({ ...current, status: job.status || "running", updatedAt: Date.now() });
+      }
+      await sleep(BACKGROUND_JOB_POLL_MS);
+    }
+
+    throw new Error("后台认证模块生成等待超时");
+  }
+
+  async function requestBackgroundAuthJob(payload) {
+    const endpoints = localApiEndpointCandidates("/api/auth-ai/jobs");
+    let lastMessage = "";
+
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "content-type": "application/json", accept: "application/json" },
+          body: JSON.stringify(payload || {}),
+        });
+        const data = await response.json().catch(() => null);
+
+        if (response.ok && data?.ok !== false && data?.jobId) {
+          const statusUrl = new URL(data.job?.statusPath || `/api/auth-ai/jobs/${data.jobId}`, endpoint).toString();
+          saveActiveAuthJob({
+            jobId: data.jobId,
+            statusUrl,
+            prompt: payload.prompt || "",
+            options: payload.options || null,
+            inputMode: payload.inputMode || "quick",
+            startedAt: Date.now(),
+            updatedAt: Date.now(),
+          });
+          try {
+            return await pollBackgroundAuthJob(statusUrl, data.jobId);
+          } catch (error) {
+            error.backgroundJobStarted = true;
+            throw error;
+          }
+        }
+
+        lastMessage = data?.error || `${response.status} ${response.statusText}`;
+        if (![404, 405, 501].includes(response.status)) break;
+      } catch (error) {
+        if (error?.backgroundJobStarted) throw error;
+        lastMessage = String(error?.message || error || "Failed to fetch");
+      }
+    }
+
+    throw new Error(`${lastMessage || "Failed to start background job"} · 已尝试 ${endpoints.join(" -> ")}`);
+  }
+
   async function requestJsonEndpoint(path, payload, method = "POST") {
     const endpoints = localApiEndpointCandidates(path);
     let lastMessage = "";
@@ -475,6 +585,11 @@
     if (els.source) els.source.textContent = scheme.sourceType || "local";
   }
 
+  function openPreviewPage(screen = state.screen) {
+    const suffix = screen ? `?screen=${encodeURIComponent(screen)}` : "";
+    window.location.href = `${PREVIEW_URL}${suffix}`;
+  }
+
   function createLocalScheme(sourcePrompt = els.prompt?.value || "", tone = "success") {
     const useGuided = state.generationMode === "guided";
     const options = readOptions({ prompt: sourcePrompt, inputMode: useGuided ? "guided" : "quick", useGuided });
@@ -493,24 +608,70 @@
     setBusy(true, isGuided ? "正在生成引导式认证模块..." : "正在生成登录注册模块...");
 
     try {
-      const data = await requestJsonEndpoint("/api/auth-ai/generate", {
+      const requestPayload = {
         prompt,
         options,
         guidedIntake,
         inputMode: isGuided ? "guided" : "quick",
         modelConfig: aiRequestModelConfig(),
-      });
+      };
+      let data = null;
+      try {
+        data = await requestBackgroundAuthJob(requestPayload);
+      } catch (error) {
+        if (error?.backgroundJobStarted) throw error;
+        data = await requestJsonEndpoint("/api/auth-ai/generate", requestPayload);
+      }
       const scheme = auth.normalizeScheme(data.scheme, options);
+      clearActiveAuthJob();
       saveScheme(scheme);
       state.screen = scheme.defaultScreen || state.screen;
       renderPreview();
       setStatus(data.localFallback ? `已使用本地兜底：${data.fallbackReason || "模型暂不可用"}` : `已生成：${scheme.name}`, data.localFallback ? "" : "success");
       refreshHistory();
+      window.setTimeout(() => openPreviewPage(state.screen), 160);
     } catch (error) {
+      clearActiveAuthJob();
       const fallback = auth.localSchemeFromPrompt(prompt, options);
       saveScheme({ ...fallback, sourceType: "local-fallback", fallbackReason: String(error.message || error).slice(0, 180) });
+      state.screen = fallback.defaultScreen || state.screen;
       renderPreview();
       setStatus(`模型调用失败，已显示本地草稿：${String(error.message || error).slice(0, 160)}`, "error");
+      window.setTimeout(() => openPreviewPage(state.screen), 360);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function resumeActiveAuthJob() {
+    const job = readActiveAuthJob();
+    if (!job?.jobId || !job.statusUrl) return;
+    if (Date.now() - Number(job.startedAt || 0) > BACKGROUND_JOB_MAX_WAIT_MS) {
+      clearActiveAuthJob(job.jobId);
+      return;
+    }
+
+    setBusy(true, "正在恢复后台认证模块生成...");
+    setStatus("后台认证模块生成仍在进行，正在接回结果...", "");
+    try {
+      const data = await pollBackgroundAuthJob(job.statusUrl, job.jobId);
+      clearActiveAuthJob(job.jobId);
+      const options = job.options || readOptions({ prompt: job.prompt || els.prompt?.value || "", inputMode: job.inputMode || "quick" });
+      const scheme = auth.normalizeScheme(data.scheme, options);
+      saveScheme(scheme);
+      state.screen = scheme.defaultScreen || state.screen;
+      renderPreview();
+      setStatus(data.localFallback ? `已使用本地兜底：${data.fallbackReason || "模型暂不可用"}` : `后台生成已完成：${scheme.name}`, data.localFallback ? "" : "success");
+      refreshHistory();
+      window.setTimeout(() => openPreviewPage(state.screen), 160);
+    } catch (error) {
+      clearActiveAuthJob(job.jobId);
+      const options = job.options || readOptions({ prompt: job.prompt || els.prompt?.value || "", inputMode: job.inputMode || "quick" });
+      const fallback = auth.localSchemeFromPrompt(job.prompt || els.prompt?.value || "", options);
+      saveScheme({ ...fallback, sourceType: "local-fallback", fallbackReason: String(error.message || error).slice(0, 180) });
+      state.screen = fallback.defaultScreen || state.screen;
+      renderPreview();
+      setStatus(`后台生成失败，已显示本地草稿：${String(error.message || error).slice(0, 160)}`, "error");
     } finally {
       setBusy(false);
     }
@@ -519,14 +680,14 @@
   function renderModelSummary() {
     const config = state.modelConfig;
     const runtime = state.providerRuntimeStatus[config.provider] || {};
-    const keyText = config.apiKey ? "临时密钥已填写" : runtime.hasServerKey ? `服务端已配置 ${runtime.serverKeyEnv || providerPreset(config.provider).apiKeyLabel}` : "未填写密钥时会使用本地兜底";
+    const keyText = config.apiKey ? "已保存 Key，生成时自动沿用" : runtime.hasServerKey ? `服务端已配置 ${runtime.serverKeyEnv || providerPreset(config.provider).apiKeyLabel}` : "Key 在大模型配置页统一维护";
     els.modelSummaries.forEach((summary) => {
       summary.innerHTML = `
         <div>
           <strong>${escapeHtml(providerPreset(config.provider).name)} / ${escapeHtml(config.model)}</strong>
           <small>${escapeHtml(keyText)}</small>
         </div>
-        <button type="button" data-auth-model-open>配置</button>
+        <button type="button" data-auth-model-open>选择</button>
       `;
       summary.querySelector("[data-auth-model-open]")?.addEventListener("click", openModelModal);
     });
@@ -563,7 +724,7 @@
       const data = await requestJsonEndpoint("/api/auth-ai/providers", null, "GET");
       if (!data?.providers) return;
       state.providerRuntimeStatus = data.providers;
-      if (!window.localStorage.getItem(MODEL_CONFIG_KEY)) {
+      if (!modelSettings?.hasSavedConfig?.() && !window.localStorage.getItem(MODEL_CONFIG_KEY)) {
         const provider = ["deepseek", "minimax", "kimi", "openai", "claude"].find((id) => data.providers[id]?.hasServerKey);
         if (provider) state.modelConfig = sanitizeModelConfig({ ...providerPreset(provider), apiKey: "" });
       }
@@ -574,6 +735,22 @@
   }
 
   function openModelModal() {
+    if (modelSettings?.openModelPicker) {
+      modelSettings.openModelPicker({
+        title: "选择登录注册生成模型",
+        description: "这里只选择当前想用的模型。API Key、Base URL、Endpoint 等大模型信息请到统一配置页维护，保存过的 Key 会自动沿用。",
+        activeConfig: state.modelConfig,
+        providerStatus: state.providerRuntimeStatus,
+        source: "auth-layout-admin",
+        saveLabel: "用于登录注册生成",
+        onSave: (config) => {
+          state.modelConfig = sanitizeModelConfig(config);
+          renderModelSummary();
+          setStatus(`已选择 ${providerPreset(state.modelConfig.provider).name} / ${state.modelConfig.model}`, "success");
+        },
+      });
+      return;
+    }
     let modal = document.querySelector("[data-auth-model-modal]");
     if (!modal) {
       modal = document.createElement("div");
@@ -735,17 +912,17 @@
   function renderGuidedSummary() {
     if (!els.guidedSummary) return;
     const guidedState = readGuidedState();
-    const mainIdea = `${guidedLabel("intent", guidedState.intent)} · ${guidedLabel("audience", guidedState.audience)}`;
-    const mainDetail = `${guidedLabel("registerDepth", guidedState.registerDepth)}，${guidedLabel("designStyle", guidedState.designStyle)}，${guidedLabel("theme", guidedState.theme)}。`;
+    const optionalFeatures = guidedState.features.filter(Boolean);
+    const requiredFlows = guidedState.flows.length || 3;
     const rows = [
-      ["主旨", guidedLabel("intent", guidedState.intent)],
-      ["对象", guidedLabel("audience", guidedState.audience)],
-      ["注册", guidedLabel("registerDepth", guidedState.registerDepth)],
-      ["能力", compactList(guidedState.features.map((feature) => guidedLabel("features", feature)), "标准能力")],
+      ["分级", guidedLabel("registerDepth", guidedState.registerDepth)],
+      ["设计", guidedLabel("designStyle", guidedState.designStyle)],
+      ["风格", `${guidedLabel("theme", guidedState.theme)} · ${guidedLabel("intent", guidedState.intent)}`],
+      ["模块", `必选 ${requiredFlows} 项 · 选填 ${optionalFeatures.length} 项`],
     ];
-    if (els.guidedSummaryTitle) els.guidedSummaryTitle.textContent = `${guidedLabel("intent", guidedState.intent)}方案`;
-    if (els.guidedMainIdea) els.guidedMainIdea.textContent = mainIdea;
-    if (els.guidedMainDetail) els.guidedMainDetail.textContent = mainDetail;
+    if (els.guidedSummaryTitle) els.guidedSummaryTitle.textContent = `${guidedLabel("registerDepth", guidedState.registerDepth)}方案`;
+    if (els.guidedMainIdea) els.guidedMainIdea.textContent = `${guidedLabel("intent", guidedState.intent)} · ${guidedLabel("audience", guidedState.audience)}`;
+    if (els.guidedMainDetail) els.guidedMainDetail.textContent = `${guidedLabel("registerDepth", guidedState.registerDepth)}，${guidedLabel("designStyle", guidedState.designStyle)}，${guidedLabel("theme", guidedState.theme)}。`;
     els.guidedSummary.innerHTML = rows
       .map(
         ([label, value]) => `
@@ -945,6 +1122,12 @@
     renderSuggestionCards();
     renderModelSummary();
     renderPreview();
+    resumeActiveAuthJob();
+    window.addEventListener("forexcrm:model-config-change", (event) => {
+      if (!event.detail?.config) return;
+      state.modelConfig = sanitizeModelConfig(event.detail.config);
+      renderModelSummary();
+    });
     refreshProviderRuntimeStatus();
     refreshHistory();
   }

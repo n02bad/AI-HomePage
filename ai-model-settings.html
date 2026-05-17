@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="./theme.js"></script>
+    <title>ForexCRM - 大模型配置</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./theme.css?v=tenant-home-4" />
+    <link rel="stylesheet" href="./client-home.css?v=tenant-home-4" />
+    <link rel="stylesheet" href="./home-personalization.css?v=tenant-home-5" />
+    <link rel="stylesheet" href="./ai-model-settings.css?v=ai-model-settings-1" />
+  </head>
+  <body data-layout-page="ai-model-settings">
+    <main class="app" data-layout-main>
+      <div class="page personalization-page">
+        <section class="ai-model-settings-page" data-model-settings-page>
+          <header class="ai-model-settings-hero">
+            <div>
+              <span class="section-kicker">MODEL SETTINGS</span>
+              <h1>AI 大模型配置</h1>
+              <p>厂商、模型、Base URL、Endpoint 和 API Key 在这里统一维护。首页生成和登录注册生成只负责选择当前要用的模型。</p>
+            </div>
+            <div class="ai-model-settings-actions">
+              <a href="./home-layout-admin.html">首页生成</a>
+              <a href="./auth-layout-admin.html">登录注册生成</a>
+            </div>
+          </header>
+
+          <section class="ai-model-settings-stats" aria-label="模型配置状态">
+            <article class="ai-model-settings-card">
+              <span>当前模型</span>
+              <strong data-model-settings-current>--</strong>
+              <small>所有 AI 生成页默认沿用这个模型。</small>
+            </article>
+            <article class="ai-model-settings-card">
+              <span>已保存 Key</span>
+              <strong data-model-settings-saved-keys>--</strong>
+              <small>保存过的 Key 会自动沿用，不需要重复保存。</small>
+            </article>
+            <article class="ai-model-settings-card">
+              <span>可选 / 已用模型</span>
+              <strong data-model-settings-used-count>--</strong>
+              <small>包含预设模型、已配置模型和最近调用模型。</small>
+            </article>
+          </section>
+
+          <section class="ai-model-settings-layout">
+            <aside class="ai-model-settings-panel">
+              <div>
+                <span>厂商</span>
+                <h2>选择要配置的厂商</h2>
+              </div>
+              <div class="ai-model-provider-grid" data-model-settings-provider-grid></div>
+            </aside>
+
+            <section class="ai-model-settings-panel">
+              <div>
+                <span>模型信息</span>
+                <h2>统一配置</h2>
+              </div>
+
+              <form class="ai-model-settings-form" data-model-settings-form>
+                <label>
+                  厂商
+                  <select data-model-settings-field="provider">
+                    <option value="deepseek">DeepSeek</option>
+                    <option value="kimi">Kimi</option>
+                    <option value="minimax">MiniMax</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="claude">Claude</option>
+                  </select>
+                </label>
+                <label>
+                  模型 ID
+                  <input data-model-settings-field="model" list="ai-model-settings-options" autocomplete="off" />
+                  <datalist id="ai-model-settings-options" data-model-settings-model-options></datalist>
+                </label>
+                <label class="wide">
+                  API Base URL
+                  <input data-model-settings-field="baseUrl" autocomplete="off" />
+                </label>
+                <label>
+                  Endpoint
+                  <input data-model-settings-field="endpoint" autocomplete="off" />
+                </label>
+                <label>
+                  API Mode
+                  <input data-model-settings-field="apiMode" autocomplete="off" />
+                </label>
+                <label>
+                  调用方式
+                  <select data-model-settings-field="callMode">
+                    <option value="serverProxy">后端代理调用</option>
+                    <option value="local">本地规则生成</option>
+                  </select>
+                </label>
+                <label>
+                  Temperature
+                  <input data-model-settings-field="temperature" type="number" min="0" max="2" step="0.1" />
+                </label>
+                <label>
+                  最大输出 Tokens
+                  <input data-model-settings-field="maxOutputTokens" type="number" min="512" max="12000" step="256" />
+                </label>
+                <label class="wide">
+                  API Key
+                  <input data-model-settings-field="apiKey" type="password" autocomplete="off" />
+                </label>
+              </form>
+
+              <div class="ai-model-settings-note" data-model-settings-note></div>
+
+              <div class="ai-model-settings-actions">
+                <button type="button" data-model-settings-reset>恢复当前厂商预设</button>
+                <button type="button" data-model-settings-clear-key>清除当前 Key</button>
+                <button type="button" data-model-settings-test>测试连通性</button>
+                <button class="primary" type="button" data-model-settings-save>保存配置</button>
+              </div>
+            </section>
+          </section>
+
+          <section class="ai-model-settings-panel">
+            <div class="ai-model-section-head">
+              <div>
+                <span>已用模型</span>
+                <strong>最近保存或调用过的模型</strong>
+              </div>
+            </div>
+            <div class="ai-model-used-list" data-model-settings-used-list></div>
+          </section>
+        </section>
+      </div>
+
+      <div class="client-toast" data-model-settings-toast hidden></div>
+    </main>
+
+    <script src="./common-layout.js"></script>
+    <script src="./ai-model-settings.js"></script>
+    <script src="./ai-model-settings-page.js"></script>
+  </body>
+</html>
