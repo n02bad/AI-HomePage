@@ -7936,6 +7936,7 @@
       brickTrace: normalizeBrickTrace(source.brickTrace),
       dataContract: normalizeDataContract(source.dataContract),
       pageIntent: source.pageIntent && typeof source.pageIntent === "object" ? clone(source.pageIntent) : null,
+      pagePlan: source.pagePlan && typeof source.pagePlan === "object" ? clone(source.pagePlan) : null,
       compositionStrategy: cleanMetaText(source.compositionStrategy, "", 260),
       annotations: Array.isArray(source.annotations) ? source.annotations.slice(0, 24) : [],
       renderMode,

@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="./client-home.css?v=tenant-home-4" />
     <link rel="stylesheet" href="./home-personalization.css?v=tenant-home-5" />
     <link rel="stylesheet" href="./ai-model-settings.css?v=ai-model-settings-1" />
+    <link rel="stylesheet" href="./auth-visual-training.css?v=auth-visual-training-2" />
   </head>
   <body data-layout-page="auth-layout-admin">
     <main class="app" data-layout-main>
@@ -37,6 +38,24 @@
                 <button type="button">独立预览</button>
                 <button type="button">三流程</button>
               </div>
+            </section>
+
+            <section class="ai-render-mode-card auth-reference-bridge" aria-label="登录模块视觉训练参考">
+              <div>
+                <span>视觉训练</span>
+                <strong>参考登录 / 注册 / 找回密码稿件生成</strong>
+                <small data-auth-reference-summary>会自动读取认证视觉库，把参考图转成抽象分格和提示词约束。</small>
+              </div>
+              <div class="ai-render-mode-options">
+                <span class="auth-reference-bridge-count" data-auth-reference-count>0 个参考</span>
+                <label class="auth-inline-upload">
+                  <input data-auth-reference-file type="file" multiple accept="image/png,image/jpeg,image/webp,image/gif,text/html,.html,application/pdf" />
+                  <span>上传 1-3 张</span>
+                </label>
+                <button type="button" data-auth-reference-refresh>刷新</button>
+                <a href="./auth-visual-training.html">管理参考</a>
+              </div>
+              <div class="auth-reference-inline-list" data-auth-reference-list></div>
             </section>
 
             <div class="ai-generation-panel active" data-generation-panel="quick" data-auth-generation-panel="quick">
@@ -211,6 +230,6 @@
     <script src="./common-layout.js"></script>
     <script src="./ai-model-settings.js"></script>
     <script src="./auth-personalization.js"></script>
-    <script src="./auth-layout-admin.js"></script>
+    <script src="./auth-layout-admin.js?v=auth-reference-inline-1"></script>
   </body>
 </html>

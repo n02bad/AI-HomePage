@@ -9,6 +9,7 @@
   const modelSettings = window.ForexCRMModelSettings;
   const MODEL_CONFIG_KEY = modelSettings?.STORAGE_KEY || "forexcrm.ai.model.config";
   const SUGGESTION_HISTORY_KEY = "forexcrm.auth.ai.suggestion.history";
+  const SELECTED_REFERENCE_KEY = "forexcrm.auth.visual.reference.ids";
   const MINIMAX_CN_BASE_URL = "https://api.minimaxi.com/v1";
   const KIMI_CN_BASE_URL = "https://api.moonshot.cn/v1";
   const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
@@ -203,6 +204,10 @@
     guidedNext: document.querySelector("[data-auth-guided-next]"),
     guidedMainIdea: document.querySelector("[data-auth-guided-main-idea]"),
     guidedMainDetail: document.querySelector("[data-auth-guided-main-detail]"),
+    referenceCount: document.querySelector("[data-auth-reference-count]"),
+    referenceSummary: document.querySelector("[data-auth-reference-summary]"),
+    referenceFile: document.querySelector("[data-auth-reference-file]"),
+    referenceRefresh: document.querySelector("[data-auth-reference-refresh]"),
   };
 
   const GUIDED_STEPS = ["intent", "flow", "brand"];
@@ -215,6 +220,8 @@
     modelConfig: loadModelConfig(),
     scheme: loadSavedScheme(),
     suggestionRound: 0,
+    authReferences: [],
+    selectedReferenceIds: readSelectedReferenceIds(),
   };
 
   function escapeHtml(value) {
@@ -312,6 +319,20 @@
       maxOutputTokens: normalized.maxOutputTokens,
       apiKey: normalized.apiKey,
     };
+  }
+
+  function readSelectedReferenceIds() {
+    try {
+      const parsed = JSON.parse(window.localStorage.getItem(SELECTED_REFERENCE_KEY) || "[]");
+      return Array.isArray(parsed) ? parsed.map((id) => String(id || "")).filter(Boolean).slice(0, 6) : [];
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function saveSelectedReferenceIds(ids = []) {
+    state.selectedReferenceIds = ids.map((id) => String(id || "")).filter(Boolean).slice(0, 6);
+    window.localStorage.setItem(SELECTED_REFERENCE_KEY, JSON.stringify(state.selectedReferenceIds));
   }
 
   function loadSavedScheme() {
@@ -454,7 +475,7 @@
     if (/^https?:\/\//i.test(window.location.origin)) candidates.push(`${window.location.origin}${value}`);
     const currentHost = window.location.hostname || "127.0.0.1";
     [...new Set([currentHost, "127.0.0.1", "localhost"])].forEach((host) => {
-      ["5174", "5184"].forEach((port) => candidates.push(`http://${host}:${port}${value}`));
+      ["5174", "5184", "5194"].forEach((port) => candidates.push(`http://${host}:${port}${value}`));
     });
     return [...new Set(candidates)];
   }
@@ -578,6 +599,88 @@
     throw new Error(`${lastMessage || "Failed to fetch"} · 已尝试 ${endpoints.join(" -> ")}`);
   }
 
+  function readAuthReferenceFilePayload(file) {
+    const isText = /html|text/i.test(file.type) || /\.html?$/i.test(file.name);
+    const reader = new FileReader();
+    return new Promise((resolve, reject) => {
+      reader.onerror = () => reject(new Error(`读取 ${file.name} 失败`));
+      reader.onload = () => {
+        resolve({
+          name: file.name,
+          mime: file.type || (isText ? "text/html" : "application/octet-stream"),
+          size: file.size,
+          dataUrl: isText ? "" : String(reader.result || ""),
+          textContent: isText ? String(reader.result || "") : "",
+        });
+      };
+      if (isText) reader.readAsText(file);
+      else reader.readAsDataURL(file);
+    });
+  }
+
+  function authReferencePromptSeed(asset = {}) {
+    return [
+      `参考「${asset.name || "认证视觉参考"}」的抽象设计语言，不要复制原图。`,
+      "适用流程：登录、注册、找回密码。",
+      "界面分格：品牌叙事区、表单卡片、安全信任点。",
+      "生成要求：把参考稿转译成新的 ForexCRM 认证模块，三条流程都要完整。",
+    ].join("\n");
+  }
+
+  async function uploadAuthReferenceFiles(filesLike) {
+    const files = [...(filesLike || [])].slice(0, 3);
+    if (!files.length) return;
+    if (filesLike.length > 3) setStatus("一次最多上传 3 张，已自动取前 3 张。");
+    else setStatus(`正在上传 ${files.length} 张认证视觉参考...`);
+
+    const payloads = await Promise.all(files.map(readAuthReferenceFilePayload));
+    const assets = payloads.map((filePayload) => ({
+      ...filePayload,
+      flow: "三流程",
+      tags: ["生成页上传", "认证视觉参考"],
+      segments: ["品牌叙事区", "表单卡片", "安全信任点"],
+      styleBrief: "从登录注册生成页快速上传，用于本次认证模块生成。",
+      note: "用户希望 AI 参考这组认证界面的布局、比例、表单密度和视觉气质。",
+      promptSeed: authReferencePromptSeed(filePayload),
+    }));
+    const data = await requestJsonEndpoint("/api/auth-ai/reference-assets", { assets });
+    state.authReferences = data.records || [];
+    saveSelectedReferenceIds(state.authReferences.slice(0, Math.min(3, state.authReferences.length)).map((asset) => asset.id));
+    renderAuthReferenceSummary();
+    setStatus(`已上传 ${assets.length} 张参考稿，本次生成会直接使用。`, "success");
+  }
+
+  function referenceIdsForGeneration() {
+    const available = new Set(state.authReferences.map((asset) => asset.id));
+    const selected = readSelectedReferenceIds().filter((id) => available.has(id));
+    if (selected.length) return selected.slice(0, 6);
+    return state.authReferences.slice(0, 6).map((asset) => asset.id);
+  }
+
+  function renderAuthReferenceSummary() {
+    const total = state.authReferences.length;
+    const selected = referenceIdsForGeneration().length;
+    if (els.referenceCount) els.referenceCount.textContent = `${total} 个参考`;
+    if (els.referenceSummary) {
+      els.referenceSummary.textContent = total
+        ? `当前生成会读取 ${selected} 个认证视觉参考，学习分格、表单密度、按钮层级和风格提示词。`
+        : "直接上传 1-3 张登录/注册/找回密码稿件，上传后本次生成会立即参考。";
+    }
+  }
+
+  async function refreshAuthReferences() {
+    try {
+      const prompt = encodeURIComponent(els.prompt?.value || "");
+      const data = await requestJsonEndpoint(`/api/auth-ai/reference-assets?prompt=${prompt}`, null, "GET");
+      state.authReferences = Array.isArray(data.rankedReferences) && data.rankedReferences.length ? data.rankedReferences : (data.records || []);
+      state.selectedReferenceIds = readSelectedReferenceIds();
+    } catch (error) {
+      state.authReferences = [];
+      state.selectedReferenceIds = [];
+    }
+    renderAuthReferenceSummary();
+  }
+
   function renderPreview() {
     const options = readOptions();
     const scheme = state.scheme || auth.localSchemeFromPrompt(options.prompt, options);
@@ -614,6 +717,7 @@
         options,
         guidedIntake,
         inputMode: isGuided ? "guided" : "quick",
+        referenceAssetIds: referenceIdsForGeneration(),
         modelConfig: aiRequestModelConfig(),
       };
       let data = null;
@@ -1096,6 +1200,20 @@
         state.scheme = null;
         renderPreview();
       }
+      window.clearTimeout(refreshAuthReferences.timer);
+      refreshAuthReferences.timer = window.setTimeout(refreshAuthReferences, 360);
+    });
+    els.referenceRefresh?.addEventListener("click", () => {
+      setStatus("正在刷新认证视觉参考...");
+      refreshAuthReferences().then(() => setStatus("认证视觉参考已刷新。", "success")).catch((error) => setStatus(String(error.message || error).slice(0, 160), "error"));
+    });
+    els.referenceFile?.addEventListener("change", () => {
+      const files = [...(els.referenceFile.files || [])];
+      uploadAuthReferenceFiles(files)
+        .catch((error) => setStatus(String(error.message || error).slice(0, 180), "error"))
+        .finally(() => {
+          if (els.referenceFile) els.referenceFile.value = "";
+        });
     });
     els.generateSuggestions?.addEventListener("click", () => {
       state.suggestionRound += 1;
@@ -1131,6 +1249,7 @@
     });
     refreshProviderRuntimeStatus();
     refreshHistory();
+    refreshAuthReferences();
   }
 
   init();

@@ -42,6 +42,7 @@ const COMPONENT_LIBRARY_FILE = path.join(ROOT_DIR, "home-component-library.json"
 const COMPOSITION_LIBRARY_FILE = path.join(ROOT_DIR, "home-component-compositions.json");
 const CALL_HISTORY_FILE = path.join(ROOT_DIR, "home-ai-call-history.json");
 const AUTH_CALL_HISTORY_FILE = path.join(ROOT_DIR, "auth-ai-call-history.json");
+const AUTH_REFERENCE_ASSET_FILE = path.join(ROOT_DIR, "auth-ai-reference-assets.json");
 const DESIGN_RULES_FILE = path.join(ROOT_DIR, "design.md");
 const UI_GENERATION_PROTOCOL_FILE = path.join(ROOT_DIR, "AI_UI_GENERATION_PROTOCOL.md");
 const HOME_MODULE_BRICKS_FILE = path.join(ROOT_DIR, "home-module-bricks.md");
@@ -50,11 +51,13 @@ const AESTHETIC_SCORE_FILE = path.join(ROOT_DIR, "home-ai-score-records.json");
 const FEEDBACK_MEMORY_FILE = path.join(ROOT_DIR, "home-ai-feedback-memory.json");
 const REFERENCE_ASSET_FILE = path.join(ROOT_DIR, "home-ai-reference-assets.json");
 const REFERENCE_ASSET_DIR = path.join(ROOT_DIR, "artifacts", "home-ai-reference-assets");
+const AUTH_REFERENCE_ASSET_DIR = path.join(ROOT_DIR, "artifacts", "auth-ai-reference-assets");
 const MAX_CALL_HISTORY = 200;
 const MAX_AUTH_CALL_HISTORY = 160;
 const MAX_AESTHETIC_SCORE_RECORDS = 300;
 const MAX_FEEDBACK_MEMORY_RECORDS = 300;
 const MAX_REFERENCE_ASSETS = 120;
+const MAX_AUTH_REFERENCE_ASSETS = 120;
 const MINIMAX_CN_BASE_URL = "https://api.minimaxi.com/v1";
 const MINIMAX_CN_TYPED_ALIAS_BASE_URL = "https://api.minimaxi.cn/v1";
 const MINIMAX_GLOBAL_BASE_URL = "https://api.minimax.io/v1";
@@ -2211,6 +2214,9 @@ function homepageRecordSnapshot(config) {
 	    htmlQualityStatus: safeRecordText(source.htmlQualityStatus || source.quality?.status || (source.htmlScheme?.enabled ? source.htmlScheme.qualityStatus : ""), 40),
 	    qualityScore: Number.isFinite(Number(source.qualityScore || source.quality?.score || source.htmlScheme?.qualityScore)) ? Math.round(Number(source.qualityScore || source.quality?.score || source.htmlScheme?.qualityScore)) : null,
 	    htmlFallbackReason: source.htmlScheme?.enabled ? safeRecordText(source.htmlScheme.fallbackReason, 180) : "",
+	    pageGoal: safeRecordText(source.pagePlan?.pageGoal || source.pageIntent?.pageGoal, 48),
+	    mainVisual: safeRecordText(source.pagePlan?.mainVisual || source.pageIntent?.mainVisual, 48),
+	    primaryCta: safeRecordText(source.pagePlan?.primaryCta || source.pageIntent?.primaryCta, 80),
 	    validationWarnings: source.validation?.warnings?.length || 0,
 	    repairActions: Array.isArray(source.repairActions) ? source.repairActions.slice(0, 6) : [],
 	    skeletonScheme: source.skeletonHtmlScheme?.enabled ? safeRecordText(source.skeletonHtmlScheme.name || "骨架 HTML 填充", 80) : "",
@@ -3312,6 +3318,180 @@ function referenceAssetsForPrompt(prompt = "", options = {}) {
       guidance: "这是用户上传的审美参考稿。优先学习它的页面气质、层级、视觉焦点和信息密度，不要直接复制受保护内容。",
     }))
     .slice(0, Math.max(1, Math.min(Number(options.limit) || 4, 8)));
+}
+
+function ensureAuthReferenceAssetDir() {
+  fs.mkdirSync(AUTH_REFERENCE_ASSET_DIR, { recursive: true });
+}
+
+function normalizeAuthReferenceAsset(record = {}) {
+  const name = cleanText(record.name, "认证视觉参考", 120);
+  const mime = cleanText(record.mime, "", 80);
+  const url = cleanText(record.url, "", 240);
+  const flow = cleanText(record.flow, "三流程", 40);
+  return {
+    id: safeId(record.id || name, "auth-reference"),
+    at: record.at || record.createdAt || new Date().toISOString(),
+    name,
+    type: cleanText(record.type || referenceAssetType(mime, name), "file", 24),
+    mime,
+    size: Number.isFinite(Number(record.size)) ? Math.max(0, Number(record.size)) : 0,
+    fileName: cleanText(record.fileName, "", 180),
+    storagePath: cleanText(record.storagePath, "", 280),
+    url,
+    flow,
+    note: cleanText(record.note, "", 900),
+    styleBrief: cleanText(record.styleBrief, "", 700),
+    promptSeed: cleanText(record.promptSeed, "", 1100),
+    tags: (Array.isArray(record.tags) ? record.tags : []).map((tag) => cleanText(tag, "", 36)).filter(Boolean).slice(0, 14),
+    segments: (Array.isArray(record.segments) ? record.segments : []).map((segment) => cleanText(segment, "", 50)).filter(Boolean).slice(0, 12),
+    textExcerpt: cleanText(record.textExcerpt, "", 900),
+    createdAt: record.createdAt || record.at || new Date().toISOString(),
+  };
+}
+
+function readAuthReferenceAssets() {
+  const data = readJsonFile(AUTH_REFERENCE_ASSET_FILE, { records: [] });
+  return (Array.isArray(data.records) ? data.records : []).map(normalizeAuthReferenceAsset).slice(0, MAX_AUTH_REFERENCE_ASSETS);
+}
+
+function writeAuthReferenceAssets(records) {
+  const normalized = (Array.isArray(records) ? records : []).map(normalizeAuthReferenceAsset).slice(0, MAX_AUTH_REFERENCE_ASSETS);
+  writeJsonFile(AUTH_REFERENCE_ASSET_FILE, { version: 1, updatedAt: new Date().toISOString(), records: normalized });
+  return normalized;
+}
+
+function buildAuthReferencePromptSeed(asset = {}) {
+  const flow = cleanText(asset.flow, "三流程", 40);
+  const tags = Array.isArray(asset.tags) ? asset.tags.filter(Boolean).slice(0, 8) : [];
+  const segments = Array.isArray(asset.segments) ? asset.segments.filter(Boolean).slice(0, 8) : [];
+  const lines = [
+    `参考 ${asset.name || "认证视觉参考"} 的抽象设计语言，而不是复刻原图。`,
+    `适用流程：${flow}。`,
+  ];
+  if (tags.length) lines.push(`视觉标签：${tags.join("、")}。`);
+  if (segments.length) lines.push(`界面分格：${segments.join("、")}。`);
+  if (asset.styleBrief) lines.push(`风格提炼：${asset.styleBrief}`);
+  if (asset.note) lines.push(`用户喜欢点：${asset.note}`);
+  return cleanText(lines.join("\n"), "", 1100);
+}
+
+function saveAuthReferenceAsset(asset = {}) {
+  ensureAuthReferenceAssetDir();
+  const now = new Date().toISOString();
+  const name = cleanText(asset.name, "认证视觉参考", 120);
+  const inputMime = cleanText(asset.mime, "", 80);
+  const type = referenceAssetType(inputMime, name);
+  const ext = referenceAssetExtension(inputMime, name);
+  const id = `auth-reference-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const baseName = safeId(path.basename(name, path.extname(name)), "asset");
+  const fileName = `${id}-${baseName}.${ext}`;
+  const filePath = path.join(AUTH_REFERENCE_ASSET_DIR, fileName);
+  let mime = inputMime;
+  let buffer = null;
+  let textExcerpt = "";
+
+  if (asset.textContent || type === "html") {
+    const rawText = String(asset.textContent || "");
+    const text = ext === "html" ? sanitizeGeneratedHtml(rawText) : rawText.slice(0, 200_000);
+    buffer = Buffer.from(text, "utf8");
+    mime = ext === "html" ? "text/html" : "text/plain";
+    textExcerpt = cleanText(text.replace(/<[^>]+>/g, " "), "", 900);
+  } else {
+    const decoded = decodeReferenceDataUrl(asset.dataUrl);
+    if (!decoded) {
+      throw Object.assign(new Error("认证视觉参考文件内容缺失或格式不支持"), { statusCode: 400 });
+    }
+    mime = inputMime || decoded.mime;
+    buffer = decoded.buffer;
+  }
+
+  if (!buffer || buffer.length <= 0) {
+    throw Object.assign(new Error("认证视觉参考文件为空"), { statusCode: 400 });
+  }
+  if (buffer.length > 6_000_000) {
+    throw Object.assign(new Error("单个认证视觉参考不能超过 6MB"), { statusCode: 413 });
+  }
+
+  fs.writeFileSync(filePath, buffer);
+  const draft = {
+    id,
+    at: now,
+    createdAt: now,
+    name,
+    type,
+    mime,
+    size: Number(asset.size) || buffer.length,
+    fileName,
+    storagePath: path.relative(ROOT_DIR, filePath),
+    url: `/artifacts/auth-ai-reference-assets/${fileName}`,
+    flow: asset.flow,
+    note: asset.note,
+    styleBrief: asset.styleBrief,
+    promptSeed: asset.promptSeed,
+    tags: asset.tags,
+    segments: asset.segments,
+    textExcerpt,
+  };
+  if (!draft.promptSeed) draft.promptSeed = buildAuthReferencePromptSeed(draft);
+  const record = normalizeAuthReferenceAsset(draft);
+  const records = readAuthReferenceAssets();
+  return writeAuthReferenceAssets([record, ...records]);
+}
+
+function authReferenceAssetsForPrompt(prompt = "", options = {}) {
+  const selectedIds = new Set(Array.isArray(options.referenceAssetIds) ? options.referenceAssetIds.map((id) => cleanText(id, "", 110)) : []);
+  const text = normalizeKeywordText(prompt);
+  const words = text.split(/\s+|[，,。；;、]/).filter((word) => word.length >= 2);
+  return readAuthReferenceAssets()
+    .map((asset, index) => {
+      const haystack = normalizeKeywordText([
+        asset.name,
+        asset.flow,
+        asset.note,
+        asset.styleBrief,
+        asset.promptSeed,
+        asset.textExcerpt,
+        ...(asset.tags || []),
+        ...(asset.segments || []),
+      ].join(" "));
+      const hits = words.filter((word) => haystack.includes(word)).length;
+      const selected = selectedIds.has(asset.id) ? 100 : 0;
+      return { asset, score: selected + hits * 14 - index * 0.01 };
+    })
+    .sort((a, b) => b.score - a.score)
+    .map(({ asset }) => ({
+      id: asset.id,
+      name: asset.name,
+      type: asset.type,
+      mime: asset.mime,
+      url: asset.url,
+      flow: asset.flow,
+      note: asset.note,
+      styleBrief: asset.styleBrief,
+      promptSeed: asset.promptSeed || buildAuthReferencePromptSeed(asset),
+      tags: asset.tags,
+      segments: asset.segments,
+      textExcerpt: asset.textExcerpt,
+      guidance: "这是用户上传的登录/注册/找回密码审美参考。只学习抽象设计语言、分格、层级、色彩和组件密度，禁止复制原图、品牌资产或具体受保护排版。",
+    }))
+    .slice(0, Math.max(1, Math.min(Number(options.limit) || 5, 10)));
+}
+
+function authVisualTrainingContext(payload = {}) {
+  const prompt = cleanText(payload.prompt, "", 1400);
+  const referenceAssetIds = Array.isArray(payload.referenceAssetIds) ? payload.referenceAssetIds : [];
+  const referenceAssets = authReferenceAssetsForPrompt(prompt, { limit: 6, referenceAssetIds });
+  return {
+    purpose: "用于登录/注册/找回密码认证模块的视觉参考上下文：把用户上传的 Dribbble 或其他平台截图转译为可执行的抽象设计约束。",
+    referenceAssets,
+    extractionRules: [
+      "提取页面结构、分栏比例、表单密度、背景处理、信任点表达、按钮层级、输入框样式和移动端节奏。",
+      "不要复刻原图，不要照搬具体插画、图标、品牌、文案和像素级排版。",
+      "必须把参考图转成新的 ForexCRM 认证模块方案，并保证登录、注册、找回密码三条流程都完整。",
+    ],
+    promptSeeds: referenceAssets.map((asset) => asset.promptSeed).filter(Boolean).slice(0, 6),
+  };
 }
 
 function feedbackRecordSearchText(record) {
@@ -4653,6 +4833,57 @@ function homepageQualityStatusFromScore(score) {
   return "fallback";
 }
 
+function evaluateHomepagePlanCritic(payload = {}, config = {}) {
+  const pagePlan = config.pagePlan || buildHomepagePagePlan(payload, config);
+  const sections = Array.isArray(config.sections) ? config.sections : [];
+  const blocks = collectHomepageBlocks(config);
+  const firstTwoBlocks = new Set(homepageBlocksFromSections(sections.slice(0, 2)));
+  const issues = [];
+  const checks = [];
+  let score = 100;
+  const miss = (points, issue) => {
+    score -= points;
+    issues.push(issue);
+  };
+  const pass = (check) => checks.push(check);
+
+  if (pagePlan.mainVisual && !firstTwoBlocks.has(pagePlan.mainVisual)) {
+    miss(10, `pagePlan.mainVisual=${pagePlan.mainVisual} 没有进入前两个核心 section。`);
+  } else if (pagePlan.mainVisual) {
+    pass(`主视觉 ${pagePlan.mainVisual} 位于核心区域。`);
+  }
+
+  const highWeightBlocks = Object.entries(pagePlan.visualHierarchy || {}).filter(([, weight]) => Number(weight) >= 90);
+  if (highWeightBlocks.length > 1) {
+    miss(12, `出现多个最高视觉权重模块：${highWeightBlocks.map(([block]) => block).join("、")}。`);
+  } else {
+    pass("全页最高视觉权重唯一。");
+  }
+
+  const excludedVisible = (Array.isArray(pagePlan.excludedModules) ? pagePlan.excludedModules : [])
+    .map((item) => item.module)
+    .filter((module) => blocks.includes(module));
+  if (excludedVisible.length) {
+    miss(18, `素材准入已排除的模块仍然可见：${excludedVisible.join("、")}。`);
+  } else if (Array.isArray(pagePlan.excludedModules) && pagePlan.excludedModules.length) {
+    pass("缺少素材的选填模块已被移除。");
+  }
+
+  const optionalCount = (pagePlan.optionalModules || []).length;
+  if (optionalCount > 7) {
+    miss(8, "选填模块过多，页面容易变成模块拼盘。");
+  }
+  const cta = pagePlan.primaryAction?.action || "";
+  if (cta) pass(`主 CTA 已收敛到 ${cta}。`);
+
+  return {
+    score: Math.max(0, Math.min(100, Math.round(score))),
+    issues: issues.slice(0, 8),
+    checks: checks.slice(0, 8),
+    pagePlan,
+  };
+}
+
 function homepageValidationHasBlockingErrors(validation = {}) {
   return Boolean(
     (Array.isArray(validation.missingRequiredModules) && validation.missingRequiredModules.length) ||
@@ -4663,8 +4894,10 @@ function homepageValidationHasBlockingErrors(validation = {}) {
 function finalizeHomepageQuality(payload = {}, config = {}, htmlScheme = null) {
   const validation = config.validation || validateHomepageConfig(config, homepageGuidedSnapshotFromPayload(payload, config));
   const aesthetic = evaluateHomepageAesthetic(payload, { ...config, ...(htmlScheme ? { htmlScheme } : {}) });
+  const planCritic = evaluateHomepagePlanCritic(payload, config);
   const htmlScore = Number(htmlScheme?.qualityScore);
-  const score = Number.isFinite(htmlScore) ? Math.max(0, Math.min(100, Math.round(htmlScore))) : aesthetic.score;
+  const baseScore = Number.isFinite(htmlScore) ? Math.max(0, Math.min(100, Math.round(htmlScore))) : aesthetic.score;
+  const score = Math.min(baseScore, planCritic.score);
   const blockingStructure = homepageValidationHasBlockingErrors(validation);
   const status = blockingStructure ? "needs-repair" : homepageQualityStatusFromScore(score);
   const structuralIssues = [
@@ -4681,8 +4914,9 @@ function finalizeHomepageQuality(payload = {}, config = {}, htmlScheme = null) {
       score,
       structuralStatus: blockingStructure ? "needs-repair" : "passed",
       visualStatus: homepageQualityStatusFromScore(score),
-      issues: [...new Set([...structuralIssues, ...(aesthetic.issues || [])])].slice(0, 10),
-      checks: htmlScheme?.aestheticChecks || aesthetic.strengths || [],
+      issues: [...new Set([...structuralIssues, ...(planCritic.issues || []), ...(aesthetic.issues || [])])].slice(0, 10),
+      checks: [...new Set([...(htmlScheme?.aestheticChecks || aesthetic.strengths || []), ...(planCritic.checks || [])])].slice(0, 12),
+      pagePlan: planCritic.pagePlan,
     },
     aesthetic,
   };
@@ -4908,6 +5142,7 @@ function homepageRepairedConfigPromptContract(config = {}) {
     themePreset: config.themePreset || config.theme,
     density: config.density,
     heroFocus: config.heroFocus,
+    pagePlan: config.pagePlan || null,
     sections,
     brickPlan: (Array.isArray(config.brickPlan) ? config.brickPlan : []).map((item) => ({
       brickId: item.brickId,
@@ -5034,6 +5269,7 @@ function buildAiHtmlPrompt(payload, configScheme = {}, options = {}) {
     "必须使用 CSS 变量承接主题，例如 var(--home-bg)、var(--home-card-bg)、var(--home-primary)、var(--home-text)、var(--home-border)、var(--home-radius-sm)。",
     "视觉目标：成熟券商客户端、信息层级清楚、留白克制、模块不像普通卡片堆叠；主金额、主操作、趋势图和账号状态要有明确层次。",
     "必须严格按照 repairedConfig.sections 渲染，不允许新增、删除、重排模块；只允许优化视觉样式、文案、卡片层次、图标感、留白和响应式表现。",
+    "如果 repairedConfig.pagePlan 存在，必须让 pagePlan.mainVisual 成为唯一最高视觉权重；其它模块不得使用更大的标题、更强背景或重复强 CTA。",
     "每个 repairedConfig.sections[].slots 都必须按原顺序生成 data-ai-html-module 可见区域，section 顺序也必须和 repairedConfig.sections 完全一致。",
     "组件库参考是硬约束：componentReferences 至少覆盖 3 个 requiredModules 或组件家族，并把参考转成结构差异，不要只写普通白卡片。",
     "必须同时参考 designTrainingContext：样本页面决定页面级构图和功能流，beautifulComponents 决定积木级细节，feedbackMemory 决定用户长期偏好。",
@@ -5130,6 +5366,7 @@ function buildMiniMaxAiHtmlPrompt(payload, configScheme = {}, options = {}) {
 	    "遵守 design.md 设计治理：金融 CRM、克制专业、信息层级清楚；不要营销式大 hero、随机渐变、厚重阴影或卡片套卡片。",
 	    "所有 a/button 必须显式样式化，不能保留浏览器默认按钮；至少让模块出现两种不同结构，不能全是同一种白卡片。",
 	    "必须严格按照 repairedConfig.sections 渲染，不允许新增、删除、重排模块；每个 slot 都要按顺序生成 data-ai-html-module 可见区域。",
+	    "如果 repairedConfig.pagePlan 存在，pagePlan.mainVisual 是唯一最高视觉权重模块，其它模块只能做解释、证明或收口。",
 	    "每个 requiredModules 至少在 html 中有 data-ai-html-module 可见区域；模块内容必须短，可用 Sample 或 --。",
 	    "必须参考 referenceHints 的 componentId、name、visibleText 和 styleSignals；即使不返回完整 componentReferences，HTML 也要体现对应积木的字段密度、状态标签和布局语言。",
 	    "禁止 JS、script、iframe、form、input、事件属性、远程图片、真实下载链接或稳赚/监管承诺。",
@@ -5219,6 +5456,7 @@ function buildCompactAiHtmlPrompt(payload, configScheme = {}, options = {}) {
 	    "HTML 只能用静态 section/header/main/div/article/nav/a/button/span/small/strong/b/em/p/ul/ol/li/svg/path。",
 	    "CSS 类名统一用 ai-html- 前缀，并使用 var(--home-bg)、var(--home-card-bg)、var(--home-primary)、var(--home-text)、var(--home-border)、var(--home-radius-sm) 等主题变量。",
 	    "必须严格按照 repairedConfig.sections 渲染，不允许新增、删除、重排模块；只允许优化视觉样式、文案、卡片层次、图标感、留白和响应式表现。",
+	    "如果 repairedConfig.pagePlan 存在，pagePlan.mainVisual 是唯一最高视觉权重模块，其它模块不能用更强背景、标题或 CTA 抢戏。",
 	    "每个 repairedConfig.sections[].slots 都必须按原顺序生成 data-ai-html-module 可见区域；服务端会根据配置补齐 implementationContract。",
 	    "组件库参考是硬约束：必须参考 referenceHints 的 componentId、name、visibleText 和 styleSignals，把积木字段密度、状态标签、按钮层级和图表/列表表达转成 HTML 结构。",
 	    "至少包含三种结构：首屏/指标/步骤或列表/风险提示中的三类；所有 a/button 必须显式样式化，不能保留浏览器默认按钮。",
@@ -6076,10 +6314,255 @@ function guidedAllowsHomepageBlock(block, guidedIntake, text) {
   return explicitBlocks.has(canonical);
 }
 
+const HOMEPAGE_PAGE_GOAL_PRESETS = {
+  openAccount: {
+    label: "开真实账户",
+    primaryIntent: "onboarding",
+    primaryAction: "openAccount",
+    primaryCta: "立即开户",
+    mainVisual: "onboarding_guide",
+  },
+  deposit: {
+    label: "首次入金",
+    primaryIntent: "deposit",
+    primaryAction: "deposit",
+    primaryCta: "立即入金",
+    mainVisual: "asset_overview",
+  },
+  startTrading: {
+    label: "开始交易",
+    primaryIntent: "trader",
+    primaryAction: "accounts",
+    primaryCta: "查看交易账号",
+    mainVisual: "trading_accounts_list",
+  },
+  contactSupport: {
+    label: "联系客服",
+    primaryIntent: "brand",
+    primaryAction: "contactSupport",
+    primaryCta: "联系客服",
+    mainVisual: "asset_overview",
+  },
+  downloadApp: {
+    label: "下载 APP / MT5",
+    primaryIntent: "mobile",
+    primaryAction: "downloadApp",
+    primaryCta: "下载 APP / MT5",
+    mainVisual: "app_download",
+  },
+  learnMore: {
+    label: "了解更多",
+    primaryIntent: "standard",
+    primaryAction: "learnMore",
+    primaryCta: "了解更多",
+    mainVisual: "asset_overview",
+  },
+};
+
+const HOMEPAGE_OPTIONAL_BLOCK_MATERIAL_GATES = {
+  wallet_list: { materials: ["walletData"], pattern: /钱包列表|多币种钱包|wallet list/i, reason: "多币种钱包列表需要钱包接口或后台配置。" },
+  promo_banner: { materials: ["campaignConfig"], pattern: /banner|活动|奖励|赠金|权益|倒计时|promo/i, reason: "活动 Banner 需要后台活动或 Banner 配置。" },
+  trading_account_highlight: { materials: ["performanceData"], pattern: /账号表现|账户表现|净值|equity|pnl|曲线|图表/i, reason: "账号表现需要趋势、净值或 PnL 数据。" },
+  pamm_products: { materials: ["pammData"], pattern: /pamm|资管产品|资金管理产品/i, reason: "PAMM 推荐需要产品数据。" },
+  copytrading_signals: { materials: ["copyTradingData"], pattern: /copy\s*trading|copytrading|跟单|信号源|交易员推荐/i, reason: "CopyTrading 推荐需要信号源数据。" },
+  referral_link_card: { materials: ["referralData"], pattern: /推广链接|邀请链接|开户链接|注册链接|邀请码|代理|ib|partner|affiliate/i, reason: "推广链接卡片需要开户链接、邀请码或基础统计。" },
+  faq_section: { materials: ["faqContent"], pattern: /faq|常见问题|问题解答|帮助中心/i, reason: "FAQ 需要后台问题和答案。" },
+  support_contact: { materials: ["supportConfig"], pattern: /在线客服|联系客服|客服|客户经理|一对一协助|咨询入口|服务入口/i, reason: "客服模块需要服务时间、入口或客户经理配置。" },
+  app_download: { materials: ["downloadLinks"], pattern: /app下载|app 下载|下载 app|下载APP|移动端|手机端|mt5 下载|下载 mt5|download app/i, reason: "下载模块需要下载链接、二维码或商店配置。" },
+  risk_disclosure: { materials: ["riskCopy"], pattern: /风险提示|风险披露|合规声明|合规说明|保证金|杠杆|爆仓|预警/i, reason: "风险披露需要合规文案或明确的风险提示需求。" },
+};
+
+function guidedMaterialIdSet(guidedIntake) {
+  return new Set((Array.isArray(guidedIntake?.materials) ? guidedIntake.materials : []).map((item) => cleanText(item?.id, "", 48)).filter(Boolean));
+}
+
+function homepageGoalPresetFromPayload(payload = {}, intentProfile = {}) {
+  const guidedIntake = guidedAiIntakeFromPayload(payload);
+  const guidedGoal = cleanText(guidedIntake?.pageGoal?.id, "", 48);
+  if (HOMEPAGE_PAGE_GOAL_PRESETS[guidedGoal]) return { id: guidedGoal, ...HOMEPAGE_PAGE_GOAL_PRESETS[guidedGoal] };
+  const intent = intentProfile.primaryIntent || homepageIntentFromPrompt(payload.prompt);
+  const inferred = Object.entries(HOMEPAGE_PAGE_GOAL_PRESETS).find(([, preset]) => preset.primaryIntent === intent);
+  if (inferred) return { id: inferred[0], ...inferred[1] };
+  return { id: "learnMore", ...HOMEPAGE_PAGE_GOAL_PRESETS.learnMore };
+}
+
+function homepageBlockMaterialDecision(block, payload = {}, guidedIntake = null) {
+  const canonical = canonicalHomeBlock(block);
+  const gate = HOMEPAGE_OPTIONAL_BLOCK_MATERIAL_GATES[canonical];
+  if (!canonical || !gate || !guidedIntake?.materialGateEnabled) {
+    return { block: canonical, eligible: true, reason: "", matchedMaterials: [], requiredMaterials: gate?.materials || [] };
+  }
+
+  const materials = guidedMaterialIdSet(guidedIntake);
+  const matchedMaterials = (gate.materials || []).filter((item) => materials.has(item));
+  const pattern = gate.pattern;
+  if (matchedMaterials.length) {
+    return { block: canonical, eligible: true, reason: "素材已提供。", matchedMaterials, requiredMaterials: gate.materials || [] };
+  }
+  if (pattern) {
+    pattern.lastIndex = 0;
+    if (pattern.test(String(payload.prompt || ""))) {
+      return { block: canonical, eligible: true, reason: "提示词明确要求该模块。", matchedMaterials: [], requiredMaterials: gate.materials || [] };
+    }
+  }
+  return { block: canonical, eligible: false, reason: gate.reason, matchedMaterials: [], requiredMaterials: gate.materials || [] };
+}
+
+function homepagePlanWeightForBlock(block, mainVisual) {
+  const canonical = canonicalHomeBlock(block);
+  if (canonical && canonical === mainVisual) return 100;
+  return {
+    welcome_header: 25,
+    asset_overview: 80,
+    onboarding_guide: 78,
+    trading_account_highlight: 76,
+    trading_accounts_list: 68,
+    quick_actions: 56,
+    wallet_list: 50,
+    promo_banner: 52,
+    pamm_products: 48,
+    copytrading_signals: 58,
+    referral_link_card: 42,
+    announcements: 34,
+    market_news: 34,
+    faq_section: 30,
+    support_contact: 32,
+    app_download: 32,
+    risk_disclosure: 24,
+  }[canonical] || 40;
+}
+
+function buildHomepagePagePlan(payload = {}, config = {}) {
+  const guidedIntake = guidedAiIntakeFromPayload(payload);
+  const intentProfile = applyGuidedIntentProfile(buildHomepageIntentProfile(payload.prompt), guidedIntake);
+  const goal = homepageGoalPresetFromPayload(payload, intentProfile);
+  const currentBlocks = collectHomepageBlocks(config);
+  const requestedBlocks = mergeUnique([
+    currentBlocks,
+    intentProfile.mustHave || [],
+    guidedIntake ? guidedRequiredHomepageSlots(guidedIntake) : [],
+  ])
+    .map(canonicalHomeBlock)
+    .filter((slot) => slot && CANONICAL_HOME_BLOCKS.includes(slot));
+  const explicitBlocks = guidedIntake ? guidedExplicitBlockSet(guidedIntake) : new Set();
+  const excludedModules = [];
+  const visibleModules = [];
+
+  requestedBlocks.forEach((block) => {
+    const decision = homepageBlockMaterialDecision(block, payload, guidedIntake);
+    if (!decision.eligible && (explicitBlocks.has(block) || currentBlocks.includes(block))) {
+      excludedModules.push({
+        module: block,
+        reason: decision.reason,
+        requiredMaterials: decision.requiredMaterials,
+      });
+      return;
+    }
+    visibleModules.push(block);
+  });
+
+  const mainVisual = visibleModules.includes(goal.mainVisual)
+    ? goal.mainVisual
+    : visibleModules.includes(intentProfile.heroFocus)
+      ? intentProfile.heroFocus
+      : visibleModules[0] || intentProfile.heroFocus || "asset_overview";
+  const visualHierarchy = Object.fromEntries(
+    visibleModules.map((block) => [block, homepagePlanWeightForBlock(block, mainVisual)]),
+  );
+  const optionalModules = visibleModules.filter((block) => GUIDED_EXPLICIT_ONLY_BLOCKS.has(block) || HOMEPAGE_OPTIONAL_BLOCK_MATERIAL_GATES[block]);
+  const requiredModules = visibleModules.filter((block) => !optionalModules.includes(block));
+
+  return {
+    planVersion: 1,
+    pageGoal: goal.id,
+    pageGoalLabel: goal.label,
+    primaryIntent: intentProfile.primaryIntent,
+    primaryAction: { action: guidedIntake?.primaryAction?.action || goal.primaryAction, label: guidedIntake?.primaryAction?.label || goal.primaryCta },
+    primaryCta: guidedIntake?.primaryAction?.label || goal.primaryCta,
+    mainVisual,
+    requiredModules,
+    optionalModules,
+    excludedModules,
+    visualHierarchy,
+    moduleRoles: Object.fromEntries(
+      visibleModules.map((block) => [
+        block,
+        {
+          role: block === mainVisual ? "primary" : visualHierarchy[block] >= 70 ? "proof" : visualHierarchy[block] >= 50 ? "support" : "decision",
+          weight: visualHierarchy[block],
+        },
+      ]),
+    ),
+    compositionRules: [
+      "全页只能有一个最高视觉权重模块。",
+      "Hero/首屏只表达一个主目标和一个主 CTA。",
+      "Features/Proof/Pricing/FAQ/Support 等辅助模块不得使用强于主视觉的标题、背景或 CTA。",
+      "没有素材准入的选填模块不得为了填满页面而生成。",
+    ],
+  };
+}
+
+function removeHomepageBlocksByPlan(config, blocks = [], actions = []) {
+  const removeSet = new Set((Array.isArray(blocks) ? blocks : []).map(canonicalHomeBlock).filter(Boolean));
+  if (!removeSet.size) return config;
+  const next = ensureObject(config);
+  next.sections = (Array.isArray(next.sections) ? next.sections : [])
+    .map((section) => ({ ...section, slots: (Array.isArray(section.slots) ? section.slots : []).filter((slot) => !removeSet.has(canonicalHomeBlock(slot))) }))
+    .filter((section) => section.slots.length)
+    .flatMap(repairHomepageSectionLegality);
+  next.layout = Array.isArray(next.layout) ? next.layout.filter((block) => !removeSet.has(canonicalHomeBlock(block?.component || block?.feature))) : next.layout;
+  if (Array.isArray(next.layout) && !next.layout.length) delete next.layout;
+  next.brickPlan = Array.isArray(next.brickPlan)
+    ? next.brickPlan.filter((brick) => !removeSet.has(canonicalHomeBlock(brick?.component || brick?.feature)))
+    : next.brickPlan;
+  const settings = ensureHomepageModuleSettings(next.moduleSettings);
+  removeSet.forEach((slot) => {
+    const key = HOMEPAGE_SLOT_TO_SETTING[slot];
+    if (key) settings[key] = { ...ensureObject(settings[key]), enabled: false };
+    if (slot === "promo_banner") settings.adCarousel = { ...ensureObject(settings.adCarousel), enabled: false };
+  });
+  next.moduleSettings = settings;
+  if (actions) actions.push(`按素材准入移除选填模块：${[...removeSet].join(", ")}`);
+  return next;
+}
+
+function applyHomepagePagePlan(config, payload = {}, actions = []) {
+  let next = ensureObject(config);
+  const initialPlan = buildHomepagePagePlan(payload, next);
+  const excludedBlocks = (initialPlan.excludedModules || []).map((item) => item.module).filter(Boolean);
+  if (excludedBlocks.length) {
+    next = removeHomepageBlocksByPlan(next, excludedBlocks, actions);
+  }
+  const pagePlan = {
+    ...buildHomepagePagePlan(payload, next),
+    excludedModules: initialPlan.excludedModules || [],
+  };
+  next.pagePlan = pagePlan;
+  next.pageIntent = {
+    ...ensureObject(next.pageIntent),
+    pageGoal: pagePlan.pageGoal,
+    primaryAction: pagePlan.primaryAction,
+    primaryCta: pagePlan.primaryCta,
+    mainVisual: pagePlan.mainVisual,
+    visualHierarchy: pagePlan.visualHierarchy,
+  };
+  const currentHeroFocus = canonicalHomeBlock(next.heroFocus);
+  const remainingBlocks = collectHomepageBlocks(next);
+  const guidedIntake = guidedAiIntakeFromPayload(payload);
+  next.heroFocus = guidedIntake?.pageGoal?.id
+    ? pagePlan.mainVisual
+    : currentHeroFocus && remainingBlocks.includes(currentHeroFocus)
+      ? currentHeroFocus
+      : pagePlan.mainVisual;
+  return next;
+}
+
 function guidedIntakePromptLines(guidedIntake) {
   if (!guidedIntake) return [];
   const assetFields = guidedIntake.moduleSettings?.assets?.visibleFields || [];
   const selectedModuleIds = new Set((Array.isArray(guidedIntake.modules) ? guidedIntake.modules : []).map((module) => module?.id).filter(Boolean));
+  const materialLabels = (Array.isArray(guidedIntake.materials) ? guidedIntake.materials : []).map((item) => item.label || item.id).filter(Boolean);
+  const excludedLabels = (Array.isArray(guidedIntake.excludedModules) ? guidedIntake.excludedModules : []).map((item) => item.label || item.id).filter(Boolean);
   const themePreset = oneOfList(guidedIntake.theme?.themePreset || guidedIntake.theme?.id, HOMEPAGE_THEME_PRESETS, "");
   const assetLine = assetFields.length
     ? `账户概览字段硬约束: asset_overview 必须可见，标题用“资产概览”，moduleSettings.assets.visibleFields=${assetFields.join(",")}，只允许 total、wallet、tradingAccount 中的 1-3 项；如包含 total 和 tradingAccount，必须同时包含 wallet。`
@@ -6105,6 +6588,9 @@ function guidedIntakePromptLines(guidedIntake) {
     "",
     "引导式硬约束:",
     `这是管理员通过引导式表单选择的结构化输入，优先级高于自然语言拼接文案。`,
+    guidedIntake.pageGoal?.label ? `页面目标硬约束: ${guidedIntake.pageGoal.label}；主 CTA=${guidedIntake.primaryAction?.label || "未指定"}，data-home-action=${guidedIntake.primaryAction?.action || "未指定"}。` : "",
+    guidedIntake.materialGateEnabled ? `素材准入硬约束: 已提供素材=${materialLabels.join(",") || "无"}；没有素材或明确需求的选填模块不得生成。` : "",
+    excludedLabels.length ? `已因缺少素材排除的选填模块: ${excludedLabels.join(",")}；不要在 sections、brickPlan、moduleSettings 或 AI HTML 中补回。` : "",
     `canonical.primaryIntent=${guidedIntake.canonical.primaryIntent || "未指定"}、layoutPreset=${guidedIntake.canonical.layoutPreset || "未指定"}、heroFocus=${guidedIntake.canonical.heroFocus || "未指定"}。`,
     `canonical.mustHave=${guidedIntake.canonical.mustHave.join(",") || "未指定"} 必须可见或由同类首页积木明确承接。`,
     assetLine,
@@ -6144,6 +6630,7 @@ function buildMiniMaxPrompt(payload) {
   const variant = Number(payload.variant || 0);
   const guidedIntake = guidedAiIntakeFromPayload(payload);
   const intentProfile = applyGuidedIntentProfile(buildHomepageIntentProfile(prompt), guidedIntake);
+  const pagePlan = buildHomepagePagePlan(payload, { pageIntent: intentProfile });
   const humanUnderstanding = extractHomepageUnderstanding(prompt);
   const designGovernance = designRulesPromptReference();
   const system = [
@@ -6189,7 +6676,7 @@ function buildMiniMaxPrompt(payload) {
     "交易账号列表、账号表现图表、钱包列表属于大模块，必须单独一个 full section/整横栏；不要把 trading_accounts_list 和 trading_account_highlight 放在同一个 section 或同一行左右分栏。",
     "账号、钱包列表、表格、8 个快捷入口、首屏轮播属于高风险模块，必须按 layoutGrammar.moduleSizing 选择 size 和 zone。",
     "如果布局美观度和模块数量冲突，优先保证行配方完整、同高、少空白，再减少辅助模块。",
-    "必须先遵守服务端提供的 pageIntent。",
+    "必须先遵守服务端提供的 pageIntent 和 pagePlan；pagePlan.mainVisual 是唯一最高视觉权重模块，其它模块只能解释、证明或收口。",
     "如果请求包含引导式结构化选择 guidedIntake，它是管理员显式选择，优先级高于拼接后的自然语言 prompt。",
     "guidedIntake 中的 canonical.primaryIntent、heroFocus、layoutPreset、mustHave 是硬约束；modules[].canonicalTargets 是可用首页积木承接方式。",
     "引导式生成时，modules[].canonicalTargets 未选择的可选模块不得出现；不要自动补客服、FAQ、APP 下载、风险提示、公告、资讯、PAMM、CopyTrading 或推广链接。",
@@ -6470,6 +6957,9 @@ function buildMiniMaxPrompt(payload) {
     "服务端意图识别 pageIntent:",
     compactJson(intentProfile),
     "",
+    "服务端页面计划 pagePlan:",
+    compactJson(pagePlan),
+    "",
     "强制规则:",
     `优先遵守 pageIntent.primaryIntent=${intentProfile.primaryIntent}。`,
     `secondaryIntents=${intentProfile.secondaryIntents.join(",") || "无"} 只能做辅助，不允许抢首屏或改变 heroFocus=${intentProfile.heroFocus}。`,
@@ -6629,6 +7119,7 @@ function buildLowLatencyHomepagePrompt(payload, config = {}) {
   const variant = Number(payload.variant || 0);
   const guidedIntake = guidedAiIntakeFromPayload(payload);
   const intentProfile = applyGuidedIntentProfile(buildHomepageIntentProfile(prompt), guidedIntake);
+  const pagePlan = buildHomepagePagePlan(payload, { pageIntent: intentProfile });
   const compactIntent = compactHomepageIntentProfile(intentProfile);
   const design = homepageDesignForIntent(intentProfile.primaryIntent);
   const providerName = config.name || PROVIDERS[config.provider]?.name || "AI";
@@ -6661,6 +7152,9 @@ function buildLowLatencyHomepagePrompt(payload, config = {}) {
     "",
     "服务端意图与设计默认值:",
     compactJson({ pageIntent: compactIntent, design }),
+    "",
+    "服务端页面计划 pagePlan:",
+    compactJson(pagePlan),
     "",
     "当前草稿摘要:",
     compactJson(compactCurrentConfigReference(context.currentConfig)),
@@ -6711,6 +7205,7 @@ function buildMiniMaxHomepagePatchPrompt(payload, config = {}) {
   const variant = Number(payload.variant || 0);
   const guidedIntake = guidedAiIntakeFromPayload(payload);
   const intentProfile = applyGuidedIntentProfile(buildHomepageIntentProfile(prompt), guidedIntake);
+  const pagePlan = buildHomepagePagePlan(payload, { pageIntent: intentProfile });
   const compactIntent = compactHomepageIntentProfile(intentProfile);
   const design = homepageDesignForIntent(intentProfile.primaryIntent);
   const providerName = config.name || "MiniMax";
@@ -6737,6 +7232,9 @@ function buildMiniMaxHomepagePatchPrompt(payload, config = {}) {
     "",
     "页面意图和默认设计:",
     compactJson({ pageIntent: compactIntent, design }),
+    "",
+    "服务端页面计划 pagePlan:",
+    compactJson(pagePlan),
     "",
     "allowedBlocks:",
     compactJson(CANONICAL_HOME_BLOCKS),
@@ -6776,6 +7274,7 @@ function buildPrompt(payload, config = {}) {
   const now = new Date().toISOString();
   const guidedIntake = guidedAiIntakeFromPayload(payload);
   const intentProfile = applyGuidedIntentProfile(buildHomepageIntentProfile(prompt), guidedIntake);
+  const pagePlan = buildHomepagePagePlan(payload, { pageIntent: intentProfile });
   const designGovernance = designRulesPromptReference();
 
   const system = [
@@ -6854,6 +7353,7 @@ function buildPrompt(payload, config = {}) {
     "如果管理员要求 8 个快捷入口或两行四个，quickActions.count 必须是 8，QuickActions 的 brickPlan size 必须是 2x1 或 3x1，不能使用 1x。",
     "如果管理员给出快捷入口名称，也不要把名称写死进 moduleSettings.quickActions.actions；只设置 quick_actions 的展示数量、样式和占位，入口内容由后台配置或接口返回。",
     "如果管理员提到空白、少留白、空间利用或压缩高度，density 必须是 compact 或 balanced，不得使用 spacious；onboarding_guide 优先使用 compact/checklist/ribbon-rail 或紧凑 guide-cards。",
+    "必须先遵守服务端提供的 pagePlan：pageGoal 决定唯一主 CTA，mainVisual 是最高视觉权重模块，visualHierarchy 决定辅助模块降权；不要让 hero、feature、proof、pricing/FAQ、CTA 同时抢戏。",
     "如果管理员提到小屏幕、手机端、移动端或适配，autoLayout.strategy 必须保持 responsive-grid 或 mobile-first-stack，并优先让 paired rows collapse 为单列。",
     "如果管理员要求活动增长、交易大赛、奖池，并明确说明租户已配置活动，必须使用 promo_banner 作为活动模块；如果有 welcome_header，promo_banner 可紧跟在 welcome_header 后面。",
     "如果管理员要求欢迎模块、欢迎区或 welcome，保留轻量 welcome_header 首行；welcome 必须固定在页面最顶部，只提供用户上下文，不展示重复的个性化入口，也不改变业务 heroFocus。",
@@ -6872,7 +7372,7 @@ function buildPrompt(payload, config = {}) {
     "KYC 状态不是 KYC 说明页；如管理员选择 KYC 状态，只能在 onboarding_guide 的 KYC 步骤或 moduleSettings.userKycRail.kycStatus 中表达，状态枚举为 pending=未提交、reviewing=待审、verified=通过、rejected=拒绝；不要输出 userKycRail 可见侧栏或 kyc_risk_notice。",
     "如果管理员要求不要绑定账号入口，必须设置 moduleSettings.openAccount.bind = false。",
     "优先使用传入 schema、默认配置、模块变体和模块样式中的白名单值。",
-    "返回字段建议包括 schemaVersion、blueprintVersion、generationMode、pageIntent、designGenome、pageStory、name、layoutPreset、themePreset、colorMode、density、heroFocus、sections、autoLayout、layout、modules、moduleStyles、componentMorphs、moduleSettings、dataContract、brickPlan、brickTrace、emphasis、aiSummary。",
+    "返回字段建议包括 schemaVersion、blueprintVersion、generationMode、pageIntent、pagePlan、designGenome、pageStory、name、layoutPreset、themePreset、colorMode、density、heroFocus、sections、autoLayout、layout、modules、moduleStyles、componentMorphs、moduleSettings、dataContract、brickPlan、brickTrace、emphasis、aiSummary。",
     "sections.slots、layout.component、brickPlan.feature 和 brickPlan.component 应优先使用 snake_case 首页内容块 ID。",
   ].join("\n");
 
@@ -10992,6 +11492,7 @@ function buildAuthPrompt(payload = {}, config = {}) {
   const prompt = cleanText(payload.prompt, "生成一套 ForexCRM 登录、注册和找回密码认证界面。", 1200);
   const stylePreset = inferAuthStylePreset(payload);
   const defaultScreen = inferAuthDefaultScreen(payload);
+  const visualTrainingContext = authVisualTrainingContext(payload);
   const referenceLearning = [
     "内部学习标准（不要作为模板名输出，也不要照搬版式）：",
     "参考素材展示了金融认证页应有的可信品牌区、低噪声表单、清晰开户注册步骤、安全找回密码、移动端友好按钮、验证码/Captcha 占位、第三方登录和合规协议表达。",
@@ -11028,6 +11529,13 @@ function buildAuthPrompt(payload = {}, config = {}) {
             accent: guided.accent,
             note: guided.note,
           }),
+          "",
+        ].join("\n")
+      : "",
+    visualTrainingContext.referenceAssets.length
+      ? [
+          "登录模块视觉训练参考（只学习抽象设计语言，禁止照搬原图）:",
+          compactJson(visualTrainingContext),
           "",
         ].join("\n")
       : "",
@@ -11251,7 +11759,9 @@ async function callProvider(payload) {
     const rawMockConfig = enforceHomepagePromptIntent(payload, mockHomepageConfig(payload, config));
     const guidedSnapshot = homepageGuidedSnapshotFromPayload(payload, rawMockConfig);
     const repaired = repairHomepageConfig(rawMockConfig, guidedSnapshot);
-    const mockConfig = repaired.config;
+    const mockConfig = applyHomepagePagePlan(repaired.config, payload, repaired.repairActions);
+    repaired.config = mockConfig;
+    repaired.validation = validateHomepageConfig(mockConfig, guidedSnapshot);
     const htmlScheme = renderModeWantsAiHtml(renderMode) ? mockAiHtmlScheme(payload, mockConfig, config) : null;
     const finalQuality = finalizeHomepageQuality(payload, mockConfig, htmlScheme);
     const finalConfig = {
@@ -11299,7 +11809,9 @@ async function callProvider(payload) {
   );
   const guidedSnapshot = homepageGuidedSnapshotFromPayload(payload, rawHomepageConfig);
   const repaired = repairHomepageConfig(rawHomepageConfig, guidedSnapshot);
-  const homepageConfig = repaired.config;
+  const homepageConfig = applyHomepagePagePlan(repaired.config, payload, repaired.repairActions);
+  repaired.config = homepageConfig;
+  repaired.validation = validateHomepageConfig(homepageConfig, guidedSnapshot);
   const resultProviderConfig = { ...config, provider: result.provider, model: result.model };
   const htmlPayload = {
     ...payload,
@@ -12265,6 +12777,45 @@ const server = http.createServer(async (req, res) => {
       ok: true,
       records: [],
     });
+    return;
+  }
+
+  if (req.method === "GET" && requestUrl.pathname === "/api/auth-ai/reference-assets") {
+    const prompt = requestUrl.searchParams.get("prompt") || "";
+    sendJson(res, 200, {
+      ok: true,
+      records: readAuthReferenceAssets(),
+      rankedReferences: authReferenceAssetsForPrompt(prompt, { limit: 8 }),
+    });
+    return;
+  }
+
+  if (req.method === "DELETE" && requestUrl.pathname === "/api/auth-ai/reference-assets") {
+    readAuthReferenceAssets().forEach((asset) => {
+      const filePath = path.join(ROOT_DIR, asset.storagePath || "");
+      if (asset.storagePath && filePath.startsWith(ROOT_DIR) && fs.existsSync(filePath)) {
+        try {
+          fs.unlinkSync(filePath);
+        } catch (error) {
+          // Best effort cleanup; metadata is still cleared below.
+        }
+      }
+    });
+    writeAuthReferenceAssets([]);
+    sendJson(res, 200, { ok: true, records: [] });
+    return;
+  }
+
+  if (req.method === "POST" && requestUrl.pathname === "/api/auth-ai/reference-assets") {
+    try {
+      const payload = await readJsonBody(req);
+      const assets = Array.isArray(payload.assets) ? payload.assets : [payload.asset || payload];
+      assets.filter(Boolean).slice(0, 12).forEach((asset) => saveAuthReferenceAsset(asset));
+      sendJson(res, 200, { ok: true, records: readAuthReferenceAssets() });
+    } catch (error) {
+      const status = error.statusCode && error.statusCode >= 400 && error.statusCode < 600 ? error.statusCode : 500;
+      sendJson(res, status, { ok: false, error: error.message || "Auth reference asset save failed" });
+    }
     return;
   }
 

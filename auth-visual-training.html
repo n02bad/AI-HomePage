@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="./theme.js"></script>
+    <title>ForexCRM - 登录模块视觉训练</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./theme.css?v=tenant-home-4" />
+    <link rel="stylesheet" href="./client-home.css?v=tenant-home-4" />
+    <link rel="stylesheet" href="./home-personalization.css?v=tenant-home-5" />
+    <link rel="stylesheet" href="./home-ai-training.css?v=training-review-2" />
+    <link rel="stylesheet" href="./auth-visual-training.css?v=auth-visual-training-2" />
+  </head>
+  <body data-layout-page="auth-visual-training">
+    <main class="app" data-layout-main>
+      <div class="page personalization-page">
+        <section class="training-page auth-visual-page" data-auth-visual-page>
+          <header class="training-hero">
+            <div>
+              <span class="section-kicker">AUTH STYLE REFERENCE</span>
+              <h1>登录模块视觉训练</h1>
+              <p>上传你喜欢的登录、注册、找回密码参考稿，把“好看”转成可复用的提示词和界面分格约束。</p>
+            </div>
+            <div class="training-actions">
+              <a href="./auth-layout-admin.html">生成登录注册</a>
+              <a href="./home-ai-training.html">首页审美训练</a>
+              <button type="button" data-auth-training-refresh>刷新</button>
+            </div>
+          </header>
+
+          <section class="training-stats auth-training-stats" aria-label="认证视觉训练统计">
+            <article>
+              <span>参考稿</span>
+              <strong data-auth-reference-count>0</strong>
+            </article>
+            <article>
+              <span>本次参考</span>
+              <strong data-auth-selected-count>0</strong>
+            </article>
+            <article>
+              <span>界面分格</span>
+              <strong data-auth-segment-count>0</strong>
+            </article>
+            <article>
+              <span>提示词片段</span>
+              <strong data-auth-prompt-count>0</strong>
+            </article>
+          </section>
+
+          <section class="auth-training-layout">
+            <aside class="review-column review-column-left" aria-label="上传认证视觉参考">
+              <section class="review-panel">
+                <div class="panel-head">
+                  <div>
+                    <span class="section-kicker">UPLOAD</span>
+                    <h2>上传参考稿</h2>
+                  </div>
+                  <button type="button" data-auth-clear-references>清空</button>
+                </div>
+
+                <label class="upload-dropzone" data-auth-upload-dropzone>
+                  <input data-auth-reference-file type="file" multiple accept="image/png,image/jpeg,image/webp,image/gif,text/html,.html,application/pdf" />
+                  <strong>一次选择 1-3 张认证界面稿</strong>
+                  <span>登录、注册、找回密码可一起上传；保存后自动选为本次参考。</span>
+                </label>
+
+                <label class="field-stack">
+                  <span>适用流程</span>
+                  <select data-auth-reference-flow>
+                    <option value="三流程">登录 + 注册 + 找回密码</option>
+                    <option value="登录">登录</option>
+                    <option value="注册">注册</option>
+                    <option value="找回密码">找回密码</option>
+                  </select>
+                </label>
+
+                <label class="field-stack">
+                  <span>视觉标签</span>
+                  <input data-auth-reference-tags type="text" placeholder="例如：极简、玻璃拟态、深色科技、左图右表单" />
+                </label>
+
+                <fieldset class="auth-segment-field">
+                  <legend>界面分格</legend>
+                  <label><input type="checkbox" value="品牌叙事区" checked />品牌叙事区</label>
+                  <label><input type="checkbox" value="表单卡片" checked />表单卡片</label>
+                  <label><input type="checkbox" value="背景/媒体区" />背景/媒体区</label>
+                  <label><input type="checkbox" value="安全信任点" checked />安全信任点</label>
+                  <label><input type="checkbox" value="步骤轨道" />步骤轨道</label>
+                  <label><input type="checkbox" value="社交登录/验证码" />社交登录/验证码</label>
+                </fieldset>
+
+                <label class="field-stack">
+                  <span>风格提炼</span>
+                  <textarea data-auth-reference-style rows="4" placeholder="例如：左侧有强品牌视觉，右侧表单窄而精；背景低饱和，按钮只有一个主行动。"></textarea>
+                </label>
+
+                <label class="field-stack">
+                  <span>我喜欢它哪里</span>
+                  <textarea data-auth-reference-note rows="4" placeholder="例如：输入框很轻，表单不像后台；忘记密码入口低调但清楚。"></textarea>
+                </label>
+
+                <button class="primary-action" type="button" data-auth-upload-reference>保存到认证视觉库</button>
+                <p class="training-status" data-auth-training-status>等待上传参考稿。</p>
+              </section>
+            </aside>
+
+            <section class="candidate-stage auth-reference-stage" aria-label="认证视觉参考库">
+              <div class="candidate-stage-head">
+                <div>
+                  <span class="section-kicker">REFERENCE WALL</span>
+                  <h2>视觉参考库</h2>
+                  <p>选择 1-6 个作为本次生成参考；上传时建议一次 1-3 张，生成器会学习抽象结构和风格。</p>
+                </div>
+                <button type="button" data-auth-select-latest>选择最新 3 个</button>
+              </div>
+              <div class="reference-grid auth-reference-grid" data-auth-reference-list></div>
+            </section>
+
+            <aside class="review-column review-column-right" aria-label="提示词与分格">
+              <section class="review-panel">
+                <div class="panel-head">
+                  <div>
+                    <span class="section-kicker">PROMPT</span>
+                    <h2>可复用提示词</h2>
+                  </div>
+                  <button type="button" data-auth-copy-prompt>复制</button>
+                </div>
+                <label class="field-stack">
+                  <span>生成器会带入的风格约束</span>
+                  <textarea data-auth-reference-prompt rows="13" readonly></textarea>
+                </label>
+                <button class="primary-action" type="button" data-auth-apply-prompt>写入登录注册生成器</button>
+              </section>
+
+              <section class="review-panel context-panel">
+                <div class="panel-head">
+                  <div>
+                    <span class="section-kicker">CONTEXT</span>
+                    <h2>AI 读取方式</h2>
+                  </div>
+                </div>
+                <div class="context-list" data-auth-context-list></div>
+              </section>
+            </aside>
+          </section>
+        </section>
+      </div>
+
+      <div class="client-toast" data-auth-training-toast hidden></div>
+    </main>
+
+    <script src="./common-layout.js"></script>
+    <script src="./auth-visual-training.js?v=auth-visual-training-2"></script>
+  </body>
+</html>

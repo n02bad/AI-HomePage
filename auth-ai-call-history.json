@@ -1,6 +1,267 @@
 {
   "records": [
     {
+      "id": "auth-1778990277711-97060ca415a81",
+      "at": "2026-05-17T03:57:57.711Z",
+      "source": "authServerProxy",
+      "action": "auth-generate",
+      "providerId": "deepseek",
+      "provider": "DeepSeek",
+      "model": "deepseek-v4-flash",
+      "apiMode": "openai-chat",
+      "callMode": "serverProxy",
+      "baseUrl": "https://api.deepseek.com",
+      "endpoint": "/chat/completions",
+      "temperature": 0.6,
+      "maxOutputTokens": 6000,
+      "status": "success",
+      "mock": false,
+      "durationMs": 17347,
+      "prompt": "为 ForexCRM 生成一套完整的登录、注册、找回密码认证模块。 模块主旨：活动转化。 客户对象：新手开户客户。 注册深度：基础版。 视觉气质：亲和轻量，主题倾向：黑金高净值，主色 #b7791f。 增强能力：手机号 / 邮箱登录、第三方登录、验证码 / Captcha、双重验证、推荐码 / 邀请码、KYC 前置说明、风险披露确认、注册送礼 / 活动奖励。 请生成的是一个个性化认证业务模块，不要套用固定模板；参考界面只作为质量标准学习，不能把参考版式当作可见模板名输出。 需要有让人耳目一新的构图差异，不能只改颜色、标题或按钮文案；请明确选择适合业务目标的首屏骨架和信息表达方式。 需要包含登录、注册、找回密码三条流程的字段、状态、按钮文案、安全提示、合规提示和移动端适配策略。",
+      "message": "ForexCRM 认证中心",
+      "schemeSnapshot": {
+        "name": "ForexCRM 认证中心",
+        "stylePreset": "clientOnboarding",
+        "defaultScreen": "login",
+        "language": "zh-CN",
+        "brand": "ForexCRM",
+        "sourceType": "model",
+        "fallbackReason": "",
+        "audience": "新手开户客户",
+        "registerDepth": "基础版",
+        "screens": [
+          "login",
+          "register",
+          "forgot"
+        ]
+      },
+      "usage": {
+        "prompt_tokens": 723,
+        "completion_tokens": 2245,
+        "total_tokens": 2968,
+        "prompt_tokens_details": {
+          "cached_tokens": 640
+        },
+        "prompt_cache_hit_tokens": 640,
+        "prompt_cache_miss_tokens": 83
+      }
+    },
+    {
+      "id": "auth-1778989365147-f534ee4933357",
+      "at": "2026-05-17T03:42:45.147Z",
+      "source": "authServerProxy",
+      "action": "auth-generate",
+      "providerId": "deepseek",
+      "provider": "DeepSeek",
+      "model": "deepseek-v4-flash",
+      "apiMode": "openai-chat",
+      "callMode": "serverProxy",
+      "baseUrl": "https://api.deepseek.com",
+      "endpoint": "/chat/completions",
+      "temperature": 0.6,
+      "maxOutputTokens": 6000,
+      "status": "success",
+      "mock": false,
+      "durationMs": 9588,
+      "prompt": "请为 ForexCRM 用户端首页生成可发布的首页方案。页面目标：让客户进入交易账号和交易操作；主 CTA 指向交易账号或持仓/订单入口。主 CTA：查看交易账号（data-home-action=accounts）。分级：增长版，在基础能力上加入活动权益、按钮和转化承接。设计风格：扁平清爽：弱化阴影和厚重边框，用平面分区、浅色块和直接的信息排布塑造现代感。视觉：翡翠信任，适合资金安全和合规信任表达。语气：专业稳健。必选模块（不可撤销）：账户概览：使用 asset_overview 展示账户摘要，包含账户余额，钱包余额，交易账号余额，单位：USD，可以参考积木块、快捷入口：展示操作入口，4-10个快捷入口位置，icon或者icon+文字，样式可自行发挥、交易账号列表：必须同时包含真实交易账号和模拟交易账号的列表，列表可参考交易账号积木块，列表或卡片形式皆可、新手 Onboarding 引导：KYC -> 开真实账户 -> 首次入金 -> 首次交易，帮助新用户完成基础流程，其中首次交易可要可不要。交易账号模块必须同时包含真实交易账号和模拟交易账号。已提供素材：无。选填模块：欢迎模块：必须在页面的第一栏，展示见客户姓名、问候、CRM 账户 KYC 状态：未提交、待审、通过、拒绝；只展示当前状态,未提交时补充展示去提交按钮，拒绝是展示再次提交。以下选填模块因缺少对应素材，不要生成：首页 Banner / 广告轮播、账号表现、入金奖励、活动规则、PAMM、CopyTrading、奖励活动、推广链接卡片（链接/邀请码/复制/基础统计）、APP 下载、在线客服、FAQ、风险提示。允许在白名单内重排 sections、brickPlan、模块变体和密度，优先让所选模块和分级决定首屏。选填模块必须通过素材准入：没有活动配置就不要生成 Banner/活动，没有 FAQ 内容就不要生成 FAQ，没有下载链接就不要生成 APP 下载，没有客服配置就不要生成客服模块。不要编造收益、下载链接、后台未提供的数据或未选择的辅助模块",
+      "message": "ForexCRM 认证中心",
+      "schemeSnapshot": {
+        "name": "ForexCRM 认证中心",
+        "stylePreset": "clientOnboarding",
+        "defaultScreen": "login",
+        "language": "zh-CN",
+        "brand": "ForexCRM",
+        "sourceType": "model",
+        "fallbackReason": "",
+        "audience": "零售交易者",
+        "registerDepth": "三步注册",
+        "screens": [
+          "login",
+          "register",
+          "forgot"
+        ]
+      },
+      "usage": {
+        "prompt_tokens": 1005,
+        "completion_tokens": 1231,
+        "total_tokens": 2236,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 1005
+      }
+    },
+    {
+      "id": "auth-1778988652607-fcb6ebf6489dc",
+      "at": "2026-05-17T03:30:52.607Z",
+      "source": "authServerProxy",
+      "action": "auth-generate",
+      "providerId": "deepseek",
+      "provider": "DeepSeek",
+      "model": "deepseek-v4-flash",
+      "apiMode": "openai-chat",
+      "callMode": "serverProxy",
+      "baseUrl": "https://api.deepseek.com",
+      "endpoint": "/chat/completions",
+      "temperature": 0.6,
+      "maxOutputTokens": 6000,
+      "status": "success",
+      "mock": false,
+      "durationMs": 18291,
+      "prompt": "为 ForexCRM 生成一套完整的登录、注册、找回密码认证模块。 模块主旨：活动转化。 客户对象：新手开户客户。 注册深度：基础版。 视觉气质：亲和轻量，主题倾向：黑金高净值，主色 #b7791f。 增强能力：手机号 / 邮箱登录、第三方登录、验证码 / Captcha、双重验证、推荐码 / 邀请码、KYC 前置说明、风险披露确认、注册送礼 / 活动奖励。 请生成的是一个个性化认证业务模块，不要套用固定模板；参考界面只作为质量标准学习，不能把参考版式当作可见模板名输出。 需要有让人耳目一新的构图差异，不能只改颜色、标题或按钮文案；请明确选择适合业务目标的首屏骨架和信息表达方式。 需要包含登录、注册、找回密码三条流程的字段、状态、按钮文案、安全提示、合规提示和移动端适配策略。",
+      "message": "ForexCRM 认证中心",
+      "schemeSnapshot": {
+        "name": "ForexCRM 认证中心",
+        "stylePreset": "clientOnboarding",
+        "defaultScreen": "login",
+        "language": "zh-CN",
+        "brand": "ForexCRM",
+        "sourceType": "model",
+        "fallbackReason": "",
+        "audience": "新手开户客户",
+        "registerDepth": "基础版",
+        "screens": [
+          "login",
+          "register",
+          "forgot"
+        ]
+      },
+      "usage": {
+        "prompt_tokens": 723,
+        "completion_tokens": 2065,
+        "total_tokens": 2788,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 723
+      }
+    },
+    {
+      "id": "auth-1778988326263-5319f011c7389",
+      "at": "2026-05-17T03:25:26.263Z",
+      "source": "authServerProxy",
+      "action": "auth-generate",
+      "providerId": "kimi",
+      "provider": "Kimi",
+      "model": "kimi-k2.6",
+      "apiMode": "openai-chat",
+      "callMode": "serverProxy",
+      "baseUrl": "https://api.moonshot.cn/v1",
+      "endpoint": "/chat/completions",
+      "temperature": 0.6,
+      "maxOutputTokens": 6000,
+      "status": "success",
+      "mock": false,
+      "durationMs": 101910,
+      "prompt": "请为 ForexCRM 用户端首页生成可发布的首页方案。页面目标：推动客户开真实账户；全页主 CTA 统一为“立即开户”。主 CTA：立即开户（data-home-action=openAccount）。分级：专业版，加入账号、资产、推广链接、数据指标或更完整的运营模块。设计风格：简约留白：减少装饰和干扰，使用清晰留白、克制卡片和明确层级，让页面更轻、更安静。视觉：蓝色金融，清爽专业。语气：专业稳健。必选模块（不可撤销）：账户概览：使用 asset_overview 展示账户摘要，包含账户余额，钱包余额，交易账号余额，单位：USD，可以参考积木块、快捷入口：展示操作入口，4-10个快捷入口位置，icon或者icon+文字，样式可自行发挥、交易账号列表：必须同时包含真实交易账号和模拟交易账号的列表，列表可参考交易账号积木块，列表或卡片形式皆可、新手 Onboarding 引导：KYC -> 开真实账户 -> 首次入金 -> 首次交易，帮助新用户完成基础流程，其中首次交易可要可不要。交易账号模块必须同时包含真实交易账号和模拟交易账号。已提供素材：活动 / Banner 配置：允许生成 promo_banner、活动权益、奖励规则或入金奖励承接、CopyTrading 信号源：允许生成 copytrading_signals，收益、回撤和曲线来自接口或预览样例、推广链接 / 邀请码：允许生成 referral_link_card，链接、邀请码和基础统计来自后台、FAQ 内容：允许生成 faq_section，问题答案来自后台配置。选填模块：欢迎模块：必须在页面的第一栏，展示见客户姓名、问候、首页 Banner / 广告轮播：多张广告轮播图，需要具备自动切换和下一张控制；用 promo_banner 作为首页积木承接、CRM 账户 KYC 状态：未提交、待审、通过、拒绝；只展示当前状态,未提交时补充展示去提交按钮，拒绝是展示再次提交、CopyTrading 信号源推荐区，使用独立的 copytrading_signals 模块，展示信号源名称、收益率、总收益(USD)、最大回撤、收益率折线图仅在租户开启 CopyTrading 且接口返回信号源时展示，演示界面可制造数据，风格可参考币安、FAQ 常见问题：展示一些平台设置的常见问题，demo 可以放 4-10 条。以下选填模块因缺少对应素材，不要生成：账号表现、风险提示。允许在白名单内重排 sections、brickPlan、模块变体和密度，优先让所选模块和分级决定首屏。选填模块必须通过素材准入：没有活动配置就不要生成 Banner/活动，没有 FAQ 内容就不要生成 FAQ，没有下载链接就不要生成 APP 下载，没有客服配置就不要生成客服模块。不要编造收益、下载链接、后台未提供的数据或未选择的辅助模块",
+      "message": "ForexCRM 认证中心",
+      "schemeSnapshot": {
+        "name": "ForexCRM 认证中心",
+        "stylePreset": "blueSplit",
+        "defaultScreen": "register",
+        "language": "zh-CN",
+        "brand": "ForexCRM",
+        "sourceType": "model",
+        "fallbackReason": "",
+        "audience": "professional_trader",
+        "registerDepth": "full_kyc",
+        "screens": [
+          "login",
+          "register",
+          "forgot"
+        ]
+      },
+      "usage": {
+        "prompt_tokens": 1081,
+        "completion_tokens": 4234,
+        "total_tokens": 5315,
+        "cached_tokens": 256,
+        "prompt_tokens_details": {
+          "cached_tokens": 256
+        }
+      }
+    },
+    {
+      "id": "auth-1778988003948-384716fad032f",
+      "at": "2026-05-17T03:20:03.948Z",
+      "source": "authServerProxy",
+      "action": "auth-generate",
+      "providerId": "kimi",
+      "provider": "Kimi",
+      "model": "kimi-k2.6",
+      "apiMode": "openai-chat",
+      "callMode": "serverProxy",
+      "baseUrl": "https://api.moonshot.cn/v1",
+      "endpoint": "/chat/completions",
+      "temperature": 0.6,
+      "maxOutputTokens": 6000,
+      "status": "success",
+      "mock": false,
+      "durationMs": 99972,
+      "prompt": "为 ForexCRM 生成一套完整的登录、注册、找回密码认证模块。 模块主旨：活动转化。 客户对象：新手开户客户。 注册深度：基础版。 视觉气质：亲和轻量，主题倾向：黑金高净值，主色 #b7791f。 增强能力：手机号 / 邮箱登录、第三方登录、验证码 / Captcha、双重验证、推荐码 / 邀请码、KYC 前置说明、风险披露确认、注册送礼 / 活动奖励。 请生成的是一个个性化认证业务模块，不要套用固定模板；参考界面只作为质量标准学习，不能把参考版式当作可见模板名输出。 需要有让人耳目一新的构图差异，不能只改颜色、标题或按钮文案；请明确选择适合业务目标的首屏骨架和信息表达方式。 需要包含登录、注册、找回密码三条流程的字段、状态、按钮文案、安全提示、合规提示和移动端适配策略。",
+      "message": "ForexCRM 认证中心",
+      "schemeSnapshot": {
+        "name": "ForexCRM 认证中心",
+        "stylePreset": "softPlatform",
+        "defaultScreen": "login",
+        "language": "zh-CN",
+        "brand": "ForexCRM",
+        "sourceType": "model",
+        "fallbackReason": "",
+        "audience": "newTrader",
+        "registerDepth": "light",
+        "screens": [
+          "login",
+          "register",
+          "forgot"
+        ]
+      },
+      "usage": {
+        "prompt_tokens": 855,
+        "completion_tokens": 3870,
+        "total_tokens": 4725
+      }
+    },
+    {
+      "id": "auth-1778987843863-63bd5753c762c",
+      "at": "2026-05-17T03:17:23.863Z",
+      "source": "authServerProxy",
+      "action": "auth-generate",
+      "providerId": "kimi",
+      "provider": "Kimi",
+      "model": "kimi-k2.6",
+      "apiMode": "openai-chat",
+      "callMode": "serverProxy",
+      "baseUrl": "https://api.moonshot.cn/v1",
+      "endpoint": "/chat/completions",
+      "temperature": 0.6,
+      "maxOutputTokens": 6000,
+      "status": "fallback",
+      "mock": false,
+      "durationMs": 120199,
+      "prompt": "为 ForexCRM 生成一套完整的登录、注册、找回密码认证模块。 模块主旨：开户链接。 客户对象：新手开户客户。 注册深度：专业版。 视觉气质：亲和轻量，主题倾向：蓝色信任，主色 #2563eb。 增强能力：手机号 / 邮箱登录、第三方登录、验证码 / Captcha、双重验证、KYC 前置说明、风险披露确认、注册送礼 / 活动奖励。 请生成的是一个个性化认证业务模块，不要套用固定模板；参考界面只作为质量标准学习，不能把参考版式当作可见模板名输出。 需要包含登录、注册、找回密码三条流程的字段、状态、按钮文案、安全提示、合规提示和移动端适配策略。",
+      "message": "ForexCRM 认证中心",
+      "schemeSnapshot": {
+        "name": "ForexCRM 认证中心",
+        "stylePreset": "clientOnboarding",
+        "defaultScreen": "login",
+        "language": "zh-CN",
+        "brand": "ForexCRM",
+        "sourceType": "local-fallback",
+        "fallbackReason": "Kimi 调用失败：AI provider request timed out",
+        "audience": "newTrader",
+        "registerDepth": "standard",
+        "screens": [
+          "login",
+          "register",
+          "forgot"
+        ]
+      },
+      "usage": null
+    },
+    {
       "id": "auth-1778987683614-26927a5950c71",
       "at": "2026-05-17T03:14:43.614Z",
       "source": "authServerProxy",

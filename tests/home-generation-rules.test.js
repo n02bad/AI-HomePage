@@ -697,6 +697,9 @@ async function run() {
 			  assert(serverSource.includes('return ["minimax", "deepseek", "kimi"].includes(config.provider)'), "MiniMax, DeepSeek and Kimi should all use compact model-generated AI HTML instead of skipping HTML generation");
 			  assert(serverSource.includes("function validateHomepageConfig"), "server must validate homepage config before HTML generation");
 			  assert(serverSource.includes("function repairHomepageConfig"), "server must repair homepage config before HTML generation");
+			  assert(serverSource.includes("buildHomepagePagePlan"), "server must create a pagePlan before final homepage assembly");
+			  assert(serverSource.includes("HOMEPAGE_OPTIONAL_BLOCK_MATERIAL_GATES"), "optional homepage modules must have material gates");
+			  assert(serverSource.includes("pagePlan.mainVisual"), "AI HTML prompts must preserve the single visual hero from pagePlan");
 			  assert(serverSource.includes("homepageRepairedConfigPromptContract"), "AI HTML prompts must receive repairedConfig sections");
 			  assert(serverSource.includes("必须严格按照 repairedConfig.sections 渲染"), "AI HTML prompt must forbid adding, deleting, or reordering modules");
 			  assert(serverSource.includes("AI HTML generation waits for repairedConfig"), "server must not generate free HTML from raw config before repair");
@@ -855,6 +858,50 @@ async function run() {
 		    assert.deepStrictEqual(guidedPollutionResponse.config.moduleSettings.quickActions.actions, []);
 		    assert.strictEqual(guidedPollutionResponse.config.themePreset, "blueFinance");
 		    assert.strictEqual(guidedPollutionResponse.config.theme, "blueFinance");
+
+		    const guidedMaterialGateResponse = await postJson(port, {
+		      inputMode: "guided",
+		      prompt: "请根据引导表单生成开户首页；缺少素材的选填模块不要生成。",
+		      guidedIntake: {
+		        source: "guided-builder",
+		        materialGateEnabled: true,
+		        pageGoal: { id: "openAccount", label: "开真实账户" },
+		        primaryAction: { action: "openAccount", label: "立即开户" },
+		        materials: [],
+		        canonical: {
+		          primaryIntent: "onboarding",
+		          layoutPreset: "onboardingJourney",
+		          heroFocus: "onboarding_guide",
+		          mustHave: ["asset_overview", "quick_actions", "onboarding_guide", "trading_accounts_list", "promo_banner", "faq_section", "support_contact"],
+		        },
+		        modules: [
+		          { id: "accountOverview", label: "账户概览", canonicalTargets: ["asset_overview"] },
+		          { id: "quickActions", label: "快捷入口", canonicalTargets: ["quick_actions"] },
+		          { id: "openingFlow", label: "新手引导", canonicalTargets: ["onboarding_guide"] },
+		          { id: "tradingAccounts", label: "交易账号", canonicalTargets: ["trading_accounts_list"] },
+		          { id: "heroBanner", label: "首页 Banner", canonicalTargets: ["promo_banner"], materialRequirements: ["campaignConfig"], eligible: false },
+		          { id: "faq", label: "FAQ", canonicalTargets: ["faq_section"], materialRequirements: ["faqContent"], eligible: false },
+		          { id: "customerService", label: "在线客服", canonicalTargets: ["support_contact"], materialRequirements: ["supportConfig"], eligible: false },
+		        ],
+		        excludedModules: [
+		          { id: "heroBanner", label: "首页 Banner", canonicalTargets: ["promo_banner"], materialRequirements: ["campaignConfig"], eligible: false },
+		          { id: "faq", label: "FAQ", canonicalTargets: ["faq_section"], materialRequirements: ["faqContent"], eligible: false },
+		          { id: "customerService", label: "在线客服", canonicalTargets: ["support_contact"], materialRequirements: ["supportConfig"], eligible: false },
+		        ],
+		      },
+		      modelConfig: { provider: "openai" },
+		    });
+		    assert.strictEqual(guidedMaterialGateResponse.ok, true);
+		    assertOnlyAllowedBlocks(guidedMaterialGateResponse.config);
+		    assert.strictEqual(hasBlock(guidedMaterialGateResponse.config, "promo_banner"), false);
+		    assert.strictEqual(hasBlock(guidedMaterialGateResponse.config, "faq_section"), false);
+		    assert.strictEqual(hasBlock(guidedMaterialGateResponse.config, "support_contact"), false);
+		    assert.strictEqual(guidedMaterialGateResponse.config.moduleSettings.faq.enabled, false);
+		    assert.strictEqual(guidedMaterialGateResponse.config.moduleSettings.supportContact.enabled, false);
+		    assert.strictEqual(guidedMaterialGateResponse.config.moduleSettings.promoHighlight.enabled, false);
+		    assert.strictEqual(guidedMaterialGateResponse.config.pagePlan.pageGoal, "openAccount");
+		    assert.strictEqual(guidedMaterialGateResponse.config.pagePlan.primaryAction.action, "openAccount");
+		    assert(guidedMaterialGateResponse.config.pagePlan.excludedModules.some((item) => item.module === "promo_banner"));
 
 		    const guidedAccountOverviewResponse = await postJson(port, {
 		      inputMode: "guided",
