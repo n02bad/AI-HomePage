@@ -1,5 +1,6 @@
 (function () {
   const MODEL_HISTORY_KEY = "forexcrm.home.ai.call.history";
+  const AUTH_MODEL_HISTORY_KEY = "forexcrm.auth.ai.call.history";
 
   const els = {
     total: document.querySelector("[data-call-total]"),
@@ -20,6 +21,7 @@
   let activeRecordId = "";
   let searchText = "";
   let serverRecords = [];
+  let authServerRecords = [];
 
   function escapeHtml(value) {
     return String(value ?? "")
@@ -30,41 +32,56 @@
       .replace(/'/g, "&#39;");
   }
 
-  function loadRecords() {
+  function loadRecords(key = MODEL_HISTORY_KEY) {
     try {
-      const saved = JSON.parse(window.localStorage.getItem(MODEL_HISTORY_KEY) || "[]");
+      const saved = JSON.parse(window.localStorage.getItem(key) || "[]");
       return Array.isArray(saved) ? saved : [];
     } catch (error) {
       return [];
     }
   }
 
-  function saveRecords(records) {
-    window.localStorage.setItem(MODEL_HISTORY_KEY, JSON.stringify(Array.isArray(records) ? records : []));
+  function saveRecords(records, key = MODEL_HISTORY_KEY) {
+    window.localStorage.setItem(key, JSON.stringify(Array.isArray(records) ? records : []));
   }
 
   async function refreshServerRecords() {
-    try {
-      const response = await fetch("/api/home-ai/calls", { cache: "no-store" });
-      const data = await response.json();
-      serverRecords = Array.isArray(data.records) ? data.records : [];
-    } catch (error) {
-      serverRecords = [];
-    }
+    const [homeResult, authResult] = await Promise.allSettled([
+      fetch("/api/home-ai/calls", { cache: "no-store" }).then((response) => response.json()),
+      fetch("/api/auth-ai/calls", { cache: "no-store" }).then((response) => response.json()),
+    ]);
+    serverRecords = homeResult.status === "fulfilled" && Array.isArray(homeResult.value?.records) ? homeResult.value.records : [];
+    authServerRecords = authResult.status === "fulfilled" && Array.isArray(authResult.value?.records) ? authResult.value.records : [];
   }
 
   function mergedRecords() {
     const recordsById = new Map();
-    const addRecord = (record, source, index) => {
+    const addRecord = (record, source, index, moduleType = "") => {
       const id = record?.id || `${source}-${index}`;
       const current = recordsById.get(id) || {};
-      recordsById.set(id, { ...current, ...(record || {}), id, source: record?.source || source });
+      recordsById.set(id, { ...current, ...(record || {}), id, source: record?.source || source, moduleType: record?.moduleType || moduleType || moduleTypeForRecord(record) });
     };
 
-    loadRecords().forEach((record, index) => addRecord(record, "browser", index));
-    serverRecords.forEach((record, index) => addRecord(record, "serverProxy", index));
+    loadRecords(MODEL_HISTORY_KEY).forEach((record, index) => addRecord(record, "browser", index, moduleTypeForRecord(record) || "home"));
+    loadRecords(AUTH_MODEL_HISTORY_KEY).forEach((record, index) => addRecord(record, "browser", index, "auth"));
+    serverRecords.forEach((record, index) => addRecord(record, "serverProxy", index, moduleTypeForRecord(record) || "home"));
+    authServerRecords.forEach((record, index) => addRecord(record, "authServerProxy", index, "auth"));
 
     return [...recordsById.values()].sort((a, b) => new Date(b.at || 0).getTime() - new Date(a.at || 0).getTime());
+  }
+
+  function moduleTypeForRecord(record = {}) {
+    if (record.moduleType) return record.moduleType;
+    if (record.source === "authServerProxy" || /^auth-/.test(String(record.id || "")) || String(record.action || "").startsWith("auth-") || record.schemeSnapshot) return "auth";
+    if (String(record.action || "").startsWith("component-")) return "component";
+    return "home";
+  }
+
+  function moduleLabel(record = {}) {
+    const type = moduleTypeForRecord(record);
+    if (type === "auth") return "登录注册";
+    if (type === "component") return "组件";
+    return "首页";
   }
 
   function redactRecord(record) {
@@ -101,6 +118,7 @@
 
   function actionLabel(action) {
     if (action === "connectivity-test") return "连通性测试";
+    if (action === "auth-generate") return "登录注册生成";
     if (action === "homepage-generate") return "首页生成";
     if (action === "component-generate") return "组件生成";
     if (action === "component-compose") return "组件编排";
@@ -115,14 +133,14 @@
 
   function compactHistorySummary(message) {
     return String(message || "")
-      .replace(/\s*·\s*(?:\/api\/home-ai\/complete|\/api\/home-ai\/test|\/api\/home-components\/generate|\/api\/home-components\/compose|https?:\/\/\S+)\s*$/i, "")
+      .replace(/\s*·\s*(?:\/api\/home-ai\/complete|\/api\/home-ai\/test|\/api\/auth-ai\/generate|\/api\/auth-ai\/test|\/api\/home-components\/generate|\/api\/home-components\/compose|https?:\/\/\S+)\s*$/i, "")
       .replace(/\s*·\s*(模型返回片段：|处理建议：)[\s\S]*$/i, "")
       .replace(/\s{2,}/g, " ")
       .trim();
   }
 
   function parseMarkedHistoryMessage(message) {
-    const source = String(message || "").replace(/\s*·\s*(?:\/api\/home-ai\/complete|\/api\/home-ai\/test|\/api\/home-components\/generate|\/api\/home-components\/compose|https?:\/\/\S+)\s*$/i, "");
+    const source = String(message || "").replace(/\s*·\s*(?:\/api\/home-ai\/complete|\/api\/home-ai\/test|\/api\/auth-ai\/generate|\/api\/auth-ai\/test|\/api\/home-components\/generate|\/api\/home-components\/compose|https?:\/\/\S+)\s*$/i, "");
     const markerMap = [
       { key: "detail", marker: "模型返回片段：" },
       { key: "advice", marker: "处理建议：" },
@@ -185,6 +203,7 @@
       record.provider,
       record.providerId,
       record.model,
+      moduleLabel(record),
 	      record.status,
 	      statusLabel(record),
 	      htmlSourceSummary(record),
@@ -195,6 +214,12 @@
 	      record.configSnapshot?.strategy,
 	      record.configSnapshot?.layoutPreset,
 	      record.configSnapshot?.themePreset,
+      record.schemeSnapshot?.name,
+      record.schemeSnapshot?.brand,
+      record.schemeSnapshot?.stylePreset,
+      record.schemeSnapshot?.defaultScreen,
+      record.schemeSnapshot?.registerDepth,
+      record.schemeSnapshot?.audience,
 	      ...(Array.isArray(record.configSnapshot?.brickIds) ? record.configSnapshot.brickIds : []),
 	      endpointLabel(record),
 	      record.source,
@@ -246,6 +271,7 @@
 
     els.records.innerHTML = `
       <div class="model-call-table-head" aria-hidden="true">
+        <span>模块</span>
         <span>状态</span>
         <span>时间</span>
         <span>模型</span>
@@ -260,6 +286,7 @@
 	          const htmlSource = htmlSourceSummary(record);
 	          return `
 	            <button class="model-call-row${active ? " active" : ""}" type="button" data-call-id="${escapeHtml(record.id || "")}" data-call-status="${escapeHtml(record.status || "unknown")}">
+              <span>${escapeHtml(moduleLabel(record))}</span>
 	              <span class="call-status-dot">${escapeHtml(statusLabel(record))}</span>
               <span>${escapeHtml(formatDate(record.at))}</span>
               <span><b>${escapeHtml(record.provider || "本地规则")}</b><small>${escapeHtml(record.model || "--")}</small></span>
@@ -295,9 +322,15 @@
 		    const display = displayRecord(record);
 		    const safeRecord = redactRecord(record);
 		    const snapshot = record.configSnapshot || {};
+      const authSnapshot = record.schemeSnapshot || {};
 		    const htmlSource = htmlSourceSummary(record);
 		    const structureRows = [
-	      ["首页名称", snapshot.name],
+	      [moduleTypeForRecord(record) === "auth" ? "认证方案" : "首页名称", authSnapshot.name || snapshot.name],
+	      ["品牌", authSnapshot.brand],
+	      ["默认流程", authSnapshot.defaultScreen],
+	      ["注册深度", authSnapshot.registerDepth],
+	      ["认证风格", authSnapshot.stylePreset],
+	      ["客群", authSnapshot.audience],
 	      ["意图", snapshot.intent],
 	      ["布局", snapshot.layoutPreset],
 	      ["主题", snapshot.themePreset],
@@ -314,6 +347,7 @@
       </header>
       <dl class="model-call-detail-grid">
         ${detailRow("调用时间", formatDate(record.at))}
+        ${detailRow("模块", moduleLabel(record))}
         ${detailRow("耗时", record.durationMs ? `${record.durationMs}ms` : "--")}
         ${detailRow("调用方式", callModeLabel(record.callMode))}
         ${detailRow("API 模式", record.apiMode || "--")}
@@ -338,7 +372,7 @@
 	      </section>
 	      ${
 	        structureRows.length
-	          ? `<section><h3>首页结构</h3><dl class="model-call-detail-grid">${structureRows
+	          ? `<section><h3>${moduleTypeForRecord(record) === "auth" ? "认证结构" : "首页结构"}</h3><dl class="model-call-detail-grid">${structureRows
 	              .map(([label, value]) => detailRow(label, value))
 	              .join("")}</dl></section>`
 	          : ""
@@ -425,11 +459,17 @@
     }
     if (!window.confirm("确认清空当前调用记录？")) return;
     saveRecords([]);
+    saveRecords([], AUTH_MODEL_HISTORY_KEY);
     try {
-      await fetch("/api/home-ai/calls", { method: "DELETE" });
+      await Promise.allSettled([
+        fetch("/api/home-ai/calls", { method: "DELETE" }),
+        fetch("/api/auth-ai/calls", { method: "DELETE" }),
+      ]);
       serverRecords = [];
+      authServerRecords = [];
     } catch (error) {
       serverRecords = [];
+      authServerRecords = [];
     }
     activeRecordId = "";
     render();
@@ -437,7 +477,7 @@
   });
 
   window.addEventListener("storage", (event) => {
-    if (event.key === MODEL_HISTORY_KEY) render();
+    if ([MODEL_HISTORY_KEY, AUTH_MODEL_HISTORY_KEY].includes(event.key)) render();
   });
 
   refreshServerRecords().then(render);

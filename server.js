@@ -79,6 +79,8 @@ const DEEPSEEK_PRO_MODEL = "deepseek-v4-pro";
 const DEEPSEEK_FLASH_MODEL = "deepseek-v4-flash";
 const DEEPSEEK_PRO_TIMEOUT_MS = 75_000;
 const DEEPSEEK_FLASH_TIMEOUT_MS = 120_000;
+const GEMINI_OPENAI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai";
+const GEMINI_DEFAULT_MODEL = "gemini-2.5-flash";
 const KIMI_TIMEOUT_MS = 120_000;
 
 const PROVIDERS = {
@@ -127,6 +129,16 @@ const PROVIDERS = {
     keyEnv: ["DEEPSEEK_API_KEY"],
     modelEnv: ["DEEPSEEK_MODEL"],
     baseUrlEnv: ["DEEPSEEK_BASE_URL"],
+  },
+  gemini: {
+    name: "Gemini",
+    apiMode: "openai-chat",
+    model: GEMINI_DEFAULT_MODEL,
+    baseUrl: GEMINI_OPENAI_BASE_URL,
+    endpoint: "/chat/completions",
+    keyEnv: ["GEMINI_API_KEY", "GOOGLE_API_KEY"],
+    modelEnv: ["GEMINI_MODEL"],
+    baseUrlEnv: ["GEMINI_BASE_URL", "GOOGLE_GENERATIVE_LANGUAGE_BASE_URL"],
   },
 };
 
@@ -279,7 +291,7 @@ function normalizeBaseUrl(value) {
 
 function normalizeProviderBaseUrl(providerId, value) {
   const baseUrl = normalizeBaseUrl(value);
-  if (!["minimax", "kimi"].includes(providerId)) return baseUrl;
+  if (!["minimax", "kimi", "gemini"].includes(providerId)) return baseUrl;
 
   try {
     const target = new URL(baseUrl);
@@ -288,6 +300,10 @@ function normalizeProviderBaseUrl(providerId, value) {
     }
     if (providerId === "kimi" && target.hostname === "api.moonshot.ai") {
       return KIMI_CN_BASE_URL;
+    }
+    if (providerId === "gemini" && target.hostname === "generativelanguage.googleapis.com") {
+      if (target.pathname === "/" || target.pathname === "/v1beta") return GEMINI_OPENAI_BASE_URL;
+      if (target.pathname === "/v1beta/openai/") return GEMINI_OPENAI_BASE_URL;
     }
   } catch (error) {
     return baseUrl;
@@ -298,6 +314,10 @@ function normalizeProviderBaseUrl(providerId, value) {
   }
 
   return baseUrl === KIMI_GLOBAL_BASE_URL ? KIMI_CN_BASE_URL : baseUrl;
+}
+
+function isGeminiFlashThinkingModel(model) {
+  return /^gemini-2\.5-flash(?:-|$)/i.test(String(model || ""));
 }
 
 function isKimiFixedTemperatureModel(model) {
@@ -344,6 +364,7 @@ const CANONICAL_HOME_BLOCKS = [
   "pamm_products",
   "copytrading_signals",
   "referral_link_card",
+  "kyc_status_card",
   "announcements",
   "market_news",
   "risk_disclosure",
@@ -387,6 +408,11 @@ const HOME_BLOCK_MORPH_MODULE_MAP = {
   adCarousel: "PromotionBanner",
   referral_link_card: "ReferralLinkCard",
   referralLinkCard: "ReferralLinkCard",
+  kyc_status_card: "OnboardingProgress",
+  account_kyc_status: "OnboardingProgress",
+  kycStatus: "OnboardingProgress",
+  userKycRail: "OnboardingProgress",
+  user_kyc_rail: "OnboardingProgress",
   risk_disclosure: "RiskDisclosure",
   riskNotice: "RiskDisclosure",
 };
@@ -501,13 +527,13 @@ const FORBIDDEN_HOME_BLOCKS = [
   "ib_dashboard",
   "referralLink",
   "referral_link",
-  "userKycRail",
-  "user_kyc_rail",
 ];
 
 const HOME_BLOCK_ALIASES = {
   welcomeHeader: "welcome_header",
+  首页欢迎: "welcome_header",
   balanceTotal: "asset_overview",
+  资产概览: "asset_overview",
   accountBalances: "asset_overview",
   walletBalance: "asset_overview",
   walletList: "wallet_list",
@@ -517,7 +543,11 @@ const HOME_BLOCK_ALIASES = {
   wallet_list: "wallet_list",
   fund_actions: "asset_overview",
   quickActions: "quick_actions",
+  快捷操作: "quick_actions",
+  快捷入口: "quick_actions",
   openAccountActions: "onboarding_guide",
+  新手引导: "onboarding_guide",
+  开户引导: "onboarding_guide",
   onboardingProgress: "onboarding_guide",
   createAccountForm: "onboarding_guide",
   open_account_panel: "onboarding_guide",
@@ -527,18 +557,39 @@ const HOME_BLOCK_ALIASES = {
   adCarousel: "promo_banner",
   ad_carousel: "promo_banner",
   tradingAccounts: "trading_accounts_list",
+  交易账号: "trading_accounts_list",
+  交易账户: "trading_accounts_list",
   account_list: "trading_accounts_list",
   accountPerformance: "trading_account_highlight",
+  账号表现: "trading_account_highlight",
+  账户表现: "trading_account_highlight",
+  trading_performance: "trading_account_highlight",
   account_performance: "trading_account_highlight",
   marketInsight: "market_news",
   market_insight: "market_news",
   copytradingSummary: "copytrading_signals",
   copytrading_summary: "copytrading_signals",
   referralLinkCard: "referral_link_card",
+  推广链接: "referral_link_card",
+  referral: "referral_link_card",
+  "referral link": "referral_link_card",
+  "invite code": "referral_link_card",
   referral_link_card: "referral_link_card",
+  accountKycStatus: "kyc_status_card",
+  "CRM 账户 KYC 状态": "kyc_status_card",
+  "KYC 状态": "kyc_status_card",
+  "kyc status": "kyc_status_card",
+  account_kyc_status: "kyc_status_card",
+  kycStatus: "kyc_status_card",
+  "kycStatus.current": "kyc_status_card",
+  kyc_status: "kyc_status_card",
+  kyc_status_card: "kyc_status_card",
+  userKycRail: "kyc_status_card",
+  user_kyc_rail: "kyc_status_card",
   support_help: "support_contact",
   riskNotice: "risk_disclosure",
   risk_notice: "risk_disclosure",
+  riskDisclosure: "risk_disclosure",
   faq: "faq_section",
   faqSection: "faq_section",
   customerService: "support_contact",
@@ -554,7 +605,7 @@ function canonicalHomeBlock(id) {
   const value = String(id || "").trim();
   if (!value || FORBIDDEN_HOME_BLOCKS.includes(value)) return "";
   if (CANONICAL_HOME_BLOCKS.includes(value)) return value;
-  return HOME_BLOCK_ALIASES[value] || "";
+  return HOME_BLOCK_ALIASES[value] || HOME_BLOCK_ALIASES[value.toLowerCase()] || "";
 }
 
 const LARGE_FULL_ROW_HOME_BLOCKS = new Set(["trading_account_highlight", "trading_accounts_list", "wallet_list"]);
@@ -563,6 +614,7 @@ function homepageSectionTitleForSlot(slot, fallback = "") {
   if (slot === "trading_account_highlight") return "账号表现";
   if (slot === "trading_accounts_list") return "交易账号";
   if (slot === "wallet_list") return "钱包列表";
+  if (slot === "kyc_status_card") return "KYC 状态";
   return fallback || slot;
 }
 
@@ -621,6 +673,7 @@ const HOMEPAGE_BLOCK_REPAIR_META = {
   pamm_products: { brickId: "pammProducts.recommendations", brickName: "PAMM 产品推荐", family: "PammProducts", size: "2x1", zone: "main", title: "PAMM 产品" },
   copytrading_signals: { brickId: "copytradingSignals.curveCards", brickName: "CopyTrading 信号源", family: "CopytradingSignals", size: "3x1", zone: "full", title: "CopyTrading" },
   referral_link_card: { brickId: "referralLinkCard.compact", brickName: "推广链接", family: "ReferralLinkCard", size: "1x1", zone: "rail", title: "推广链接" },
+  kyc_status_card: { brickId: "kycStatus.current", brickName: "KYC 当前状态", family: "UserKycRail", size: "1x1", zone: "rail", title: "KYC 状态" },
   announcements: { brickId: "announcements.list", brickName: "公告通知", family: "Announcements", size: "2x1", zone: "main", title: "公告通知" },
   market_news: { brickId: "marketNews.feed", brickName: "市场资讯", family: "MarketNews", size: "2x1", zone: "main", title: "市场资讯" },
   risk_disclosure: { brickId: "riskDisclosure.legalStrip", brickName: "风险提示", family: "RiskDisclosure", size: "3x1", zone: "full", title: "风险提示" },
@@ -718,14 +771,46 @@ function homepageSectionForSingleSlot(slot, index = 0, type = "full") {
 function normalizeHomepageGuidedSnapshot(guidedSnapshot = {}) {
   const source = guidedSnapshot && typeof guidedSnapshot === "object" ? guidedSnapshot : {};
   const explicitBlocks = new Set();
+  const availableModuleBlocks = new Set();
+  const selectedModuleBlocks = new Set();
+  const optionalSelectedBlocks = new Set();
   const addBlock = (value) => {
     const block = canonicalHomeBlock(value);
     if (block) explicitBlocks.add(block);
   };
+  const addModuleBlocks = (module, targetSet) => {
+    if (typeof module === "string") {
+      const block = canonicalHomeBlock(module);
+      if (block) targetSet.add(block);
+      return;
+    }
+    (Array.isArray(module?.canonicalTargets) ? module.canonicalTargets : []).forEach((target) => {
+      const block = canonicalHomeBlock(target);
+      if (block) targetSet.add(block);
+    });
+    [module?.canonicalTarget, module?.block, module?.id, module?.value, module?.label, module?.name].forEach((target) => {
+      const block = canonicalHomeBlock(target);
+      if (block) targetSet.add(block);
+    });
+  };
 
   (Array.isArray(source.explicitBlocks) ? source.explicitBlocks : []).forEach(addBlock);
   (Array.isArray(source.selectedOptionalModules) ? source.selectedOptionalModules : []).forEach(addBlock);
+  (Array.isArray(source.optionalSelected) ? source.optionalSelected : []).forEach((module) => {
+    addModuleBlocks(module, optionalSelectedBlocks);
+    addModuleBlocks(module, explicitBlocks);
+  });
+  (Array.isArray(source.optionalSelectedModules) ? source.optionalSelectedModules : []).forEach((module) => {
+    addModuleBlocks(module, optionalSelectedBlocks);
+    addModuleBlocks(module, explicitBlocks);
+  });
+  (Array.isArray(source.availableModules) ? source.availableModules : []).forEach((module) => addModuleBlocks(module, availableModuleBlocks));
+  (Array.isArray(source.selectedModules) ? source.selectedModules : []).forEach((module) => {
+    addModuleBlocks(module, selectedModuleBlocks);
+    addModuleBlocks(module, explicitBlocks);
+  });
   (Array.isArray(source.modules) ? source.modules : []).forEach((module) => {
+    addModuleBlocks(module, selectedModuleBlocks);
     if (typeof module === "string") {
       addBlock(module);
       return;
@@ -741,7 +826,8 @@ function normalizeHomepageGuidedSnapshot(guidedSnapshot = {}) {
     Array.isArray(source.requiredModules) ? source.requiredModules.map(canonicalHomeBlock).filter(Boolean) : [],
   ]).filter((slot) => CANONICAL_HOME_BLOCKS.includes(slot));
   const heroFocus = canonicalHomeBlock(source.heroFocus) || "";
-  const level = cleanText(source.level?.id || source.level || source.version || "", "", 24);
+  const rawLevel = cleanText(source.level?.id || source.level || source.tier || source.version || "", "", 32).toLowerCase();
+  const level = rawLevel === "professional" ? "pro" : rawLevel;
   const styleText = [
     source.styleText,
     source.style,
@@ -762,10 +848,16 @@ function normalizeHomepageGuidedSnapshot(guidedSnapshot = {}) {
     heroFocus,
     mustHave,
     level: ["basic", "growth", "pro"].includes(level) ? level : "",
+    availableModules: [...availableModuleBlocks],
+    selectedModules: [...selectedModuleBlocks],
+    optionalSelected: [...optionalSelectedBlocks],
     explicitBlocks: [...explicitBlocks],
     styleText,
     hasExplicitModuleSelection: Boolean(
       (Array.isArray(source.modules) && source.modules.length) ||
+        (Array.isArray(source.selectedModules) && source.selectedModules.length) ||
+        (Array.isArray(source.optionalSelected) && source.optionalSelected.length) ||
+        (Array.isArray(source.optionalSelectedModules) && source.optionalSelectedModules.length) ||
         (Array.isArray(source.selectedOptionalModules) && source.selectedOptionalModules.length) ||
         (Array.isArray(source.explicitBlocks) && source.explicitBlocks.length),
     ),
@@ -789,13 +881,16 @@ function homepageGuidedSnapshotFromPayload(payload = {}, config = {}) {
     intent: guidedIntake.intent,
     canonicalIntent: guidedIntake.canonical.primaryIntent,
     heroFocus: guidedIntake.canonical.heroFocus,
-    level: guidedIntake.level?.id || "",
+    level: guidedIntake.level?.id === "professional" ? "pro" : guidedIntake.level?.id || "",
     designStyle: guidedIntake.designStyle,
     theme: guidedIntake.theme,
     modules: guidedIntake.modules,
+    availableModules: guidedIntake.modules,
+    selectedModules: [...guidedExplicitBlockSet(guidedIntake)],
     mustHave: guidedRequiredHomepageSlots(guidedIntake),
     explicitBlocks: [...guidedExplicitBlockSet(guidedIntake)],
     selectedOptionalModules: [...guidedExplicitBlockSet(guidedIntake)].filter((slot) => GUIDED_EXPLICIT_ONLY_BLOCKS.has(slot)),
+    optionalSelected: [...guidedExplicitBlockSet(guidedIntake)].filter((slot) => GUIDED_EXPLICIT_ONLY_BLOCKS.has(slot)),
     hasExplicitModuleSelection: Boolean(guidedIntake.modules.length),
   };
 }
@@ -848,7 +943,7 @@ function homepageConfigHasMinimalistStyle(config = {}, guidedSnapshot = {}) {
   return /minimal|minimalist|whitespace|white\s*space|留白|简约留白|极简|极简白|minimalwhite/.test(source);
 }
 
-function validateHomepageConfig(configSnapshot, guidedSnapshot = {}) {
+function validateHomepageConfig(configSnapshot, guidedSnapshot = {}, modulePolicy = null, policyRepairResult = {}) {
   const config = configSnapshot && typeof configSnapshot === "object" ? configSnapshot : {};
   const guided = normalizeHomepageGuidedSnapshot(guidedSnapshot);
   const sections = (Array.isArray(config.sections) ? config.sections : [])
@@ -909,7 +1004,7 @@ function validateHomepageConfig(configSnapshot, guidedSnapshot = {}) {
   if (heroFocusMismatch) warnings.push(`heroFocus ${heroFocus} is not in the first two core sections.`);
   if (densityStyleConflict) warnings.push("minimalist/whitespace style conflicts with compact density.");
 
-  return {
+  const validation = {
     missingRequiredModules,
     invalidSections,
     duplicateHeroSections,
@@ -919,6 +1014,7 @@ function validateHomepageConfig(configSnapshot, guidedSnapshot = {}) {
     optionalModuleMismatch,
     warnings: [...new Set(warnings)].slice(0, 12),
   };
+  return modulePolicy ? attachHomepageModulePolicyValidation(validation, config, modulePolicy, policyRepairResult) : validation;
 }
 
 function homepageRecommendedSectionsForSnapshot(guidedSnapshot = {}, config = {}) {
@@ -1007,6 +1103,59 @@ function moveHomepageHeroFocusIntoCore(sections, heroFocus) {
   return insertHomepageSlotNearTop(next, focus, "full");
 }
 
+function homepageSectionIndexForSlot(sections, slot) {
+  const canonical = canonicalHomeBlock(slot);
+  if (!canonical) return -1;
+  return (Array.isArray(sections) ? sections : []).findIndex((section) => (section.slots || []).includes(canonical));
+}
+
+function normalizeHomepageHeroSectionCount(sections) {
+  let heroSeen = false;
+  return (Array.isArray(sections) ? sections : [])
+    .flatMap((section, index) => {
+      if (section.type !== "hero") return repairHomepageSectionLegality(section, index);
+      if (!heroSeen) {
+        heroSeen = true;
+        return repairHomepageSectionLegality(section, index).slice(0, 1);
+      }
+      return repairHomepageSectionLegality({ ...section, type: section.slots?.length === 2 ? "split" : "full" }, index);
+    })
+    .filter((section) => section.slots?.length);
+}
+
+function enforceAssetOverviewHeroFocusSections(sections, heroFocus) {
+  if (canonicalHomeBlock(heroFocus) !== "asset_overview" || !homepageSectionsContainSlot(sections, "asset_overview")) return sections;
+  const currentAssetIndex = homepageSectionIndexForSlot(sections, "asset_overview");
+  const currentOnboardingIndex = homepageSectionIndexForSlot(sections, "onboarding_guide");
+  if (currentAssetIndex >= 0 && currentAssetIndex <= 1 && (currentOnboardingIndex < 0 || currentAssetIndex < currentOnboardingIndex)) {
+    return sections;
+  }
+
+  let next = removeHomepageSlotFromSections(sections, "asset_overview");
+  const hadWelcome = homepageSectionsContainSlot(next, "welcome_header");
+  const hadQuick = homepageSectionsContainSlot(next, "quick_actions");
+  const hadOnboarding = homepageSectionsContainSlot(next, "onboarding_guide");
+
+  if (hadQuick && hadOnboarding) {
+    next = removeHomepageSlotFromSections(removeHomepageSlotFromSections(next, "quick_actions"), "onboarding_guide");
+  }
+
+  if (hadWelcome) {
+    next = removeHomepageSlotFromSections(next, "welcome_header");
+    next.unshift({ id: "hero-asset-overview", type: "hero", title: "首页概览", slots: ["welcome_header", "asset_overview"] });
+  } else if (next[0]?.type === "hero" && next[0].slots.length < 2) {
+    next[0] = { ...next[0], slots: [...new Set([...next[0].slots, "asset_overview"])] };
+  } else {
+    next.unshift({ id: "hero-asset-overview", type: "hero", title: "资产概览", slots: ["asset_overview"] });
+  }
+
+  if (hadQuick && hadOnboarding) {
+    next.splice(Math.min(1, next.length), 0, { id: "quick-onboarding", type: "split", title: "快捷操作", slots: ["quick_actions", "onboarding_guide"] });
+  }
+
+  return normalizeHomepageHeroSectionCount(next);
+}
+
 function moveRiskDisclosureToFooter(sections) {
   const hadRisk = homepageSectionsContainSlot(sections, "risk_disclosure");
   const withoutRisk = removeHomepageSlotFromSections(sections, "risk_disclosure");
@@ -1067,12 +1216,13 @@ function removeHomepageOptionalModules(config, guidedSnapshot, actions) {
   return config;
 }
 
-function repairHomepageConfig(configSnapshot, guidedSnapshot = {}) {
+function repairHomepageConfig(configSnapshot, guidedSnapshot = {}, modulePolicy = null) {
   const actions = [];
   const source = clonePlain(ensureObject(configSnapshot));
   const guided = normalizeHomepageGuidedSnapshot(guidedSnapshot);
+  const policy = modulePolicy ? normalizeHomepageModulePolicy(modulePolicy) : null;
   let next = source;
-  const initialValidation = validateHomepageConfig(next, guided);
+  const initialValidation = validateHomepageConfig(next, guided, policy);
 
   let sections = (Array.isArray(next.sections) ? next.sections : [])
     .map(parseHomepageSectionInput)
@@ -1116,7 +1266,8 @@ function repairHomepageConfig(configSnapshot, guidedSnapshot = {}) {
 
   const requiredSlots = mergeUnique([guided.hasExplicitModuleSelection ? guided.mustHave || [] : mergeUnique([guided.mustHave || [], next.pageIntent?.mustHave || []])])
     .map(canonicalHomeBlock)
-    .filter((slot) => slot && CANONICAL_HOME_BLOCKS.includes(slot));
+    .filter((slot) => slot && CANONICAL_HOME_BLOCKS.includes(slot))
+    .filter((slot) => !policy || homepagePolicyAllowsSlot(policy, slot));
   requiredSlots.forEach((slot) => {
     if (!homepageSectionsContainSlot(sections, slot)) {
       sections = insertHomepageSlotNearTop(sections, slot, LARGE_FULL_ROW_HOME_BLOCKS.has(slot) ? "full" : "full");
@@ -1128,6 +1279,7 @@ function repairHomepageConfig(configSnapshot, guidedSnapshot = {}) {
   if (heroFocus) {
     const beforeHeroFocus = sections.map(homepageSectionSignature).join("|");
     sections = moveHomepageHeroFocusIntoCore(sections, heroFocus);
+    sections = enforceAssetOverviewHeroFocusSections(sections, heroFocus);
     next.heroFocus = heroFocus;
     if (sections.map(homepageSectionSignature).join("|") !== beforeHeroFocus) {
       actions.push(`已将 heroFocus=${heroFocus} 移入前两个核心 section。`);
@@ -1146,6 +1298,19 @@ function repairHomepageConfig(configSnapshot, guidedSnapshot = {}) {
   if (homepageConfigHasMinimalistStyle(next, guided) && next.density === "compact") {
     next.density = "comfortable";
     actions.push("简约留白/minimalist 风格不使用 compact，density 已改为 comfortable。");
+  }
+
+  const guidedIntentText = JSON.stringify([guided.intent, guided.layoutPreset, guided.pageGoal, guided.selectedModules].filter(Boolean));
+  const explicitGuidedOnboarding = /新客引导型|新手引导|开户引导|开户流程|开户路径|开户注册|账户开通|onboardingJourney|new[-_\s]?user|onboarding/i.test(guidedIntentText);
+  if (guided.level === "pro" && !explicitGuidedOnboarding && (next.layoutPreset === "onboardingJourney" || next.pageIntent?.primaryIntent === "onboarding")) {
+    next.layoutPreset = next.heroFocus === "trading_accounts_list" ? "tradingCommand" : "accountOpsConsole";
+    next.designGenome = next.layoutPreset;
+    next.pageIntent = {
+      ...ensureObject(next.pageIntent),
+      primaryIntent: next.heroFocus === "trading_accounts_list" ? "trader" : "standard",
+      layoutPreset: next.layoutPreset,
+    };
+    actions.push("专业版首页未显式选择新客引导，已从 onboardingJourney 调整为专业工作台布局。");
   }
 
   next.brickPlan = repairHomepageBrickPlan(next, next.sections);
@@ -1174,11 +1339,15 @@ function repairHomepageConfig(configSnapshot, guidedSnapshot = {}) {
     next.modules = { ...ensureObject(next.modules), RiskDisclosure: { variant: "legalStrip" } };
     next.moduleStyles = { ...ensureObject(next.moduleStyles), risk_disclosure: "legal-strip" };
   }
+  const policyRepairResult = policy ? applyHomepageModulePolicy(next, policy, actions) : {};
   next.autoLayout = normalizeServerAutoLayout(next.autoLayout, next.sections, next.layout);
   enforceServerComponentMorphs(next);
 
-  const validation = validateHomepageConfig(next, guided);
+  const validation = validateHomepageConfig(next, guided, policy, policyRepairResult);
   next.validation = validation;
+  next.validationWarnings = validation.warnings || [];
+  next.modulePolicy = policy || next.modulePolicy || null;
+  next.modulePolicyScore = validation.modulePolicy?.score ?? 100;
   next.repairActions = [...new Set(actions)].slice(0, 16);
 
   return {
@@ -1186,6 +1355,8 @@ function repairHomepageConfig(configSnapshot, guidedSnapshot = {}) {
     validation,
     repairActions: next.repairActions,
     initialValidation,
+    modulePolicy: next.modulePolicy,
+    modulePolicyRepairResult: policyRepairResult,
   };
 }
 
@@ -1359,12 +1530,12 @@ const HOMEPAGE_INTENT_PRESETS = {
   },
   deposit: {
     label: "入金转化",
-    layoutPreset: "onboardingJourney",
+    layoutPreset: "conversionFirst",
     themePreset: "blueFinance",
     density: "balanced",
-    heroFocus: "asset_overview",
-    primaryGoal: "把资产概览、可选活动 Banner、快捷操作和交易账号放到前面。",
-    mustHave: ["asset_overview", "quick_actions", "promo_banner", "trading_accounts_list"],
+    heroFocus: "promo_banner",
+    primaryGoal: "围绕首次入金组织欢迎、奖励 Banner、账户摘要、开户进度、快捷入口和账号证明。",
+    mustHave: ["promo_banner", "asset_overview", "onboarding_guide", "quick_actions", "trading_account_highlight", "trading_accounts_list"],
     avoid: ["reward_tasks", "kyc_risk_notice", "ib_dashboard"],
   },
   partner: {
@@ -1405,7 +1576,7 @@ const HOMEPAGE_INTENT_PRESETS = {
     heroFocus: "risk_disclosure",
     primaryGoal: "用风险提示、账号表现、资产概览和交易账号承接风险与合规诉求。",
     mustHave: ["risk_disclosure", "trading_account_highlight", "asset_overview", "trading_accounts_list"],
-    avoid: ["kyc_risk_notice", "userKycRail", "ib_dashboard"],
+    avoid: ["kyc_risk_notice", "kyc_status_card", "ib_dashboard"],
   },
   retention: {
     label: "留存唤醒",
@@ -1464,10 +1635,10 @@ const HOMEPAGE_GOVERNANCE_CONTRACTS = {
   },
   deposit: {
     label: "入金转化契约",
-    primaryGoal: "通过资产概览、租户活动和后台配置快捷入口承接入金意图。",
-    primaryAction: "asset_overview",
+    primaryGoal: "用首次入金主 CTA 串联账户摘要、开户进度、交易账号证明和运营推荐。",
+    primaryAction: "deposit",
     secondaryAction: "quick_actions",
-    firstScreenSlots: ["asset_overview", "promo_banner"],
+    firstScreenSlots: ["promo_banner", "asset_overview", "onboarding_guide"],
     operationSlots: ["quick_actions"],
     accountSlots: ["trading_account_highlight", "trading_accounts_list"],
     weakSlots: ["reward_tasks", "kyc_risk_notice", "ib_dashboard"],
@@ -1557,7 +1728,7 @@ const HOMEPAGE_INTENT_SIGNALS = {
     negative: [/不要.{0,8}(copytrading|跟单|信号源|推荐交易员)/i],
   },
   deposit: {
-    positive: ["入金转化", "入金奖励", "入金奖励阶梯", "入金阶梯", "首存", "首存奖励", "充值", "首充", "首充奖励", "赠金", "赠金梯度", "存款奖励", "deposit bonus", "deposit ladder", "deposit conversion"],
+    positive: ["入金转化", "入金奖励", "入金奖励阶梯", "入金阶梯", "推动首次入金", "首次入金转化", "立即入金", "主 CTA", "data-home-action=deposit", "首存", "首存奖励", "充值", "首充", "首充奖励", "赠金", "赠金梯度", "存款奖励", "deposit bonus", "deposit ladder", "deposit conversion"],
     negative: [/不要.{0,8}(入金|充值|资金)/i],
   },
   partner: {
@@ -1623,6 +1794,10 @@ const EXPLICIT_DEPOSIT_INTENT_SIGNALS = [
   "入金奖励",
   "入金奖励阶梯",
   "入金阶梯",
+  "立即入金",
+  "推动首次入金",
+  "首次入金转化",
+  "data-home-action=deposit",
   "首存",
   "首存奖励",
   "充值",
@@ -1636,17 +1811,31 @@ const EXPLICIT_DEPOSIT_INTENT_SIGNALS = [
   "deposit conversion",
 ];
 
+const PAGE_GOAL_DEPOSIT_PATTERNS = [
+  /页面目标.{0,32}(?:推动|完成|促进|引导).{0,12}(?:首次)?入金/i,
+  /全页主\s*CTA.{0,24}(?:立即)?入金/i,
+  /主\s*CTA.{0,24}(?:立即)?入金/i,
+  /data-home-action\s*=\s*["']?deposit["']?/i,
+  /primary\s*cta.{0,24}deposit/i,
+];
+
 function hasStrongOnboardingIntentSignal(text) {
   const source = String(text || "");
-  if (!textHasAny(source, STRONG_ONBOARDING_INTENT_SIGNALS)) return false;
+  const nonKycSignals = STRONG_ONBOARDING_INTENT_SIGNALS.filter((signal) => signal !== "kyc");
+  const hasNonKycSignal = textHasAny(source, nonKycSignals);
+  const hasKycJourneySignal =
+    textHasAny(source, ["kyc"]) &&
+    textHasAny(source, ["开户引导", "开户路径", "开户流程", "开户注册", "账户开通", "开通进度", "创建真实账户", "创建账户", "首次入金", "新手", "新客", "新用户", "onboarding"]);
+  if (!hasNonKycSignal && !hasKycJourneySignal) return false;
   const referralOnly =
     textHasAny(source, REFERRAL_LINK_INTENT_SIGNALS) &&
-    !textHasAny(source, STRONG_ONBOARDING_INTENT_SIGNALS.filter((signal) => signal !== "开户链接"));
+    !textHasAny(source, nonKycSignals.filter((signal) => signal !== "开户链接"));
   return !referralOnly;
 }
 
 function hasExplicitDepositIntentSignal(text) {
-  return textHasAny(String(text || ""), EXPLICIT_DEPOSIT_INTENT_SIGNALS);
+  const source = String(text || "");
+  return textHasAny(source, EXPLICIT_DEPOSIT_INTENT_SIGNALS) || PAGE_GOAL_DEPOSIT_PATTERNS.some((pattern) => pattern.test(source));
 }
 
 const HOMEPAGE_INTENT_SECTIONS = {
@@ -1681,8 +1870,8 @@ const HOMEPAGE_INTENT_SECTIONS = {
     { id: "copytrading-accounts", type: "full", title: "交易账号", slots: ["trading_accounts_list"] },
   ],
   deposit: [
-    { id: "deposit-hero", type: "hero", title: "资产概览", slots: ["asset_overview", "promo_banner"] },
-    { id: "deposit-actions", type: "split", title: "快捷入口", slots: ["quick_actions"] },
+    { id: "deposit-hero", type: "hero", title: "首次入金", slots: ["promo_banner", "asset_overview"] },
+    { id: "deposit-activation", type: "split", title: "开户与快捷入口", slots: ["onboarding_guide", "quick_actions"] },
     { id: "deposit-performance", type: "full", title: "账号表现", slots: ["trading_account_highlight"] },
     { id: "deposit-accounts", type: "full", title: "交易账号", slots: ["trading_accounts_list"] },
   ],
@@ -1819,6 +2008,7 @@ const AUTH_UI_JSON_SCHEMA = {
         name: { type: "string" },
         tagline: { type: "string" },
         serviceLine: { type: "string" },
+        logoPlacement: { enum: ["heroTopLeft", "topCenter", "formTop", "mobileTop"] },
       },
     },
     visual: {
@@ -1831,6 +2021,12 @@ const AUTH_UI_JSON_SCHEMA = {
         radius: { type: "string" },
         density: { enum: ["compact", "comfortable", "spacious"] },
         composition: { enum: ["splitTrust", "floatingConsole", "stepperRail", "identityLedger", "campaignPassport", "vaultMinimal"] },
+        layoutType: { enum: ["split", "mediaSplit", "centeredCard", "fullBleed", "cardOverlay", "mobileFirst"] },
+        formPosition: { enum: ["left", "right", "center"] },
+        mediaPosition: { enum: ["left", "right", "background", "none"] },
+        heroVisibility: { enum: ["full", "compact", "hidden"] },
+        mobileStrategy: { enum: ["logoFirst", "formFirst", "mediaMuted", "singleColumn"] },
+        referenceStructure: { type: "string" },
       },
     },
     experience: {
@@ -2218,10 +2414,23 @@ function homepageRecordSnapshot(config) {
 	    mainVisual: safeRecordText(source.pagePlan?.mainVisual || source.pageIntent?.mainVisual, 48),
 	    primaryCta: safeRecordText(source.pagePlan?.primaryCta || source.pageIntent?.primaryCta, 80),
 	    validationWarnings: source.validation?.warnings?.length || 0,
+	    modulePolicyScore: Number.isFinite(Number(source.modulePolicyScore || source.validation?.modulePolicy?.score)) ? Math.round(Number(source.modulePolicyScore || source.validation?.modulePolicy?.score)) : null,
+	    blockedModules: Array.isArray(source.modulePolicy?.blockedModules) ? source.modulePolicy.blockedModules.slice(0, 12) : [],
 	    repairActions: Array.isArray(source.repairActions) ? source.repairActions.slice(0, 6) : [],
 	    skeletonScheme: source.skeletonHtmlScheme?.enabled ? safeRecordText(source.skeletonHtmlScheme.name || "骨架 HTML 填充", 80) : "",
 	    skeletonSlots: source.skeletonHtmlScheme?.enabled && Array.isArray(source.skeletonHtmlScheme.slots) ? source.skeletonHtmlScheme.slots.length : 0,
 	    brickIds: brickPlan.map((item) => safeRecordText(item?.brickId || item?.feature, 80)).filter(Boolean).slice(0, 12),
+	    componentReferences: normalizeHomepageConfigComponentReferences(source.componentReferences)
+	      .map((item) => ({
+	        componentId: safeRecordText(item.componentId, 80),
+	        name: safeRecordText(item.name, 80),
+	        family: safeRecordText(item.family, 60),
+	        module: safeRecordText(item.module, 60),
+	        component: safeRecordText(item.component, 60),
+	        variantHint: safeRecordText(item.variantHint, 40),
+	        morphHint: safeRecordText(item.morphHint, 40),
+	      }))
+	      .slice(0, 8),
     sections: sections.map((section) => `${safeRecordText(section?.type, 24)}:${Array.isArray(section?.slots) ? section.slots.join("+") : ""}`).slice(0, 12),
   };
 }
@@ -2296,6 +2505,138 @@ function normalizeComponentScore(value, fallback = 5) {
   const score = Number(value);
   if (!Number.isFinite(score)) return fallback;
   return Math.min(10, Math.max(1, Math.round(score)));
+}
+
+const COMPONENT_REFERENCE_SCORE_POLICY = Object.freeze({
+  strongMin: 8,
+  moderateMin: 6,
+  blockedMax: 5,
+});
+
+function componentReferenceTierFromScore(score) {
+  const normalized = normalizeComponentScore(score, COMPONENT_REFERENCE_SCORE_POLICY.blockedMax);
+  if (normalized >= COMPONENT_REFERENCE_SCORE_POLICY.strongMin) return "strong";
+  if (normalized >= COMPONENT_REFERENCE_SCORE_POLICY.moderateMin) return "moderate";
+  return "blocked";
+}
+
+function componentReferenceTierPriority(tier) {
+  if (tier === "strong") return 260;
+  if (tier === "moderate") return 72;
+  return -10000;
+}
+
+function componentReferenceTierLabel(tier) {
+  return {
+    strong: "8-10 分强参考",
+    moderate: "6-7 分适度参考",
+    blocked: "5 分及以下禁止参考",
+  }[tier] || "未分级";
+}
+
+function componentReferenceRuleForTier(tier) {
+  return {
+    strong: "必须优先参考该积木的结构、字段密度、按钮层级、状态标签和图表/步骤表达，但不要照搬 HTML/CSS。",
+    moderate: "只在业务家族、尺寸或当前需求匹配时适度参考局部字段和布局节奏，不得决定首屏主结构。",
+    blocked: "禁止作为组件库参考、兜底组件或模型灵感来源；如果模型返回该引用，服务端必须剔除。",
+  }[tier] || "";
+}
+
+function componentReferenceScore(component, payload = {}) {
+  const scores = payload.componentScores && typeof payload.componentScores === "object" ? payload.componentScores : {};
+  const override = component?.id ? scores[component.id] : undefined;
+  return normalizeComponentScore(override ?? component?.score, COMPONENT_REFERENCE_SCORE_POLICY.blockedMax);
+}
+
+function componentReferenceAdmission(component, payload = {}) {
+  const score = componentReferenceScore(component, payload);
+  const tier = componentReferenceTierFromScore(score);
+  return {
+    score,
+    tier,
+    label: componentReferenceTierLabel(tier),
+    rule: componentReferenceRuleForTier(tier),
+    allowed: tier !== "blocked",
+  };
+}
+
+function componentReferenceAllowed(component, payload = {}) {
+  return componentReferenceAdmission(component, payload).allowed;
+}
+
+function componentReferencePolicyPrompt(components = [], payload = {}) {
+  const grouped = {
+    strong: [],
+    moderate: [],
+    blocked: [],
+  };
+  (Array.isArray(components) ? components : []).forEach((component) => {
+    const admission = componentReferenceAdmission(component, payload);
+    grouped[admission.tier].push({
+      id: cleanText(component?.id, "", 80),
+      name: cleanText(component?.name, "", 80),
+      family: cleanText(component?.family, "", 60),
+      score: admission.score,
+    });
+  });
+  return {
+    strongReference: "8-10 分：强参考。生成时必须优先吸收结构、字段密度、按钮层级、状态标签和图表/步骤表达。",
+    moderateReference: "6-7 分：适度参考。只在业务家族、尺寸或需求匹配时用于局部字段和节奏，不得压过强参考。",
+    blockedReference: "5 分及以下：禁止参考。不得进入模型上下文、兜底组件、componentReferences、brickPlan 引用或审美样本。",
+    counts: {
+      strong: grouped.strong.length,
+      moderate: grouped.moderate.length,
+      blocked: grouped.blocked.length,
+      referenceable: grouped.strong.length + grouped.moderate.length,
+      total: grouped.strong.length + grouped.moderate.length + grouped.blocked.length,
+    },
+    blockedComponents: grouped.blocked.slice(0, 16),
+  };
+}
+
+function componentLibraryLookup(components = readComponentLibrary().components) {
+  return new Map((Array.isArray(components) ? components : []).map((component) => [component.id, component]));
+}
+
+function componentReferenceAllowedByPolicy(reference = {}, lookup = componentLibraryLookup()) {
+  const id = cleanText(reference.componentId || reference.id, "", 96);
+  const component = id ? lookup.get(id) : null;
+  if (component) return componentReferenceAllowed(component);
+  const explicitTier = cleanText(reference.referenceTier || reference.tier, "", 24);
+  if (explicitTier === "blocked") return false;
+  if (Number.isFinite(Number(reference.score))) return componentReferenceTierFromScore(reference.score) !== "blocked";
+  return true;
+}
+
+function enrichComponentReferencePolicy(reference = {}, lookup = componentLibraryLookup()) {
+  const id = cleanText(reference.componentId || reference.id, "", 96);
+  const component = id ? lookup.get(id) : null;
+  const admission = component
+    ? componentReferenceAdmission(component)
+    : Number.isFinite(Number(reference.score))
+      ? {
+          score: normalizeComponentScore(reference.score, COMPONENT_REFERENCE_SCORE_POLICY.blockedMax),
+          tier: componentReferenceTierFromScore(reference.score),
+          label: componentReferenceTierLabel(componentReferenceTierFromScore(reference.score)),
+          rule: componentReferenceRuleForTier(componentReferenceTierFromScore(reference.score)),
+          allowed: componentReferenceTierFromScore(reference.score) !== "blocked",
+        }
+      : cleanText(reference.referenceTier || reference.tier, "", 24)
+        ? {
+            score: undefined,
+            tier: cleanText(reference.referenceTier || reference.tier, "", 24),
+            label: componentReferenceTierLabel(cleanText(reference.referenceTier || reference.tier, "", 24)),
+            rule: componentReferenceRuleForTier(cleanText(reference.referenceTier || reference.tier, "", 24)),
+            allowed: cleanText(reference.referenceTier || reference.tier, "", 24) !== "blocked",
+          }
+      : null;
+  if (!admission) return reference;
+  return {
+    ...reference,
+    score: admission.score,
+    referenceTier: admission.tier,
+    referenceRule: admission.rule,
+  };
 }
 
 function autoComponentSizeForFamily(family) {
@@ -2835,12 +3176,15 @@ function componentStyleSignals(css) {
 }
 
 function summarizeComponentForPrompt(component) {
+  const admission = componentReferenceAdmission(component);
   return {
     id: component.id,
     name: component.name,
     family: component.family,
     size: component.size,
-    score: normalizeComponentScore(component.score, 5),
+    score: admission.score,
+    referenceTier: admission.tier,
+    referenceRule: admission.rule,
     description: component.description,
     tags: Array.isArray(component.tags) ? component.tags.slice(0, 6) : [],
     layoutHints: Array.isArray(component.layoutHints) ? component.layoutHints.slice(0, 4) : [],
@@ -2855,10 +3199,11 @@ function rankComponentReferences(components, options = {}) {
   const size = cleanText(options.size, "", 12);
   const prompt = normalizeKeywordText(options.prompt || "");
   const limit = Math.max(1, Math.min(Number(options.limit) || 8, 16));
+  const includeBlocked = Boolean(options.includeBlockedReferences);
 
   return components
     .map((component, index) => {
-      const userScore = normalizeComponentScore(component.score, 5);
+      const admission = componentReferenceAdmission(component, options);
       const haystack = normalizeKeywordText(
         [
           component.id,
@@ -2879,30 +3224,452 @@ function rankComponentReferences(components, options = {}) {
 
       return {
         component,
+        admission,
         score:
-          userScore * 18 +
+          componentReferenceTierPriority(admission.tier) +
+          admission.score * 18 +
           (family && component.family === family ? 80 : 0) +
           (size && component.size === size ? 22 : 0) +
           promptHits * 8 +
           Math.max(0, 20 - Math.min(index, 20)) * 0.2,
       };
     })
-    .sort((a, b) => b.score - a.score || normalizeComponentScore(b.component.score, 5) - normalizeComponentScore(a.component.score, 5))
+    .filter((item) => includeBlocked || item.admission.allowed)
+    .sort((a, b) => b.score - a.score || b.admission.score - a.admission.score)
     .map((item) => item.component)
     .slice(0, limit);
+}
+
+function componentSizeColumns(size) {
+  const match = normalizeComponentSize(size, "2x1").match(/^([1-9]\d?)x/);
+  return match ? Number(match[1]) || 2 : 2;
+}
+
+function componentSizeDistance(firstSize, secondSize) {
+  return (
+    Math.abs(componentSizeColumns(firstSize) - componentSizeColumns(secondSize)) +
+    Math.abs(componentSizeRows(firstSize) - componentSizeRows(secondSize))
+  );
+}
+
+function componentLibraryFallbackForPayload(payload = {}, options = {}) {
+  const family = oneOfList(payload.family, COMPONENT_FAMILIES, "ClientHomeAtoms");
+  const size = normalizeComponentSize(payload.size, autoComponentSizeForFamily(family));
+  const prompt = cleanText(payload.prompt || payload.instruction || "", "", 500);
+  const excludeIds = new Set((Array.isArray(options.excludeIds) ? options.excludeIds : []).map((id) => cleanText(id, "", 90)).filter(Boolean));
+  const libraryComponents = readComponentLibrary().components.filter((component) => !excludeIds.has(component.id) && componentReferenceAllowed(component, payload));
+  if (!libraryComponents.length) return null;
+
+  const sameFamily = libraryComponents.filter((component) => component.family === family);
+  const ranked = rankComponentReferences(sameFamily.length ? sameFamily : libraryComponents, {
+    family,
+    size,
+    prompt,
+    limit: 16,
+  });
+  const selected =
+    ranked.find((component) => component.family === family && component.size === size) ||
+    ranked
+      .filter((component) => component.family === family)
+      .sort((a, b) => componentSizeDistance(a.size, size) - componentSizeDistance(b.size, size))[0] ||
+    ranked[0];
+  if (!selected) return null;
+
+  const reason = cleanText(options.reason, "模型组件生成失败，已引用组件库积木兜底。", 260);
+  return {
+    ...selected,
+    sourceType: "brick-fallback",
+    fallbackReason: reason,
+    referenceComponentId: selected.id,
+    referenceComponentName: selected.name,
+    referenceFamily: selected.family,
+    requestedFamily: family,
+    requestedSize: size,
+    generatedAt: new Date().toISOString(),
+    layoutHints: [
+      ...(Array.isArray(selected.layoutHints) ? selected.layoutHints : []),
+      `fallback:${family}`,
+      `requested-size:${size}`,
+    ].filter(Boolean).slice(0, 8),
+  };
 }
 
 function componentLibraryPromptReference(options = {}) {
   const components = readComponentLibrary().components;
   const selected = rankComponentReferences(components, options);
+  const policy = componentReferencePolicyPrompt(components, options);
 
   return {
     referenceMode: "先参考已保存组件库积木的业务字段、尺寸、按钮、标签、卡片密度和视觉层级，再根据本次意图做新组合或新变体。",
-    scoringRule: "score 为用户 1-10 分评分；同等相关性下优先参考高分组件。",
+    scoringRule: "score 为用户 1-10 分评分；8-10 分强参考，6-7 分适度参考，5 分及以下禁止参考。",
+    referencePolicy: policy,
     freedomRule: "允许有 AI 灵感，但灵感必须依托现有父模块、真实字段、可用尺寸或组件语言；不能把组件库参考当成新增业务能力授权。",
     availableCount: components.length,
+    referenceableCount: policy.counts.referenceable,
     selectedComponents: selected.map(summarizeComponentForPrompt),
   };
+}
+
+const HOMEPAGE_COMPONENT_REFERENCE_MODULE_MAP = {
+  asset_overview: "AssetOverview",
+  wallet_list: "WalletList",
+  quick_actions: "QuickActions",
+  onboarding_guide: "OnboardingProgress",
+  trading_account_highlight: "AccountPerformance",
+  trading_accounts_list: "TradingAccounts",
+  promo_banner: "PromotionBanner",
+  pamm_products: "PammProducts",
+  copytrading_signals: "CopytradingSignals",
+  referral_link_card: "ReferralLinkCard",
+  kyc_status_card: "UserKycRail",
+  risk_disclosure: "RiskDisclosure",
+  faq_section: "FaqSection",
+  support_contact: "SupportContact",
+  app_download: "AppDownload",
+};
+
+const HOMEPAGE_COMPONENT_REFERENCE_DEFAULT_VARIANTS = {
+  AssetOverview: "standard",
+  WalletList: "currencyTable",
+  QuickActions: "gridCards",
+  TradingAccounts: "workbench",
+  OnboardingProgress: "path",
+  UserKycRail: "profileWallet",
+  AccountPerformance: "proChart",
+  PromotionBanner: "imageBanner",
+  ReferralLinkCard: "compactCard",
+  PammProducts: "cards",
+  CopytradingSignals: "signalCards",
+  RiskDisclosure: "compactNotice",
+  FaqSection: "accordion",
+  SupportContact: "serviceCard",
+  AppDownload: "qrCard",
+};
+
+const HOMEPAGE_COMPONENT_REFERENCE_STYLE_FEATURES = {
+  AssetOverview: ["balanceTotal", "asset_overview"],
+  WalletList: ["walletList", "wallet_list"],
+  QuickActions: ["quickActions", "quick_actions"],
+  TradingAccounts: ["tradingAccounts", "trading_accounts_list"],
+  OnboardingProgress: ["onboardingProgress", "onboarding_guide"],
+  UserKycRail: ["userKycRail", "kyc_status_card"],
+  AccountPerformance: ["accountPerformance", "trading_account_highlight"],
+  PromotionBanner: ["promoHighlight", "promo_banner", "adCarousel"],
+  ReferralLinkCard: ["referral_link_card"],
+  PammProducts: ["pamm_products"],
+  CopytradingSignals: ["copytrading_signals"],
+  RiskDisclosure: ["risk_disclosure"],
+  FaqSection: ["faq_section"],
+  SupportContact: ["support_contact"],
+  AppDownload: ["app_download"],
+};
+
+const HOMEPAGE_COMPONENT_REFERENCE_RULES = {
+  AssetOverview: [
+    { keys: ["riskradar", "risk-radar", "风险雷达"], variant: "riskRadar", morph: "riskRadar", style: "risk-radar" },
+    { keys: ["wealthplate", "wealth-plate", "私行", "高净值"], variant: "wealthPlate", morph: "wealthPlate", style: "wealth-plate" },
+    { keys: ["tickerstrip", "ticker-strip", "指标带", "跑马灯"], variant: "tickerStrip", morph: "metricTriplet", style: "ticker-strip" },
+    { keys: ["compacttable", "compact-table", "紧凑", "表格"], variant: "compactTable", morph: "compactTable", style: "metric-strip" },
+    { keys: ["metrictriplet", "metric-triplet", "三项", "三栏"], variant: "tickerStrip", morph: "metricTriplet", style: "ticker-strip" },
+    { keys: ["summaryhero", "summary-hero", "viphero"], variant: "vipHero", morph: "summaryHero", style: "command" },
+  ],
+  WalletList: [
+    { keys: ["wallettiles", "tileboard", "tile-board", "磁贴", "矩阵"], variant: "walletTiles", morph: "tileBoard", style: "wallet-tiles" },
+    { keys: ["currencytable", "currency-table", "表格", "table"], variant: "currencyTable", morph: "currencyTable", style: "currency-table" },
+    { keys: ["compactrows", "compactledger", "紧凑"], variant: "compactRows", morph: "compactLedger", style: "currency-table" },
+  ],
+  QuickActions: [
+    { keys: ["compactmenu", "compact-menu", "紧凑菜单"], variant: "compactMenu", morph: "compactMenu", style: "compact-menu" },
+    { keys: ["commandbar", "command-bar", "命令栏"], variant: "commandBar", morph: "commandBar", style: "command-bar" },
+    { keys: ["taskrail", "task-rail", "任务轨", "任务"], variant: "taskRail", morph: "taskRail", style: "task-rail" },
+    { keys: ["tileboard", "tilecards", "tile-board", "磁贴"], variant: "tileCards", morph: "tileBoard", style: "tile-board" },
+    { keys: ["accentcards", "accent-cards", "强调入口"], variant: "accentCards", morph: "accentCards", style: "accent-cards" },
+    { keys: ["segmentedpanel", "segmentedmenu", "分段"], variant: "segmentedMenu", morph: "segmentedPanel", style: "segmented-panel" },
+    { keys: ["operationdock", "actiondock", "操作坞", "dock"], variant: "actionDock", morph: "actionDock", style: "toolbar" },
+  ],
+  TradingAccounts: [
+    { keys: ["opstable", "ops-table", "运营表", "table"], variant: "opsTable", morph: "opsTable", style: "ops-table" },
+    { keys: ["accountwall", "account-wall", "cardwall", "卡墙"], variant: "accountWall", morph: "accountWall", style: "account-wall" },
+    { keys: ["livedemosplit", "separatedlist", "dualcolumn", "双列", "真实/模拟", "真实模拟"], variant: "separatedList", morph: "liveDemoSplit", style: "calm-table" },
+    { keys: ["compactrows", "紧凑"], variant: "calmTable", morph: "compactRows", style: "calm-table" },
+    { keys: ["statusboard", "status-board", "状态看板"], variant: "workbench", morph: "statusBoard", style: "workbench" },
+  ],
+  OnboardingProgress: [
+    { keys: ["nextstephero", "next-step-hero", "主行动"], variant: "nextStepHero", morph: "nextStepHero", style: "next-step-hero" },
+    { keys: ["missionboard", "mission-board", "任务板", "任务看板"], variant: "missionBoard", morph: "missionBoard", style: "mission-board" },
+    { keys: ["journeytimeline", "journey-timeline", "时间线"], variant: "journeyTimeline", morph: "journeyTimeline", style: "journey-timeline" },
+    { keys: ["ribbonrail", "ribbon-rail", "票据", "里程碑票据"], variant: "ribbonRail", morph: "ribbonRail", style: "ribbon-rail" },
+    { keys: ["guidecards", "guide-cards", "任务卡"], variant: "guideCards", morph: "guideCards", style: "guide-cards" },
+    { keys: ["pathsteps", "path-steps", "里程碑", "路径"], variant: "path", morph: "pathSteps", style: "path" },
+  ],
+  UserKycRail: [
+    { keys: ["statusbar", "status-rail", "横栏", "状态横栏"], variant: "compactStatus", style: "status-rail" },
+    { keys: ["checklist", "清单"], variant: "kycChecklist", style: "status-card" },
+    { keys: ["profilewallet", "profile-wallet", "钱包侧栏"], variant: "profileWallet", style: "profile-card" },
+  ],
+  AccountPerformance: [
+    { keys: ["costboard", "cost-board", "成本", "执行"], variant: "costBoard", morph: "costBoard", style: "cost-board" },
+    { keys: ["sparklineboard", "sparkline-board", "sparkline"], variant: "sparklineBoard", morph: "sparklineBoard", style: "sparkline-board" },
+    { keys: ["terminalchart", "terminal-chart", "终端"], variant: "terminalChart", morph: "terminalChart", style: "terminal-chart" },
+    { keys: ["cleansnapshot", "clean-snapshot", "compact", "紧凑"], variant: "cleanSnapshot", morph: "cleanSnapshot", style: "pro-chart" },
+    { keys: ["dualchart", "dual-chart", "双图"], variant: "dualChart", morph: "dualChart", style: "pro-chart" },
+    { keys: ["metrictrend", "metric-trend", "indicatorband", "指标带"], variant: "metricTrend", morph: "metricTrend", style: "pro-chart" },
+  ],
+  PromotionBanner: [
+    { keys: ["depositladder", "deposit-ladder", "阶梯", "入金奖励"], variant: "depositLadder", morph: "depositLadder", style: "deposit-ladder" },
+    { keys: ["editorialcover", "editorial-cover", "专题", "封面"], variant: "editorialCover", morph: "editorialCover", style: "scoreboard" },
+    { keys: ["splitvisual", "split-visual", "分栏"], variant: "splitVisual", morph: "splitVisual", style: "clean" },
+    { keys: ["scoreboard", "countdown", "倒计时"], variant: "gradientHero", morph: "scoreboard", style: "scoreboard" },
+  ],
+  ReferralLinkCard: [
+    { keys: ["statscard", "stats-card", "统计", "指标带"], variant: "statsCard", morph: "statsCard", style: "stats-card" },
+    { keys: ["linkfirst", "link-first", "链接优先"], variant: "linkFirst", morph: "linkFirstPanel", style: "link-first" },
+    { keys: ["compact", "紧凑"], variant: "compactCard", morph: "compactStrip", style: "compact-card" },
+  ],
+  PammProducts: [
+    { keys: ["yieldchart", "yield-chart", "收益曲线"], variant: "yieldChartCards", style: "yield-chart-cards" },
+    { keys: ["ranking", "排行"], variant: "ranking", style: "ranking" },
+  ],
+  CopytradingSignals: [
+    { keys: ["curvecards", "curve-cards", "曲线"], variant: "curveCards", style: "curve-cards" },
+    { keys: ["ranking", "排行"], variant: "ranking", style: "ranking" },
+  ],
+  RiskDisclosure: [
+    { keys: ["marginguard", "margin-guard", "保证金"], variant: "marginGuard", morph: "marginGuard", style: "margin-guard" },
+    { keys: ["legalstrip", "legal-strip", "合规条", "指标带", "底部披露"], variant: "legalStrip", morph: "legalStrip", style: "legal-strip" },
+    { keys: ["compactnotice", "compact-notice", "紧凑"], variant: "compactNotice", morph: "compactNotice", style: "compact-notice" },
+  ],
+  FaqSection: [
+    { keys: ["twocolumn", "two-column", "双列"], variant: "twoColumn", style: "two-column" },
+    { keys: ["compactlist", "compact-list", "紧凑"], variant: "compactList", style: "compact-list" },
+    { keys: ["accordion", "折叠"], variant: "accordion", style: "accordion" },
+  ],
+  SupportContact: [
+    { keys: ["manager", "客户经理"], variant: "managerCard", style: "manager-card" },
+    { keys: ["compactbar", "compact-bar", "横条"], variant: "compactBar", style: "compact-bar" },
+    { keys: ["service", "客服"], variant: "serviceCard", style: "service-card" },
+  ],
+  AppDownload: [
+    { keys: ["storebuttons", "store-buttons", "商店"], variant: "storeButtons", style: "store-buttons" },
+    { keys: ["compactbanner", "compact-banner", "横条"], variant: "compactBanner", style: "compact-banner" },
+    { keys: ["qrcard", "qr-card", "二维码"], variant: "qrCard", style: "qr-card" },
+  ],
+};
+
+function homepageComponentReferenceText(component) {
+  return normalizeKeywordText(
+    [
+      component?.id,
+      component?.name,
+      component?.family,
+      component?.size,
+      component?.description,
+      ...(Array.isArray(component?.tags) ? component.tags : []),
+      ...(Array.isArray(component?.layoutHints) ? component.layoutHints : []),
+      ...(Array.isArray(component?.dataRequirements) ? component.dataRequirements : []),
+      stripHtmlTags(component?.html || "").slice(0, 500),
+    ].join(" "),
+  );
+}
+
+function inferHomepageComponentReferenceHints(moduleId, component) {
+  const text = homepageComponentReferenceText(component);
+  const rule = (HOMEPAGE_COMPONENT_REFERENCE_RULES[moduleId] || []).find((item) =>
+    item.keys.some((key) => text.includes(normalizeKeywordText(key))),
+  );
+  return {
+    variant: rule?.variant || "",
+    morph: rule?.morph || "",
+    style: rule?.style || "",
+    styleFeature: (HOMEPAGE_COMPONENT_REFERENCE_STYLE_FEATURES[moduleId] || [])[0] || "",
+  };
+}
+
+function homepageComponentReferenceForBlock(block) {
+  const canonical = canonicalHomeBlock(block);
+  if (!canonical) return "";
+  return HOMEPAGE_COMPONENT_REFERENCE_MODULE_MAP[canonical] || "";
+}
+
+function normalizeHomepageConfigComponentReferences(value) {
+  return (Array.isArray(value) ? value : [])
+    .map((item) =>
+      enrichComponentReferencePolicy({
+        componentId: cleanText(item?.componentId || item?.id, "", 96),
+        id: cleanText(item?.id || item?.componentId, "", 96),
+        name: cleanText(item?.name, "", 80),
+        family: cleanText(item?.family, "", 80),
+        module: cleanText(item?.module || item?.moduleId, "", 80),
+        component: canonicalHomeBlock(item?.component || item?.feature) || cleanText(item?.component || item?.feature, "", 80),
+        size: cleanText(item?.size, "", 16),
+        score: Number.isFinite(Number(item?.score)) ? normalizeComponentScore(item.score, COMPONENT_REFERENCE_SCORE_POLICY.blockedMax) : undefined,
+        tags: (Array.isArray(item?.tags) ? item.tags : []).map((tag) => cleanText(tag, "", 32)).filter(Boolean).slice(0, 8),
+        layoutHints: (Array.isArray(item?.layoutHints) ? item.layoutHints : []).map((hint) => cleanText(hint, "", 120)).filter(Boolean).slice(0, 6),
+        styleSignals: (Array.isArray(item?.styleSignals) ? item.styleSignals : []).map((signal) => cleanText(signal, "", 80)).filter(Boolean).slice(0, 8),
+        visibleText: cleanText(item?.visibleText, "", 260),
+        variantHint: cleanText(item?.variantHint || item?.variant, "", 48),
+        morphHint: cleanText(item?.morphHint || item?.morph || item?.morphId, "", 48),
+        styleHint: cleanText(item?.styleHint || item?.style, "", 48),
+        styleFeature: cleanText(item?.styleFeature, "", 48),
+        reason: cleanText(item?.reason, "", 180),
+        source: cleanText(item?.source, "home-component-library", 48),
+        applied: Boolean(item?.applied),
+      })
+    )
+    .filter((item) => item.componentId && item.name && item.family)
+    .slice(0, 12);
+}
+
+function shouldApplyHomepageReferenceVariant(config, moduleId, variantHint) {
+  if (!variantHint) return false;
+  const existingVariant = moduleVariantFromConfig(config, moduleId);
+  const defaultVariant = HOMEPAGE_COMPONENT_REFERENCE_DEFAULT_VARIANTS[moduleId] || "";
+  return !existingVariant || existingVariant === variantHint || existingVariant === defaultVariant || existingVariant === "standard";
+}
+
+function applyComponentReferencesToHomepageConfig(config, prompt = "", options = {}) {
+  if (!config || typeof config !== "object") return [];
+  const allComponents = readComponentLibrary().components;
+  const componentLookup = componentLibraryLookup(allComponents);
+  const components = allComponents.filter((component) => componentReferenceAllowed(component));
+  if (!components.length) {
+    const existing = normalizeHomepageConfigComponentReferences(config.componentReferences)
+      .filter((reference) => componentReferenceAllowedByPolicy(reference, componentLookup));
+    config.componentReferences = existing;
+    return config.componentReferences;
+  }
+
+  const blocks = collectHomepageBlocks(config);
+  const moduleBlocks = [];
+  const seenModules = new Set();
+  blocks.forEach((block) => {
+    const moduleId = homepageComponentReferenceForBlock(block);
+    if (!moduleId || seenModules.has(moduleId)) return;
+    seenModules.add(moduleId);
+    moduleBlocks.push({ block, moduleId });
+  });
+
+  const usedComponentIds = new Set();
+  const references = moduleBlocks
+    .map(({ block, moduleId }) => {
+      const familyComponents = components.filter((component) => component.family === moduleId);
+      if (!familyComponents.length) return null;
+      const selected =
+        rankComponentReferences(familyComponents, {
+          prompt,
+          family: moduleId,
+          size: homepageBlockMeta(block).size || "",
+          limit: Math.min(familyComponents.length, 4),
+        }).find((component) => !usedComponentIds.has(component.id)) || familyComponents[0];
+      if (!selected) return null;
+      usedComponentIds.add(selected.id);
+      const summary = summarizeComponentForPrompt(selected);
+      const hints = inferHomepageComponentReferenceHints(moduleId, selected);
+      return {
+        componentId: summary.id,
+        id: summary.id,
+        name: summary.name,
+        family: summary.family,
+        module: moduleId,
+        component: block,
+        size: summary.size,
+        score: summary.score,
+        referenceTier: summary.referenceTier,
+        referenceRule: summary.referenceRule,
+        tags: summary.tags,
+        layoutHints: summary.layoutHints,
+        styleSignals: summary.styleSignals,
+        visibleText: summary.visibleText,
+        variantHint: hints.variant,
+        morphHint: hints.morph,
+        styleHint: hints.style,
+        styleFeature: hints.styleFeature,
+        source: "home-component-library",
+        reason: cleanText(`参考「${summary.name}」的字段密度、比例和 ${hints.morph || hints.variant || "组件结构"}，并映射到 ${block}。`, "", 180),
+        applied: false,
+      };
+    })
+    .filter(Boolean);
+
+  const existingReferences = normalizeHomepageConfigComponentReferences(config.componentReferences)
+    .filter((item) => componentReferenceAllowedByPolicy(item, componentLookup))
+    .filter((item) => !references.some((reference) => reference.componentId === item.componentId || (reference.module && reference.module === item.module)))
+    .slice(0, Math.max(0, 12 - references.length));
+  const blockedExistingCount = normalizeHomepageConfigComponentReferences(config.componentReferences)
+    .filter((item) => !componentReferenceAllowedByPolicy(item, componentLookup))
+    .length;
+  const mergedReferences = normalizeHomepageConfigComponentReferences([...references, ...existingReferences]);
+  if (blockedExistingCount && Array.isArray(options.actions)) {
+    options.actions.push(`已剔除 ${blockedExistingCount} 个 5 分及以下组件库参考，避免低分积木参与生成。`);
+  }
+
+  config.modules = ensureObject(config.modules);
+  config.moduleStyles = ensureObject(config.moduleStyles);
+  config.componentMorphs = ensureObject(config.componentMorphs);
+
+  const appliedModules = [];
+  mergedReferences.forEach((reference) => {
+    const moduleId = reference.module;
+    if (!moduleId) return;
+    const canApplyVariant = shouldApplyHomepageReferenceVariant(config, moduleId, reference.variantHint);
+    if (canApplyVariant) {
+      config.modules[moduleId] = { ...ensureObject(config.modules[moduleId]), variant: reference.variantHint };
+      reference.applied = true;
+      appliedModules.push(moduleId);
+    }
+    const existingVariant = moduleVariantFromConfig(config, moduleId);
+    const defaultVariant = HOMEPAGE_COMPONENT_REFERENCE_DEFAULT_VARIANTS[moduleId] || "";
+    const canApplyStyle =
+      reference.styleHint &&
+      (canApplyVariant || !existingVariant || existingVariant === reference.variantHint || existingVariant === defaultVariant || existingVariant === "standard");
+    if (canApplyStyle) {
+      (HOMEPAGE_COMPONENT_REFERENCE_STYLE_FEATURES[moduleId] || [reference.styleFeature]).filter(Boolean).forEach((featureId, index) => {
+        if (index === 0 || !config.moduleStyles[featureId]) config.moduleStyles[featureId] = reference.styleHint;
+      });
+      reference.applied = true;
+    }
+    const existingMorph = ensureObject(config.componentMorphs[moduleId]);
+    const variant = config.modules[moduleId]?.variant || reference.variantHint || existingMorph.variant || "";
+    config.componentMorphs[moduleId] = {
+      ...existingMorph,
+      ...(canApplyVariant && reference.morphHint ? { morph: reference.morphHint, morphId: reference.morphHint } : {}),
+      variant,
+      referenceComponentId: reference.componentId,
+      referenceComponentName: reference.name,
+      referenceFamily: reference.family,
+      referenceScore: reference.score,
+      referenceTier: reference.referenceTier,
+      referenceReason: reference.reason,
+    };
+  });
+
+  config.componentReferences = mergedReferences;
+  if (Array.isArray(config.brickPlan)) {
+    config.brickPlan = config.brickPlan.map((brick) => {
+      const component = canonicalHomeBlock(brick?.component || brick?.feature);
+      const moduleId = homepageComponentReferenceForBlock(component);
+      const reference = mergedReferences.find((item) => item.module === moduleId || item.component === component);
+      if (!reference) return brick;
+      return {
+        ...brick,
+        referenceComponentId: reference.componentId,
+        referenceComponentName: reference.name,
+        referenceFamily: reference.family,
+        referenceScore: reference.score,
+        referenceTier: reference.referenceTier,
+        referenceReason: reference.reason,
+        variantHint: reference.variantHint || brick.variantHint,
+        morphHint: reference.morphHint || brick.morphHint,
+        styleHint: reference.styleHint || brick.styleHint,
+      };
+    });
+  }
+
+  if (appliedModules.length && Array.isArray(options.actions)) {
+    options.actions.push(`已把组件库积木参考应用到模块变体：${[...new Set(appliedModules)].join(", ")}。`);
+  }
+  enforceServerComponentMorphs(config);
+  return config.componentReferences;
 }
 
 function scoreContextPromptReference(value) {
@@ -2913,11 +3680,13 @@ function scoreContextPromptReference(value) {
       family: cleanText(item?.family, "", 80),
       name: cleanText(item?.name, "", 80),
       size: normalizeComponentSize(item?.size, "2x1"),
-      score: normalizeComponentScore(item?.score, 5),
+      score: normalizeComponentScore(item?.score, COMPONENT_REFERENCE_SCORE_POLICY.blockedMax),
+      referenceTier: componentReferenceTierFromScore(item?.score),
       visibleText: cleanText(item?.visibleText, "", 260),
       description: cleanText(item?.description, "", 180),
     }))
     .filter((item) => item.name && item.family)
+    .filter((item) => item.referenceTier !== "blocked")
     .sort((a, b) => b.score - a.score)
     .slice(0, 8);
 }
@@ -3112,7 +3881,14 @@ function beautifulComponentReferences(options = {}) {
   const prompt = cleanText(options.prompt, "", 1200);
   const limit = Math.max(1, Math.min(Number(options.limit) || 8, 16));
   const ranked = rankComponentReferences(readComponentLibrary().components, { ...options, limit: 16 })
-    .map((component, index) => ({ component, score: componentAestheticWeight(component) - index }))
+    .map((component, index) => {
+      const admission = componentReferenceAdmission(component, options);
+      return {
+        component,
+        admission,
+        score: componentReferenceTierPriority(admission.tier) + componentAestheticWeight(component) - index,
+      };
+    })
     .sort((a, b) => b.score - a.score)
     .map((item) => item.component)
     .slice(0, limit);
@@ -3120,7 +3896,10 @@ function beautifulComponentReferences(options = {}) {
   return ranked.map((component) => ({
     ...summarizeComponentForPrompt(component),
     aestheticValue: componentAestheticWeight(component),
-    reuseAdvice: "参考它的字段密度、按钮层级、卡片比例和状态表达，但不要逐字复制 HTML/CSS。",
+    reuseAdvice:
+      componentReferenceAdmission(component, options).tier === "strong"
+        ? "强参考：优先吸收字段密度、按钮层级、卡片比例和状态表达，但不要逐字复制 HTML/CSS。"
+        : "适度参考：只借鉴局部字段、密度和节奏，不能决定整页骨架或首屏主视觉。",
     matchedPrompt: Boolean(prompt && designSampleSearchText({ ...normalizeDesignSample({ name: component.name, tags: component.tags || [], functions: [] }) }).includes(normalizeKeywordText(prompt).slice(0, 16))),
   }));
 }
@@ -3167,6 +3946,59 @@ function addFeedbackMemoryRecord(record) {
   };
   writeFeedbackMemoryRecords([nextRecord, ...records]);
   return nextRecord;
+}
+
+function safeEvidenceText(value, limit = 24000) {
+  return String(value || "").trim().slice(0, limit);
+}
+
+function normalizeFeedbackEvidence(evidence = {}) {
+  const source = evidence && typeof evidence === "object" ? evidence : {};
+  const codeSource = source.code && typeof source.code === "object" ? source.code : {};
+  const code = {
+    renderedHtml: safeEvidenceText(codeSource.renderedHtml, 50000),
+    configJson: safeEvidenceText(codeSource.configJson, 50000),
+    aiHtml: safeEvidenceText(codeSource.aiHtml, 30000),
+    aiCss: safeEvidenceText(codeSource.aiCss, 30000),
+    skeletonHtml: safeEvidenceText(codeSource.skeletonHtml, 24000),
+  };
+  const screenshotDataUrl = safeEvidenceText(source.screenshotDataUrl || source.screenshot, 1_200_000);
+  const hasCode = Object.values(code).some(Boolean);
+  const hasScreenshot = /^data:image\//i.test(screenshotDataUrl);
+  if (!hasCode && !hasScreenshot && !source.summary) return null;
+
+  return {
+    captureType: hasScreenshot && hasCode ? "screenshot+code" : hasScreenshot ? "screenshot" : "code",
+    capturedAt: cleanText(source.capturedAt, new Date().toISOString(), 40),
+    pageUrl: cleanText(source.pageUrl, "", 260),
+    renderMode: cleanText(source.renderMode, "", 40),
+    previewSize: cleanText(source.previewSize, "", 40),
+    colorMode: cleanText(source.colorMode, "", 24),
+    summary: cleanText(source.summary, hasCode ? "首页代码快照" : "首页截图快照", 360),
+    screenshotDataUrl: hasScreenshot ? screenshotDataUrl : "",
+    code,
+  };
+}
+
+function feedbackEvidencePromptSummary(evidence = {}) {
+  if (!evidence || typeof evidence !== "object") return "";
+  const code = evidence.code && typeof evidence.code === "object" ? evidence.code : {};
+  const codeKinds = Object.entries(code)
+    .filter(([, value]) => Boolean(value))
+    .map(([key]) => key)
+    .slice(0, 5);
+  return cleanText(
+    [
+      evidence.summary,
+      evidence.captureType ? `证据类型 ${evidence.captureType}` : "",
+      evidence.renderMode ? `渲染 ${evidence.renderMode}` : "",
+      codeKinds.length ? `代码字段 ${codeKinds.join("/")}` : "",
+    ]
+      .filter(Boolean)
+      .join("；"),
+    "",
+    420,
+  );
 }
 
 function ensureReferenceAssetDir() {
@@ -3324,11 +4156,181 @@ function ensureAuthReferenceAssetDir() {
   fs.mkdirSync(AUTH_REFERENCE_ASSET_DIR, { recursive: true });
 }
 
+const AUTH_REFERENCE_LAYOUT_TYPES = ["split", "mediaSplit", "centeredCard", "fullBleed", "cardOverlay", "mobileFirst"];
+const AUTH_REFERENCE_FORM_POSITIONS = ["left", "right", "center"];
+const AUTH_REFERENCE_MEDIA_POSITIONS = ["left", "right", "background", "none"];
+const AUTH_REFERENCE_HERO_VISIBILITIES = ["full", "compact", "hidden"];
+const AUTH_REFERENCE_MOBILE_STRATEGIES = ["logoFirst", "formFirst", "mediaMuted", "singleColumn"];
+
+function authReferenceText(asset = {}) {
+  return [
+    asset.name,
+    asset.flow,
+    asset.note,
+    asset.styleBrief,
+    asset.promptSeed,
+    asset.textExcerpt,
+    ...(Array.isArray(asset.tags) ? asset.tags : []),
+    ...(Array.isArray(asset.segments) ? asset.segments : []),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function firstAllowed(value, allowed, fallback) {
+  const raw = cleanText(value, "", 48);
+  return allowed.includes(raw) ? raw : fallback;
+}
+
+function authVisualStyleSignals(text = "") {
+  const signals = [];
+  [
+    ["minimal", /极简|minimal|clean|简洁|留白/],
+    ["premium", /高端|高级|黑金|premium|private|私密|石墨/],
+    ["tech", /科技|tech|数据|网格|安全|secure|cyber/],
+    ["warm", /温暖|亲和|friendly|soft|轻量|柔和/],
+    ["cartoon", /卡通|插画|illustration|漫画|趣味/],
+    ["mobile", /移动端|手机|mobile|单手/],
+    ["campaign", /活动|奖励|campaign|promo|转化|注册送/],
+  ].forEach(([signal, pattern]) => {
+    if (pattern.test(text)) signals.push(signal);
+  });
+  return [...new Set(signals)].slice(0, 8);
+}
+
+function inferAuthReferenceVisualStructure(asset = {}) {
+  const text = authReferenceText(asset);
+  const hasCenter = /居中|center|centered|中间|单卡|单列/.test(text);
+  const hasOverlay = /背景图|背景视觉|浮层|overlay|全屏|full.?bleed|沉浸/.test(text);
+  const hasMobile = /移动端|手机|mobile|单手|首屏/.test(text);
+  const hasMedia = /图|图片|插画|视觉|媒体|背景|photo|image|illustration|cartoon|卡通/.test(text);
+  const mediaRight = /图在右|右图|右侧图|右侧视觉|视觉在右|媒体在右|插画在右|image right|media right|right visual|右侧版面/.test(text);
+  const mediaLeft = /图在左|左图|左侧图|左侧视觉|视觉在左|媒体在左|插画在左|image left|media left|left visual|左侧有.*视觉/.test(text);
+  const formLeft = /表单在左|左表单|form left|form-left/.test(text) || mediaRight;
+  const formRight = /表单在右|右表单|form right|form-right/.test(text) || mediaLeft;
+  const confidence = Math.min(
+    0.96,
+    0.48 +
+      (hasCenter || hasOverlay || hasMedia ? 0.14 : 0) +
+      (mediaLeft || mediaRight || formLeft || formRight ? 0.18 : 0) +
+      (asset.styleBrief ? 0.08 : 0) +
+      ((Array.isArray(asset.tags) && asset.tags.length) || (Array.isArray(asset.segments) && asset.segments.length) ? 0.08 : 0),
+  );
+  const layoutType = hasCenter
+    ? "centeredCard"
+    : hasOverlay
+      ? "cardOverlay"
+      : hasMobile && !hasMedia
+        ? "mobileFirst"
+        : hasMedia || mediaLeft || mediaRight
+          ? "mediaSplit"
+          : "split";
+  const formPosition = hasCenter ? "center" : formLeft ? "left" : formRight ? "right" : "right";
+  const mediaPosition = hasCenter
+    ? "none"
+    : hasOverlay
+      ? "background"
+      : mediaRight || formLeft
+        ? "right"
+        : mediaLeft || formRight
+          ? "left"
+          : hasMedia
+            ? "left"
+            : "none";
+  const logoPlacement = /顶部居中|top center|topcenter|logo.*中/.test(text)
+    ? "topCenter"
+    : /表单顶部|form top|formtop/.test(text)
+      ? "formTop"
+      : hasMobile
+        ? "mobileTop"
+        : "heroTopLeft";
+  const heroVisibility = hasCenter ? "hidden" : hasOverlay ? "compact" : "full";
+  const mobileStrategy = hasMobile ? "logoFirst" : hasCenter ? "formFirst" : "singleColumn";
+  const styleSignals = authVisualStyleSignals(text);
+  const summary = [
+    layoutType === "centeredCard" ? "居中单卡认证页" : layoutType === "cardOverlay" ? "背景视觉加浮层表单" : layoutType === "mediaSplit" ? "媒体/表单分栏认证页" : "品牌区与表单区分栏",
+    formPosition === "left" ? "表单在左" : formPosition === "center" ? "表单居中" : "表单在右",
+    mediaPosition === "right" ? "视觉在右" : mediaPosition === "left" ? "视觉在左" : mediaPosition === "background" ? "视觉作为背景" : "弱化媒体区",
+    styleSignals.length ? `风格信号：${styleSignals.join("、")}` : "",
+  ].filter(Boolean).join("；");
+  return {
+    source: "auto-structure",
+    confidence: Number(confidence.toFixed(2)),
+    layoutType,
+    formPosition,
+    mediaPosition,
+    heroVisibility,
+    logoPlacement,
+    mobileStrategy,
+    styleSignals,
+    segments: (Array.isArray(asset.segments) ? asset.segments : []).map((item) => cleanText(item, "", 50)).filter(Boolean).slice(0, 8),
+    borrow: [
+      "抽象结构",
+      "表单与视觉区比例",
+      "Logo 摆放",
+      "输入框和按钮密度",
+      "移动端首屏节奏",
+    ],
+    avoid: ["不要复刻原图", "不要照搬品牌资产", "不要复制插画或图标", "不要像素级复刻排版"],
+    summary,
+  };
+}
+
+function normalizeAuthVisualStructure(structure = {}, fallbackAsset = {}) {
+  const fallback = inferAuthReferenceVisualStructure(fallbackAsset);
+  const source = isObjectRecord(structure) ? structure : {};
+  const styleSignals = Array.isArray(source.styleSignals) ? source.styleSignals : fallback.styleSignals;
+  return {
+    source: cleanText(source.source, fallback.source, 40),
+    confidence: Number.isFinite(Number(source.confidence)) ? Math.max(0, Math.min(1, Number(source.confidence))) : fallback.confidence,
+    layoutType: firstAllowed(source.layoutType, AUTH_REFERENCE_LAYOUT_TYPES, fallback.layoutType),
+    formPosition: firstAllowed(source.formPosition, AUTH_REFERENCE_FORM_POSITIONS, fallback.formPosition),
+    mediaPosition: firstAllowed(source.mediaPosition, AUTH_REFERENCE_MEDIA_POSITIONS, fallback.mediaPosition),
+    heroVisibility: firstAllowed(source.heroVisibility, AUTH_REFERENCE_HERO_VISIBILITIES, fallback.heroVisibility),
+    logoPlacement: normalizeAuthLogoPlacement(source.logoPlacement, fallback.logoPlacement),
+    mobileStrategy: firstAllowed(source.mobileStrategy, AUTH_REFERENCE_MOBILE_STRATEGIES, fallback.mobileStrategy),
+    styleSignals: styleSignals.map((item) => cleanText(item, "", 36)).filter(Boolean).slice(0, 8),
+    segments: (Array.isArray(source.segments) ? source.segments : fallback.segments || []).map((item) => cleanText(item, "", 50)).filter(Boolean).slice(0, 8),
+    borrow: (Array.isArray(source.borrow) ? source.borrow : fallback.borrow || []).map((item) => cleanText(item, "", 60)).filter(Boolean).slice(0, 8),
+    avoid: (Array.isArray(source.avoid) ? source.avoid : fallback.avoid || []).map((item) => cleanText(item, "", 60)).filter(Boolean).slice(0, 8),
+    summary: cleanText(source.summary, fallback.summary, 220),
+  };
+}
+
+function authVisualStructureSearchText(structure = {}) {
+  if (!isObjectRecord(structure)) return "";
+  return [
+    structure.layoutType,
+    structure.formPosition,
+    structure.mediaPosition,
+    structure.heroVisibility,
+    structure.logoPlacement,
+    structure.mobileStrategy,
+    structure.summary,
+    ...(Array.isArray(structure.styleSignals) ? structure.styleSignals : []),
+    ...(Array.isArray(structure.segments) ? structure.segments : []),
+    ...(Array.isArray(structure.borrow) ? structure.borrow : []),
+  ].filter(Boolean).join(" ");
+}
+
 function normalizeAuthReferenceAsset(record = {}) {
-  const name = cleanText(record.name, "认证视觉参考", 120);
+  const name = cleanText(record.name, "认证视觉素材", 120);
   const mime = cleanText(record.mime, "", 80);
   const url = cleanText(record.url, "", 240);
   const flow = cleanText(record.flow, "三流程", 40);
+  const structureFallback = {
+    ...record,
+    name,
+    mime,
+    flow,
+    tags: record.tags,
+    segments: record.segments,
+    styleBrief: record.styleBrief,
+    note: record.note,
+    promptSeed: record.promptSeed,
+    textExcerpt: record.textExcerpt,
+  };
   return {
     id: safeId(record.id || name, "auth-reference"),
     at: record.at || record.createdAt || new Date().toISOString(),
@@ -3345,6 +4347,7 @@ function normalizeAuthReferenceAsset(record = {}) {
     promptSeed: cleanText(record.promptSeed, "", 1100),
     tags: (Array.isArray(record.tags) ? record.tags : []).map((tag) => cleanText(tag, "", 36)).filter(Boolean).slice(0, 14),
     segments: (Array.isArray(record.segments) ? record.segments : []).map((segment) => cleanText(segment, "", 50)).filter(Boolean).slice(0, 12),
+    visualStructure: normalizeAuthVisualStructure(record.visualStructure, structureFallback),
     textExcerpt: cleanText(record.textExcerpt, "", 900),
     createdAt: record.createdAt || record.at || new Date().toISOString(),
   };
@@ -3366,11 +4369,15 @@ function buildAuthReferencePromptSeed(asset = {}) {
   const tags = Array.isArray(asset.tags) ? asset.tags.filter(Boolean).slice(0, 8) : [];
   const segments = Array.isArray(asset.segments) ? asset.segments.filter(Boolean).slice(0, 8) : [];
   const lines = [
-    `参考 ${asset.name || "认证视觉参考"} 的抽象设计语言，而不是复刻原图。`,
+    `借鉴 ${asset.name || "认证视觉素材"} 的抽象设计语言，而不是复刻原图。`,
     `适用流程：${flow}。`,
   ];
   if (tags.length) lines.push(`视觉标签：${tags.join("、")}。`);
   if (segments.length) lines.push(`界面分格：${segments.join("、")}。`);
+  if (asset.visualStructure?.summary) {
+    lines.push(`AI 自动结构识别：${asset.visualStructure.summary}`);
+    lines.push(`布局约束：layoutType=${asset.visualStructure.layoutType}，formPosition=${asset.visualStructure.formPosition}，mediaPosition=${asset.visualStructure.mediaPosition}，logoPlacement=${asset.visualStructure.logoPlacement}。`);
+  }
   if (asset.styleBrief) lines.push(`风格提炼：${asset.styleBrief}`);
   if (asset.note) lines.push(`用户喜欢点：${asset.note}`);
   return cleanText(lines.join("\n"), "", 1100);
@@ -3379,7 +4386,7 @@ function buildAuthReferencePromptSeed(asset = {}) {
 function saveAuthReferenceAsset(asset = {}) {
   ensureAuthReferenceAssetDir();
   const now = new Date().toISOString();
-  const name = cleanText(asset.name, "认证视觉参考", 120);
+  const name = cleanText(asset.name, "认证视觉素材", 120);
   const inputMime = cleanText(asset.mime, "", 80);
   const type = referenceAssetType(inputMime, name);
   const ext = referenceAssetExtension(inputMime, name);
@@ -3400,17 +4407,17 @@ function saveAuthReferenceAsset(asset = {}) {
   } else {
     const decoded = decodeReferenceDataUrl(asset.dataUrl);
     if (!decoded) {
-      throw Object.assign(new Error("认证视觉参考文件内容缺失或格式不支持"), { statusCode: 400 });
+      throw Object.assign(new Error("认证视觉素材文件内容缺失或格式不支持"), { statusCode: 400 });
     }
     mime = inputMime || decoded.mime;
     buffer = decoded.buffer;
   }
 
   if (!buffer || buffer.length <= 0) {
-    throw Object.assign(new Error("认证视觉参考文件为空"), { statusCode: 400 });
+    throw Object.assign(new Error("认证视觉素材文件为空"), { statusCode: 400 });
   }
   if (buffer.length > 6_000_000) {
-    throw Object.assign(new Error("单个认证视觉参考不能超过 6MB"), { statusCode: 413 });
+    throw Object.assign(new Error("单个认证视觉素材不能超过 6MB"), { statusCode: 413 });
   }
 
   fs.writeFileSync(filePath, buffer);
@@ -3433,6 +4440,7 @@ function saveAuthReferenceAsset(asset = {}) {
     segments: asset.segments,
     textExcerpt,
   };
+  draft.visualStructure = normalizeAuthVisualStructure(asset.visualStructure, draft);
   if (!draft.promptSeed) draft.promptSeed = buildAuthReferencePromptSeed(draft);
   const record = normalizeAuthReferenceAsset(draft);
   const records = readAuthReferenceAssets();
@@ -3452,6 +4460,7 @@ function authReferenceAssetsForPrompt(prompt = "", options = {}) {
         asset.styleBrief,
         asset.promptSeed,
         asset.textExcerpt,
+        authVisualStructureSearchText(asset.visualStructure),
         ...(asset.tags || []),
         ...(asset.segments || []),
       ].join(" "));
@@ -3472,8 +4481,9 @@ function authReferenceAssetsForPrompt(prompt = "", options = {}) {
       promptSeed: asset.promptSeed || buildAuthReferencePromptSeed(asset),
       tags: asset.tags,
       segments: asset.segments,
+      visualStructure: asset.visualStructure,
       textExcerpt: asset.textExcerpt,
-      guidance: "这是用户上传的登录/注册/找回密码审美参考。只学习抽象设计语言、分格、层级、色彩和组件密度，禁止复制原图、品牌资产或具体受保护排版。",
+      guidance: "这是用户上传的登录/注册/找回密码视觉素材。只借鉴抽象设计语言、分格、Logo 位置、层级、色彩、组件密度和移动端节奏，禁止复制原图、品牌资产或具体受保护排版。",
     }))
     .slice(0, Math.max(1, Math.min(Number(options.limit) || 5, 10)));
 }
@@ -3483,13 +4493,20 @@ function authVisualTrainingContext(payload = {}) {
   const referenceAssetIds = Array.isArray(payload.referenceAssetIds) ? payload.referenceAssetIds : [];
   const referenceAssets = authReferenceAssetsForPrompt(prompt, { limit: 6, referenceAssetIds });
   return {
-    purpose: "用于登录/注册/找回密码认证模块的视觉参考上下文：把用户上传的 Dribbble 或其他平台截图转译为可执行的抽象设计约束。",
+    purpose: "用于登录/注册/找回密码认证模块的视觉借鉴上下文：把用户上传的 Dribbble 或其他平台截图转译为可执行的抽象设计约束。",
     referenceAssets,
+    automaticStructureExtraction: {
+      enabled: true,
+      note: "视觉素材会先转成 visualStructure 结构摘要；生成时优先读取 layoutType、formPosition、mediaPosition、logoPlacement、mobileStrategy，而不是依赖人工标签。",
+    },
     extractionRules: [
-      "提取页面结构、分栏比例、表单密度、背景处理、信任点表达、按钮层级、输入框样式和移动端节奏。",
+      "如果素材没有人工标签，也要根据 visualStructure 自动识别居中、图左、图右、背景图、表单位置和移动端策略。",
+      "提取页面结构、分栏比例、表单密度、背景处理、平台 Logo 摆放、信任点表达、按钮层级、输入框样式和移动端节奏。",
       "不要复刻原图，不要照搬具体插画、图标、品牌、文案和像素级排版。",
-      "必须把参考图转成新的 ForexCRM 认证模块方案，并保证登录、注册、找回密码三条流程都完整。",
+      "必须把素材转成新的 ForexCRM 认证模块方案，并保证登录、注册、找回密码三条流程都完整。",
+      "移动端适配和移动端美观是必选项，不能只生成桌面缩小版。",
     ],
+    visualStructures: referenceAssets.map((asset) => asset.visualStructure).filter(Boolean).slice(0, 6),
     promptSeeds: referenceAssets.map((asset) => asset.promptSeed).filter(Boolean).slice(0, 6),
   };
 }
@@ -3498,12 +4515,18 @@ function feedbackRecordSearchText(record) {
   return normalizeKeywordText([
     record.prompt,
     record.note,
+    record.source,
     record.decision,
     record.rating,
     record.pageIntent,
     record.visualStyle,
     record.manualScore,
     record.machineScore,
+    record.evidence?.summary,
+    record.evidence?.captureType,
+    record.evidence?.renderMode,
+    safeRecordText(record.evidence?.code?.renderedHtml, 500),
+    safeRecordText(record.evidence?.code?.aiHtml, 500),
     ...(Array.isArray(record.tags) ? record.tags : []),
     ...(Array.isArray(record.preferenceSignals) ? record.preferenceSignals : []),
     ...(Array.isArray(record.referenceAssets) ? record.referenceAssets.flatMap((item) => [item.name, ...(Array.isArray(item.tags) ? item.tags : [])]) : []),
@@ -3534,6 +4557,7 @@ function feedbackMemoryPromptReference(prompt, limit = 5) {
       preferenceSignals: Array.isArray(record.preferenceSignals) ? record.preferenceSignals.slice(0, 6) : [],
       tags: Array.isArray(record.tags) ? record.tags.slice(0, 8) : [],
       referenceAssets: Array.isArray(record.referenceAssets) ? record.referenceAssets.slice(0, 4) : [],
+      evidence: feedbackEvidencePromptSummary(record.evidence),
     }))
     .slice(0, Math.max(1, Math.min(Number(limit) || 5, 10)));
 }
@@ -3544,6 +4568,7 @@ function aestheticTrainingContext(payloadOrPrompt = {}, options = {}) {
   const samples = rankDesignSamplesForPrompt(prompt, options.sampleLimit || 4).map(summarizeDesignSampleForPrompt);
   return {
     purpose: "用于提升首页美感的训练上下文：用户上传参考稿决定审美方向，样本页面告诉模型怎么组织页面和功能，组件库积木告诉模型可借鉴的视觉细节，反馈记忆告诉模型用户偏好。",
+    componentReferencePolicy: componentReferencePolicyPrompt(readComponentLibrary().components, { prompt }),
     referenceAssets: referenceAssetsForPrompt(prompt, { limit: options.referenceLimit || 4, referenceAssetIds }),
     samplePages: samples,
     beautifulComponents: beautifulComponentReferences({ prompt, limit: options.componentLimit || 8 }),
@@ -3551,7 +4576,7 @@ function aestheticTrainingContext(payloadOrPrompt = {}, options = {}) {
     scoringRubric: {
       visualFocus: "首屏必须有明确视觉焦点、主标题、主操作和品牌氛围。",
       hierarchy: "模块要有大小、密度和层级差异，不能全部是同一种白卡。",
-      componentCraft: "优先参考漂亮积木块的字段密度、状态标签、按钮层级、图表/步骤表达。",
+      componentCraft: "8-10 分漂亮积木块是强参考，6-7 分只适度参考，5 分及以下必须杜绝。",
       businessFunction: "每个样本块都必须绑定页面位置、功能目标、数据字段和系统动作。",
       responsive: "桌面 12 栅格有节奏，移动端自然单列，不靠空白撑高级感。",
     },
@@ -3564,7 +4589,8 @@ function componentAestheticPromptReference(options = {}) {
   const size = cleanText(options.size, "", 12);
   return {
     purpose: "用于让单个积木组件参考已保存漂亮积木后再生成：先吸收字段密度、按钮层级、状态标签、卡片比例、图表/步骤表达，再根据本次 slot 和尺寸做新的组件形态。",
-    referenceRule: "漂亮积木是审美和结构参考，不是复制源；必须改变布局、密度、层级或组合方式，不能只换色、换标题或照搬 HTML/CSS。",
+    referenceRule: "组件库评分是硬约束：8-10 分强参考，6-7 分适度参考，5 分及以下禁止借鉴；漂亮积木不是复制源，必须改变布局、密度、层级或组合方式。",
+    componentReferencePolicy: componentReferencePolicyPrompt(readComponentLibrary().components, { prompt, family, size }),
     selectedBeautifulBricks: beautifulComponentReferences({ family, size, prompt, limit: options.limit || 6 }),
     samplePages: rankDesignSamplesForPrompt(prompt, options.sampleLimit || 2).map(summarizeDesignSampleForPrompt),
     feedbackMemory: feedbackMemoryPromptReference(prompt, options.feedbackLimit || 3),
@@ -3589,6 +4615,7 @@ function aiHtmlDataBindingsFromConfig(config) {
   );
   const bindings = ["totalAssets", "walletBalance", "tradingAccountBalance", "quickActionList"];
   if (blocks.has("onboarding_guide")) bindings.push("kycStatus", "accountOpeningSteps");
+  if (blocks.has("kyc_status_card")) bindings.push("kycStatus.current");
   if (blocks.has("trading_account_highlight")) bindings.push("equityCurve", "pnlTrend", "marginState");
   if (blocks.has("trading_accounts_list")) bindings.push("tradingAccounts");
   if (blocks.has("promo_banner")) bindings.push("campaignConfig");
@@ -3664,6 +4691,12 @@ const AI_HTML_MODULE_CONTRACTS = {
     family: "ReferralLinkCard",
     signals: ["推广链接", "邀请码", "注册链接", "referral", "invite", "copy"],
     expectation: "展示推广链接、邀请码和复制动作，不能扩展成完整代理中心。",
+  },
+  kyc_status_card: {
+    label: "KYC 状态",
+    family: "UserKycRail",
+    signals: ["CRM 账户 KYC 状态", "KYC 状态", "account kyc", "kycStatus.current", "未提交", "待审", "拒绝"],
+    expectation: "只展示当前 KYC 状态和对应动作：未提交展示 Submit KYC，待审展示 Pending Review，通过展示 Verified，拒绝展示 Resubmit；不要展示所有状态列表。",
   },
   announcements: {
     label: "公告通知",
@@ -3778,6 +4811,12 @@ const AI_HTML_MODULE_CAPABILITIES = {
     actions: ["copyLink", "copyCode"],
     evidenceSignals: ["推广链接", "邀请码", "复制"],
   },
+  kyc_status_card: {
+    dataFields: ["kycStatus.current"],
+    states: ["notSubmitted", "pendingReview", "verified", "rejected"],
+    actions: ["submitKyc", "resubmitKyc"],
+    evidenceSignals: ["KYC 状态", "Submit KYC", "Pending Review", "Verified", "Resubmit"],
+  },
   announcements: {
     dataFields: ["title", "category", "publishedAt"],
     states: ["urgent", "normal"],
@@ -3833,13 +4872,14 @@ const AI_HTML_PROMPT_MODULE_PATTERNS = [
   ["asset_overview", /asset_overview|资产概览|账户摘要|账户总览|余额合计|总资产|账户资产/i],
   ["wallet_list", /wallet_list|钱包列表|多币种钱包|币种钱包|wallet list/i],
   ["quick_actions", /quick_actions|快捷入口|快捷操作|操作入口|快捷按钮/i],
-  ["onboarding_guide", /onboarding_guide|开户引导|开户流程|开户路径|账户开通|开真实账户|创建真实账户|kyc|首次入金|已注册未开户|新访客|新客|新用户|onboarding/i],
+  ["onboarding_guide", /onboarding_guide|开户引导|开户流程|开户路径|账户开通|开真实账户|创建真实账户|首次入金|已注册未开户|新访客|新客|新用户|onboarding/i],
   ["trading_account_highlight", /trading_account_highlight|账户表现|账号表现|表现图表|净值曲线|equity|pnl|保证金/i],
   ["trading_accounts_list", /trading_accounts_list|交易账号列表|交易账户列表|交易账号|交易账户|真实账号|真实账户|模拟账号|模拟账户|live\s*account|demo\s*account|mt5/i],
   ["promo_banner", /promo_banner|活动权益|活动区|活动\s*banner|入金奖励|权益区|bonus|campaign/i],
   ["pamm_products", /pamm_products|pamm|PAMM|pamm\s*条件|PAMM\s*条件|资管产品|资金管理产品/i],
   ["copytrading_signals", /copytrading_signals|copy\s*trading|copytrading|跟单|信号源/i],
   ["referral_link_card", /referral_link_card|推广链接|邀请链接|开户链接|注册链接|邀请码|referral/i],
+  ["kyc_status_card", /kyc_status_card|account_kyc_status|kycStatus\.current|CRM 账户 KYC 状态|KYC 状态|kyc\s*status|未提交|待审|待审核|拒绝/i],
   ["announcements", /announcements|公告|通知|维护/i],
   ["market_news", /market_news|市场资讯|市场新闻|行情资讯|交易教育/i],
   ["risk_disclosure", /risk_disclosure|风险提示|风险披露|风险声明|合规声明|合规说明|杠杆风险/i],
@@ -3900,25 +4940,32 @@ function normalizeAiHtmlModuleUnderstanding(value) {
 
 function normalizeAiHtmlComponentReferences(value, fallback = []) {
   const source = Array.isArray(value) && value.length ? value : fallback;
-  return source
+  const lookup = componentLibraryLookup();
+  const normalized = source
     .map((item) => {
       if (typeof item === "string") {
-        return { componentId: cleanText(item, "", 80), family: "", module: "", reason: "" };
+        return enrichComponentReferencePolicy({ componentId: cleanText(item, "", 80), family: "", module: "", reason: "" }, lookup);
       }
       if (!item || typeof item !== "object") return null;
-      return {
+      return enrichComponentReferencePolicy({
         componentId: cleanText(item.componentId || item.id || item.name, "", 80),
         name: cleanText(item.name || item.label, "", 80),
         family: cleanText(item.family, "", 60),
         requiredFamily: cleanText(item.requiredFamily || item.targetFamily, "", 60),
         module: cleanText(item.module || item.block || item.component, "", 60),
         reason: cleanText(item.reason || item.usedFor || item.inspiration, "", 180),
+        score: Number.isFinite(Number(item.score)) ? normalizeComponentScore(item.score, COMPONENT_REFERENCE_SCORE_POLICY.blockedMax) : undefined,
         visibleText: cleanText(item.visibleText, "", 220),
         styleSignals: normalizeAiHtmlTextList(item.styleSignals || item.hints, 6, 60),
-      };
+      }, lookup);
     })
     .filter((item) => item && (item.componentId || item.family || item.module || item.reason))
+    .filter((item) => componentReferenceAllowedByPolicy(item, lookup))
     .slice(0, 16);
+  if (!normalized.length && Array.isArray(value) && value.length && Array.isArray(fallback) && fallback.length) {
+    return normalizeAiHtmlComponentReferences([], fallback);
+  }
+  return normalized;
 }
 
 function normalizeAiHtmlImplementationContract(value, requiredModules = []) {
@@ -4067,9 +5114,11 @@ function aiHtmlComponentReferenceHints(requiredModules, prompt) {
           componentId: component.id,
           name: component.name,
           family: component.family,
+          score: component.score,
+          referenceTier: component.referenceTier,
           requiredFamily: family,
           module: requiredModules.find((item) => item.family === family)?.component || "",
-          reason: `${component.name} 可参考 ${component.styleSignals?.slice(0, 3).join("、") || "业务字段和布局密度"}`,
+          reason: `${component.name} ${componentReferenceTierLabel(component.referenceTier)}，可参考 ${component.styleSignals?.slice(0, 3).join("、") || "业务字段和布局密度"}`,
           visibleText: component.visibleText,
           styleSignals: component.styleSignals,
         });
@@ -4562,7 +5611,7 @@ function repairAiHtmlScheme(scheme, payload = {}, config = {}, providerConfig = 
     ? normalized.componentReferences
     : normalizeAiHtmlComponentReferences(componentReferenceHints);
   if (!normalized.implementationContract.length && synthesizedImplementationContract.length) {
-    notes.push("已根据模块契约自动补齐 implementationContract，适配 Kimi/DeepSeek/MiniMax 短输出。");
+    notes.push("已根据模块契约自动补齐 implementationContract，适配 Kimi/DeepSeek/MiniMax/Gemini 短输出。");
   }
   if (!normalized.componentReferences.length && componentReferences.length) {
     notes.push("已根据组件库命中结果补齐 componentReferences，确保 AI HTML 可追溯到积木库。");
@@ -4864,9 +5913,9 @@ function evaluateHomepagePlanCritic(payload = {}, config = {}) {
     .map((item) => item.module)
     .filter((module) => blocks.includes(module));
   if (excludedVisible.length) {
-    miss(18, `素材准入已排除的模块仍然可见：${excludedVisible.join("、")}。`);
+    miss(18, `pagePlan 已排除的模块仍然可见：${excludedVisible.join("、")}。`);
   } else if (Array.isArray(pagePlan.excludedModules) && pagePlan.excludedModules.length) {
-    pass("缺少素材的选填模块已被移除。");
+    pass("pagePlan 排除模块已被移除。");
   }
 
   const optionalCount = (pagePlan.optionalModules || []).length;
@@ -4891,33 +5940,142 @@ function homepageValidationHasBlockingErrors(validation = {}) {
   );
 }
 
+function homepagePromptMentionsReferral(text) {
+  return /推广链接|邀请链接|开户链接|注册链接|邀请码|referral|invite code|referral link|代理|agent|ib|partner|affiliate/i.test(String(text || ""));
+}
+
+function homepagePayloadHasReferralDefault(payload = {}) {
+  const context = ensureObject(payload.context);
+  const source = [
+    context.userRole,
+    context.role,
+    context.audience,
+    context.tenant?.features,
+    context.tenantFeatures,
+    context.features,
+    payload.userRole,
+    payload.role,
+  ]
+    .map((item) => (typeof item === "string" ? item : item ? compactJson(item) : ""))
+    .join(" ");
+  return /(^|[^a-z])(agent|ib)([^a-z]|$)|代理|渠道|referral|referralLink|invite|推广/i.test(source);
+}
+
+function homepagePromptMentionsKycStatus(text) {
+  return /CRM 账户 KYC 状态|KYC 状态|kyc_status_card|account_kyc_status|kycStatus\.current|kyc\s*status|未提交|待审|待审核|审核中|拒绝|未通过/i.test(String(text || ""));
+}
+
+function homepagePromptMentionsPerformance(text) {
+  return /账号表现|账户表现|trading_account_highlight|trading_performance|accountPerformance|净值曲线|权益曲线|pnl|performance/i.test(String(text || ""));
+}
+
+function homepagePayloadProfessionalTier(payload = {}, guidedSnapshot = {}) {
+  const source = [
+    payload.prompt,
+    payload.context?.tier,
+    payload.context?.level,
+    payload.context?.guidedIntake?.level?.id,
+    payload.guidedIntake?.level?.id,
+    guidedSnapshot.level,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  return /tier\s*=\s*professional|professional|专业版|专业级|专业用户|pro\b/i.test(source);
+}
+
+function homepagePayloadExplicitOnboarding(payload = {}, guidedSnapshot = {}) {
+  const source = [
+    payload.prompt,
+    payload.context?.guidedIntake?.intent?.id,
+    payload.context?.guidedIntake?.intent?.label,
+    payload.context?.guidedIntake?.canonical?.layoutPreset,
+    payload.guidedIntake?.intent?.id,
+    payload.guidedIntake?.intent?.label,
+    payload.guidedIntake?.canonical?.layoutPreset,
+    guidedSnapshot.intent?.id,
+    guidedSnapshot.intent?.label,
+    guidedSnapshot.canonicalIntent,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  return /新客引导型|新手引导|开户引导|开户流程|开户路径|开户注册|账户开通|onboardingJourney|new[-_\s]?user|onboarding/i.test(source);
+}
+
+function homepageProductWarnings(payload = {}, config = {}, guidedSnapshot = {}) {
+  const warnings = [];
+  const sections = Array.isArray(config.sections) ? config.sections : [];
+  const blocks = new Set(collectHomepageBlocks(config));
+  const prompt = String(payload.prompt || "");
+  const selected = new Set([...(guidedSnapshot.selectedModules || []), ...(guidedSnapshot.explicitBlocks || []), ...(guidedSnapshot.mustHave || [])]);
+  const heroFocus = guidedSnapshot.heroFocus || canonicalHomeBlock(config.heroFocus || config.pageIntent?.heroFocus);
+  const assetIndex = homepageSectionIndexForSlot(sections, "asset_overview");
+  const onboardingIndex = homepageSectionIndexForSlot(sections, "onboarding_guide");
+
+  if (heroFocus === "asset_overview" && onboardingIndex >= 0 && (assetIndex < 0 || assetIndex > onboardingIndex || assetIndex > 1)) {
+    warnings.push("heroFocus asset_overview is not placed before onboarding_guide");
+  }
+
+  if (
+    homepagePayloadProfessionalTier(payload, guidedSnapshot) &&
+    !homepagePayloadExplicitOnboarding(payload, guidedSnapshot) &&
+    (config.layoutPreset === "onboardingJourney" || config.pageIntent?.primaryIntent === "onboarding")
+  ) {
+    warnings.push("professional tier was converted to onboarding layout");
+  }
+
+  if ((homepagePromptMentionsReferral(prompt) || homepagePayloadHasReferralDefault(payload) || selected.has("referral_link_card")) && !blocks.has("referral_link_card")) {
+    warnings.push("referral_link_card was mentioned but not selected");
+  }
+
+  if ((homepagePromptMentionsKycStatus(prompt) || selected.has("kyc_status_card")) && !blocks.has("kyc_status_card")) {
+    warnings.push("kyc_status was mentioned but not rendered");
+  }
+
+  if ((homepagePromptMentionsPerformance(prompt) || selected.has("trading_account_highlight")) && !blocks.has("trading_account_highlight")) {
+    warnings.push("trading_performance was selected but not rendered");
+  }
+
+  return [...new Set(warnings)].slice(0, 12);
+}
+
 function finalizeHomepageQuality(payload = {}, config = {}, htmlScheme = null) {
-  const validation = config.validation || validateHomepageConfig(config, homepageGuidedSnapshotFromPayload(payload, config));
+  const guidedSnapshot = homepageGuidedSnapshotFromPayload(payload, config);
+  const validation = config.validation || validateHomepageConfig(config, guidedSnapshot);
   const aesthetic = evaluateHomepageAesthetic(payload, { ...config, ...(htmlScheme ? { htmlScheme } : {}) });
   const planCritic = evaluateHomepagePlanCritic(payload, config);
+  const productWarnings = homepageProductWarnings(payload, config, guidedSnapshot);
   const htmlScore = Number(htmlScheme?.qualityScore);
   const baseScore = Number.isFinite(htmlScore) ? Math.max(0, Math.min(100, Math.round(htmlScore))) : aesthetic.score;
-  const score = Math.min(baseScore, planCritic.score);
+  const modulePolicyScore = Number.isFinite(Number(validation.modulePolicy?.score ?? config.modulePolicyScore))
+    ? Math.max(0, Math.min(100, Math.round(Number(validation.modulePolicy?.score ?? config.modulePolicyScore))))
+    : 100;
+  const score = Math.min(baseScore, planCritic.score, modulePolicyScore);
   const blockingStructure = homepageValidationHasBlockingErrors(validation);
   const status = blockingStructure ? "needs-repair" : homepageQualityStatusFromScore(score);
   const structuralIssues = [
     ...(validation.missingRequiredModules || []).map((slot) => `缺少必选模块 ${slot}`),
     ...(validation.invalidSections || []).map((item) => `非法 section: ${item.section || item.reason}`),
+    ...(validation.modulePolicy?.warnings || []),
   ];
 
   return {
     score,
     status,
+    modulePolicyScore,
     htmlQualityStatus: status,
     quality: {
       status,
       score,
+      modulePolicyScore,
+      modulePolicyStatus: validation.modulePolicy?.status || "passed",
       structuralStatus: blockingStructure ? "needs-repair" : "passed",
       visualStatus: homepageQualityStatusFromScore(score),
+      productWarnings,
       issues: [...new Set([...structuralIssues, ...(planCritic.issues || []), ...(aesthetic.issues || [])])].slice(0, 10),
       checks: [...new Set([...(htmlScheme?.aestheticChecks || aesthetic.strengths || []), ...(planCritic.checks || [])])].slice(0, 12),
       pagePlan: planCritic.pagePlan,
     },
+    productWarnings,
     aesthetic,
   };
 }
@@ -5181,6 +6339,7 @@ function buildFreeAiHtmlPrompt(payload) {
     "必须先理解 requiredModules，每个要求模块都要在 HTML 中有可见表达；不能把 KYC、交易账号、账户表现、推广链接等业务要求简化成普通标题或空白卡片。",
     "必须参考 componentLibraryReference 和 componentReferenceHints 的业务字段、按钮密度、卡片比例、状态标签、图表/列表表达；允许变形和重组，但要在 componentReferences 写明参考了哪些积木以及如何自由发挥。",
     "组件库参考是硬约束：componentReferences 至少覆盖 3 个 requiredModules 或组件家族；HTML 必须把参考转成具体结构差异，例如指标带、任务时间线、账号列表、趋势图、操作 Dock、FAQ 折叠或风险提示条。",
+    "组件库评分是硬约束：8-10 分积木必须优先参考；6-7 分只适度参考；5 分及以下禁止参考、禁止出现在 componentReferences 或自由发挥来源。",
     "必须参考 designTrainingContext：样本页面用于判断整体页面骨架和功能流，beautifulComponents 用于吸收漂亮积木块的视觉细节，feedbackMemory 用于避开用户否定过的审美方向。",
     "moduleMapping 必须说明每个 requiredModules 如何映射到 HTML 中的区域、参考的组件家族，以及自由变形点。",
     "implementationContract 必须是数组，每个 requiredModules 至少一项，字段包括 module、label、family、dataFields、states、actions、interactions、renderEvidence；它用来证明该模块不是静态外观空壳。",
@@ -5272,6 +6431,7 @@ function buildAiHtmlPrompt(payload, configScheme = {}, options = {}) {
     "如果 repairedConfig.pagePlan 存在，必须让 pagePlan.mainVisual 成为唯一最高视觉权重；其它模块不得使用更大的标题、更强背景或重复强 CTA。",
     "每个 repairedConfig.sections[].slots 都必须按原顺序生成 data-ai-html-module 可见区域，section 顺序也必须和 repairedConfig.sections 完全一致。",
     "组件库参考是硬约束：componentReferences 至少覆盖 3 个 requiredModules 或组件家族，并把参考转成结构差异，不要只写普通白卡片。",
+    "组件库评分是硬约束：8-10 分积木强参考；6-7 分积木适度参考；5 分及以下积木禁止借鉴，不能作为兜底或 componentReferences。",
     "必须同时参考 designTrainingContext：样本页面决定页面级构图和功能流，beautifulComponents 决定积木级细节，feedbackMemory 决定用户长期偏好。",
     "如果上一版问题指出模块缺失、token 不足、结构太平或占位符太多，这一版必须通过不同布局和更具体业务表达修复。",
     "implementationContract 必须逐模块写明 dataFields、states、actions、interactions、renderEvidence；修正版必须补齐上一版缺失的模块实现协议。",
@@ -5449,7 +6609,7 @@ function buildCompactAiHtmlPrompt(payload, configScheme = {}, options = {}) {
 	  const system = [
 	    "你是 ForexCRM 的 AI HTML 页面设计师。",
 	    "只输出一个能被 JSON.parse 解析的 JSON object，不要 markdown、代码块、解释或 <think>。",
-	    "这是 Kimi/DeepSeek 短输出通道：必须返回 html、css、qualityScore、qualityStatus、correctionNotes，可选 name、summary、componentReferences、implementationContract；服务端会补齐冗长字段。",
+	    "这是 Kimi/DeepSeek/Gemini 短输出通道：必须返回 html、css、qualityScore、qualityStatus、correctionNotes，可选 name、summary、componentReferences、implementationContract；服务端会补齐冗长字段。",
 	    "html <= 1800 字符，css <= 1500 字符，整个 JSON <= 3800 中文字符；宁可少写，也不要截断。",
 	    "必须遵守 design.md 设计治理：把漂亮控制在金融 CRM 规范内，先保证骨架、token、组件语义、暗色/移动端，再做细节美化。",
 	    "html/css 要短而完整：桌面端有清晰首屏和模块层级，移动端能单列降级；不要生成 JS、script、iframe、form、input、onclick/onload、远程图片或 javascript: URL。",
@@ -5535,7 +6695,7 @@ function buildCompactAiHtmlPrompt(payload, configScheme = {}, options = {}) {
 }
 
 function providerUsesCompactAiHtml(config = {}) {
-  return ["minimax", "deepseek", "kimi"].includes(config.provider);
+  return ["minimax", "deepseek", "kimi", "gemini"].includes(config.provider);
 }
 
 function aiHtmlPromptForProvider(config, payload, configScheme = {}, options = {}) {
@@ -5607,8 +6767,7 @@ function deleteComponentById(componentId) {
 }
 
 function payloadComponentScore(component, payload = {}) {
-  const scores = payload.componentScores && typeof payload.componentScores === "object" ? payload.componentScores : {};
-  return normalizeComponentScore(scores[component.id] ?? component.score, 5);
+  return componentReferenceAdmission(component, payload).score;
 }
 
 function sortComponentsForAiUse(components, payload = {}) {
@@ -5617,9 +6776,14 @@ function sortComponentsForAiUse(components, payload = {}) {
     .map((component) => ({
       ...component,
       score: payloadComponentScore(component, payload),
+      referenceTier: componentReferenceAdmission(component, payload).tier,
+      referenceRule: componentReferenceAdmission(component, payload).rule,
     }))
+    .filter((component) => component.referenceTier !== "blocked")
     .sort((a, b) => {
-      const scoreDelta = normalizeComponentScore(b.score, 5) - normalizeComponentScore(a.score, 5);
+      const tierDelta = componentReferenceTierPriority(b.referenceTier) - componentReferenceTierPriority(a.referenceTier);
+      if (tierDelta) return tierDelta;
+      const scoreDelta = normalizeComponentScore(b.score, COMPONENT_REFERENCE_SCORE_POLICY.blockedMax) - normalizeComponentScore(a.score, COMPONENT_REFERENCE_SCORE_POLICY.blockedMax);
       if (scoreDelta) return scoreDelta;
       return (requestedOrder.get(a.id) ?? 9999) - (requestedOrder.get(b.id) ?? 9999);
     });
@@ -5816,11 +6980,18 @@ function buildComponentPrompt(payload) {
 }
 
 function compactMiniMaxComponentReference(item = {}) {
+  const admission = Number.isFinite(Number(item.score))
+    ? {
+        score: normalizeComponentScore(item.score, COMPONENT_REFERENCE_SCORE_POLICY.blockedMax),
+        tier: componentReferenceTierFromScore(item.score),
+      }
+    : componentReferenceAdmission(item);
   return {
     name: cleanText(item.name, "", 40),
     family: cleanText(item.family, "", 40),
     size: cleanText(item.size, "", 12),
-    score: normalizeComponentScore(item.score, 5),
+    score: admission.score,
+    referenceTier: admission.tier,
     description: cleanText(item.description, "", 90),
     visibleText: cleanText(item.visibleText, "", 120),
     styleSignals: Array.isArray(item.styleSignals) ? item.styleSignals.slice(0, 5) : [],
@@ -6114,13 +7285,14 @@ function canonicalHomepageReference() {
       "每个模块默认只保留一个主标题；模块类型标签只有在能补充语义时才展示，不要形成 eyebrow + title 的重复双标题。",
       "referral_link_card 可选，仅在用户身份为代理、IB、合作伙伴或租户开启推广链接功能时展示；用户端标题使用“推广链接”，只用于推广链接、邀请码、复制/分享和基础统计，样式必须参考 ReferralLinkCard 积木字段再做链接优先、邀请码优先或统计辅助的引申，不得扩展成完整代理中心。",
       "referral_link_card 不得展示返佣、团队入金、下级客户列表、层级关系或复杂 IB 数据；推广链接、邀请码和统计必须来自后台配置或接口。",
+      "kyc_status_card 可选，仅在管理员明确选择或提示词提到 CRM 账户 KYC 状态、account_kyc_status、kycStatus.current、未提交、待审、通过或拒绝时展示；它只展示当前状态，不展示所有状态列表：未提交显示 Submit KYC，待审显示 Pending Review，通过显示 Verified，拒绝显示 Resubmit。",
       "announcements 可选，展示系统公告、活动公告、维护通知、资金通知或平台消息；可按意图选择列表、重点公告、紧凑信息流或首页第一栏跑马灯，但不能抢资产、交易账户和快捷操作优先级。",
       "market_news 可选，适合下半部分展示市场新闻、平台资讯、新手教程、交易教育或热门文章；不能优先于核心模块。",
       "risk_disclosure 可选，用于后台配置的风险披露、保证金提示和合规说明；必须作为页面底部 legal-strip 长文/富文本区域，不得作为普通侧栏指标卡，不得暗示稳赚或编造监管/风险状态；Demo 预览缺少后台数据时，可以生成参考风险提示文案占位。",
       "faq_section 可选，用于后台配置的开户、入金、下载、交易规则等常见问题；默认使用 accordion 折叠问答，不得编造政策细节。",
       "support_contact 可选，用于后台配置的在线客服、客户经理或服务时间入口；默认是轻量 1x1/compactBar 模块，只保留服务时间、客户经理/状态和联系按钮，不得占据大篇幅，不得编造在线状态或联系方式。",
       "app_download 可选，用于后台配置的 APP、MT5 或移动端下载入口；不得编造下载链接、二维码或商店地址。",
-      "reward_tasks、kyc_risk_notice、ib_dashboard 默认禁用；旧的 referralLink、userKycRail 不输出；旧 riskNotice/support_help 兼容映射到 risk_disclosure/support_contact。",
+      "reward_tasks、kyc_risk_notice、ib_dashboard 默认禁用；旧的 referralLink 不输出；旧 userKycRail/user_kyc_rail 输入必须兼容映射到 kyc_status_card；旧 riskNotice/support_help 兼容映射到 risk_disclosure/support_contact。",
       "PAMM 和 CopyTrading 必须作为 pamm_products、copytrading_signals 两个独立模块处理。",
     ],
     bricks: [
@@ -6140,6 +7312,7 @@ function canonicalHomepageReference() {
       { id: "copytradingSignals.recommendations", feature: "copytrading_signals", component: "copytrading_signals", family: "CopytradingSignals", size: "2x1", zone: "main" },
       { id: "copytradingSignals.curveCards", feature: "copytrading_signals", component: "copytrading_signals", family: "CopytradingSignals", size: "2x2", zone: "hero" },
       { id: "referralLinkCard.compact", feature: "referral_link_card", component: "referral_link_card", family: "ReferralLinkCard", size: "1x1", zone: "rail" },
+      { id: "kycStatus.current", feature: "kyc_status_card", component: "kyc_status_card", family: "UserKycRail", size: "1x1", zone: "rail" },
       { id: "announcements.feed", feature: "announcements", component: "announcements", family: "Announcements", size: "2x1", zone: "main" },
       { id: "marketNews.feed", feature: "market_news", component: "market_news", family: "MarketNews", size: "2x1", zone: "full" },
       { id: "riskDisclosure.legalStrip", feature: "risk_disclosure", component: "risk_disclosure", family: "RiskDisclosure", size: "3x1", zone: "full" },
@@ -6156,11 +7329,8 @@ function compactGuidedChoice(choice) {
     id: cleanText(choice.id, "", 48),
     label: cleanText(choice.label, "", 80),
     instruction: cleanText(choice.instruction, "", 240),
-    eligible: typeof choice.eligible === "boolean" ? choice.eligible : undefined,
-    materialRequirements: Array.isArray(choice.materialRequirements) ? choice.materialRequirements.map((item) => cleanText(item, "", 48)).filter(Boolean).slice(0, 8) : [],
-    materialMatched: Array.isArray(choice.materialMatched) ? choice.materialMatched.map((item) => cleanText(item, "", 48)).filter(Boolean).slice(0, 8) : [],
     canonicalTargets: Array.isArray(choice.canonicalTargets)
-      ? choice.canonicalTargets.filter((item) => CANONICAL_HOME_BLOCKS.includes(item)).slice(0, 8)
+      ? choice.canonicalTargets.map(canonicalHomeBlock).filter((item) => CANONICAL_HOME_BLOCKS.includes(item)).slice(0, 8)
       : [],
   };
 }
@@ -6194,12 +7364,11 @@ function guidedAiIntakeFromPayload(payload) {
   const themeCustomInput = cleanText(source.theme?.customInput || source.themeCustom || "", "", 120);
   const visibleFields = guidedAssetVisibleFields(source);
   const mustHave = Array.isArray(canonical.mustHave)
-    ? canonical.mustHave.filter((item) => CANONICAL_HOME_BLOCKS.includes(item)).slice(0, 12)
+    ? canonical.mustHave.map(canonicalHomeBlock).filter((item) => CANONICAL_HOME_BLOCKS.includes(item)).slice(0, 12)
     : [];
 
   return {
     source: cleanText(source.source, "guided-builder", 48),
-    materialGateEnabled: Boolean(source.materialGateEnabled),
     pageGoal: compactGuidedChoice(source.pageGoal),
     primaryAction:
       source.primaryAction && typeof source.primaryAction === "object"
@@ -6213,8 +7382,6 @@ function guidedAiIntakeFromPayload(payload) {
     level: compactGuidedChoice(source.level),
     designStyle: compactGuidedChoice(source.designStyle),
     modules: Array.isArray(source.modules) ? source.modules.map(compactGuidedChoice).filter(Boolean).slice(0, 16) : [],
-    excludedModules: Array.isArray(source.excludedModules) ? source.excludedModules.map(compactGuidedChoice).filter(Boolean).slice(0, 16) : [],
-    materials: Array.isArray(source.materials) ? source.materials.map(compactGuidedChoice).filter(Boolean).slice(0, 16) : [],
     theme: themeChoice ? { ...themeChoice, customInput: themeCustomInput } : null,
     tone: compactGuidedChoice(source.tone),
     cta: compactGuidedChoice(source.cta),
@@ -6239,23 +7406,66 @@ function mergeUnique(values) {
   return [...new Set((Array.isArray(values) ? values.flat(Infinity) : [values]).filter(Boolean))];
 }
 
+function guidedLevelId(guidedIntake) {
+  const raw = cleanText(guidedIntake?.level?.id || guidedIntake?.level || guidedIntake?.tier || "", "", 32).toLowerCase();
+  if (raw === "professional") return "pro";
+  return raw;
+}
+
+function guidedIsProfessionalTier(guidedIntake) {
+  return guidedLevelId(guidedIntake) === "pro";
+}
+
+function guidedExplicitlyRequestsOnboarding(guidedIntake) {
+  const source = [
+    guidedIntake?.intent?.id,
+    guidedIntake?.intent?.label,
+    guidedIntake?.intent?.instruction,
+    guidedIntake?.pageGoal?.id,
+    guidedIntake?.pageGoal?.label,
+    guidedIntake?.canonical?.primaryIntent,
+    guidedIntake?.canonical?.layoutPreset,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  if (/new[-_\s]?user|onboarding|新客|新手|开户引导型|开户旅程|开户注册|账户开通/.test(source)) return true;
+  return (Array.isArray(guidedIntake?.modules) ? guidedIntake.modules : []).some((module) => {
+    const blockTargets = Array.isArray(module?.canonicalTargets) ? module.canonicalTargets.map(canonicalHomeBlock) : [];
+    const text = [module?.id, module?.label, module?.instruction, module?.name].filter(Boolean).join(" ");
+    return blockTargets.includes("onboarding_guide") || /onboarding|开户引导|开户流程|新手|新客/.test(text);
+  });
+}
+
 function applyGuidedIntentProfile(profile, guidedIntake) {
-  const canonicalIntent = guidedIntake?.canonical?.primaryIntent;
+  let canonicalIntent = guidedIntake?.canonical?.primaryIntent;
+  const professionalTier = guidedIsProfessionalTier(guidedIntake);
+  const explicitOnboarding = guidedExplicitlyRequestsOnboarding(guidedIntake);
+  if (professionalTier && (!canonicalIntent || canonicalIntent === "onboarding") && !explicitOnboarding) {
+    canonicalIntent = profile.primaryIntent === "trader" ? "trader" : "standard";
+  }
   if (!canonicalIntent || !HOMEPAGE_INTENT_PRESETS[canonicalIntent]) return profile;
 
   const preset = HOMEPAGE_INTENT_PRESETS[canonicalIntent];
+  const professionalLayout = professionalTier && !explicitOnboarding;
+  const guidedLayout = guidedIntake.canonical.layoutPreset || preset.layoutPreset;
+  const layoutPreset = professionalLayout && guidedLayout === "onboardingJourney"
+    ? (profile.heroFocus === "trading_accounts_list" || canonicalIntent === "trader" ? "tradingCommand" : "accountOpsConsole")
+    : guidedLayout;
+  const professionalHeroFocus = profile.heroFocus && profile.heroFocus !== "onboarding_guide" ? profile.heroFocus : "asset_overview";
+  const heroFocus = guidedIntake.canonical.heroFocus || (professionalLayout ? professionalHeroFocus : preset.heroFocus);
+  const proMustHave = professionalLayout ? ["asset_overview", "trading_account_highlight", "trading_accounts_list"] : [];
   return {
     ...profile,
     primaryIntent: canonicalIntent,
     secondaryIntents: mergeUnique([profile.secondaryIntents || []]).filter((intent) => intent !== canonicalIntent).slice(0, 3),
     confidence: "guided",
     label: preset.label,
-    layoutPreset: guidedIntake.canonical.layoutPreset || preset.layoutPreset,
+    layoutPreset,
     themePreset: guidedIntake.theme?.id || preset.themePreset,
-    density: preset.density,
-    heroFocus: guidedIntake.canonical.heroFocus || preset.heroFocus,
+    density: professionalLayout && preset.density === "compact" ? "balanced" : preset.density,
+    heroFocus,
     primaryGoal: preset.primaryGoal,
-    mustHave: mergeUnique([preset.mustHave || [], guidedIntake.canonical.mustHave || []]).filter((item) => CANONICAL_HOME_BLOCKS.includes(item)),
+    mustHave: mergeUnique([preset.mustHave || [], guidedIntake.canonical.mustHave || [], proMustHave]).filter((item) => CANONICAL_HOME_BLOCKS.includes(item)),
     avoid: mergeUnique([preset.avoid || []]),
     governance: homepageGovernanceContract(canonicalIntent),
     matchedSignals: mergeUnique(["guided-builder", guidedIntake.intent?.label, profile.matchedSignals || []]).slice(0, 12),
@@ -6268,6 +7478,10 @@ function guidedExplicitBlockSet(guidedIntake) {
 
   (Array.isArray(guidedIntake.modules) ? guidedIntake.modules : []).forEach((module) => {
     (Array.isArray(module?.canonicalTargets) ? module.canonicalTargets : []).forEach((target) => {
+      const block = canonicalHomeBlock(target);
+      if (block) blocks.add(block);
+    });
+    [module?.canonicalTarget, module?.block, module?.id, module?.label, module?.name].forEach((target) => {
       const block = canonicalHomeBlock(target);
       if (block) blocks.add(block);
     });
@@ -6311,6 +7525,8 @@ function guidedAllowsHomepageBlock(block, guidedIntake, text) {
   if (!canonical) return false;
   if (!guidedIntake || !GUIDED_EXPLICIT_ONLY_BLOCKS.has(canonical)) return true;
   const explicitBlocks = guidedExplicitBlockSet(guidedIntake);
+  const requestPattern = HOMEPAGE_OPTIONAL_BLOCK_REQUEST_PATTERNS[canonical];
+  if (requestPattern?.test(String(text || ""))) return true;
   return explicitBlocks.has(canonical);
 }
 
@@ -6327,7 +7543,7 @@ const HOMEPAGE_PAGE_GOAL_PRESETS = {
     primaryIntent: "deposit",
     primaryAction: "deposit",
     primaryCta: "立即入金",
-    mainVisual: "asset_overview",
+    mainVisual: "promo_banner",
   },
   startTrading: {
     label: "开始交易",
@@ -6359,22 +7575,19 @@ const HOMEPAGE_PAGE_GOAL_PRESETS = {
   },
 };
 
-const HOMEPAGE_OPTIONAL_BLOCK_MATERIAL_GATES = {
-  wallet_list: { materials: ["walletData"], pattern: /钱包列表|多币种钱包|wallet list/i, reason: "多币种钱包列表需要钱包接口或后台配置。" },
-  promo_banner: { materials: ["campaignConfig"], pattern: /banner|活动|奖励|赠金|权益|倒计时|promo/i, reason: "活动 Banner 需要后台活动或 Banner 配置。" },
-  trading_account_highlight: { materials: ["performanceData"], pattern: /账号表现|账户表现|净值|equity|pnl|曲线|图表/i, reason: "账号表现需要趋势、净值或 PnL 数据。" },
-  pamm_products: { materials: ["pammData"], pattern: /pamm|资管产品|资金管理产品/i, reason: "PAMM 推荐需要产品数据。" },
-  copytrading_signals: { materials: ["copyTradingData"], pattern: /copy\s*trading|copytrading|跟单|信号源|交易员推荐/i, reason: "CopyTrading 推荐需要信号源数据。" },
-  referral_link_card: { materials: ["referralData"], pattern: /推广链接|邀请链接|开户链接|注册链接|邀请码|代理|ib|partner|affiliate/i, reason: "推广链接卡片需要开户链接、邀请码或基础统计。" },
-  faq_section: { materials: ["faqContent"], pattern: /faq|常见问题|问题解答|帮助中心/i, reason: "FAQ 需要后台问题和答案。" },
-  support_contact: { materials: ["supportConfig"], pattern: /在线客服|联系客服|客服|客户经理|一对一协助|咨询入口|服务入口/i, reason: "客服模块需要服务时间、入口或客户经理配置。" },
-  app_download: { materials: ["downloadLinks"], pattern: /app下载|app 下载|下载 app|下载APP|移动端|手机端|mt5 下载|下载 mt5|download app/i, reason: "下载模块需要下载链接、二维码或商店配置。" },
-  risk_disclosure: { materials: ["riskCopy"], pattern: /风险提示|风险披露|合规声明|合规说明|保证金|杠杆|爆仓|预警/i, reason: "风险披露需要合规文案或明确的风险提示需求。" },
+const HOMEPAGE_OPTIONAL_BLOCK_REQUEST_PATTERNS = {
+  wallet_list: /钱包列表|多币种钱包|wallet list/i,
+  promo_banner: /banner|活动|奖励|赠金|权益|倒计时|promo/i,
+  trading_account_highlight: /账号表现|账户表现|净值|equity|pnl|曲线|图表/i,
+  pamm_products: /pamm|资管产品|资金管理产品/i,
+  copytrading_signals: /copy\s*trading|copytrading|跟单|信号源|交易员推荐/i,
+  referral_link_card: /推广链接|邀请链接|开户链接|注册链接|邀请码|代理|ib|partner|affiliate/i,
+  kyc_status_card: /CRM 账户 KYC 状态|KYC 状态|kyc_status_card|account_kyc_status|kycStatus\.current|未提交|待审|待审核|拒绝/i,
+  faq_section: /faq|常见问题|问题解答|帮助中心/i,
+  support_contact: /在线客服|联系客服|客服|客户经理|一对一协助|咨询入口|服务入口/i,
+  app_download: /app下载|app 下载|下载 app|下载APP|移动端|手机端|mt5 下载|下载 mt5|download app/i,
+  risk_disclosure: /风险提示|风险披露|合规声明|合规说明|保证金|杠杆|爆仓|预警/i,
 };
-
-function guidedMaterialIdSet(guidedIntake) {
-  return new Set((Array.isArray(guidedIntake?.materials) ? guidedIntake.materials : []).map((item) => cleanText(item?.id, "", 48)).filter(Boolean));
-}
 
 function homepageGoalPresetFromPayload(payload = {}, intentProfile = {}) {
   const guidedIntake = guidedAiIntakeFromPayload(payload);
@@ -6386,26 +7599,410 @@ function homepageGoalPresetFromPayload(payload = {}, intentProfile = {}) {
   return { id: "learnMore", ...HOMEPAGE_PAGE_GOAL_PRESETS.learnMore };
 }
 
-function homepageBlockMaterialDecision(block, payload = {}, guidedIntake = null) {
-  const canonical = canonicalHomeBlock(block);
-  const gate = HOMEPAGE_OPTIONAL_BLOCK_MATERIAL_GATES[canonical];
-  if (!canonical || !gate || !guidedIntake?.materialGateEnabled) {
-    return { block: canonical, eligible: true, reason: "", matchedMaterials: [], requiredMaterials: gate?.materials || [] };
+function canonicalHomeBlockLoose(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const direct = canonicalHomeBlock(raw);
+  if (direct) return direct;
+
+  const parts = raw.split(/[.\s:/#-]+/).filter(Boolean);
+  for (const part of parts) {
+    const partBlock = canonicalHomeBlock(part);
+    if (partBlock) return partBlock;
   }
 
-  const materials = guidedMaterialIdSet(guidedIntake);
-  const matchedMaterials = (gate.materials || []).filter((item) => materials.has(item));
-  const pattern = gate.pattern;
-  if (matchedMaterials.length) {
-    return { block: canonical, eligible: true, reason: "素材已提供。", matchedMaterials, requiredMaterials: gate.materials || [] };
+  const compact = raw.toLowerCase().replace(/[^a-z0-9_]/g, "");
+  const looseMap = [
+    ["welcomeheader", "welcome_header"],
+    ["assetoverview", "asset_overview"],
+    ["walletlist", "wallet_list"],
+    ["quickactions", "quick_actions"],
+    ["onboardingprogress", "onboarding_guide"],
+    ["onboardingguide", "onboarding_guide"],
+    ["tradingaccounthighlight", "trading_account_highlight"],
+    ["accountperformance", "trading_account_highlight"],
+    ["tradingaccounts", "trading_accounts_list"],
+    ["tradingaccountslist", "trading_accounts_list"],
+    ["promotionbanner", "promo_banner"],
+    ["promobanner", "promo_banner"],
+    ["adcarousel", "promo_banner"],
+    ["pammproducts", "pamm_products"],
+    ["copytradingsignals", "copytrading_signals"],
+    ["referrallinkcard", "referral_link_card"],
+    ["referrallink", "referral_link_card"],
+    ["kycstatuscard", "kyc_status_card"],
+    ["accountkycstatus", "kyc_status_card"],
+    ["userkycrail", "kyc_status_card"],
+    ["riskdisclosure", "risk_disclosure"],
+    ["risknotice", "risk_disclosure"],
+    ["faqsection", "faq_section"],
+    ["supportcontact", "support_contact"],
+    ["supporthelp", "support_contact"],
+    ["appdownload", "app_download"],
+  ];
+  const found = looseMap.find(([key]) => compact.includes(key));
+  return found ? found[1] : "";
+}
+
+function homepagePolicyModuleList(value) {
+  return (Array.isArray(value) ? value : typeof value === "string" ? value.split(/[,\s]+/) : [])
+    .map(canonicalHomeBlockLoose)
+    .filter((slot, index, list) => slot && CANONICAL_HOME_BLOCKS.includes(slot) && list.indexOf(slot) === index);
+}
+
+function normalizeHomepageModulePolicy(policy = {}) {
+  const source = policy && typeof policy === "object" ? policy : {};
+  const systemRequiredModules = homepagePolicyModuleList(source.systemRequiredModules);
+  const systemRequired = new Set(systemRequiredModules);
+  const blockedModules = homepagePolicyModuleList(source.blockedModules).filter((slot) => !systemRequired.has(slot));
+  const blocked = new Set(blockedModules);
+  const baseAllowed = homepagePolicyModuleList(source.allowedModules);
+  const allowedModules = (baseAllowed.length ? baseAllowed : CANONICAL_HOME_BLOCKS)
+    .filter((slot) => !blocked.has(slot) || systemRequired.has(slot))
+    .concat(systemRequiredModules)
+    .filter((slot, index, list) => slot && list.indexOf(slot) === index);
+
+  return {
+    policyVersion: 1,
+    pageGoal: cleanText(source.pageGoal, "", 48),
+    userRole: cleanText(source.userRole, "", 48),
+    allowedModules,
+    blockedModules,
+    systemRequiredModules,
+    reasons: source.reasons && typeof source.reasons === "object" && !Array.isArray(source.reasons) ? source.reasons : {},
+  };
+}
+
+function homepageRawSystemRequiredModules(payload = {}) {
+  const context = ensureObject(payload.context);
+  const guidedSource = payload?.context?.guidedIntake || payload?.guidedIntake || {};
+  const candidates = [
+    payload.systemRequiredModules,
+    payload.requiredModules,
+    context.systemRequiredModules,
+    context.complianceRequiredModules,
+    context.requiredModules,
+    guidedSource.systemRequiredModules,
+    guidedSource.complianceRequiredModules,
+  ];
+  const modules = candidates.flatMap(homepagePolicyModuleList);
+  const compliance = ensureObject(payload.compliance || context.compliance || context.tenant?.compliance);
+  const riskRequired = Boolean(
+    payload.riskDisclosureRequired ||
+      context.riskDisclosureRequired ||
+      context.requireRiskDisclosure ||
+      context.riskDisclosure?.required ||
+      compliance.riskDisclosureRequired ||
+      compliance.requireRiskDisclosure ||
+      compliance.riskDisclosure?.required,
+  );
+  if (riskRequired) modules.push("risk_disclosure");
+  return [...new Set(modules)].filter((slot) => CANONICAL_HOME_BLOCKS.includes(slot));
+}
+
+function homepageUserRoleFromPayload(payload = {}) {
+  const context = ensureObject(payload.context);
+  const guidedIntake = guidedAiIntakeFromPayload(payload);
+  return [
+    payload.userRole,
+    payload.role,
+    context.userRole,
+    context.role,
+    context.audience,
+    guidedIntake?.audience?.map((item) => item?.label || item?.id).join(" "),
+  ]
+    .map((item) => (typeof item === "string" ? item : item ? compactJson(item) : ""))
+    .join(" ");
+}
+
+function homepageIsAgentRole(payload = {}) {
+  const roleText = homepageUserRoleFromPayload(payload);
+  const prompt = String(payload.prompt || "");
+  const promptAgentRole =
+    /(?:ib|agent|partner|affiliate)[\s\S]{0,16}(?:用户|首页|代理|合作伙伴|渠道)|(?:代理用户|代理首页|渠道代理|合作伙伴首页)/i.test(prompt) &&
+    !/(?:不要|不需要|隐藏|去掉|禁用)[\s\S]{0,24}(?:代理|推广|referral|ib|partner)/i.test(prompt);
+  return /(^|[^a-z])(agent|ib|partner|affiliate)([^a-z]|$)|代理|渠道|合作伙伴/i.test(roleText) || promptAgentRole;
+}
+
+function homepagePromptRejectsModule(block, prompt = "") {
+  const source = String(prompt || "");
+  const lower = source.toLowerCase();
+  const negative = "(?:不要|不需要|不生成|不要生成|去掉|移除|关闭|禁用|隐藏|别放|没有|无|缺少)";
+  if (block === "faq_section") {
+    return new RegExp(`${negative}[\\s\\S]{0,36}(?:faq|常见问题|问题解答|帮助中心|FAQ)`, "i").test(source) ||
+      /(?:faq|常见问题|问题解答|帮助中心)[\s\S]{0,24}(?:不要生成|不生成|不要展示|不展示|关闭|禁用|没有内容|无内容|缺少内容)/i.test(lower);
   }
-  if (pattern) {
-    pattern.lastIndex = 0;
-    if (pattern.test(String(payload.prompt || ""))) {
-      return { block: canonical, eligible: true, reason: "提示词明确要求该模块。", matchedMaterials: [], requiredMaterials: gate.materials || [] };
+  if (block === "risk_disclosure") {
+    return new RegExp(`${negative}[\\s\\S]{0,36}(?:风险提示|风险披露|合规|保证金|杠杆|预警)`, "i").test(source) ||
+      /(?:风险提示|风险披露|合规|保证金|杠杆|预警)[\s\S]{0,24}(?:不要生成|不生成|不要展示|不展示|关闭|禁用|隐藏)/i.test(source);
+  }
+  if (block === "referral_link_card") {
+    return new RegExp(`${negative}[\\s\\S]{0,36}(?:推广链接|邀请链接|开户链接|注册链接|邀请码|referral)`, "i").test(source);
+  }
+  const label = {
+    promo_banner: "活动|banner|广告|轮播|promo",
+    pamm_products: "pamm|资管产品",
+    copytrading_signals: "copy\\s*trading|copytrading|跟单|信号源",
+    announcements: "公告|通知",
+    market_news: "市场资讯|市场新闻|资讯",
+    support_contact: "在线客服|客服|客户经理|服务入口",
+    app_download: "app下载|app 下载|下载 app|下载APP|移动端|手机端",
+  }[block];
+  return Boolean(label && new RegExp(`${negative}[\\s\\S]{0,36}(?:${label})`, "i").test(source));
+}
+
+function buildHomepageModulePolicy(payload = {}) {
+  if (payload.modulePolicy && typeof payload.modulePolicy === "object") {
+    return normalizeHomepageModulePolicy(payload.modulePolicy);
+  }
+
+  const prompt = String(payload.prompt || "");
+  const guidedIntake = guidedAiIntakeFromPayload(payload);
+  const intentProfile = applyGuidedIntentProfile(buildHomepageIntentProfile(prompt), guidedIntake);
+  const pageGoal = homepageGoalPresetFromPayload(payload, intentProfile);
+  const systemRequired = new Set(homepageRawSystemRequiredModules(payload));
+  const blocked = new Set();
+  const reasons = {};
+  const block = (slot, reason) => {
+    const canonical = canonicalHomeBlockLoose(slot);
+    if (!canonical || systemRequired.has(canonical)) return;
+    blocked.add(canonical);
+    reasons[canonical] = reason;
+  };
+
+  const explicitBlocks = guidedIntake ? guidedExplicitBlockSet(guidedIntake) : new Set();
+  const requiredSlots = guidedIntake ? new Set(guidedRequiredHomepageSlots(guidedIntake)) : new Set();
+  const hasGuidedSelection = Boolean(
+    guidedIntake &&
+      ((Array.isArray(guidedIntake.modules) && guidedIntake.modules.length) ||
+        (Array.isArray(guidedIntake.canonical?.mustHave) && guidedIntake.canonical.mustHave.length)),
+  );
+
+  if (hasGuidedSelection) {
+    GUIDED_EXPLICIT_ONLY_BLOCKS.forEach((slot) => {
+      if (!explicitBlocks.has(slot) && !requiredSlots.has(slot)) {
+        block(slot, "未在引导式表单选择，禁止模型自动补入。");
+      }
+    });
+  }
+
+  Object.keys(HOMEPAGE_OPTIONAL_BLOCK_REQUEST_PATTERNS).forEach((slot) => {
+    if (homepagePromptRejectsModule(slot, prompt)) {
+      block(slot, "管理员提示词明确禁止或声明缺少内容。");
     }
+  });
+
+  if (pageGoal.id === "openAccount" && !homepageIsAgentRole(payload)) {
+    block("referral_link_card", "pageGoal=openAccount 且 userRole 非 agent，默认禁止推广链接卡。");
   }
-  return { block: canonical, eligible: false, reason: gate.reason, matchedMaterials: [], requiredMaterials: gate.materials || [] };
+
+  const blockedModules = [...blocked].filter((slot) => !systemRequired.has(slot));
+  const allowedModules = CANONICAL_HOME_BLOCKS.filter((slot) => !blockedModules.includes(slot) || systemRequired.has(slot));
+  return normalizeHomepageModulePolicy({
+    pageGoal: pageGoal.id,
+    userRole: cleanText(homepageUserRoleFromPayload(payload), "", 48) || "unknown",
+    allowedModules,
+    blockedModules,
+    systemRequiredModules: [...systemRequired],
+    reasons,
+  });
+}
+
+function homepageModulePolicyPromptLines(modulePolicy) {
+  const policy = normalizeHomepageModulePolicy(modulePolicy);
+  return [
+    "模块准入 modulePolicy:",
+    compactJson({
+      allowedModules: policy.allowedModules,
+      blockedModules: policy.blockedModules,
+      systemRequiredModules: policy.systemRequiredModules,
+      pageGoal: policy.pageGoal,
+      userRole: policy.userRole,
+      reasons: policy.reasons,
+    }),
+    "modulePolicy 硬约束: sections.slots、layout.component、brickPlan.feature/component/brickId 只能使用 allowedModules；blockedModules 绝对禁止出现，不能作为修复、兜底或常见页面模块补回。",
+    "systemRequiredModules 由服务端固定注入和排序，模型不得用 prompt 禁用它，也不得把它当作 AI 自主决定的选填模块。",
+    "",
+  ];
+}
+
+function homepagePolicyAllowsSlot(modulePolicy, slot) {
+  const policy = normalizeHomepageModulePolicy(modulePolicy);
+  const canonical = canonicalHomeBlockLoose(slot);
+  if (!canonical) return false;
+  if (policy.systemRequiredModules.includes(canonical)) return true;
+  return policy.allowedModules.includes(canonical) && !policy.blockedModules.includes(canonical);
+}
+
+function homepageModulePolicyRecords(config = {}) {
+  const records = [];
+  (Array.isArray(config.sections) ? config.sections : []).forEach((section, sectionIndex) => {
+    (Array.isArray(section?.slots) ? section.slots : []).forEach((slot) => {
+      const block = canonicalHomeBlockLoose(slot);
+      if (block) records.push({ source: "sections", index: sectionIndex, raw: slot, block });
+    });
+  });
+  (Array.isArray(config.layout) ? config.layout : []).forEach((item, index) => {
+    [item?.component, item?.feature, item?.brickId].forEach((value) => {
+      const block = canonicalHomeBlockLoose(value);
+      if (block) records.push({ source: "layout", index, raw: value, block });
+    });
+  });
+  (Array.isArray(config.brickPlan) ? config.brickPlan : []).forEach((item, index) => {
+    [item?.component, item?.feature, item?.brickId].forEach((value) => {
+      const block = canonicalHomeBlockLoose(value);
+      if (block) records.push({ source: "brickPlan", index, raw: value, block });
+    });
+  });
+  return records;
+}
+
+function disableHomepageModuleSetting(settings, slot) {
+  const key = HOMEPAGE_SLOT_TO_SETTING[slot];
+  if (key) settings[key] = { ...ensureObject(settings[key]), enabled: false };
+  if (slot === "promo_banner") {
+    settings.promoHighlight = { ...ensureObject(settings.promoHighlight), enabled: false };
+    settings.adCarousel = { ...ensureObject(settings.adCarousel), enabled: false };
+  }
+  if (slot === "referral_link_card") {
+    settings.referral = { ...ensureObject(settings.referral), enabled: false };
+    settings.referralLinkCard = { ...ensureObject(settings.referralLinkCard), enabled: false };
+  }
+  if (slot === "risk_disclosure") {
+    settings.riskDisclosure = { ...ensureObject(settings.riskDisclosure), enabled: false };
+  }
+}
+
+function applyHomepageModulePolicy(config, modulePolicy, actions = []) {
+  const policy = normalizeHomepageModulePolicy(modulePolicy);
+  const next = ensureObject(config);
+  const blocked = new Set(policy.blockedModules);
+  const allowed = new Set([...policy.allowedModules, ...policy.systemRequiredModules]);
+  const systemRequired = new Set(policy.systemRequiredModules);
+  const removed = new Set();
+  const shouldRemove = (value) => {
+    const block = canonicalHomeBlockLoose(value);
+    if (!block || systemRequired.has(block)) return false;
+    if (blocked.has(block)) return true;
+    return !allowed.has(block);
+  };
+
+  next.sections = (Array.isArray(next.sections) ? next.sections : [])
+    .map((section) => ({
+      ...section,
+      slots: (Array.isArray(section?.slots) ? section.slots : []).filter((slot) => {
+        if (!shouldRemove(slot)) return true;
+        removed.add(canonicalHomeBlockLoose(slot));
+        return false;
+      }),
+    }))
+    .filter((section) => section.slots.length)
+    .flatMap(repairHomepageSectionLegality);
+
+  if (Array.isArray(next.layout)) {
+    next.layout = next.layout.filter((block) => {
+      const values = [block?.component, block?.feature, block?.brickId];
+      if (!values.some(shouldRemove)) return true;
+      values.map(canonicalHomeBlockLoose).filter(Boolean).forEach((slot) => {
+        if (!systemRequired.has(slot)) removed.add(slot);
+      });
+      return false;
+    });
+    if (!next.layout.length) delete next.layout;
+  }
+
+  next.brickPlan = (Array.isArray(next.brickPlan) ? next.brickPlan : []).filter((brick) => {
+    const values = [brick?.component, brick?.feature, brick?.brickId];
+    if (!values.some(shouldRemove)) return true;
+    values.map(canonicalHomeBlockLoose).filter(Boolean).forEach((slot) => {
+      if (!systemRequired.has(slot)) removed.add(slot);
+    });
+    return false;
+  });
+
+  const settings = ensureHomepageModuleSettings(next.moduleSettings);
+  removed.forEach((slot) => disableHomepageModuleSetting(settings, slot));
+  next.moduleSettings = settings;
+
+  const injected = [];
+  policy.systemRequiredModules.forEach((slot) => {
+    if (configHasHomepageSlot(next, slot)) return;
+    enableSettingForHomepageSlot(settings, slot);
+    ensureHomepageSectionContains(next, HOMEPAGE_BLOCK_REPAIR_META[slot] ? { id: `system-${slot.replace(/_/g, "-")}`, type: "full", title: HOMEPAGE_BLOCK_REPAIR_META[slot].title } : { id: `system-${slot}`, type: "full", title: slot }, slot);
+    injected.push(slot);
+  });
+  next.moduleSettings = settings;
+  if (policy.systemRequiredModules.includes("risk_disclosure")) enforceServerRiskDisclosureFooter(next);
+
+  if (removed.size) {
+    actions.push(`modulePolicy 强制删除 blocked/disallowed 模块：${[...removed].join(", ")}。`);
+  }
+  if (injected.length) {
+    actions.push(`modulePolicy 注入系统强制模块：${injected.join(", ")}。`);
+  }
+
+  next.modulePolicy = policy;
+  return { removedModules: [...removed], injectedSystemRequiredModules: injected };
+}
+
+function validateHomepageModulePolicy(config = {}, modulePolicy = {}, repairResult = {}) {
+  const policy = normalizeHomepageModulePolicy(modulePolicy);
+  const records = homepageModulePolicyRecords(config);
+  const blocked = new Set(policy.blockedModules);
+  const allowed = new Set([...policy.allowedModules, ...policy.systemRequiredModules]);
+  const blockedModuleViolations = records.filter((record) => blocked.has(record.block));
+  const disallowedModuleViolations = records.filter((record) => !allowed.has(record.block));
+  const blocks = new Set(records.map((record) => record.block));
+  const missingSystemRequiredModules = policy.systemRequiredModules.filter((slot) => !blocks.has(slot));
+  const removedModules = Array.isArray(repairResult.removedModules) ? repairResult.removedModules : [];
+  const warnings = [
+    ...blockedModuleViolations.map((item) => `modulePolicy blocked module still visible: ${item.block} (${item.source})`),
+    ...disallowedModuleViolations.map((item) => `modulePolicy disallowed module still visible: ${item.block} (${item.source})`),
+    ...missingSystemRequiredModules.map((slot) => `modulePolicy systemRequired module missing: ${slot}`),
+    ...removedModules.map((slot) => `modulePolicy removed blocked/disallowed module: ${slot}`),
+  ];
+  const score = Math.max(
+    0,
+    Math.min(
+      100,
+      100 -
+        blockedModuleViolations.length * 28 -
+        disallowedModuleViolations.length * 22 -
+        missingSystemRequiredModules.length * 30 -
+        removedModules.length * 12,
+    ),
+  );
+  return {
+    status: score >= 100 ? "passed" : score >= 75 ? "repaired" : "needs-repair",
+    score,
+    allowedModules: policy.allowedModules,
+    blockedModules: policy.blockedModules,
+    systemRequiredModules: policy.systemRequiredModules,
+    blockedModuleViolations: blockedModuleViolations.slice(0, 16),
+    disallowedModuleViolations: disallowedModuleViolations.slice(0, 16),
+    missingSystemRequiredModules,
+    removedModules: [...new Set(removedModules)],
+    injectedSystemRequiredModules: Array.isArray(repairResult.injectedSystemRequiredModules) ? repairResult.injectedSystemRequiredModules : [],
+    warnings: [...new Set(warnings)].slice(0, 16),
+  };
+}
+
+function attachHomepageModulePolicyValidation(validation = {}, config = {}, modulePolicy = {}, repairResult = {}) {
+  const modulePolicyValidation = validateHomepageModulePolicy(config, modulePolicy, repairResult);
+  return {
+    ...validation,
+    modulePolicy: modulePolicyValidation,
+    warnings: [...new Set([...(validation.warnings || []), ...modulePolicyValidation.warnings])].slice(0, 20),
+  };
+}
+
+function mergeHomepageModulePolicyRepairResults(...results) {
+  return {
+    removedModules: [...new Set(results.flatMap((result) => (Array.isArray(result?.removedModules) ? result.removedModules : [])))],
+    injectedSystemRequiredModules: [
+      ...new Set(results.flatMap((result) => (Array.isArray(result?.injectedSystemRequiredModules) ? result.injectedSystemRequiredModules : []))),
+    ],
+  };
 }
 
 function homepagePlanWeightForBlock(block, mainVisual) {
@@ -6423,6 +8020,7 @@ function homepagePlanWeightForBlock(block, mainVisual) {
     pamm_products: 48,
     copytrading_signals: 58,
     referral_link_card: 42,
+    kyc_status_card: 46,
     announcements: 34,
     market_news: 34,
     faq_section: 30,
@@ -6435,6 +8033,7 @@ function homepagePlanWeightForBlock(block, mainVisual) {
 function buildHomepagePagePlan(payload = {}, config = {}) {
   const guidedIntake = guidedAiIntakeFromPayload(payload);
   const intentProfile = applyGuidedIntentProfile(buildHomepageIntentProfile(payload.prompt), guidedIntake);
+  const modulePolicy = buildHomepageModulePolicy(payload);
   const goal = homepageGoalPresetFromPayload(payload, intentProfile);
   const currentBlocks = collectHomepageBlocks(config);
   const requestedBlocks = mergeUnique([
@@ -6449,13 +8048,15 @@ function buildHomepagePagePlan(payload = {}, config = {}) {
   const visibleModules = [];
 
   requestedBlocks.forEach((block) => {
-    const decision = homepageBlockMaterialDecision(block, payload, guidedIntake);
-    if (!decision.eligible && (explicitBlocks.has(block) || currentBlocks.includes(block))) {
+    if (!homepagePolicyAllowsSlot(modulePolicy, block)) {
       excludedModules.push({
         module: block,
-        reason: decision.reason,
-        requiredMaterials: decision.requiredMaterials,
+        reason: modulePolicy.reasons?.[block] || "modulePolicy 已禁止该模块。",
       });
+      return;
+    }
+    if (modulePolicy.systemRequiredModules.includes(block)) {
+      visibleModules.push(block);
       return;
     }
     visibleModules.push(block);
@@ -6469,7 +8070,7 @@ function buildHomepagePagePlan(payload = {}, config = {}) {
   const visualHierarchy = Object.fromEntries(
     visibleModules.map((block) => [block, homepagePlanWeightForBlock(block, mainVisual)]),
   );
-  const optionalModules = visibleModules.filter((block) => GUIDED_EXPLICIT_ONLY_BLOCKS.has(block) || HOMEPAGE_OPTIONAL_BLOCK_MATERIAL_GATES[block]);
+  const optionalModules = visibleModules.filter((block) => GUIDED_EXPLICIT_ONLY_BLOCKS.has(block) || HOMEPAGE_OPTIONAL_BLOCK_REQUEST_PATTERNS[block]);
   const requiredModules = visibleModules.filter((block) => !optionalModules.includes(block));
 
   return {
@@ -6497,7 +8098,7 @@ function buildHomepagePagePlan(payload = {}, config = {}) {
       "全页只能有一个最高视觉权重模块。",
       "Hero/首屏只表达一个主目标和一个主 CTA。",
       "Features/Proof/Pricing/FAQ/Support 等辅助模块不得使用强于主视觉的标题、背景或 CTA。",
-      "没有素材准入的选填模块不得为了填满页面而生成。",
+      "未选择或被 modulePolicy 禁止的选填模块不得为了填满页面而生成。",
     ],
   };
 }
@@ -6522,7 +8123,7 @@ function removeHomepageBlocksByPlan(config, blocks = [], actions = []) {
     if (slot === "promo_banner") settings.adCarousel = { ...ensureObject(settings.adCarousel), enabled: false };
   });
   next.moduleSettings = settings;
-  if (actions) actions.push(`按素材准入移除选填模块：${[...removeSet].join(", ")}`);
+  if (actions) actions.push(`按 pagePlan 移除禁止模块：${[...removeSet].join(", ")}`);
   return next;
 }
 
@@ -6537,12 +8138,22 @@ function applyHomepagePagePlan(config, payload = {}, actions = []) {
     ...buildHomepagePagePlan(payload, next),
     excludedModules: initialPlan.excludedModules || [],
   };
+  const plannedAction = typeof pagePlan.primaryAction === "string"
+    ? pagePlan.primaryAction
+    : pagePlan.primaryAction?.action;
+  const plannedCta = plannedAction === "deposit"
+    ? {
+        label: pagePlan.primaryCta || pagePlan.primaryAction?.label || "立即入金",
+        action: "deposit",
+        selector: "[data-home-action=\"deposit\"]",
+      }
+    : pagePlan.primaryCta;
   next.pagePlan = pagePlan;
   next.pageIntent = {
     ...ensureObject(next.pageIntent),
     pageGoal: pagePlan.pageGoal,
     primaryAction: pagePlan.primaryAction,
-    primaryCta: pagePlan.primaryCta,
+    primaryCta: plannedCta,
     mainVisual: pagePlan.mainVisual,
     visualHierarchy: pagePlan.visualHierarchy,
   };
@@ -6561,8 +8172,6 @@ function guidedIntakePromptLines(guidedIntake) {
   if (!guidedIntake) return [];
   const assetFields = guidedIntake.moduleSettings?.assets?.visibleFields || [];
   const selectedModuleIds = new Set((Array.isArray(guidedIntake.modules) ? guidedIntake.modules : []).map((module) => module?.id).filter(Boolean));
-  const materialLabels = (Array.isArray(guidedIntake.materials) ? guidedIntake.materials : []).map((item) => item.label || item.id).filter(Boolean);
-  const excludedLabels = (Array.isArray(guidedIntake.excludedModules) ? guidedIntake.excludedModules : []).map((item) => item.label || item.id).filter(Boolean);
   const themePreset = oneOfList(guidedIntake.theme?.themePreset || guidedIntake.theme?.id, HOMEPAGE_THEME_PRESETS, "");
   const assetLine = assetFields.length
     ? `账户概览字段硬约束: asset_overview 必须可见，标题用“资产概览”，moduleSettings.assets.visibleFields=${assetFields.join(",")}，只允许 total、wallet、tradingAccount 中的 1-3 项；如包含 total 和 tradingAccount，必须同时包含 wallet。`
@@ -6589,8 +8198,6 @@ function guidedIntakePromptLines(guidedIntake) {
     "引导式硬约束:",
     `这是管理员通过引导式表单选择的结构化输入，优先级高于自然语言拼接文案。`,
     guidedIntake.pageGoal?.label ? `页面目标硬约束: ${guidedIntake.pageGoal.label}；主 CTA=${guidedIntake.primaryAction?.label || "未指定"}，data-home-action=${guidedIntake.primaryAction?.action || "未指定"}。` : "",
-    guidedIntake.materialGateEnabled ? `素材准入硬约束: 已提供素材=${materialLabels.join(",") || "无"}；没有素材或明确需求的选填模块不得生成。` : "",
-    excludedLabels.length ? `已因缺少素材排除的选填模块: ${excludedLabels.join(",")}；不要在 sections、brickPlan、moduleSettings 或 AI HTML 中补回。` : "",
     `canonical.primaryIntent=${guidedIntake.canonical.primaryIntent || "未指定"}、layoutPreset=${guidedIntake.canonical.layoutPreset || "未指定"}、heroFocus=${guidedIntake.canonical.heroFocus || "未指定"}。`,
     `canonical.mustHave=${guidedIntake.canonical.mustHave.join(",") || "未指定"} 必须可见或由同类首页积木明确承接。`,
     assetLine,
@@ -6600,7 +8207,7 @@ function guidedIntakePromptLines(guidedIntake) {
     riskLine,
     "modules[].canonicalTargets 是每个表单模块映射后的首页积木；客服、FAQ、风险提示、APP 下载如被选择，必须分别用 support_contact、faq_section、risk_disclosure、app_download 可见承接。",
     "modules[].canonicalTargets 没有选择的可选模块不得为了补齐常见页面而自行出现，尤其是 support_contact、faq_section、app_download 和 risk_disclosure。",
-    "如果表单模块和首页白名单冲突，用 canonicalTargets 或最接近的 allowedBlocks 承接；不要输出 kyc_risk_notice、ib_dashboard、旧 userKycRail 等禁用块。",
+    "如果表单模块和首页白名单冲突，用 canonicalTargets 或最接近的 allowedBlocks 承接；不要输出 kyc_risk_notice、ib_dashboard 或旧 userKycRail，可见 KYC 当前状态只能用 kyc_status_card。",
     "",
   ];
 }
@@ -6631,6 +8238,7 @@ function buildMiniMaxPrompt(payload) {
   const guidedIntake = guidedAiIntakeFromPayload(payload);
   const intentProfile = applyGuidedIntentProfile(buildHomepageIntentProfile(prompt), guidedIntake);
   const pagePlan = buildHomepagePagePlan(payload, { pageIntent: intentProfile });
+  const modulePolicy = buildHomepageModulePolicy(payload);
   const humanUnderstanding = extractHomepageUnderstanding(prompt);
   const designGovernance = designRulesPromptReference();
   const system = [
@@ -6642,7 +8250,7 @@ function buildMiniMaxPrompt(payload) {
     "必须遵守 design.md 设计治理：漂亮必须落在金融 CRM 规范内，用信息层级、模块比例、状态和响应式提升，不用营销式大 hero 或装饰堆叠。",
     "必须使用白名单枚举值；未知需求用最接近的白名单值承接。",
     `当前首页内容块白名单只允许: ${CANONICAL_HOME_BLOCKS.join(", ")}。`,
-    "禁止输出 reward_tasks、kyc_risk_notice、ib_dashboard，也不要输出旧模块 referralLink、userKycRail、fundActions、walletList、openAccountActions、createAccountForm；旧 riskNotice/support_help 必须改用 risk_disclosure/support_contact。",
+    "禁止输出 reward_tasks、kyc_risk_notice、ib_dashboard，也不要输出旧模块 referralLink、userKycRail、fundActions、walletList、openAccountActions、createAccountForm；旧 userKycRail 输入必须改用 kyc_status_card，旧 riskNotice/support_help 必须改用 risk_disclosure/support_contact。",
     "快捷操作区 quick_actions 的入口内容由后台配置或接口返回，AI 不得写死具体入口；moduleSettings.quickActions.actions 默认返回空数组，除非上下文提供了后台入口配置。",
     "quick_actions 的每个入口都必须有独立视觉容器，例如卡片、边框按钮、磁贴或背景色模块；不要输出裸排图标+文字。根据意图选风格：交易工作台用 command-bar/segmented-panel，活动增长用 accent-cards/tile-board，新客旅程用 task-rail/accent-cards，资产/品牌用 tile-board/segmented-panel，移动端用 compact-menu。",
     "onboarding_guide / OnboardingProgress 不要只复用同一种三格时间线；新客旅程优先从 mission-board、next-step-hero、ribbon-rail、guide-cards、journey-timeline、checklist、compact 中按提示选择，且图标要分别对应身份认证、开真实账户、首次入金。",
@@ -6691,6 +8299,7 @@ function buildMiniMaxPrompt(payload) {
     "模型返回必须包含 pageIntent；如果 pageIntent 与管理员需求有冲突，仍以服务端识别结果为准。",
     "必须先选择 designGenome 和 pageStory，再选择积木：magazineCampaign=活动专题封面，tradingCommand=交易指挥中心，onboardingJourney=新客旅程，privateWealthDesk=私行服务台，accountOpsConsole=账户运营控制台。",
     "生成模块表达时必须参考 componentLibraryReference：先吸收已保存积木的字段、尺寸、按钮、标签和卡片密度，再结合 pageIntent 发挥；不要脱离组件库语言空想新模块。",
+    "组件库评分分档是硬约束：8-10 分必须优先参考，6-7 分适度参考，5 分及以下禁止借鉴、禁止兜底、禁止进入 componentReferences 或 brickPlan 的 referenceComponentId。",
     "生成页面审美时必须参考 aestheticTraining：samplePages 决定页面级构图和功能流，beautifulComponents 决定漂亮积木块细节，feedbackMemory 决定用户长期偏好；不要输出平均白卡表单页。",
     "componentLibraryReference 只能作为形态和灵感参考，不能授权新增 allowedBlocks 以外的业务模块，也不能把组件 HTML/CSS 直接塞进首页配置。",
     "组件形态不能都用普通卡片；componentMorphs 是渲染契约，不是展示说明。",
@@ -6835,7 +8444,7 @@ function buildMiniMaxPrompt(payload) {
       "不要绑定账号入口时，moduleSettings.openAccount.bind 必须为 false。",
       "入金/出金按钮只允许作为 asset_overview 的可选操作或后台配置的 quick_actions 入口出现；不要为了入金转化新增固定资金操作模块。",
       "入金转化或活动增长页也必须保持 quickActions.actions=[]，除非请求上下文给出后台已配置入口；AI 只设置 quick_actions 的 count、display、size、zone 和样式。",
-      "不要根据 KYC 关键词生成 kyc_risk_notice 或 userKycRail 可见侧栏；KYC 状态只能作为 onboarding_guide 的 KYC 步骤或 moduleSettings.userKycRail.kycStatus 表达，状态为 pending=未提交、reviewing=待审、verified=通过、rejected=拒绝；风控/风险提示用 risk_disclosure，客服用 support_contact，FAQ 用 faq_section，APP 下载用 app_download。",
+      "不要根据 KYC 关键词生成 kyc_risk_notice 或旧 userKycRail；如果管理员明确要求 CRM 账户 KYC 状态，使用 kyc_status_card，只展示当前状态和 Submit KYC/Pending Review/Verified/Resubmit 动作；风控/风险提示用 risk_disclosure，客服用 support_contact，FAQ 用 faq_section，APP 下载用 app_download。",
       "quick_actions 不得写死 openAccount、openReal、deposit、withdraw、transfer、orders、positions、eventSignup、referral、contactService、kyc、risk 等入口；这些只能由后台配置或接口返回。",
       "IB/代理/渠道增长相关诉求不得生成 ib_dashboard；如需展示推广链接，只能使用 referral_link_card。",
       "多币种钱包或钱包列表诉求必须拆成两层：asset_overview 只展示 wallet 汇总值，wallet_list 才展示 USD/EUR/USDT 等币种卡片。",
@@ -6914,7 +8523,7 @@ function buildMiniMaxPrompt(payload) {
         referralLinkCard: { enabled: false, showPromoLink: true, showInviteCode: true, showShare: false, showStats: false },
         tradingAccounts: { enabled: true, realEnabled: true, demoEnabled: true, grouping: "combined", viewMode: "switchable", realViewMode: "card", demoViewMode: "list", demoFirst: false },
         openAccount: { enabled: false, real: true, demo: true, bind: false, placement: "insideTradingAccounts" },
-        userKycRail: { kycStatus: "verified" },
+        userKycRail: { enabled: false, kycStatus: "verified" },
         riskNotice: { enabled: false },
         riskDisclosure: { enabled: false },
         faq: { enabled: false },
@@ -6954,6 +8563,7 @@ function buildMiniMaxPrompt(payload) {
     `生成轮次: ${Number.isFinite(variant) ? variant : 0}`,
     "",
     ...guidedIntakePromptLines(guidedIntake),
+    ...homepageModulePolicyPromptLines(modulePolicy),
     "服务端意图识别 pageIntent:",
     compactJson(intentProfile),
     "",
@@ -6979,16 +8589,21 @@ function buildMiniMaxPrompt(payload) {
 
 function compactComponentLibraryPromptReference(options = {}) {
   const components = readComponentLibrary().components;
-  return rankComponentReferences(components, { ...options, limit: Math.min(Number(options.limit) || 4, 4) }).map((component) => ({
-    id: cleanText(component.id, "", 60),
-    name: cleanText(component.name, "", 40),
-    family: cleanText(component.family, "", 40),
-    size: cleanText(component.size, "", 12),
-    description: cleanText(component.description, "", 90),
-    tags: Array.isArray(component.tags) ? component.tags.slice(0, 4) : [],
-    visibleText: cleanText(stripHtmlTags(component.html), "", 140),
-    styleSignals: componentStyleSignals(component.css).slice(0, 5),
-  }));
+  return rankComponentReferences(components, { ...options, limit: Math.min(Number(options.limit) || 4, 4) }).map((component) => {
+    const admission = componentReferenceAdmission(component, options);
+    return {
+      id: cleanText(component.id, "", 60),
+      name: cleanText(component.name, "", 40),
+      family: cleanText(component.family, "", 40),
+      size: cleanText(component.size, "", 12),
+      score: admission.score,
+      referenceTier: admission.tier,
+      description: cleanText(component.description, "", 90),
+      tags: Array.isArray(component.tags) ? component.tags.slice(0, 4) : [],
+      visibleText: cleanText(stripHtmlTags(component.html), "", 140),
+      styleSignals: componentStyleSignals(component.css).slice(0, 5),
+    };
+  });
 }
 
 function compactCurrentConfigReference(config = {}) {
@@ -7024,10 +8639,13 @@ function compactHomepageIntentProfile(profile = {}) {
   };
 }
 
-function compactHomepageContract(intentProfile, prompt) {
+function compactHomepageContract(intentProfile, prompt, modulePolicy = null) {
   const compactIntent = compactHomepageIntentProfile(intentProfile);
+  const policy = modulePolicy ? normalizeHomepageModulePolicy(modulePolicy) : null;
   return {
-    allowedBlocks: CANONICAL_HOME_BLOCKS,
+    allowedBlocks: policy?.allowedModules || CANONICAL_HOME_BLOCKS,
+    blockedModules: policy?.blockedModules || [],
+    systemRequiredModules: policy?.systemRequiredModules || [],
     forbiddenBlocks: ["reward_tasks", "kyc_risk_notice", "ib_dashboard", "referralLink", "userKycRail", "riskNotice", "support_help"],
     layoutPreset: ["standardDashboard", "conversionFirst", "assetFirst", "tradingPro", "vipService", "magazineCampaign", "tradingCommand", "onboardingJourney", "privateWealthDesk", "accountOpsConsole"],
     themePreset: ["default", "blackGold", "lightGold", "blueFinance", "darkTech", "minimalWhite", "emeraldTrust", "cobaltTeal", "crimsonPromo", "graphiteSilver"],
@@ -7047,6 +8665,7 @@ function compactHomepageContract(intentProfile, prompt) {
       pamm_products: "PammProducts",
       copytrading_signals: "CopytradingSignals",
       referral_link_card: "ReferralLinkCard",
+      kyc_status_card: "UserKycRail",
       announcements: "Announcements",
       market_news: "MarketNews",
       risk_disclosure: "RiskDisclosure",
@@ -7063,6 +8682,7 @@ function compactHomepageContract(intentProfile, prompt) {
       promo_banner: ["banner", "clean", "editorial-cover", "compact-strip"],
       pamm_products: ["cards", "ranking", "horizontal-cards", "yield-chart-cards"],
       copytrading_signals: ["signal-cards", "ranking", "horizontal-cards", "curve-cards"],
+      kyc_status_card: ["status-card", "compact-status"],
       announcements: ["list", "priority-notice", "compact-feed", "ticker-strip"],
       risk_disclosure: ["compact-notice", "margin-guard", "legal-strip"],
     },
@@ -7091,6 +8711,7 @@ function compactHomepageContract(intentProfile, prompt) {
     ],
     intentMustHave: compactIntent.mustHave,
     intentAvoid: compactIntent.avoid,
+    componentReferencePolicy: componentReferencePolicyPrompt(readComponentLibrary().components, { prompt }),
     componentReferences: compactComponentLibraryPromptReference({ prompt, limit: 4 }),
     aestheticSamples: rankDesignSamplesForPrompt(prompt, 3).map((sample) => ({
       id: sample.id,
@@ -7120,6 +8741,7 @@ function buildLowLatencyHomepagePrompt(payload, config = {}) {
   const guidedIntake = guidedAiIntakeFromPayload(payload);
   const intentProfile = applyGuidedIntentProfile(buildHomepageIntentProfile(prompt), guidedIntake);
   const pagePlan = buildHomepagePagePlan(payload, { pageIntent: intentProfile });
+  const modulePolicy = buildHomepageModulePolicy(payload);
   const compactIntent = compactHomepageIntentProfile(intentProfile);
   const design = homepageDesignForIntent(intentProfile.primaryIntent);
   const providerName = config.name || PROVIDERS[config.provider]?.name || "AI";
@@ -7131,13 +8753,14 @@ function buildLowLatencyHomepagePrompt(payload, config = {}) {
     "输出必须短：sections 3-4 个，brickPlan 4-6 个，reason 不超过 28 个中文字符，aiSummary 不超过 60 个中文字符。",
     "必须遵守 design.md 设计治理：金融 CRM 美观来自结构、密度、状态、数据扫描和响应式，不来自随意装饰、营销式大封面或卡片堆叠。",
     "必须返回 generationMode=\"brick-v2\"、blueprintVersion=5，并只使用 allowedBlocks 里的 snake_case 内容块。",
-    "禁止旧模块和禁用模块：balanceTotal、fundActions、walletList、referralLink、userKycRail、riskNotice、support_help、reward_tasks、kyc_risk_notice、ib_dashboard。",
+    "禁止旧模块和禁用模块：balanceTotal、fundActions、walletList、referralLink、userKycRail、riskNotice、support_help、reward_tasks、kyc_risk_notice、ib_dashboard；旧 userKycRail 语义用 kyc_status_card 承接。",
     "quick_actions.actions 必须返回 []；入口内容来自后台配置或接口，AI 只决定数量、布局和样式。",
     "asset_overview 只做 total、wallet、tradingAccount 汇总；多币种明细只能用 wallet_list。",
     "首页 Banner / 活动 Banner 使用 promo_banner；被选择时按多张广告轮播图处理，具备分页、下一张和自动切换契约，不返回旧 adCarousel。",
     "PAMM 和 CopyTrading 必须分别用 pamm_products 与 copytrading_signals，不能合并。",
     "连续收益、净值、PnL、回撤等趋势数据必须表达为折线或面积折线，真实数据在 dataContract 标记接口绑定和 fallback。",
     "紧凑输出契约会包含 aestheticSamples、beautifulComponents 和 feedbackMemory；必须用它们决定页面级构图、漂亮积木块细节和用户偏好，不能只输出平均白卡布局。",
+    "组件库评分必须执行：8-10 分强参考，6-7 分适度参考，5 分及以下禁止参考。",
     "视觉模式必须返回 colorMode=\"auto\"，除非管理员只要求白天或只要求暗夜；minimalWhite、blueFinance、lightGold 的白天模式不得使用大面积黑色/终端色块，暗色只在 darkTech 或 colorMode=dark 时出现。",
     `空间利用是硬约束：桌面 12 栅格紧凑填充，${COMPONENT_SIZE_GUIDE} 优先宽幅积木独占、2x+1x、2x+2x；移动端自然单列。`,
     `${providerName} 请求会走短上下文模式；不要复述规则，只返回最终 JSON。`,
@@ -7147,6 +8770,7 @@ function buildLowLatencyHomepagePrompt(payload, config = {}) {
     `生成轮次: ${Number.isFinite(variant) ? variant : 0}`,
     "",
     ...guidedIntakePromptLines(guidedIntake),
+    ...homepageModulePolicyPromptLines(modulePolicy),
     "管理员需求:",
     prompt || "生成一个适合默认客户的平衡首页。",
     "",
@@ -7160,7 +8784,7 @@ function buildLowLatencyHomepagePrompt(payload, config = {}) {
     compactJson(compactCurrentConfigReference(context.currentConfig)),
     "",
     "紧凑输出契约:",
-    compactJson(compactHomepageContract(intentProfile, prompt)),
+    compactJson(compactHomepageContract(intentProfile, prompt, modulePolicy)),
     "",
     "design.md 设计治理摘要:",
     compactJson({
@@ -7206,6 +8830,7 @@ function buildMiniMaxHomepagePatchPrompt(payload, config = {}) {
   const guidedIntake = guidedAiIntakeFromPayload(payload);
   const intentProfile = applyGuidedIntentProfile(buildHomepageIntentProfile(prompt), guidedIntake);
   const pagePlan = buildHomepagePagePlan(payload, { pageIntent: intentProfile });
+  const modulePolicy = buildHomepageModulePolicy(payload);
   const compactIntent = compactHomepageIntentProfile(intentProfile);
   const design = homepageDesignForIntent(intentProfile.primaryIntent);
   const providerName = config.name || "MiniMax";
@@ -7227,6 +8852,7 @@ function buildMiniMaxHomepagePatchPrompt(payload, config = {}) {
     `生成轮次: ${Number.isFinite(variant) ? variant : 0}`,
     "",
     ...guidedIntakePromptLines(guidedIntake),
+    ...homepageModulePolicyPromptLines(modulePolicy),
     "管理员需求:",
     prompt,
     "",
@@ -7237,7 +8863,10 @@ function buildMiniMaxHomepagePatchPrompt(payload, config = {}) {
     compactJson(pagePlan),
     "",
     "allowedBlocks:",
-    compactJson(CANONICAL_HOME_BLOCKS),
+    compactJson(modulePolicy.allowedModules),
+    "",
+    "blockedModules:",
+    compactJson(modulePolicy.blockedModules),
     "",
     "可用 layout/theme/density:",
     compactJson({
@@ -7265,7 +8894,7 @@ function buildMiniMaxHomepagePatchPrompt(payload, config = {}) {
 
 function buildPrompt(payload, config = {}) {
   if (config.provider === "minimax") return buildMiniMaxHomepagePatchPrompt(payload, config);
-  if (config.provider === "kimi") return buildLowLatencyHomepagePrompt(payload, config);
+  if (config.provider === "kimi" || config.provider === "deepseek" || config.provider === "gemini") return buildLowLatencyHomepagePrompt(payload, config);
   if (config.apiMode === "openai-chat") return buildMiniMaxPrompt(payload);
 
   const context = payload.context || {};
@@ -7275,6 +8904,7 @@ function buildPrompt(payload, config = {}) {
   const guidedIntake = guidedAiIntakeFromPayload(payload);
   const intentProfile = applyGuidedIntentProfile(buildHomepageIntentProfile(prompt), guidedIntake);
   const pagePlan = buildHomepagePagePlan(payload, { pageIntent: intentProfile });
+  const modulePolicy = buildHomepageModulePolicy(payload);
   const designGovernance = designRulesPromptReference();
 
   const system = [
@@ -7365,11 +8995,11 @@ function buildPrompt(payload, config = {}) {
     "如果页面是新手开户、开户注册、开户路径、KYC 路径或 onboarding journey，AI 可以把 onboarding_guide 做成账户开通进度面板 mission-board、下一步主面板 next-step-hero、里程碑票据 ribbon-rail、精美 guide-cards、整横栏 journey-timeline 或清单；按意图选择形态，不要固定塞进侧栏小卡片，也不要固定成三等分方格；标题不要固定写成“新手引导路径”。",
     "如果管理员要求活动增长、交易大赛、奖池，并明确要求活动首屏、独占整栏、单独长模块或首屏大横幅，必须把 promo_banner 放在 welcome_header 之后的第一个业务 full-width hero 模块，heroFocus 使用 promo_banner。",
     "如果管理员只要求创建真实交易账号按钮，不要返回 create_account_form 或 open_account_panel 独立模块；可由 onboarding_guide 或 trading_accounts_list 中的后台入口承接。",
-    "推广链接、开户链接、邀请码可以在代理/IB/合作伙伴场景用 referral_link_card 轻量展示；代理返佣、团队业绩和 KYC 风控提醒默认禁用，不要输出 referralLink/referral_link、ib_dashboard、userKycRail 或旧 riskNotice/support_help。",
+    "推广链接、开户链接、邀请码可以在代理/IB/合作伙伴场景用 referral_link_card 轻量展示；代理返佣、团队业绩和 KYC 风控提醒默认禁用，不要输出 referralLink/referral_link、ib_dashboard、旧 userKycRail 或旧 riskNotice/support_help。",
     "如果管理员要求钱包列表小卡片，asset_overview 只能承接为钱包余额汇总字段，wallet_list 才输出多币种钱包卡片；不要输出旧 walletList 槽位。",
     "如果管理员要求多币种钱包，asset_overview 只展示 wallet 汇总值，wallet_list 展示币种明细；不要新增风险等级、保证金占用、可用资金等未允许资产字段。",
     "资产管理、总资产、钱包余额、账户表现图表需求必须按 accountOpsConsole + blueFinance 处理，推荐 sections 为 asset_overview+quick_actions、trading_account_highlight、trading_accounts_list；没有明确活动/资讯能力时不要返回 promo_banner、announcements、market_news。",
-    "KYC 状态不是 KYC 说明页；如管理员选择 KYC 状态，只能在 onboarding_guide 的 KYC 步骤或 moduleSettings.userKycRail.kycStatus 中表达，状态枚举为 pending=未提交、reviewing=待审、verified=通过、rejected=拒绝；不要输出 userKycRail 可见侧栏或 kyc_risk_notice。",
+    "KYC 状态不是 KYC 说明页；如管理员选择 CRM 账户 KYC 状态，使用 kyc_status_card 和 moduleSettings.userKycRail.kycStatus，状态枚举为 pending=未提交、reviewing=待审、verified=通过、rejected=拒绝；只展示当前状态，不展示四种状态列表，不要输出旧 userKycRail 可见侧栏或 kyc_risk_notice。",
     "如果管理员要求不要绑定账号入口，必须设置 moduleSettings.openAccount.bind = false。",
     "优先使用传入 schema、默认配置、模块变体和模块样式中的白名单值。",
     "返回字段建议包括 schemaVersion、blueprintVersion、generationMode、pageIntent、pagePlan、designGenome、pageStory、name、layoutPreset、themePreset、colorMode、density、heroFocus、sections、autoLayout、layout、modules、moduleStyles、componentMorphs、moduleSettings、dataContract、brickPlan、brickTrace、emphasis、aiSummary。",
@@ -7381,6 +9011,7 @@ function buildPrompt(payload, config = {}) {
     `生成轮次: ${Number.isFinite(variant) ? variant : 0}`,
     "",
     ...guidedIntakePromptLines(guidedIntake),
+    ...homepageModulePolicyPromptLines(modulePolicy),
     "服务端意图识别 pageIntent:",
     compactJson(intentProfile),
     "",
@@ -7493,6 +9124,13 @@ function buildOpenAiChatBody(config, promptParts) {
     }
   } else if (config.provider === "deepseek") {
     body.thinking = { type: "disabled" };
+    if (structuredJsonRequest) {
+      body.response_format = { type: "json_object" };
+    }
+  } else if (config.provider === "gemini") {
+    if (isGeminiFlashThinkingModel(config.model)) {
+      body.reasoning_effort = "none";
+    }
     if (structuredJsonRequest) {
       body.response_format = { type: "json_object" };
     }
@@ -7761,13 +9399,19 @@ function buildHomepageIntentProfile(prompt) {
 	  const fallback = !ranked.length || ranked[0].score <= 0;
 	  let primaryIntent = fallback ? "standard" : ranked[0].intent;
 	  const strongOnboardingIntent = hasStrongOnboardingIntentSignal(text);
+	  const explicitDepositIntent = hasExplicitDepositIntentSignal(source);
 	  if (humanUnderstanding.wantsTradingCostWorkbench) {
 	    primaryIntent = "trader";
+	  } else if (explicitDepositIntent) {
+	    primaryIntent = "deposit";
 	  } else if (strongOnboardingIntent && primaryIntent !== "copytrading") {
 	    primaryIntent = "onboarding";
-	  } else if (!strongOnboardingIntent && hasExplicitDepositIntentSignal(text) && ranked.some((item) => item.intent === "deposit" && item.score > 0)) {
+	  } else if (!strongOnboardingIntent && ranked.some((item) => item.intent === "deposit" && item.score > 0)) {
 	    primaryIntent = "deposit";
 	  }
+  if (!strongOnboardingIntent && homepagePromptMentionsKycStatus(source) && primaryIntent === "onboarding") {
+    primaryIntent = humanUnderstanding.wantsProfessionalTraderWorkbench ? "trader" : "standard";
+  }
 	  if (
 	    humanUnderstanding.wantsMatureBrokerTrust &&
 	    primaryIntent !== "deposit" &&
@@ -7791,6 +9435,20 @@ function buildHomepageIntentProfile(prompt) {
 	  let primaryGoal = preset.primaryGoal;
 	  const explicitRequiredBlocks = [...aiHtmlExplicitRequiredBlocksFromPrompt(source)];
 	  let mustHave = [...new Set((preset.mustHave || []).concat(explicitRequiredBlocks))];
+	  if (primaryIntent === "deposit" && explicitDepositIntent) {
+	    mustHave = [
+	      ...new Set(
+	        [
+	          "promo_banner",
+	          "asset_overview",
+	          "onboarding_guide",
+	          "quick_actions",
+	          "trading_account_highlight",
+	          "trading_accounts_list",
+	        ].concat(mustHave),
+	      ),
+	    ];
+	  }
 
   if (humanUnderstanding.wantsProfessionalTraderWorkbench) {
     label = "专业交易客户首页";
@@ -7847,9 +9505,10 @@ function homepageDesignForIntent(intent) {
   }[intent] || { designGenome: "accountOpsConsole", pageStory: "opsClarity", layoutPreset: "accountOpsConsole" };
 }
 
-function mockSectionsForIntent(intent, plan, wantsWelcome = false, wantsWalletList = false) {
+function mockSectionsForIntent(intent, plan, wantsWelcome = false, wantsWalletList = false, variant = 0) {
   const slots = new Set(plan.map((item) => item.feature).filter(Boolean));
   const has = (feature) => slots.has(feature);
+  const mode = Math.abs(Number(variant || 0)) % 3;
 
   const sectionMap = {
     vip: [
@@ -7860,7 +9519,7 @@ function mockSectionsForIntent(intent, plan, wantsWelcome = false, wantsWalletLi
 	    trader: [
 	      { id: "trader-tools", type: "hero", title: "交易工具", slots: ["quickActions"] },
 	      { id: "trader-performance", type: "full", title: "账号表现", slots: ["accountPerformance"] },
-	      { id: "trader-context", type: "split", title: "账户上下文", slots: ["userKycRail", "balanceTotal"] },
+	      { id: "trader-context", type: "split", title: "账户上下文", slots: ["balanceTotal", "quickActions"] },
 	      { id: "trader-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
 	    ],
 	    insight: [
@@ -7870,15 +9529,15 @@ function mockSectionsForIntent(intent, plan, wantsWelcome = false, wantsWalletLi
 	      { id: "insight-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
 	    ],
 	    deposit: [
-	      { id: "deposit-hero", type: "hero", title: "入金奖励", slots: ["promoHighlight", "walletBalance", "fundActions", "openAccountActions"] },
-	      { id: "deposit-actions", type: "split", title: "快捷入口", slots: ["quickActions"] },
-	      { id: "deposit-performance", type: "full", title: "账号表现", slots: ["accountPerformance"] },
-	      { id: "deposit-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
+	      { id: "deposit-hero", type: "hero", title: "首次入金", slots: ["promo_banner", "asset_overview"] },
+	      { id: "deposit-activation", type: "split", title: "开户与快捷入口", slots: ["onboarding_guide", "quick_actions"] },
+	      { id: "deposit-performance", type: "full", title: "账号表现", slots: ["trading_account_highlight"] },
+	      { id: "deposit-accounts", type: "full", title: "交易账号", slots: ["trading_accounts_list"] },
 	    ],
 	    risk: [
 	      { id: "risk-performance", type: "full", title: "账号表现", slots: ["accountPerformance"] },
 	      { id: "risk-hero", type: "split", title: "风险状态", slots: ["risk_disclosure"] },
-      { id: "risk-context", type: "split", title: "账户上下文", slots: ["marketInsight", "balanceTotal", "userKycRail"] },
+      { id: "risk-context", type: "split", title: "账户上下文", slots: ["marketInsight", "balanceTotal"] },
       { id: "risk-accounts", type: "full", title: "账号排查", slots: ["tradingAccounts"] },
     ],
     onboarding: [
@@ -7891,18 +9550,47 @@ function mockSectionsForIntent(intent, plan, wantsWelcome = false, wantsWalletLi
       { id: "copytrading-actions", type: "split", title: "下一步", slots: ["quickActions", "balanceTotal"] },
       { id: "copytrading-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
     ],
-    growth: [
-      ...(wantsWelcome ? [{ id: "growth-welcome", type: "hero", title: "欢迎", slots: ["balanceTotal"] }] : []),
-      { id: "growth-hero", type: "hero", title: "活动首屏", slots: ["adCarousel"] },
-      { id: "growth-actions", type: "split", title: "转化路径", slots: ["quickActions", "promoHighlight", "fundActions"] },
-      ...(wantsWalletList ? [{ id: "growth-wallets", type: "full", title: "钱包列表", slots: ["wallet_list"] }] : []),
-      { id: "growth-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
-    ],
-    partner: [
-      { id: "partner-referral", type: "rail", title: "推广链接", slots: ["referral_link_card"] },
-      { id: "partner-tools", type: "split", title: "渠道工具", slots: ["quickActions", "promoHighlight"] },
-      { id: "partner-accounts", type: "full", title: "转化账号", slots: ["tradingAccounts"] },
-    ],
+	    growth:
+	      mode === 1
+	        ? [
+	            ...(wantsWelcome ? [{ id: "growth-welcome", type: "hero", title: "欢迎", slots: ["balanceTotal"] }] : []),
+	            { id: "growth-hero", type: "hero", title: "活动首屏", slots: ["adCarousel", "promoHighlight"] },
+	            { id: "growth-actions", type: "split", title: "转化路径", slots: ["quickActions", "balanceTotal"] },
+	            ...(wantsWalletList ? [{ id: "growth-wallets", type: "full", title: "钱包列表", slots: ["wallet_list"] }] : []),
+	            { id: "growth-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
+	          ]
+	        : mode === 2
+	        ? [
+	            ...(wantsWelcome ? [{ id: "growth-welcome", type: "hero", title: "欢迎", slots: ["balanceTotal"] }] : []),
+	            { id: "growth-hero", type: "hero", title: "活动看板", slots: ["promoHighlight", "adCarousel"] },
+	            { id: "growth-actions", type: "split", title: "快捷入口", slots: ["quickActions"] },
+	            { id: "growth-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
+	          ]
+	        : [
+	            ...(wantsWelcome ? [{ id: "growth-welcome", type: "hero", title: "欢迎", slots: ["balanceTotal"] }] : []),
+	            { id: "growth-hero", type: "hero", title: "活动首屏", slots: ["adCarousel"] },
+	            { id: "growth-actions", type: "split", title: "转化路径", slots: ["quickActions", "promoHighlight", "fundActions"] },
+	            ...(wantsWalletList ? [{ id: "growth-wallets", type: "full", title: "钱包列表", slots: ["wallet_list"] }] : []),
+	            { id: "growth-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
+	          ],
+	    partner:
+	      mode === 1
+	        ? [
+	            { id: "partner-hero", type: "hero", title: "渠道概览", slots: ["balanceTotal", "referral_link_card"] },
+	            { id: "partner-tools", type: "split", title: "渠道工具", slots: ["quickActions", "promoHighlight"] },
+	            { id: "partner-accounts", type: "full", title: "转化账号", slots: ["tradingAccounts"] },
+	          ]
+	        : mode === 2
+	        ? [
+	            { id: "partner-hero", type: "hero", title: "资产与工具", slots: ["balanceTotal", "quickActions"] },
+	            { id: "partner-referral", type: "split", title: "推广链接", slots: ["referral_link_card", "promoHighlight"] },
+	            { id: "partner-accounts", type: "full", title: "转化账号", slots: ["tradingAccounts"] },
+	          ]
+	        : [
+	            { id: "partner-referral", type: "rail", title: "推广链接", slots: ["referral_link_card"] },
+	            { id: "partner-tools", type: "split", title: "渠道工具", slots: ["quickActions", "promoHighlight"] },
+	            { id: "partner-accounts", type: "full", title: "转化账号", slots: ["tradingAccounts"] },
+	          ],
     retention: [
       { id: "retention-hero", type: "hero", title: "账户唤醒", slots: ["balanceTotal", "fundActions"] },
       { id: "retention-tasks", type: "split", title: "回流任务", slots: ["quickActions", "promoHighlight", "marketInsight"] },
@@ -7991,7 +9679,6 @@ function mockHomepageConfig(payload, providerConfig) {
     trader: [
       { brickId: "quickActions.commandBar", brickName: "交易命令栏", family: "QuickActions", feature: "quickActions", component: "quick_actions", size: "3x1", zone: "hero", reason: "专业交易首页先给订单、持仓和 MT5 高频入口。" },
       { brickId: "accountPerformance.sparklineBoard", brickName: "Sparkline 指挥看板", family: "AccountPerformance", feature: "trading_account_highlight", component: "trading_account_highlight", size: "3x2", zone: "full", reason: "权益和 PnL 曲线作为交易判断依据，需要整横栏展示。" },
-      { brickId: "userKycRail.profileWallet", brickName: "用户/KYC 钱包侧栏", family: "UserKycRail", feature: "userKycRail", component: "user_kyc_rail", size: "1x2", zone: "rail", reason: "右侧保留状态和钱包摘要。" },
       { brickId: "assetOverview.compactMetrics", brickName: "紧凑资产指标条", family: "AssetOverview", feature: "balanceTotal", component: "asset_summary", size: "3x1", zone: "full", reason: "资产指标压缩成横条，避免抢交易账号区域。" },
       { brickId: "tradingAccounts.separatedList", brickName: "真实/模拟账号双列表", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "3x2", zone: "full", reason: "账号列表完整展示。" },
     ],
@@ -8004,20 +9691,18 @@ function mockHomepageConfig(payload, providerConfig) {
       { brickId: "tradingAccounts.separatedList", brickName: "真实/模拟账号双列表", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "3x2", zone: "full", reason: "账号列表承接分析下钻。" },
     ],
     deposit: [
-      { brickId: "promoBanner.depositLadder", brickName: "入金奖励阶梯", family: "PromotionBanner", feature: "promoHighlight", component: "promo_banner", size: "2x2", zone: "hero", reason: "首屏左侧突出 $500/$2,000/$10,000 三档奖励和最高赠金 $300。" },
-      { brickId: "walletBalance.currencyRail", brickName: "钱包币种侧栏", family: "WalletBalance", feature: "walletBalance", component: "wallet_balance", size: "1x1", zone: "rail", reason: "右侧给出钱包余额，解释当前入金上下文。" },
-      { brickId: "fundActions.priorityDock", brickName: "资金操作 Dock", family: "FundActions", feature: "fundActions", component: "fund_actions", size: "1x1", zone: "rail", reason: "主入金动作只在首屏操作区放大一次。" },
-      { brickId: "openAccount.conversionPanel", brickName: "开户转化面板", family: "OpenAccount", feature: "openAccountActions", component: "open_account_panel", size: "1x2", zone: "rail", reason: "开真实账号作为入金前置动作，而不是散落在页面各处。" },
-      { brickId: "quickActions.taskRail", brickName: "快捷入口", family: "QuickActions", feature: "quickActions", component: "quick_actions", size: "2x1", zone: "main", reason: "快捷入口紧跟首屏，承接转账、订单、持仓和客服，不重复主入金按钮。" },
-      { brickId: "accountPerformance.proChart", brickName: "账号轻趋势", family: "AccountPerformance", feature: "trading_account_highlight", component: "trading_account_highlight", size: "3x2", zone: "full", reason: "账号区保留轻量趋势，独占整横栏并降噪。" },
-      { brickId: "tradingAccounts.cardProof", brickName: "紧凑账号证明卡", family: "TradingAccounts", feature: "trading_accounts_list", component: "trading_accounts_list", size: "3x2", zone: "full", reason: "账号信息作为整栏证明区承接，不抢首屏入金主线。" },
+      { brickId: "promoBanner.depositLadder", brickName: "入金奖励阶梯", family: "PromotionBanner", feature: "promo_banner", component: "promo_banner", size: "2x2", zone: "hero", reason: "首屏用三档入金奖励和唯一主 CTA 承接首次入金目标。" },
+      { brickId: "assetOverview.tickerStrip", brickName: "账户摘要指标带", family: "AssetOverview", feature: "asset_overview", component: "asset_overview", size: "1x1", zone: "hero", reason: "同屏展示账户余额、钱包余额和交易账号余额。" },
+      { brickId: "onboardingProgress.nextStepHero", brickName: "新手下一步引导", family: "OnboardingProgress", feature: "onboarding_guide", component: "onboarding_guide", size: "2x1", zone: "main", reason: "KYC、开真实账户和首次入金形成连续路径。" },
+      { brickId: "quickActions.accentCards", brickName: "强调快捷入口卡", family: "QuickActions", feature: "quick_actions", component: "quick_actions", size: "1x1", zone: "rail", reason: "常用入口用精致图标卡承接操作。" },
+      { brickId: "accountPerformance.proChart", brickName: "账号表现双趋势", family: "AccountPerformance", feature: "trading_account_highlight", component: "trading_account_highlight", size: "3x2", zone: "full", reason: "账号表现整横栏呈现账号上下文、净值/PnL 趋势和操作闭环。" },
+      { brickId: "tradingAccounts.separatedList", brickName: "真实/模拟账号双列表", family: "TradingAccounts", feature: "trading_accounts_list", component: "trading_accounts_list", size: "3x2", zone: "full", reason: "真实交易账号和模拟交易账号必须同时出现，并用分组列表提升扫描效率。" },
     ],
     risk: [
       { brickId: "accountPerformance.sparklineBoard", brickName: "Sparkline 指挥看板", family: "AccountPerformance", feature: "trading_account_highlight", component: "trading_account_highlight", size: "3x2", zone: "full", reason: "风险首页先展示权益和 PnL 波动，图表独占整横栏。" },
       { brickId: "riskDisclosure.marginGuard", brickName: "保证金风险提示", family: "RiskDisclosure", feature: "risk_disclosure", component: "risk_disclosure", size: "1x2", zone: "rail", reason: "保证金和风险提示需要首屏提醒。" },
       { brickId: "marketInsight.healthPanel", brickName: "账户健康洞察", family: "MarketInsight", feature: "marketInsight", component: "market_insight", size: "1x2", zone: "rail", reason: "补充市场和账户健康指标。" },
       { brickId: "assetOverview.compactMetrics", brickName: "紧凑资产指标条", family: "AssetOverview", feature: "balanceTotal", component: "asset_summary", size: "3x1", zone: "full", reason: "资产指标保留但降权。" },
-      { brickId: "userKycRail.profileWallet", brickName: "用户/KYC 钱包侧栏", family: "UserKycRail", feature: "userKycRail", component: "user_kyc_rail", size: "1x2", zone: "rail", reason: "客户状态用于客服跟进。" },
       { brickId: "tradingAccounts.separatedList", brickName: "真实/模拟账号双列表", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "3x2", zone: "full", reason: "风险排查需要账号列表。" },
     ],
     onboarding: [
@@ -8082,7 +9767,7 @@ function mockHomepageConfig(payload, providerConfig) {
     asset: ["AI 资产运营控制台", design.layoutPreset, "blueFinance", "balanced", "asset_overview", "资产管理首页：资产概览只做三项汇总，多币种钱包放入钱包列表。"],
     trader: ["AI 交易指挥中心", design.layoutPreset, "darkTech", "compact", "account_list", "专业交易首页：交易工具、账号表现和双列表优先。"],
     insight: ["AI 数据指挥中心", design.layoutPreset, "blueFinance", "compact", "account_performance", "数据洞察首页：账户表现、PnL、资金流和风险提示形成每日检查流。"],
-    deposit: ["AI 入金奖励阶梯首页", design.layoutPreset, "blueFinance", "balanced", "promo_banner", "入金转化首页：奖励阶梯、钱包余额、唯一主入金入口和开真实账号靠前。"],
+    deposit: ["AI 首次入金专业首页", design.layoutPreset, "blueFinance", "balanced", "promo_banner", "入金转化首页：奖励阶梯、账户摘要、新手路径、账号表现和 Live/Demo 账号证明靠前。"],
     risk: ["AI 风险指挥中心", design.layoutPreset, "blueFinance", "compact", "risk_disclosure", "风险提醒首页：保证金、权益波动、账户健康和账号列表形成风控视图。"],
     onboarding: ["AI 新客旅程首页", design.layoutPreset, "blueFinance", "compact", "onboarding_progress", "新客开户首页：KYC、开户、首次入金和创建账号路径靠前。"],
     copytrading: ["AI 跟单推荐驾驶舱", design.layoutPreset, "blueFinance", "balanced", "copytrading_signals", "跟单推荐首页：信号源、收益率、总收益和收益曲线进入首屏。"],
@@ -8129,19 +9814,19 @@ function mockHomepageConfig(payload, providerConfig) {
 	          { id: "asset-risk", type: "full", title: "风险提示", slots: ["risk_disclosure"] },
 	          { id: "asset-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
 	        ]
-      : mockSectionsForIntent(intent, personalizedPlan, wantsWelcome, wantsWalletList),
+	      : mockSectionsForIntent(intent, personalizedPlan, wantsWelcome, wantsWalletList, payload.variant),
     modules: {
-      AssetOverview: { variant: isVip ? "wealthPlate" : isTrader ? "darkTerminal" : isAsset || intent === "brand" ? "tickerStrip" : "standard" },
+      AssetOverview: { variant: intent === "deposit" ? "tickerStrip" : isVip ? "wealthPlate" : isTrader ? "darkTerminal" : isAsset || intent === "brand" ? "tickerStrip" : "standard" },
       WalletBalance: { variant: isVip ? "premiumCard" : "splitCurrency" },
       QuickActions: { variant: quickPresentation.variant },
       PromotionBanner: { variant: intent === "deposit" ? "depositLadder" : design.designGenome === "magazineCampaign" ? "editorialCover" : isVip ? "blackGoldVip" : isGrowth || isPartner ? "gradientHero" : "splitVisual" },
-      AccountPerformance: { variant: wantsFlatAccountOptimization ? "cleanSnapshot" : wantsAccountPerformanceLine ? "proChart" : intent === "deposit" ? "cleanSnapshot" : design.designGenome === "tradingCommand" ? "sparklineBoard" : intent === "insight" ? "cleanSnapshot" : "proChart" },
+      AccountPerformance: { variant: wantsFlatAccountOptimization ? "cleanSnapshot" : wantsAccountPerformanceLine ? "proChart" : intent === "deposit" ? "proChart" : design.designGenome === "tradingCommand" ? "sparklineBoard" : intent === "insight" ? "cleanSnapshot" : "proChart" },
       WalletList: { variant: design.designGenome === "accountOpsConsole" ? "walletTiles" : "currencyTable" },
       TradingAccounts: {
         variant: wantsFlatAccountOptimization && wantsAccountList
           ? "separatedList"
           : intent === "deposit"
-          ? "accountWall"
+          ? "separatedList"
           : design.designGenome === "magazineCampaign"
           ? "accountWall"
           : wantsAccountCardMode
@@ -8153,29 +9838,34 @@ function mockHomepageConfig(payload, providerConfig) {
           : "denseCards",
       },
       OpenAccount: { variant: intent === "deposit" || intent === "brand" || design.designGenome === "onboardingJourney" ? "conversionPanel" : "sidePanel" },
-      OnboardingProgress: { variant: isOnboarding || intent === "copytrading" || intent === "retention" ? onboardingPresentation.variant : "checklist" },
+      OnboardingProgress: { variant: intent === "deposit" ? "nextStepHero" : isOnboarding || intent === "copytrading" || intent === "retention" ? onboardingPresentation.variant : "checklist" },
       CopytradingSignals: { variant: "curveCards" },
       ReferralLinkCard: { variant: intent === "partner" ? "compactCard" : "compactCard" },
     },
     moduleStyles: {
-      balanceTotal: isVip ? "wealth-plate" : design.designGenome === "tradingCommand" ? "ticker-strip" : isAsset || intent === "brand" ? "ticker-strip" : "command",
+      balanceTotal: intent === "deposit" ? "ticker-strip" : isVip ? "wealth-plate" : design.designGenome === "tradingCommand" ? "ticker-strip" : isAsset || intent === "brand" ? "ticker-strip" : "command",
+      asset_overview: intent === "deposit" ? "ticker-strip" : undefined,
       fundActions: "split-buttons",
       openAccountActions: intent === "deposit" || intent === "brand" || design.designGenome === "onboardingJourney" ? "conversion-panel" : "horizontal",
-      onboardingProgress: isOnboarding || intent === "copytrading" || intent === "retention" ? onboardingPresentation.style : isGrowth ? "checklist" : "path",
+      onboardingProgress: intent === "deposit" ? "next-step-hero" : isOnboarding || intent === "copytrading" || intent === "retention" ? onboardingPresentation.style : isGrowth ? "checklist" : "path",
+      onboarding_guide: intent === "deposit" ? "next-step-hero" : undefined,
       promoHighlight: intent === "deposit" ? "deposit-ladder" : isGrowth ? "scoreboard" : "clean",
       adCarousel: design.designGenome === "magazineCampaign" ? "editorial-cover" : wantsGold ? "clean" : isVip || isGrowth ? "immersive" : "clean",
       quickActions: quickPresentation.style,
       quick_actions: quickPresentation.style,
       referral_link_card: intent === "partner" ? "compact-card" : "compact-card",
       copytrading_signals: "curve-cards",
-      tradingAccounts: wantsFlatAccountOptimization && wantsAccountList ? "calm-table" : wantsAccountCardMode ? "dense-cards" : intent === "deposit" ? "account-wall" : design.designGenome === "magazineCampaign" ? "account-wall" : design.designGenome === "tradingCommand" || isAsset || intent === "brand" ? "ops-table" : "dense-cards",
+      tradingAccounts: wantsFlatAccountOptimization && wantsAccountList ? "calm-table" : wantsAccountCardMode ? "dense-cards" : intent === "deposit" ? "calm-table" : design.designGenome === "magazineCampaign" ? "account-wall" : design.designGenome === "tradingCommand" || isAsset || intent === "brand" ? "ops-table" : "dense-cards",
+      trading_accounts_list: intent === "deposit" ? "calm-table" : undefined,
       accountPerformance: wantsFlatAccountOptimization ? "pro-chart" : wantsAccountPerformanceLine ? "pro-chart" : design.designGenome === "tradingCommand" ? "sparkline-board" : "pro-chart",
       walletList: design.designGenome === "accountOpsConsole" ? "wallet-tiles" : "currency-table",
     },
     componentMorphs: {
-      AssetOverview: { variant: isVip ? "wealthPlate" : isAsset || intent === "brand" ? "tickerStrip" : isTrader ? "darkTerminal" : "standard" },
+      AssetOverview: { variant: intent === "deposit" ? "tickerStrip" : isVip ? "wealthPlate" : isAsset || intent === "brand" ? "tickerStrip" : isTrader ? "darkTerminal" : "standard" },
       QuickActions: { variant: quickPresentation.variant },
       PromotionBanner: { variant: intent === "deposit" ? "depositLadder" : design.designGenome === "magazineCampaign" ? "editorialCover" : "splitVisual" },
+      OnboardingProgress: { variant: intent === "deposit" ? "nextStepHero" : isOnboarding || intent === "copytrading" || intent === "retention" ? onboardingPresentation.variant : "checklist" },
+      AccountPerformance: { variant: intent === "deposit" ? "proChart" : wantsFlatAccountOptimization ? "cleanSnapshot" : wantsAccountPerformanceLine ? "proChart" : design.designGenome === "tradingCommand" ? "sparklineBoard" : "proChart" },
       TradingAccounts: {
         variant: wantsFlatAccountOptimization && wantsAccountList
           ? "separatedList"
@@ -8184,18 +9874,18 @@ function mockHomepageConfig(payload, providerConfig) {
           : design.designGenome === "tradingCommand" || intent === "brand"
           ? "opsTable"
           : design.designGenome === "magazineCampaign"
-          ? "accountWall"
+          ? intent === "deposit" ? "separatedList" : "accountWall"
           : "separatedList",
       },
     },
     moduleSettings: {
-      adCarousel: { enabled: ["growth", "partner", "vip", "deposit", "retention"].includes(intent) },
+      adCarousel: { enabled: ["growth", "partner", "vip", "retention"].includes(intent) },
       quickActions: {
         enabled: intent !== "risk",
-        count: intent === "deposit" ? Math.max(4, quickPresentation.count) : intent === "brand" ? 5 : isTrader || intent === "mobile" ? 6 : quickPresentation.count,
+        count: intent === "deposit" ? Math.max(6, Math.min(8, quickPresentation.count || 8)) : intent === "brand" ? 5 : isTrader || intent === "mobile" ? 6 : quickPresentation.count,
         display: quickPresentation.display,
         actions: intent === "deposit"
-          ? ["transfer", "orders", "positions", "contactService"]
+          ? []
           : intent === "brand"
           ? ["openReal", "deposit", "transfer", "orders", "contactService"]
           : isGrowth
@@ -8204,17 +9894,17 @@ function mockHomepageConfig(payload, providerConfig) {
           ? ["switchAccount", "positions", "orders", "downloadMt5", "risk", "deposit"]
           : [],
       },
-      wallet: { enabled: intent === "deposit" ? true : !(isGrowth && wantsGold), placement: "standalone", showFundActions: false },
+      wallet: { enabled: intent === "deposit" ? false : !(isGrowth && wantsGold), placement: intent === "deposit" ? "mergedWithAssets" : "standalone", showFundActions: false },
       assets: {
-        enabled: intent === "deposit" ? false : !(isGrowth && wantsGold),
+        enabled: intent === "deposit" ? true : !(isGrowth && wantsGold),
         visibleFields: ["total", "tradingAccount", "wallet"],
-        showFundActions: intent === "deposit" ? true : false,
+        showFundActions: false,
         showAccountBreakdown: true,
         showWalletBreakdown: true,
         showAvailable: false,
         showMargin: false,
         showRiskLevel: false,
-        wallets: isAsset || intent === "brand" ? ["USD", "EUR", "USDT"] : [],
+        wallets: isAsset || intent === "brand" ? ["USD", "EUR", "USDT"] : intent === "deposit" ? ["USD"] : [],
       },
       referral: { enabled: false, showClicks: false, showRegistrations: false, showTradingAccounts: false, showPromoLink: false, showInviteCode: false, showQrCode: false },
       referralLinkCard: {
@@ -8235,13 +9925,13 @@ function mockHomepageConfig(payload, providerConfig) {
         enabled: true,
         realEnabled: true,
         demoEnabled: true,
-        grouping: wantsAccountCardMode ? (wantsRealAccountCards || wantsDemoAccountCards ? "separated" : "combined") : intent === "brand" ? "combined" : isAsset || isTrader || wantsSeparatedAccounts || wantsAccountList || wantsMixedAccountPresentation ? "separated" : "combined",
-        viewMode: wantsAccountCardMode ? "card" : intent === "brand" || wantsAccountList ? "list" : intent === "deposit" || wantsRealAccountCards || wantsDemoAccountCards || wantsMixedAccountPresentation ? "card" : isAsset || isTrader || wantsSeparatedAccounts ? "list" : "switchable",
-        realViewMode: wantsAccountCardMode ? "card" : intent === "brand" || wantsAccountList ? "list" : wantsRealAccountCards || wantsMixedAccountPresentation ? "card" : isAsset || isTrader || wantsSeparatedAccounts ? "list" : "card",
-        demoViewMode: wantsAccountCardMode ? "card" : intent === "brand" || wantsAccountList ? "list" : wantsDemoAccountCards ? "card" : wantsMixedAccountPresentation ? "list" : isAsset || isTrader || wantsSeparatedAccounts ? "list" : "card",
+        grouping: intent === "deposit" ? "separated" : wantsAccountCardMode ? (wantsRealAccountCards || wantsDemoAccountCards ? "separated" : "combined") : intent === "brand" ? "combined" : isAsset || isTrader || wantsSeparatedAccounts || wantsAccountList || wantsMixedAccountPresentation ? "separated" : "combined",
+        viewMode: intent === "deposit" ? "list" : wantsAccountCardMode ? "card" : intent === "brand" || wantsAccountList ? "list" : wantsRealAccountCards || wantsDemoAccountCards || wantsMixedAccountPresentation ? "card" : isAsset || isTrader || wantsSeparatedAccounts ? "list" : "switchable",
+        realViewMode: intent === "deposit" ? "list" : wantsAccountCardMode ? "card" : intent === "brand" || wantsAccountList ? "list" : wantsRealAccountCards || wantsMixedAccountPresentation ? "card" : isAsset || isTrader || wantsSeparatedAccounts ? "list" : "card",
+        demoViewMode: intent === "deposit" ? "list" : wantsAccountCardMode ? "card" : intent === "brand" || wantsAccountList ? "list" : wantsDemoAccountCards ? "card" : wantsMixedAccountPresentation ? "list" : isAsset || isTrader || wantsSeparatedAccounts ? "list" : "card",
         demoFirst: /模拟账号.*(?:真实账号|live)|demo.*live|demo\s*在\s*live|模拟.*上面/i.test(String(payload.prompt || "")),
       },
-      openAccount: { enabled: true, real: true, demo: intent === "deposit" ? false : true, bind: intent === "deposit" || intent === "brand" ? false : true, placement: isOnboarding || intent === "deposit" || intent === "brand" || isPartner ? "standalone" : "insideTradingAccounts" },
+      openAccount: { enabled: true, real: true, demo: true, bind: intent === "deposit" || intent === "brand" ? false : true, placement: intent === "deposit" ? "insideTradingAccounts" : isOnboarding || intent === "brand" || isPartner ? "standalone" : "insideTradingAccounts" },
       riskNotice: { enabled: false },
       riskDisclosure: { enabled: isAsset || intent === "risk" || intent === "insight" },
     },
@@ -8343,6 +10033,19 @@ function onboardingPresentationFromText(text, designGenome = "", variant = 0) {
 function inferKycStatusFromText(text, fallback = "verified") {
   const source = String(text || "").toLowerCase();
   if (!source) return fallback;
+  const statusListOnly = /未提交[、,，/\\\s]+待审[、,，/\\\s]+通过[、,，/\\\s]+拒绝/.test(source);
+  const explicitCurrentStatus = source.match(/(?:当前|当前状态|实际状态|默认状态|状态为|状态是|current\s+status)\s*(?:为|是|:|：|=)?\s*(未提交|待审|待审核|审核中|通过|已通过|拒绝|驳回|未通过|pending|reviewing|verified|approved|rejected|declined)/i);
+  const genericSingleStatus = !statusListOnly
+    ? source.match(/(?:kyc\s*状态|crm\s*账户\s*kyc\s*状态|认证状态)\s*(?:为|是|:|：|=)\s*(未提交|待审|待审核|审核中|通过|已通过|拒绝|驳回|未通过|pending|reviewing|verified|approved|rejected|declined)/i)
+    : null;
+  const explicitStatus = explicitCurrentStatus?.[1] || genericSingleStatus?.[1] || "";
+  if (explicitStatus) {
+    if (/拒绝|驳回|未通过|rejected|declined/i.test(explicitStatus)) return "rejected";
+    if (/待审|待审核|审核中|reviewing/i.test(explicitStatus)) return "reviewing";
+    if (/未提交|pending/i.test(explicitStatus)) return "pending";
+    if (/通过|已通过|verified|approved/i.test(explicitStatus)) return "verified";
+  }
+  if (statusListOnly) return fallback;
   if (/拒绝|驳回|未通过|rejected|declined/i.test(source)) return "rejected";
   if (/待审|待审核|审核中|reviewing|under review/i.test(source)) return "reviewing";
   if (/未提交|未实名|未认证|未完成实名|kyc\s*未|待\s*kyc|pending/i.test(source)) return "pending";
@@ -8415,7 +10118,7 @@ const HOMEPAGE_MODULE_SETTING_DEFAULTS = {
     bind: false,
     placement: "insideTradingAccounts",
   },
-  userKycRail: { kycStatus: "verified" },
+  userKycRail: { enabled: false, kycStatus: "verified" },
   riskNotice: { enabled: false },
   pamm: { enabled: false },
   copytrading: { enabled: false },
@@ -8719,7 +10422,7 @@ function quickActionPresentationForServerIntent(intent, designGenome, prompt = "
   if (wantsModuleFeeling && ["toolbar", "matrix"].includes(picked.style)) {
     picked = options.find((item) => ["tile-board", "accent-cards", "segmented-panel", "task-rail"].includes(item.style)) || picked;
   }
-  if (textHasAny(text, ["命令栏", "交易终端", "mt5", "专业交易"])) picked = pools.trader[0];
+  if (Math.abs(Number(variant || 0)) % 3 === 0 && textHasAny(text, ["命令栏", "交易终端", "mt5", "专业交易"])) picked = pools.trader[0];
   if (textHasAny(text, ["紧凑", "移动端", "手机", "短入口"])) picked = pools.mobile[0];
   return {
     ...picked,
@@ -8860,13 +10563,14 @@ function ensureHomepageSectionContains(config, sectionSeed, slot) {
   });
 }
 
-function sanitizeHomepageAllowedBlocks(config, prompt = "", guidedIntake = null) {
+function sanitizeHomepageAllowedBlocks(config, prompt = "", guidedIntake = null, options = {}) {
   const next = ensureObject(config);
   const settings = ensureHomepageModuleSettings(next.moduleSettings);
   const text = `${String(prompt || "").toLowerCase()} ${String(prompt || "")}`;
   const wantsPamm = /pamm/i.test(text);
   const wantsCopyTrading = /copy\s*trading|copytrading|跟单|信号源/i.test(text);
-  const wantsReferralCard = /代理用户|代理首页|\bib\b|合作伙伴|partner|affiliate|推广链接|推广功能|推广开户链接|邀请链接|邀请码|开户链接|注册链接|referral/i.test(text);
+  const wantsReferralCard = Boolean(options.defaultReferralCard) || /代理用户|代理首页|\bib\b|合作伙伴|partner|affiliate|推广链接|推广功能|推广开户链接|邀请链接|邀请码|开户链接|注册链接|referral/i.test(text);
+  const wantsKycStatus = /CRM 账户 KYC 状态|KYC 状态|kyc_status_card|account_kyc_status|kycStatus\.current|kyc\s*status|未提交|待审|待审核|审核中|通过|拒绝|未通过/i.test(text);
   const wantsReferralStats = /打开数|注册数|开户数|注册转化率|开户转化率|转化率|推广效果|基础统计|统计数据/.test(text);
   const wantsReferralCoreOnly = /(只|仅|只展示|仅展示).{0,16}(推广链接|邀请链接).{0,16}(邀请码)|不展示.{0,8}(统计|打开数|注册数|开户数|转化率)/.test(text);
   const rejectsAnnouncements = /(?:不要|不需要|去掉|移除|关闭|禁用|隐藏|别放).{0,24}(?:公告|通知|维护|平台消息)/.test(text);
@@ -8923,6 +10627,7 @@ function sanitizeHomepageAllowedBlocks(config, prompt = "", guidedIntake = null)
     wantsPamm && ["pamm", "split", "PAMM", "pamm_products"],
     wantsCopyTrading && ["copytrading", "split", "CopyTrading", "copytrading_signals"],
     wantsReferralCard && ["referral-link", "rail", "推广链接", "referral_link_card"],
+    wantsKycStatus && ["kyc-status", "rail", "KYC 状态", "kyc_status_card"],
     wantsAnnouncements && ["announcements", wantsAnnouncementTicker ? "full" : "split", "公告通知", "announcements"],
     wantsMarketNews && ["market-news", "full", "市场资讯", "market_news"],
     wantsRiskDisclosure && ["risk-disclosure", "rail", "风险提示", "risk_disclosure"],
@@ -8997,6 +10702,7 @@ function sanitizeHomepageAllowedBlocks(config, prompt = "", guidedIntake = null)
   settings.referral = { ...ensureObject(settings.referral), enabled: false };
   settings.userKycRail = {
     ...ensureObject(settings.userKycRail),
+    enabled: Boolean(settings.userKycRail?.enabled || wantsKycStatus),
     kycStatus: inferKycStatusFromText(text, settings.userKycRail?.kycStatus || "verified"),
   };
   settings.riskNotice = { ...ensureObject(settings.riskNotice), enabled: false };
@@ -9087,6 +10793,7 @@ const HOMEPAGE_SLOT_TO_SETTING = {
   pamm_products: "pamm",
   copytrading_signals: "copytrading",
   referral_link_card: "referralLinkCard",
+  kyc_status_card: "userKycRail",
   announcements: "announcements",
   market_news: "marketNews",
   risk_disclosure: "riskDisclosure",
@@ -9124,6 +10831,7 @@ const HOMEPAGE_SLOT_TO_BRICK_FEATURE = {
   pamm_products: "pamm_products",
   copytrading_signals: "copytrading_signals",
   referral_link_card: "referral_link_card",
+  kyc_status_card: "kyc_status_card",
   announcements: "announcements",
   market_news: "market_news",
   risk_disclosure: "risk_disclosure",
@@ -9160,6 +10868,7 @@ const HOMEPAGE_HERO_FOCUS_TO_SLOT = {
   pamm_products: "pamm_products",
   copytrading_signals: "copytrading_signals",
   referral_link_card: "referral_link_card",
+  kyc_status_card: "kyc_status_card",
   announcements: "announcements",
   market_news: "market_news",
   risk_disclosure: "risk_disclosure",
@@ -9175,7 +10884,10 @@ const HOMEPAGE_HERO_FOCUS_TO_SLOT = {
   account_list: "tradingAccounts",
   referral_link: "referralLink",
   referral_link_card: "referral_link_card",
-  user_kyc_rail: "userKycRail",
+  user_kyc_rail: "kyc_status_card",
+  userKycRail: "kyc_status_card",
+  account_kyc_status: "kyc_status_card",
+  kycStatus: "kyc_status_card",
   account_performance: "accountPerformance",
   wallet_list: "wallet_list",
   create_account_form: "createAccountForm",
@@ -9266,7 +10978,8 @@ function enforceServerWelcomeHeaderTop(config) {
   config.sections = (Array.isArray(config.sections) ? config.sections : [])
     .map((section) => ({ ...section, slots: Array.isArray(section.slots) ? section.slots.filter((slot) => slot !== "welcome_header") : [] }))
     .filter((section) => section.slots.length);
-  config.sections.unshift({ id: "welcome-header", type: "hero", title: "欢迎", slots: ["welcome_header"] });
+  const welcomeSectionType = config?.pageIntent?.primaryIntent === "deposit" ? "full" : "hero";
+  config.sections.unshift({ id: "welcome-header", type: welcomeSectionType, title: "欢迎", slots: ["welcome_header"] });
   config.layout = [welcomeBlock].concat((Array.isArray(config.layout) ? config.layout : []).filter((block) => block?.component !== "welcome_header"));
   config.brickPlan = (Array.isArray(config.brickPlan) ? config.brickPlan : []).filter((brick) => brick?.component !== "welcome_header" && brick?.feature !== "welcome_header");
 }
@@ -9284,9 +10997,16 @@ function enforceServerJourneyTimelineFullRow(config) {
   if (!needsFullRowJourney || !configHasHomepageSlot(config, "onboarding_guide")) return;
 
   config.sections = (Array.isArray(config.sections) ? config.sections : [])
-    .map((section) => ({ ...section, slots: Array.isArray(section.slots) ? section.slots.filter((slot) => slot !== "onboarding_guide") : [] }))
+    .map((section) => {
+      const slots = Array.isArray(section.slots) ? section.slots.filter((slot) => slot !== "onboarding_guide") : [];
+      return { ...section, type: section.type === "split" && slots.length === 1 ? "full" : section.type, slots };
+    })
     .filter((section) => section.slots.length);
-  const insertIndex = config.sections[0]?.slots?.includes("welcome_header") ? 1 : 0;
+  const depositHeroIndex =
+    config?.pageIntent?.primaryIntent === "deposit"
+      ? config.sections.findIndex((section) => section.slots?.includes("promo_banner") || section.slots?.includes("asset_overview"))
+      : -1;
+  const insertIndex = depositHeroIndex >= 0 ? depositHeroIndex + 1 : config.sections[0]?.slots?.includes("welcome_header") ? 1 : 0;
   config.sections.splice(insertIndex, 0, { id: "onboarding-journey", type: "full", title: "开户进度", slots: ["onboarding_guide"] });
   config.layout = (Array.isArray(config.layout) ? config.layout : []).map((block) =>
     block?.component === "onboarding_guide"
@@ -9363,6 +11083,7 @@ function enableSettingForHomepageSlot(settings, slot) {
   settings[key] = { ...ensureObject(settings[key]), enabled: true };
   if (slot === "fundActions") settings.assets = { ...ensureObject(settings.assets), enabled: true, showFundActions: true };
   if (slot === "walletList" || slot === "wallet_list") settings.wallet = { ...ensureObject(settings.wallet), enabled: true, placement: "standalone" };
+  if (slot === "kyc_status_card") settings.userKycRail = { ...ensureObject(settings.userKycRail), enabled: true };
 }
 
 function enableHomepageSettingsForSections(config) {
@@ -9554,6 +11275,7 @@ const GUIDED_SLOT_ORDER = [
   "quick_actions",
   "pamm_products",
   "referral_link_card",
+  "kyc_status_card",
   "announcements",
   "market_news",
   "faq_section",
@@ -9574,6 +11296,7 @@ const GUIDED_SLOT_SECTIONS = {
   quick_actions: { id: "guided-actions", type: "split", title: "快捷操作" },
   pamm_products: { id: "guided-products", type: "split", title: "产品推荐" },
   referral_link_card: { id: "guided-growth", type: "split", title: "增长工具" },
+  kyc_status_card: { id: "guided-kyc-status", type: "split", title: "KYC 状态" },
   announcements: { id: "guided-content", type: "split", title: "公告资讯" },
   market_news: { id: "guided-content", type: "split", title: "公告资讯" },
   faq_section: { id: "guided-help", type: "split", title: "帮助与下载" },
@@ -9594,6 +11317,7 @@ function guidedRequiredHomepageSlots(guidedIntake) {
 
   (Array.isArray(guidedIntake?.modules) ? guidedIntake.modules : []).forEach((module) => {
     (Array.isArray(module?.canonicalTargets) ? module.canonicalTargets : []).forEach(addSlot);
+    [module?.canonicalTarget, module?.block, module?.id, module?.label, module?.name].forEach(addSlot);
   });
   (Array.isArray(guidedIntake?.canonical?.mustHave) ? guidedIntake.canonical.mustHave : []).forEach((value) => {
     const slot = canonicalHomeBlock(value);
@@ -9708,6 +11432,16 @@ function enableGuidedHomepageSlot(config, settings, slot, fields) {
     config.moduleStyles.referral_link_card = config.moduleStyles.referral_link_card || "compact-card";
   }
 
+  if (slot === "kyc_status_card") {
+    mergeGuidedHomepageSetting(settings, "userKycRail", {
+      enabled: true,
+      kycStatus: oneOfList(settings.userKycRail?.kycStatus, ["verified", "pending", "reviewing", "rejected"], "verified"),
+    });
+    config.modules.UserKycRail = config.modules.UserKycRail || { variant: "compactStatus" };
+    config.moduleStyles.kyc_status_card = config.moduleStyles.kyc_status_card || "status-card";
+    config.moduleStyles.userKycRail = config.moduleStyles.userKycRail || "status-rail";
+  }
+
   if (slot === "announcements") {
     mergeGuidedHomepageSetting(settings, "announcements", { enabled: true });
     config.modules.Announcements = config.modules.Announcements || { variant: "list" };
@@ -9804,7 +11538,8 @@ function applyGuidedIntakeOverrides(config, guidedIntake) {
   config.moduleSettings = settings;
 }
 
-function applyTradingCostWorkbenchServerConfig(next, settings, understanding = {}) {
+function applyTradingCostWorkbenchServerConfig(next, settings, understanding = {}, variant = 0) {
+  const mode = Math.abs(Number(variant || 0)) % 3;
   next.name = understanding.recommendationId ? `AI ${understanding.recommendationId}`.slice(0, 28) : "AI 交易成本工作台";
   next.layoutPreset = "tradingCommand";
   next.designGenome = "tradingCommand";
@@ -9815,30 +11550,60 @@ function applyTradingCostWorkbenchServerConfig(next, settings, understanding = {
   next.personalizationStrength = "strong";
   next.heroFocus = "trading_account_highlight";
   next.pageIntent = { ...ensureObject(next.pageIntent), primaryIntent: "trader" };
-  next.sections = [
-    { id: "cost-execution-chart", type: "full", title: "交易成本与执行", slots: ["trading_account_highlight"] },
-    { id: "cost-execution-actions", type: "split", title: "MT5 操作", slots: ["quick_actions"] },
-    { id: "cost-margin-strip", type: "full", title: "持仓与保证金", slots: ["asset_overview"] },
-    { id: "cost-account-ledger", type: "full", title: "真实与模拟账号", slots: ["trading_accounts_list"] },
-  ];
+  next.sections =
+    mode === 1
+      ? [
+          { id: "cost-account-ledger", type: "full", title: "真实与模拟账号", slots: ["trading_accounts_list"] },
+          { id: "cost-execution-chart", type: "full", title: "交易成本与执行", slots: ["trading_account_highlight"] },
+          { id: "cost-execution-actions", type: "split", title: "MT5 操作", slots: ["quick_actions"] },
+          { id: "cost-margin-strip", type: "full", title: "持仓与保证金", slots: ["asset_overview"] },
+        ]
+      : mode === 2
+      ? [
+          { id: "cost-execution-actions", type: "split", title: "MT5 操作", slots: ["quick_actions"] },
+          { id: "cost-execution-chart", type: "full", title: "交易成本与执行", slots: ["trading_account_highlight"] },
+          { id: "cost-account-ledger", type: "full", title: "真实与模拟账号", slots: ["trading_accounts_list"] },
+          { id: "cost-margin-strip", type: "full", title: "持仓与保证金", slots: ["asset_overview"] },
+        ]
+      : [
+          { id: "cost-execution-chart", type: "full", title: "交易成本与执行", slots: ["trading_account_highlight"] },
+          { id: "cost-execution-actions", type: "split", title: "MT5 操作", slots: ["quick_actions"] },
+          { id: "cost-margin-strip", type: "full", title: "持仓与保证金", slots: ["asset_overview"] },
+          { id: "cost-account-ledger", type: "full", title: "真实与模拟账号", slots: ["trading_accounts_list"] },
+        ];
   delete next.layout;
-  next.brickPlan = [
-    { brickId: "accountPerformance.costBoard", brickName: "交易成本与执行看板", family: "AccountPerformance", feature: "trading_account_highlight", component: "trading_account_highlight", size: "3x2", zone: "full", reason: "交易成本与账号表现属于大图表模块，用整横栏承载 PnL、保证金占用和执行效率。" },
-    { brickId: "quickActions.mt5CommandBar", brickName: "MT5 快捷命令栏", family: "QuickActions", feature: "quick_actions", component: "quick_actions", size: "1x2", zone: "rail", reason: "MT5、持仓、订单和切换账号作为专业交易高频操作。" },
-    { brickId: "assetOverview.marginTicker", brickName: "保证金与资产 Ticker", family: "AssetOverview", feature: "asset_overview", component: "asset_overview", size: "3x1", zone: "full", reason: "把保证金占用和可用资金压缩为行情式横向指标，不复用新手路径。" },
-    { brickId: "tradingAccounts.separatedList", brickName: "真实/模拟账号双列表", family: "TradingAccounts", feature: "trading_accounts_list", component: "trading_accounts_list", size: "3x2", zone: "full", reason: "真实账号和模拟账号分区列表展示，适合专业交易排查与切换。" },
-  ];
+  next.brickPlan =
+    mode === 1
+      ? [
+          { brickId: "tradingAccounts.separatedList", brickName: "真实/模拟账号双列表", family: "TradingAccounts", feature: "trading_accounts_list", component: "trading_accounts_list", size: "3x2", zone: "full", reason: "本轮先扫描真实/模拟账号，再进入成本执行看板。" },
+          { brickId: "accountPerformance.costBoard", brickName: "交易成本与执行看板", family: "AccountPerformance", feature: "trading_account_highlight", component: "trading_account_highlight", size: "3x2", zone: "full", reason: "交易成本、PnL 和保证金仍由整横栏承载。" },
+          { brickId: "quickActions.segmentedPanel", brickName: "MT5 分段操作入口", family: "QuickActions", feature: "quick_actions", component: "quick_actions", size: "2x1", zone: "main", reason: "MT5、持仓和订单入口改成分段面板。" },
+          { brickId: "assetOverview.marginTicker", brickName: "保证金与资产 Ticker", family: "AssetOverview", feature: "asset_overview", component: "asset_overview", size: "3x1", zone: "full", reason: "保证金和可用资金仍以横向指标收口。" },
+        ]
+      : mode === 2
+      ? [
+          { brickId: "quickActions.mt5CommandBar", brickName: "MT5 快捷命令栏", family: "QuickActions", feature: "quick_actions", component: "quick_actions", size: "2x1", zone: "main", reason: "本轮用操作层先承接持仓、订单和 MT5。" },
+          { brickId: "accountPerformance.costBoard", brickName: "交易成本与执行看板", family: "AccountPerformance", feature: "trading_account_highlight", component: "trading_account_highlight", size: "3x2", zone: "full", reason: "成本效率和 PnL 仍保持整横栏分析。" },
+          { brickId: "tradingAccounts.separatedList", brickName: "真实/模拟账号双列表", family: "TradingAccounts", feature: "trading_accounts_list", component: "trading_accounts_list", size: "3x2", zone: "full", reason: "账号列表下移做执行后的管理区。" },
+          { brickId: "assetOverview.marginTicker", brickName: "保证金与资产 Ticker", family: "AssetOverview", feature: "asset_overview", component: "asset_overview", size: "3x1", zone: "full", reason: "保证金和可用资金作为底部状态条。" },
+        ]
+      : [
+          { brickId: "accountPerformance.costBoard", brickName: "交易成本与执行看板", family: "AccountPerformance", feature: "trading_account_highlight", component: "trading_account_highlight", size: "3x2", zone: "full", reason: "交易成本与账号表现属于大图表模块，用整横栏承载 PnL、保证金占用和执行效率。" },
+          { brickId: "quickActions.mt5CommandBar", brickName: "MT5 快捷命令栏", family: "QuickActions", feature: "quick_actions", component: "quick_actions", size: "1x2", zone: "rail", reason: "MT5、持仓、订单和切换账号作为专业交易高频操作。" },
+          { brickId: "assetOverview.marginTicker", brickName: "保证金与资产 Ticker", family: "AssetOverview", feature: "asset_overview", component: "asset_overview", size: "3x1", zone: "full", reason: "把保证金占用和可用资金压缩为行情式横向指标，不复用新手路径。" },
+          { brickId: "tradingAccounts.separatedList", brickName: "真实/模拟账号双列表", family: "TradingAccounts", feature: "trading_accounts_list", component: "trading_accounts_list", size: "3x2", zone: "full", reason: "真实账号和模拟账号分区列表展示，适合专业交易排查与切换。" },
+        ];
   next.modules = {
     ...ensureObject(next.modules),
     AccountPerformance: { variant: "sparklineBoard" },
-    QuickActions: { variant: "commandBar" },
+    QuickActions: { variant: mode === 1 ? "segmentedMenu" : "commandBar" },
     AssetOverview: { variant: "darkTerminal" },
     TradingAccounts: { variant: "opsTable" },
   };
   next.moduleStyles = {
     ...ensureObject(next.moduleStyles),
     accountPerformance: "cost-board",
-    quickActions: "command-bar",
+    quickActions: mode === 1 ? "segmented-panel" : "command-bar",
     balanceTotal: "ticker-strip",
     tradingAccounts: "ops-table",
     adCarousel: "clean",
@@ -9895,7 +11660,8 @@ function applyTradingCostWorkbenchServerConfig(next, settings, understanding = {
   next.aiSummary = "已按专业交易成本工作台重排：首屏保留 EURUSD 点差 0.2 起、佣金 $7/手、持仓 PnL、保证金占用和 MT5 快捷操作，真实/模拟账号分开。";
 }
 
-function applyProfessionalTraderWorkbenchServerConfig(next, settings, understanding = {}) {
+function applyProfessionalTraderWorkbenchServerConfig(next, settings, understanding = {}, variant = 0) {
+  const mode = Math.abs(Number(variant || 0)) % 3;
   next.name = understanding.recommendationId ? `AI ${understanding.recommendationId}`.slice(0, 28) : "AI 专业交易客户首页";
   next.layoutPreset = "tradingCommand";
   next.designGenome = "tradingCommand";
@@ -9912,34 +11678,58 @@ function applyProfessionalTraderWorkbenchServerConfig(next, settings, understand
     label: "专业交易客户首页",
     primaryGoal: "首屏聚焦交易账号状态、账户表现图表、持仓入口和 MT5 操作入口，不把数据接口要求误解成成本看板。",
   };
-  next.sections = [
-    { id: "trader-account-status-row", type: "full", title: "交易账号", slots: ["trading_accounts_list"] },
-    { id: "trader-performance-row", type: "full", title: "账户表现", slots: ["trading_account_highlight"] },
-    { id: "trader-operation-layer", type: "split", title: "持仓与 MT5 操作", slots: ["quick_actions"] },
-    ...(understanding.wantsFaqSection ? [{ id: "trader-faq", type: "full", title: "FAQ", slots: ["faq_section"] }] : []),
-  ];
+  next.sections =
+    mode === 1
+      ? [
+          { id: "trader-performance-row", type: "full", title: "账户表现", slots: ["trading_account_highlight"] },
+          { id: "trader-account-status-row", type: "full", title: "交易账号", slots: ["trading_accounts_list"] },
+          { id: "trader-operation-layer", type: "split", title: "持仓与 MT5 操作", slots: ["quick_actions"] },
+          ...(understanding.wantsFaqSection ? [{ id: "trader-faq", type: "full", title: "FAQ", slots: ["faq_section"] }] : []),
+        ]
+      : mode === 2
+      ? [
+          { id: "trader-operation-layer", type: "split", title: "持仓与 MT5 操作", slots: ["quick_actions"] },
+          { id: "trader-account-status-row", type: "full", title: "交易账号", slots: ["trading_accounts_list"] },
+          { id: "trader-performance-row", type: "full", title: "账户表现", slots: ["trading_account_highlight"] },
+          ...(understanding.wantsFaqSection ? [{ id: "trader-faq", type: "full", title: "FAQ", slots: ["faq_section"] }] : []),
+        ]
+      : [
+          { id: "trader-account-status-row", type: "full", title: "交易账号", slots: ["trading_accounts_list"] },
+          { id: "trader-performance-row", type: "full", title: "账户表现", slots: ["trading_account_highlight"] },
+          { id: "trader-operation-layer", type: "split", title: "持仓与 MT5 操作", slots: ["quick_actions"] },
+          ...(understanding.wantsFaqSection ? [{ id: "trader-faq", type: "full", title: "FAQ", slots: ["faq_section"] }] : []),
+        ];
   delete next.layout;
-  next.brickPlan = [
-    { brickId: "tradingAccounts.cardProof", brickName: "Live / Demo 合并账号卡片", family: "TradingAccounts", feature: "trading_accounts_list", component: "trading_accounts_list", size: "3x2", zone: "full", reason: "真实账号和模拟账号在同一账号卡片区，用整横栏展示账号状态，避免与图表互相挤压。" },
-    { brickId: "accountPerformance.proChart", brickName: "账户表现趋势图", family: "AccountPerformance", feature: "trading_account_highlight", component: "trading_account_highlight", size: "3x2", zone: "full", reason: "账户表现图表需要完整横向空间展示账号上下文、主数值、趋势图和指标带。" },
-    { brickId: "quickActions.segmentedPanel", brickName: "持仓与 MT5 操作入口", family: "QuickActions", feature: "quick_actions", component: "quick_actions", size: "2x1", zone: "main", reason: "持仓入口和 MT5 操作入口作为操作层，不抢账号状态主层级。" },
-    ...(understanding.wantsFaqSection
-      ? [{ brickId: "faqSection.topQuestions", brickName: "简约 FAQ", family: "FaqSection", feature: "faq_section", component: "faq_section", size: "3x1", zone: "full", reason: "FAQ 使用简约折叠或紧凑列表，作为低干扰解释区。" }]
-      : []),
-  ];
+  const quickBrick =
+    mode === 1
+      ? { brickId: "quickActions.compactMenu", brickName: "紧凑 MT5 操作菜单", family: "QuickActions", feature: "quick_actions", component: "quick_actions", size: "2x1", zone: "main", reason: "持仓和 MT5 操作收成短菜单，减少和账号区抢层级。" }
+      : mode === 2
+      ? { brickId: "quickActions.commandBar", brickName: "MT5 命令栏", family: "QuickActions", feature: "quick_actions", component: "quick_actions", size: "3x1", zone: "hero", reason: "本轮先给 MT5 与持仓命令层，再承接账号状态。" }
+      : { brickId: "quickActions.segmentedPanel", brickName: "持仓与 MT5 操作入口", family: "QuickActions", feature: "quick_actions", component: "quick_actions", size: "2x1", zone: "main", reason: "持仓入口和 MT5 操作入口作为操作层，不抢账号状态主层级。" };
+  const accountBrick = { brickId: "tradingAccounts.cardProof", brickName: "Live / Demo 合并账号卡片", family: "TradingAccounts", feature: "trading_accounts_list", component: "trading_accounts_list", size: "3x2", zone: "full", reason: "真实账号和模拟账号在同一账号卡片区，用整横栏展示账号状态，避免与图表互相挤压。" };
+  const performanceBrick = { brickId: "accountPerformance.proChart", brickName: "账户表现趋势图", family: "AccountPerformance", feature: "trading_account_highlight", component: "trading_account_highlight", size: "3x2", zone: "full", reason: "账户表现图表需要完整横向空间展示账号上下文、主数值、趋势图和指标带。" };
+  const faqBrick = understanding.wantsFaqSection
+    ? [{ brickId: "faqSection.topQuestions", brickName: "简约 FAQ", family: "FaqSection", feature: "faq_section", component: "faq_section", size: "3x1", zone: "full", reason: "FAQ 使用简约折叠或紧凑列表，作为低干扰解释区。" }]
+    : [];
+  next.brickPlan =
+    mode === 1
+      ? [performanceBrick, accountBrick, quickBrick, ...faqBrick]
+      : mode === 2
+      ? [quickBrick, accountBrick, performanceBrick, ...faqBrick]
+      : [accountBrick, performanceBrick, quickBrick, ...faqBrick];
   next.modules = {
     ...ensureObject(next.modules),
     TradingAccounts: { variant: "accountWall" },
     AccountPerformance: { variant: "proChart" },
-    QuickActions: { variant: "segmentedMenu" },
+    QuickActions: { variant: mode === 1 ? "compactMenu" : mode === 2 ? "commandBar" : "segmentedMenu" },
     FaqSection: { variant: "accordion" },
   };
   next.moduleStyles = {
     ...ensureObject(next.moduleStyles),
     tradingAccounts: "account-wall",
     accountPerformance: "pro-chart",
-    quickActions: "segmented-panel",
-    quick_actions: "segmented-panel",
+    quickActions: mode === 1 ? "compact-menu" : mode === 2 ? "command-bar" : "segmented-panel",
+    quick_actions: mode === 1 ? "compact-menu" : mode === 2 ? "command-bar" : "segmented-panel",
     faq_section: understanding.wantsFaqSection ? "accordion" : ensureObject(next.moduleStyles).faq_section,
   };
   settings.adCarousel = { ...ensureObject(settings.adCarousel), enabled: false };
@@ -9996,19 +11786,155 @@ function applyProfessionalTraderWorkbenchServerConfig(next, settings, understand
   next.aiSummary = "已按专业交易客户首页重排：账号状态、账户表现、持仓与 MT5 入口优先，数据走接口契约。";
 }
 
-function depositGovernedBrickPlan() {
-  return [
-    { brickId: "promoBanner.depositLadder", brickName: "入金奖励阶梯", family: "PromotionBanner", feature: "promoHighlight", component: "promo_banner", size: "2x2", zone: "hero", reason: "首屏左侧突出 $500/$2,000/$10,000 三档奖励和最高赠金 $300。" },
-    { brickId: "walletBalance.currencyRail", brickName: "钱包币种侧栏", family: "WalletBalance", feature: "walletBalance", component: "wallet_balance", size: "1x1", zone: "rail", reason: "右侧给出钱包余额，解释当前入金上下文。" },
-    { brickId: "fundActions.priorityDock", brickName: "资金操作 Dock", family: "FundActions", feature: "fundActions", component: "fund_actions", size: "1x1", zone: "rail", reason: "主入金动作只在首屏操作区放大一次。" },
-    { brickId: "openAccount.conversionPanel", brickName: "开户转化面板", family: "OpenAccount", feature: "openAccountActions", component: "open_account_panel", size: "1x2", zone: "rail", reason: "开真实账号作为入金前置动作，而不是散落在页面各处。" },
-    { brickId: "quickActions.taskRail", brickName: "快捷入口", family: "QuickActions", feature: "quickActions", component: "quick_actions", size: "2x1", zone: "main", reason: "快捷入口紧跟首屏，承接转账、订单、持仓和客服，不重复主入金按钮。" },
-    { brickId: "accountPerformance.proChart", brickName: "账号轻趋势", family: "AccountPerformance", feature: "trading_account_highlight", component: "trading_account_highlight", size: "3x2", zone: "full", reason: "账号趋势独占整横栏，避免图表与账号列表互相挤压。" },
-    { brickId: "tradingAccounts.cardProof", brickName: "紧凑账号证明卡", family: "TradingAccounts", feature: "trading_accounts_list", component: "trading_accounts_list", size: "3x2", zone: "full", reason: "账号信息作为整栏证明区承接，不抢首屏入金主线。" },
+function depositGovernedBrickPlan(variant = 0) {
+  const mode = Math.abs(Number(variant || 0)) % 3;
+  const base = [
+    { brickId: "promoBanner.depositLadder", brickName: "入金奖励阶梯", family: "PromotionBanner", feature: "promo_banner", component: "promo_banner", size: "2x2", zone: "hero", reason: "首屏用三档入金奖励和唯一主 CTA 承接首次入金目标。" },
+    { brickId: "assetOverview.tickerStrip", brickName: "账户摘要指标带", family: "AssetOverview", feature: "asset_overview", component: "asset_overview", size: "1x1", zone: "hero", reason: "在同屏展示账户余额、钱包余额和交易账号余额，给入金前资金上下文。" },
+    { brickId: "onboardingProgress.nextStepHero", brickName: "新手下一步引导", family: "OnboardingProgress", feature: "onboarding_guide", component: "onboarding_guide", size: "2x1", zone: "main", reason: "KYC、开真实账户和首次入金形成连续路径，避免旧开户面板散落。" },
+    { brickId: "quickActions.accentCards", brickName: "强调快捷入口卡", family: "QuickActions", feature: "quick_actions", component: "quick_actions", size: "1x1", zone: "rail", reason: "4-10 个常用入口用精致图标卡承接交易、转账、跟单和账号动作。" },
+    { brickId: "accountPerformance.proChart", brickName: "账号表现双趋势", family: "AccountPerformance", feature: "trading_account_highlight", component: "trading_account_highlight", size: "3x2", zone: "full", reason: "账号表现整横栏呈现账号上下文、净值/PnL 趋势和操作闭环。" },
+    { brickId: "tradingAccounts.separatedList", brickName: "真实/模拟账号双列表", family: "TradingAccounts", feature: "trading_accounts_list", component: "trading_accounts_list", size: "3x2", zone: "full", reason: "真实交易账号和模拟交易账号必须同时出现，并用分组列表提升扫描效率。" },
   ];
+  if (mode === 1) {
+    return [
+      base[0],
+      base[1],
+      base[2],
+      base[3],
+      base[5],
+      base[4],
+    ];
+  }
+  if (mode === 2) {
+    return [
+      base[0],
+      { ...base[2], brickId: "onboardingProgress.missionBoard", brickName: "开户任务面板", reason: "新手路径改成任务看板，清楚标记 KYC、开真实账户和首次入金状态。" },
+      base[1],
+      { ...base[3], brickId: "quickActions.segmentedPanel", brickName: "分段快捷入口", reason: "资金、交易和推广入口分组展示，避免普通灰色宫格。" },
+      { ...base[4], brickId: "accountPerformance.dualChart", brickName: "净值/PnL 双图表", reason: "账号表现优先净值面积图，可切换至 PnL 面积图。" },
+      base[5],
+    ];
+  }
+  return base;
 }
 
-function applyHomepageUnderstandingToServerConfig(config, prompt) {
+function enforceServerDepositConversionContract(config, prompt = "", variant = 0) {
+  if (!config || typeof config !== "object") return config;
+  const text = `${String(prompt || "").toLowerCase()} ${String(prompt || "")}`;
+  const mode = Math.abs(Number(variant || 0)) % 3;
+  const settings = ensureHomepageModuleSettings(config.moduleSettings);
+  const currentSlots = [];
+  (Array.isArray(config.sections) ? config.sections : []).forEach((section) => {
+    (Array.isArray(section?.slots) ? section.slots : []).forEach((slot) => {
+      const canonical = canonicalHomeBlock(slot);
+      if (canonical && !currentSlots.includes(canonical)) currentSlots.push(canonical);
+    });
+  });
+
+  const wantsWelcomeHeader =
+    currentSlots.includes("welcome_header") || textHasAny(text, ["欢迎模块", "欢迎头部", "欢迎区", "客户姓名", "问候", "welcome"]);
+  const hasOptional = (slot) => currentSlots.includes(slot);
+  const sections = [];
+  if (wantsWelcomeHeader) sections.push({ id: "welcome-header", type: "full", title: "欢迎", slots: ["welcome_header"] });
+  sections.push({ id: "deposit-hero", type: "hero", title: "首次入金", slots: ["promo_banner", "asset_overview"] });
+  sections.push({ id: "deposit-activation", type: "split", title: "开户与快捷入口", slots: ["onboarding_guide", "quick_actions"] });
+  if (hasOptional("kyc_status_card")) sections.push({ id: "deposit-kyc-status", type: "rail", title: "KYC 状态", slots: ["kyc_status_card"] });
+  if (hasOptional("copytrading_signals")) sections.push({ id: "deposit-copytrading", type: "full", title: "CopyTrading", slots: ["copytrading_signals"] });
+  if (hasOptional("pamm_products")) sections.push({ id: "deposit-pamm", type: "full", title: "PAMM", slots: ["pamm_products"] });
+  const referralFaqSlots = ["referral_link_card", "faq_section"].filter(hasOptional);
+  if (referralFaqSlots.length) sections.push({ id: "deposit-referral-faq", type: referralFaqSlots.length > 1 ? "split" : "rail", title: "推广与帮助", slots: referralFaqSlots });
+  ["announcements", "market_news", "support_contact", "app_download"].forEach((slot) => {
+    if (hasOptional(slot)) sections.push({ id: `deposit-${slot.replace(/_/g, "-")}`, type: LARGE_FULL_ROW_HOME_BLOCKS.has(slot) ? "full" : "split", title: homepageSectionTitleForSlot(slot, slot), slots: [slot] });
+  });
+  sections.push({ id: "deposit-performance", type: "full", title: "账号表现", slots: ["trading_account_highlight"] });
+  sections.push({ id: "deposit-accounts", type: "full", title: "交易账号", slots: ["trading_accounts_list"] });
+  if (hasOptional("risk_disclosure") || settings.riskDisclosure?.enabled || /风险提示|风险披露|保证金|杠杆/.test(text)) {
+    sections.push({ id: "risk-disclosure-footer", type: "full", title: "风险提示", variant: "legal-strip", slots: ["risk_disclosure"] });
+    settings.riskDisclosure = { ...ensureObject(settings.riskDisclosure), enabled: true };
+  }
+
+  const seen = new Set();
+  config.sections = sections
+    .map((section) => ({
+      ...section,
+      slots: (Array.isArray(section.slots) ? section.slots : []).filter((slot) => !seen.has(slot) && (seen.add(slot), true)),
+    }))
+    .filter((section) => section.slots.length);
+  delete config.layout;
+
+  config.layoutPreset = "conversionFirst";
+  config.designGenome = "depositLadder";
+  config.pageStory = "depositConversion";
+  config.themePreset = "blueFinance";
+  config.theme = "blueFinance";
+  config.density = "balanced";
+  config.heroFocus = "promo_banner";
+  config.modules = {
+    ...ensureObject(config.modules),
+    PromotionBanner: { variant: "depositLadder" },
+    AssetOverview: { variant: "tickerStrip" },
+    OnboardingProgress: { variant: mode === 2 ? "missionBoard" : "nextStepHero" },
+    QuickActions: { variant: mode === 2 ? "segmentedMenu" : "accentCards" },
+    AccountPerformance: { variant: mode === 2 ? "dualChart" : "proChart" },
+    TradingAccounts: { variant: "separatedList" },
+  };
+  config.moduleStyles = {
+    ...ensureObject(config.moduleStyles),
+    promo_banner: "deposit-ladder",
+    promoHighlight: "deposit-ladder",
+    asset_overview: "ticker-strip",
+    balanceTotal: "ticker-strip",
+    onboarding_guide: mode === 2 ? "mission-board" : "next-step-hero",
+    onboardingProgress: mode === 2 ? "mission-board" : "next-step-hero",
+    quick_actions: mode === 2 ? "segmented-panel" : "accent-cards",
+    quickActions: mode === 2 ? "segmented-panel" : "accent-cards",
+    trading_account_highlight: "pro-chart",
+    accountPerformance: "pro-chart",
+    trading_accounts_list: "calm-table",
+    tradingAccounts: "calm-table",
+  };
+  config.componentMorphs = {
+    ...ensureObject(config.componentMorphs),
+    PromotionBanner: { variant: "depositLadder", morphId: "depositLadder", morph: "depositLadder" },
+    AssetOverview: { variant: "tickerStrip", morphId: "metricTriplet", morph: "metricTriplet" },
+    OnboardingProgress: { variant: config.modules.OnboardingProgress.variant, morphId: config.modules.OnboardingProgress.variant === "missionBoard" ? "missionBoard" : "nextStepHero", morph: config.modules.OnboardingProgress.variant === "missionBoard" ? "missionBoard" : "nextStepHero" },
+    QuickActions: { variant: config.modules.QuickActions.variant, morphId: config.modules.QuickActions.variant === "segmentedMenu" ? "segmentedPanel" : "accentCards", morph: config.modules.QuickActions.variant === "segmentedMenu" ? "segmentedPanel" : "accentCards" },
+    AccountPerformance: { variant: config.modules.AccountPerformance.variant, morphId: config.modules.AccountPerformance.variant === "dualChart" ? "dualChart" : "proChart", morph: config.modules.AccountPerformance.variant === "dualChart" ? "dualChart" : "proChart" },
+    TradingAccounts: { variant: "separatedList", morphId: "liveDemoSplit", morph: "liveDemoSplit" },
+  };
+
+  settings.adCarousel = { ...ensureObject(settings.adCarousel), enabled: false };
+  settings.promoHighlight = { ...ensureObject(settings.promoHighlight), enabled: true };
+  settings.assets = { ...ensureObject(settings.assets), enabled: true, visibleFields: ["total", "wallet", "tradingAccount"], showFundActions: false, showAccountBreakdown: true, showWalletBreakdown: true, showAvailable: false, showMargin: false, showRiskLevel: false, wallets: ["USD"] };
+  settings.wallet = { ...ensureObject(settings.wallet), enabled: false, placement: "mergedWithAssets", showFundActions: false };
+  settings.quickActions = { ...ensureObject(settings.quickActions), enabled: true, count: Math.max(6, Math.min(8, Number(settings.quickActions?.count || 8))), display: "iconText", actions: [] };
+  settings.onboardingProgress = { ...ensureObject(settings.onboardingProgress), enabled: true };
+  settings.openAccount = { ...ensureObject(settings.openAccount), enabled: true, real: true, demo: true, bind: false, placement: "insideTradingAccounts" };
+  settings.accountPerformance = { ...ensureObject(settings.accountPerformance), enabled: true };
+  settings.tradingAccounts = { ...ensureObject(settings.tradingAccounts), enabled: true, realEnabled: true, demoEnabled: true, grouping: "separated", viewMode: "list", realViewMode: "list", demoViewMode: "list", demoFirst: false };
+  settings.riskNotice = { ...ensureObject(settings.riskNotice), enabled: false };
+  config.moduleSettings = settings;
+  config.brickPlan = depositGovernedBrickPlan(variant)
+    .concat((Array.isArray(config.brickPlan) ? config.brickPlan : []).filter((brick) => {
+      const component = canonicalHomeBlock(brick?.component || brick?.feature);
+      return component && !["promo_banner", "asset_overview", "onboarding_guide", "quick_actions", "trading_account_highlight", "trading_accounts_list"].includes(component);
+    }))
+    .filter((brick, index, list) => {
+      const component = canonicalHomeBlock(brick?.component || brick?.feature);
+      return component && list.findIndex((item) => canonicalHomeBlock(item?.component || item?.feature) === component) === index;
+    });
+  config.pageIntent = {
+    ...ensureObject(config.pageIntent),
+    primaryIntent: "deposit",
+    primaryAction: "deposit",
+    primaryCta: { label: "立即入金", action: "deposit", selector: "[data-home-action=\"deposit\"]" },
+  };
+  config.emphasis = { ...ensureObject(config.emphasis), deposit: "high", openAccount: "high", promo: "high", accounts: "medium" };
+  return config;
+}
+
+function applyHomepageUnderstandingToServerConfig(config, prompt, variant = 0) {
   const understanding = extractHomepageUnderstanding(prompt);
   const next = ensureObject(config);
   const settings = ensureHomepageModuleSettings(next.moduleSettings);
@@ -10048,9 +11974,9 @@ function applyHomepageUnderstandingToServerConfig(config, prompt) {
   }
 
   if (understanding.wantsTradingCostWorkbench) {
-    applyTradingCostWorkbenchServerConfig(next, settings, understanding);
+    applyTradingCostWorkbenchServerConfig(next, settings, understanding, variant);
   } else if (understanding.wantsProfessionalTraderWorkbench) {
-    applyProfessionalTraderWorkbenchServerConfig(next, settings, understanding);
+    applyProfessionalTraderWorkbenchServerConfig(next, settings, understanding, variant);
   } else if (understanding.wantsTradingDataContract) {
     next.dataContract = homepageDataContractFromUnderstanding(understanding);
   }
@@ -10120,6 +12046,7 @@ function applyHomepageUnderstandingToServerConfig(config, prompt) {
     ];
   }
 
+  const shouldProtectDepositIntent = next.pageIntent?.primaryIntent === "deposit" || next.brickTrace?.intent === "deposit" || hasExplicitDepositIntentSignal(prompt);
   if (understanding.wantsCopyTrading) {
     next.modules = {
       ...ensureObject(next.modules),
@@ -10132,7 +12059,7 @@ function applyHomepageUnderstandingToServerConfig(config, prompt) {
     settings.copytrading = { ...ensureObject(settings.copytrading), enabled: true };
     ensureHomepageSectionContains(next, { id: "copytrading", type: "split", title: "CopyTrading 推荐" }, "copytrading_signals");
 
-    if (understanding.wantsNewUserJourney) {
+    if (understanding.wantsNewUserJourney && !shouldProtectDepositIntent) {
       next.name = "AI 新客跟单驾驶舱";
       next.layoutPreset = "onboardingJourney";
       next.designGenome = "onboardingJourney";
@@ -10210,7 +12137,7 @@ function applyHomepageUnderstandingToServerConfig(config, prompt) {
     }
   }
 
-  if (understanding.visibleMetricCount >= 3) {
+  if (understanding.visibleMetricCount >= 3 && !shouldProtectDepositIntent) {
     settings.wallet = { ...settings.wallet, enabled: true, placement: "standalone" };
     settings.assets = {
       ...settings.assets,
@@ -10282,7 +12209,7 @@ function applyHomepageUnderstandingToServerConfig(config, prompt) {
   }
 
   if (settings.quickActions?.enabled && !understanding.wantsProfessionalTraderWorkbench) {
-    applyServerQuickActionPresentation(next, settings, prompt, understanding);
+    applyServerQuickActionPresentation(next, settings, prompt, understanding, { variant });
   }
 
   if (understanding.recommendationId) {
@@ -10347,6 +12274,8 @@ function enforceHomepagePromptIntent(payload, config) {
   const mentionsAd = homepagePromptRequestsAd(text);
   const mentionsQuick = textHasAny(text, ["快捷入口", "快捷矩阵", "快捷操作", "quick actions", "quickactions"]);
   const mentionsReferral = textHasAny(text, ["推广", "邀请", "开户链接", "注册链接", "邀请码", "referral", "ib", "代理", "渠道"]);
+  const defaultReferralCard = homepagePayloadHasReferralDefault(payload);
+  const shouldShowReferralCard = mentionsReferral || defaultReferralCard;
 
 	  if (wantsAssetManagement) {
     next.name = "AI 资产管理首页";
@@ -10390,7 +12319,7 @@ function enforceHomepagePromptIntent(payload, config) {
     };
     settings.adCarousel.enabled = mentionsAd;
     settings.quickActions.enabled = mentionsQuick || settings.quickActions.enabled !== false;
-    settings.referral = { ...ensureObject(settings.referral), enabled: mentionsReferral };
+    settings.referral = { ...ensureObject(settings.referral), enabled: shouldShowReferralCard };
     settings.wallet.enabled = true;
     settings.wallet.placement = "standalone";
     settings.wallet.showFundActions = false;
@@ -10413,8 +12342,10 @@ function enforceHomepagePromptIntent(payload, config) {
     settings.tradingAccounts.demoViewMode = "list";
   }
 
-  if (intent === "deposit") {
-    next.name = "AI 入金奖励阶梯首页";
+	  if (intent === "deposit") {
+	    const depositMode = Math.abs(Number(payload.variant || 0)) % 3;
+	    const wantsWelcomeHeader = textHasAny(text, ["欢迎模块", "欢迎头部", "欢迎区", "客户姓名", "问候", "welcome"]);
+	    next.name = "AI 首次入金专业首页";
     next.layoutPreset = "conversionFirst";
     next.designGenome = "depositLadder";
     next.pageStory = "depositConversion";
@@ -10423,42 +12354,61 @@ function enforceHomepagePromptIntent(payload, config) {
     next.density = "balanced";
     next.heroFocus = "promo_banner";
 	    next.sections = [
-	      { id: "deposit-hero", type: "hero", title: "入金奖励", slots: ["promoHighlight", "walletBalance", "fundActions", "openAccountActions"] },
-	      { id: "deposit-actions", type: "split", title: "快捷入口", slots: ["quickActions"] },
+	      ...(wantsWelcomeHeader ? [{ id: "welcome-header", type: "full", title: "欢迎", slots: ["welcome_header"] }] : []),
+	      { id: "deposit-hero", type: "hero", title: "首次入金", slots: ["promo_banner", "asset_overview"] },
+	      { id: "deposit-activation", type: "split", title: "开户与快捷入口", slots: ["onboarding_guide", "quick_actions"] },
 	      { id: "deposit-performance", type: "full", title: "账号表现", slots: ["trading_account_highlight"] },
 	      { id: "deposit-accounts", type: "full", title: "交易账号", slots: ["trading_accounts_list"] },
 	    ];
-    delete next.layout;
-    next.brickPlan = depositGovernedBrickPlan();
+	    delete next.layout;
+	    next.brickPlan = depositGovernedBrickPlan(payload.variant);
     next.brickTrace = { intent: "deposit", strategy: "入金转化契约纠偏", score: 94, selectedCount: next.brickPlan.length, source: "server-page-governance" };
     next.modules = ensureObject(next.modules);
     next.modules.PromotionBanner = { variant: "depositLadder" };
-    next.modules.WalletBalance = { variant: "splitCurrency" };
-    next.modules.FundActions = { variant: "splitButtons" };
-    next.modules.OpenAccount = { variant: "conversionPanel" };
-    next.modules.QuickActions = { variant: "taskRail" };
-    next.modules.AccountPerformance = { variant: "cleanSnapshot" };
-    next.modules.TradingAccounts = { variant: "accountWall" };
+    next.modules.AssetOverview = { variant: "tickerStrip" };
+    next.modules.OnboardingProgress = { variant: depositMode === 2 ? "missionBoard" : "nextStepHero" };
+	    next.modules.QuickActions = { variant: depositMode === 2 ? "segmentedMenu" : "accentCards" };
+    next.modules.AccountPerformance = { variant: depositMode === 2 ? "dualChart" : "proChart" };
+    next.modules.TradingAccounts = { variant: "separatedList" };
     next.moduleStyles = {
       ...ensureObject(next.moduleStyles),
+      promo_banner: "deposit-ladder",
       promoHighlight: "deposit-ladder",
-      walletBalance: "wallet-strip",
-      fundActions: "split-buttons",
-      openAccountActions: "conversion-panel",
-      quickActions: "task-rail",
+      asset_overview: "ticker-strip",
+      balanceTotal: "ticker-strip",
+      onboarding_guide: depositMode === 2 ? "mission-board" : "next-step-hero",
+      onboardingProgress: depositMode === 2 ? "mission-board" : "next-step-hero",
+	      quick_actions: depositMode === 2 ? "segmented-panel" : "accent-cards",
+	      quickActions: depositMode === 2 ? "segmented-panel" : "accent-cards",
       accountPerformance: "pro-chart",
-      tradingAccounts: "account-wall",
+      trading_account_highlight: "pro-chart",
+      tradingAccounts: "calm-table",
+      trading_accounts_list: "calm-table",
     };
-    settings.adCarousel.enabled = true;
-    settings.quickActions = { ...ensureObject(settings.quickActions), enabled: true, count: 4, display: "iconText", actions: ["transfer", "orders", "positions", "contactService"] };
-    settings.wallet = { ...ensureObject(settings.wallet), enabled: true, placement: "standalone", showFundActions: false };
-    settings.assets = { ...ensureObject(settings.assets), enabled: false, showFundActions: true, showAccountBreakdown: false, showWalletBreakdown: false, showAvailable: false, showMargin: false, showRiskLevel: false, wallets: [] };
+    next.componentMorphs = {
+      ...ensureObject(next.componentMorphs),
+      PromotionBanner: { variant: "depositLadder", morphId: "depositLadder", morph: "depositLadder" },
+      AssetOverview: { variant: "tickerStrip", morphId: "metricTriplet", morph: "metricTriplet" },
+      OnboardingProgress: { variant: next.modules.OnboardingProgress.variant, morphId: next.modules.OnboardingProgress.variant === "missionBoard" ? "missionBoard" : "nextStepHero", morph: next.modules.OnboardingProgress.variant === "missionBoard" ? "missionBoard" : "nextStepHero" },
+      QuickActions: { variant: next.modules.QuickActions.variant, morphId: next.modules.QuickActions.variant === "segmentedMenu" ? "segmentedPanel" : "accentCards", morph: next.modules.QuickActions.variant === "segmentedMenu" ? "segmentedPanel" : "accentCards" },
+      AccountPerformance: { variant: next.modules.AccountPerformance.variant, morphId: next.modules.AccountPerformance.variant === "dualChart" ? "dualChart" : "proChart", morph: next.modules.AccountPerformance.variant === "dualChart" ? "dualChart" : "proChart" },
+      TradingAccounts: { variant: "separatedList", morphId: "liveDemoSplit", morph: "liveDemoSplit" },
+    };
+    settings.adCarousel = { ...ensureObject(settings.adCarousel), enabled: false };
+    settings.promoHighlight = { ...ensureObject(settings.promoHighlight), enabled: true };
+    settings.quickActions = { ...ensureObject(settings.quickActions), enabled: true, count: 8, display: "iconText", actions: [] };
+    settings.wallet = { ...ensureObject(settings.wallet), enabled: false, placement: "mergedWithAssets", showFundActions: false };
+    settings.assets = { ...ensureObject(settings.assets), enabled: true, visibleFields: ["total", "wallet", "tradingAccount"], showFundActions: false, showAccountBreakdown: true, showWalletBreakdown: true, showAvailable: false, showMargin: false, showRiskLevel: false, wallets: ["USD"] };
     settings.referral = { ...ensureObject(settings.referral), enabled: false };
-    settings.openAccount = { ...ensureObject(settings.openAccount), enabled: true, real: true, demo: false, bind: false, placement: "standalone" };
-    settings.tradingAccounts = { ...ensureObject(settings.tradingAccounts), enabled: true, realEnabled: true, demoEnabled: true, grouping: "combined", viewMode: "card", realViewMode: "card", demoViewMode: "list", demoFirst: false };
+    settings.onboardingProgress = { ...ensureObject(settings.onboardingProgress), enabled: true };
+    settings.openAccount = { ...ensureObject(settings.openAccount), enabled: true, real: true, demo: true, bind: false, placement: "insideTradingAccounts" };
+    settings.accountPerformance = { ...ensureObject(settings.accountPerformance), enabled: true };
+    settings.tradingAccounts = { ...ensureObject(settings.tradingAccounts), enabled: true, realEnabled: true, demoEnabled: true, grouping: "separated", viewMode: "list", realViewMode: "list", demoViewMode: "list", demoFirst: false };
     settings.riskNotice = { ...ensureObject(settings.riskNotice), enabled: false };
+    next.pageIntent.primaryAction = "deposit";
+    next.pageIntent.primaryCta = { label: "立即入金", action: "deposit", selector: "[data-home-action=\"deposit\"]" };
     next.emphasis = { ...ensureObject(next.emphasis), deposit: "high", openAccount: "high", promo: "high", accounts: "medium" };
-    next.aiSummary = "已按入金转化契约重排：首屏奖励阶梯、钱包余额、唯一主入金入口和开真实账号。";
+    next.aiSummary = "已按首次入金转化契约重排：欢迎首栏、入金奖励、账户摘要、新手路径、专业账号表现和 Live/Demo 账号证明。";
   }
 
   if (intent === "growth") {
@@ -10471,7 +12421,12 @@ function enforceHomepagePromptIntent(payload, config) {
 
   const inferredKycStatus = inferKycStatusFromText(text, settings.userKycRail?.kycStatus || "verified");
   const mentionsKycStatus = textHasAny(text, ["kyc 状态", "kyc状态", "安全状态", "认证状态", "kyc", "未提交", "待审", "通过", "拒绝"]);
-  if (mentionsKycStatus) settings.userKycRail.kycStatus = inferredKycStatus;
+  if (mentionsKycStatus) {
+    settings.userKycRail = { ...ensureObject(settings.userKycRail), enabled: true, kycStatus: inferredKycStatus };
+    next.modules = { ...ensureObject(next.modules), UserKycRail: { variant: "compactStatus" } };
+    next.moduleStyles = { ...ensureObject(next.moduleStyles), kyc_status_card: "status-card", userKycRail: "status-rail" };
+    ensureHomepageSectionContains(next, { id: "kyc-status", type: "rail", title: "KYC 状态" }, "kyc_status_card");
+  }
 
   const wantsDemoFirst = /模拟账号[\s\S]{0,24}(?:真实账号|live)[\s\S]{0,24}(?:上面|前面|之前)|demo[\s\S]{0,24}live[\s\S]{0,24}(?:上面|前面|之前)|demo\s*在\s*live\s*上/i.test(prompt);
   if (wantsDemoFirst) settings.tradingAccounts.demoFirst = true;
@@ -10555,13 +12510,22 @@ function enforceHomepagePromptIntent(payload, config) {
   const keepAvoidedSlots = mentionsAd ? ["adCarousel"] : [];
   enforcePageIntentSections(next, intentProfile, keepAvoidedSlots);
   removeAvoidedHomepageModules(next, intentProfile.avoid, keepAvoidedSlots);
-  applyHomepageUnderstandingToServerConfig(next, prompt);
+  applyHomepageUnderstandingToServerConfig(next, prompt, payload.variant);
   lightRepairHomepageIntent(next, intentProfile, text);
   applyGuidedIntakeOverrides(next, guidedIntake);
   if (next.themeCustom) {
     next.themeCustom = normalizeServerThemeCustom(next.themeCustom);
   }
-  sanitizeHomepageAllowedBlocks(next, prompt, guidedIntake);
+  if (shouldShowReferralCard) {
+    settings.referralLinkCard = { ...ensureObject(settings.referralLinkCard), enabled: true, showPromoLink: true, showInviteCode: true };
+    next.modules = { ...ensureObject(next.modules), ReferralLinkCard: { variant: "compactCard" } };
+    next.moduleStyles = { ...ensureObject(next.moduleStyles), referral_link_card: "compact-card" };
+    ensureHomepageSectionContains(next, { id: "referral-link", type: "rail", title: "推广链接" }, "referral_link_card");
+  }
+  sanitizeHomepageAllowedBlocks(next, prompt, guidedIntake, { defaultReferralCard });
+  if (intent === "deposit") {
+    enforceServerDepositConversionContract(next, prompt, payload.variant);
+  }
 
   const finalUnderstanding = extractHomepageUnderstanding(prompt);
   const isCostWorkbench = finalUnderstanding.wantsTradingCostWorkbench;
@@ -10915,7 +12879,7 @@ function mockComposition(payload, providerConfig) {
         componentId: component.id,
         size: component.size,
         zone: index === 0 ? "hero" : component.size.startsWith("1x") ? "rail" : "main",
-        reason: `${component.name} 评分 ${normalizeComponentScore(component.score, 5)}/10，优先承接 ${component.family} 业务路径。`,
+        reason: `${component.name} 评分 ${normalizeComponentScore(component.score, COMPONENT_REFERENCE_SCORE_POLICY.blockedMax)}/10（${componentReferenceTierLabel(component.referenceTier || componentReferenceTierFromScore(component.score))}），优先承接 ${component.family} 业务路径。`,
       })),
       themeAdvice: "保持蓝白金融底色，重要按钮使用主蓝色，表格和表单降低装饰感。",
       polishInstructions: "首屏优先放资产、快捷入口或开户动作；右侧承载用户状态和表单；下方放交易账号和钱包长列表。",
@@ -11055,6 +13019,7 @@ async function testProviderConnection(payload) {
 const AUTH_STYLE_PRESETS = ["blueSplit", "clientOnboarding", "securityReset", "softPlatform", "photoDark"];
 const AUTH_SCREEN_KEYS = ["login", "register", "forgot"];
 const AUTH_COMPOSITION_PRESETS = ["splitTrust", "floatingConsole", "stepperRail", "identityLedger", "campaignPassport", "vaultMinimal"];
+const AUTH_LOGO_PLACEMENTS = ["heroTopLeft", "topCenter", "formTop", "mobileTop"];
 
 function isObjectRecord(value) {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
@@ -11099,12 +13064,14 @@ function authPromptText(payload = {}) {
     payload.options?.registerDepth,
     payload.options?.designStyle,
     payload.options?.theme,
+    payload.options?.logoPlacement,
     ...(Array.isArray(payload.options?.features) ? payload.options.features : []),
     guided.intent,
     guided.audience,
     guided.registerDepth,
     guided.designStyle,
     guided.theme,
+    guided.logoPlacement,
     ...(Array.isArray(guided.features) ? guided.features : []),
   ]
     .filter(Boolean)
@@ -11116,8 +13083,9 @@ function inferAuthStylePreset(payload = {}) {
   if (AUTH_STYLE_PRESETS.includes(explicit)) return explicit;
 
   const guidedText = authPromptText(payload).toLowerCase();
-  if (/compliance|合规|clientonboarding/.test(guidedText)) return "clientOnboarding";
   if (/premium|blackgold|高净值|黑金|graphite|高级/.test(guidedText)) return "photoDark";
+  if (/campaignsignup|活动|奖励|转化|注册送/.test(guidedText)) return "photoDark";
+  if (/compliance|合规|clientonboarding/.test(guidedText)) return "clientOnboarding";
   if (/soft|friendly|亲和|轻量/.test(guidedText)) return "softPlatform";
   if (/secure|security|twofactor|双重|科技安全/.test(guidedText)) return "securityReset";
   const text = authPromptText(payload).toLowerCase();
@@ -11158,6 +13126,107 @@ function normalizeAuthHex(value, fallback) {
   return fallback;
 }
 
+function normalizeAuthLogoPlacement(value, fallback = "heroTopLeft") {
+  return AUTH_LOGO_PLACEMENTS.includes(value) ? value : fallback;
+}
+
+function authExplicitSplitLayoutRequested(text = "") {
+  const source = String(text || "").toLowerCase();
+  if (/不要(?:用|做)?(?:左右|分栏|双栏|两栏)|不要.*split/.test(source)) return false;
+  return /左右布局|左右分栏|左右结构|左右版式|左右排版|左右两栏|双栏|两栏|分栏布局|side[\s-]*by[\s-]*side|split[\s-]*layout|two[\s-]*column|2[\s-]*column/.test(source);
+}
+
+function inferAuthLogoPlacement(payload = {}, composition = "splitTrust", stylePreset = "blueSplit") {
+  const explicit = cleanText(payload.options?.logoPlacement || payload.options?.brand?.logoPlacement || payload.brand?.logoPlacement, "", 40);
+  if (AUTH_LOGO_PLACEMENTS.includes(explicit)) return explicit;
+  const text = authPromptText(payload).toLowerCase();
+  if (/表单顶部|form\s*top|formtop/.test(text)) return "formTop";
+  if (/顶部居中|top\s*center|topcenter/.test(text)) return "topCenter";
+  if (/logo\s*(?:在|放在|置于|优先|固定)?[^。；，,.;\n]{0,12}(?:移动端|手机|mobile)|(?:移动端|手机|mobile)\s*logo/.test(text)) return "mobileTop";
+  if (authExplicitSplitLayoutRequested(text)) return "heroTopLeft";
+  if (composition === "vaultMinimal" || stylePreset === "softPlatform") return "formTop";
+  return "heroTopLeft";
+}
+
+function inferAuthLayoutFields(payload = {}, composition = "splitTrust", stylePreset = "blueSplit") {
+  const explicitVisual = payload.visual && typeof payload.visual === "object" ? payload.visual : {};
+  const explicitOptions = payload.options && typeof payload.options === "object" ? payload.options : {};
+  const text = authPromptText(payload).toLowerCase();
+  const wantsSplitLayout = authExplicitSplitLayoutRequested(text);
+  const hasCenter = !wantsSplitLayout && /居中|center|centered|中间|单卡|单列/.test(text);
+  const hasOverlay = /背景图|背景视觉|浮层|overlay|full.?bleed|全屏|沉浸/.test(text);
+  const hasMedia = wantsSplitLayout || /图|图片|插画|视觉|媒体|photo|image|illustration|卡通/.test(text);
+  const mediaRight = /图在右|右图|右侧图|右侧视觉|视觉在右|媒体在右|插画在右|image right|media right|right visual/.test(text);
+  const mediaLeft = /图在左|左图|左侧图|左侧视觉|视觉在左|媒体在左|插画在左|image left|media left|left visual/.test(text);
+  const formLeft = /表单在左|左表单|form left|form-left/.test(text) || mediaRight;
+  const formRight = /表单在右|右表单|form right|form-right/.test(text) || mediaLeft;
+  const requestedLayout = cleanText(explicitOptions.layoutType || explicitOptions.visual?.layoutType || explicitVisual.layoutType, "", 40);
+  const layoutType = AUTH_REFERENCE_LAYOUT_TYPES.includes(requestedLayout)
+    && !wantsSplitLayout
+    ? requestedLayout
+    : hasCenter
+      ? "centeredCard"
+      : hasOverlay
+        ? "cardOverlay"
+        : hasMedia || mediaLeft || mediaRight
+          ? "mediaSplit"
+          : stylePreset === "softPlatform" || composition === "vaultMinimal"
+            ? "centeredCard"
+            : "split";
+  const requestedForm = cleanText(explicitOptions.formPosition || explicitOptions.visual?.formPosition || explicitVisual.formPosition, "", 40);
+  const formPosition = wantsSplitLayout
+    ? (formLeft ? "left" : "right")
+    : AUTH_REFERENCE_FORM_POSITIONS.includes(requestedForm)
+      ? requestedForm
+      : layoutType === "centeredCard"
+        ? "center"
+        : formLeft
+          ? "left"
+          : formRight
+            ? "right"
+            : "right";
+  const requestedMedia = cleanText(explicitOptions.mediaPosition || explicitOptions.visual?.mediaPosition || explicitVisual.mediaPosition, "", 40);
+  const mediaPosition = wantsSplitLayout
+    ? (formPosition === "left" ? "right" : "left")
+    : AUTH_REFERENCE_MEDIA_POSITIONS.includes(requestedMedia)
+      ? requestedMedia
+      : layoutType === "centeredCard"
+        ? "none"
+        : layoutType === "cardOverlay"
+          ? "background"
+          : formPosition === "left" || mediaRight
+            ? "right"
+            : formPosition === "right" || mediaLeft
+              ? "left"
+              : "none";
+  const heroVisibility = wantsSplitLayout
+    ? "full"
+    : layoutType === "centeredCard"
+      ? "hidden"
+      : layoutType === "cardOverlay" || layoutType === "mobileFirst"
+        ? "compact"
+        : "full";
+  const mobileStrategy = /移动端|手机|mobile|单手/.test(text)
+    ? "logoFirst"
+    : layoutType === "centeredCard"
+      ? "formFirst"
+      : "singleColumn";
+  return {
+    layoutType,
+    formPosition,
+    mediaPosition,
+    heroVisibility,
+    mobileStrategy,
+  };
+}
+
+function authSplitReferenceStructure(layoutFields = {}) {
+  if (layoutFields.layoutType === "centeredCard") return "居中表单，弱化或隐藏侧边品牌视觉。";
+  if (layoutFields.mediaPosition === "right") return "左右分栏：表单在左，媒体/插画/品牌视觉在右。";
+  if (layoutFields.mediaPosition === "left") return "左右分栏：媒体/插画/品牌视觉在左，表单在右。";
+  return "左右分栏：品牌叙事区与表单区并排，移动端单列降级。";
+}
+
 function authOptionList(value) {
   return Array.isArray(value) ? value.map((item) => cleanText(item, "", 60)).filter(Boolean) : [];
 }
@@ -11174,6 +13243,74 @@ function authAccentFallback(options = {}, stylePreset = "blueSplit") {
   if (/rose/.test(theme)) return "#e11d48";
   if (stylePreset === "photoDark") return "#e65b8d";
   return "#2563eb";
+}
+
+function inferAuthIntent(payload = {}) {
+  const explicit = cleanText(payload.options?.intent || payload.guidedIntake?.intent, "", 40);
+  if (explicit) return explicit;
+  const text = authPromptText(payload).toLowerCase();
+  if (/活动|campaign|promo|奖励|转化|注册送|权益/.test(text)) return "campaignSignup";
+  if (/代理|ib|渠道|邀请/.test(text)) return "partnerInvite";
+  if (/找回|忘记|重置|reset|forgot/.test(text)) return "resetTrust";
+  if (/安全登录|双重|2fa|securelogin/.test(text)) return "secureLogin";
+  return "openAccount";
+}
+
+function inferAuthRegisterDepth(payload = {}) {
+  const explicit = cleanText(payload.options?.registerDepth || payload.guidedIntake?.registerDepth, "", 40);
+  if (explicit) return explicit;
+  const text = authPromptText(payload).toLowerCase();
+  if (/专业版|合规增强|合规版|compliance|full[_\s-]?kyc|kyc 前置|风险披露/.test(text)) return "compliance";
+  if (/基础版|轻量|light/.test(text)) return "light";
+  return "standard";
+}
+
+function inferAuthTheme(payload = {}) {
+  const explicit = cleanText(payload.options?.theme || payload.guidedIntake?.theme, "", 40);
+  if (explicit) return explicit;
+  const text = authPromptText(payload).toLowerCase();
+  if (/黑金|高净值|blackgold|private|premium/.test(text)) return "blackGold";
+  if (/石墨|银|graphite/.test(text)) return "graphiteSilver";
+  if (/玫红|rose/.test(text)) return "roseCampaign";
+  if (/青绿|绿色|emerald/.test(text)) return "emeraldSecure";
+  return "blueTrust";
+}
+
+function expandAuthFeatures(features = [], payload = {}) {
+  const text = authPromptText(payload).toLowerCase();
+  const next = new Set(authOptionList(features));
+  [
+    ["phoneEmailLogin", /手机号|手机|邮箱|email|phone/],
+    ["socialLogin", /第三方|google|apple|social/],
+    ["tradingAccountLogin", /交易账号|交易账户|mt4|mt5|trading account/],
+    ["captcha", /验证码|captcha|图形验证/],
+    ["twoFactor", /双重|2fa|动态口令|two-factor|two factor/],
+    ["inviteCode", /推荐码|邀请码|invite|referral|ib/],
+    ["kycPrelude", /kyc|实名|身份|前置说明/],
+    ["riskConsent", /风险|risk|披露|保证金/],
+    ["promoReward", /活动|奖励|注册送|权益|礼遇|转化/],
+  ].forEach(([feature, pattern]) => {
+    if (pattern.test(text)) next.add(feature);
+  });
+  return [...next];
+}
+
+function authPromptAccent(payload = {}) {
+  return authPromptText(payload).match(/#[0-9a-f]{3}(?:[0-9a-f]{3})?/i)?.[0] || "";
+}
+
+function authBrandTagline(audience = "", stylePreset = "blueSplit", intent = "openAccount") {
+  if (intent === "campaignSignup") return "新客礼遇开户中心";
+  if (stylePreset === "photoDark") return "黑金账户安全入口";
+  if (audience === "ibPartner") return "合作伙伴账户入口";
+  if (stylePreset === "softPlatform") return "轻量开户注册中心";
+  return "安全账户服务中心";
+}
+
+function authServiceLine(audience = "", intent = "openAccount") {
+  if (intent === "campaignSignup") return "活动开户通行证";
+  if (audience === "ibPartner") return "邀请关系确认台";
+  return "客户认证中心";
 }
 
 function authAudienceCopy(audience = "", defaultScreen = "login") {
@@ -11215,28 +13352,34 @@ function defaultAuthScheme(payload = {}, providerConfig = {}, meta = {}) {
   const stylePreset = inferAuthStylePreset(payload);
   const defaultScreen = inferAuthDefaultScreen(payload);
   const composition = inferAuthComposition(payload, stylePreset);
+  const logoPlacement = inferAuthLogoPlacement(payload, composition, stylePreset);
+  const layoutFields = inferAuthLayoutFields(payload, composition, stylePreset);
   const options = payload.options && typeof payload.options === "object" ? payload.options : {};
   const guided = payload.guidedIntake && typeof payload.guidedIntake === "object" ? payload.guidedIntake : {};
-  const features = authOptionList(options.features).length ? authOptionList(options.features) : authOptionList(guided.features);
+  const features = expandAuthFeatures(authOptionList(options.features).length ? authOptionList(options.features) : authOptionList(guided.features), payload);
   const promptText = authPromptText(payload);
   const audience = cleanText(options.audience || guided.audience, "newTrader", 40);
-  const intent = cleanText(options.intent || guided.intent, "openAccount", 40);
-  const registerDepth = cleanText(options.registerDepth || guided.registerDepth, "standard", 40);
+  const intent = inferAuthIntent(payload);
+  const registerDepth = inferAuthRegisterDepth(payload);
   const designStyle = cleanText(options.designStyle || guided.designStyle, "trustClean", 40);
-  const theme = cleanText(options.theme || guided.theme, "blueTrust", 40);
+  const theme = inferAuthTheme(payload);
   const brandName = cleanText(options.brandName || payload.brandName, "ForexCRM", 40);
   const language = cleanText(options.language || payload.language, "zh-CN", 20);
-  const accent = normalizeAuthHex(options.accent || guided.accent, authAccentFallback({ ...options, theme }, stylePreset));
-  const accent2 = normalizeAuthHex(options.accent2, stylePreset === "softPlatform" ? "#24b7aa" : "#1d4ed8");
+  const requestedAccent = cleanText(authPromptAccent(payload) || options.accent || guided.accent, "", 24);
+  const accent = normalizeAuthHex(theme === "blackGold" && requestedAccent.toLowerCase() === "#2563eb" ? "" : requestedAccent, authAccentFallback({ ...options, theme }, stylePreset));
+  const accent2 = normalizeAuthHex(options.accent2, theme === "blackGold" ? "#f5c46b" : stylePreset === "softPlatform" ? "#24b7aa" : "#1d4ed8");
   const density = ["compact", "comfortable", "spacious"].includes(options.density) ? options.density : stylePreset === "clientOnboarding" ? "compact" : "comfortable";
   const hasInvite = authHasFeature(features, promptText, "inviteCode", /推荐码|邀请码|invite|ib/i);
   const hasCaptcha = authHasFeature(features, promptText, "captcha", /验证码|captcha|hcaptcha/i);
   const hasTwoFactor = authHasFeature(features, promptText, "twoFactor", /双重|2fa|two-factor|two factor/i);
   const hasSocial = authHasFeature(features, promptText, "socialLogin", /google|apple|第三方|social/i);
+  const hasTradingAccount = authHasFeature(features, promptText, "tradingAccountLogin", /交易账号|交易账户|mt4|mt5|trading account|account login/i);
   const needsCompliance = registerDepth === "compliance" || authHasFeature(features, promptText, "riskConsent", /风险|risk|合规/i);
 
-  const registerTitle = registerDepth === "light" ? "快速创建账户" : stylePreset === "clientOnboarding" ? "客户注册流程" : stylePreset === "photoDark" ? "账号注册" : "创建您的交易账户";
-  const registerSubtitle = registerDepth === "light" ? "先完成必要信息，后续再补充开户地址和 KYC。" : stylePreset === "clientOnboarding" ? "标准客户注册，收集基本信息并自动进入后续审核。" : "填写注册信息，系统将自动创建客户资料并进入后续账户流程。";
+  const hasPromo = authHasFeature(features, promptText, "promoReward", /活动|奖励|权益|注册送|礼遇|转化/i);
+  const needsKyc = registerDepth === "compliance" || authHasFeature(features, promptText, "kycPrelude", /kyc|实名|身份|前置说明/i);
+  const registerTitle = intent === "campaignSignup" ? "注册并锁定开户礼遇" : registerDepth === "light" ? "快速创建账户" : stylePreset === "clientOnboarding" ? "客户注册流程" : stylePreset === "photoDark" ? "账号注册" : "创建您的交易账户";
+  const registerSubtitle = intent === "campaignSignup" ? "先完成身份与安全信息，系统会在 KYC 前说明奖励条件、风险披露和后续审核节点。" : registerDepth === "light" ? "先完成必要信息，后续再补充开户地址和 KYC。" : stylePreset === "clientOnboarding" ? "标准客户注册，收集基本信息并自动进入后续审核。" : "填写注册信息，系统将自动创建客户资料并进入后续账户流程。";
   const [heroTitle, heroSubtitle] = authAudienceCopy(audience, defaultScreen);
 
   return {
@@ -11244,7 +13387,7 @@ function defaultAuthScheme(payload = {}, providerConfig = {}, meta = {}) {
     name: cleanText(options.name || payload.name, `${brandName} 认证中心`, 60),
     summary: cleanText(
       meta.summary || "",
-      `${stylePreset === "photoDark" ? "深色品牌登录注册" : stylePreset === "clientOnboarding" ? "客户开户注册流程" : "蓝白金融认证界面"}，包含登录、注册和找回密码。`,
+      `${intent === "campaignSignup" ? "活动转化型认证模块" : stylePreset === "photoDark" ? "深色品牌登录注册" : stylePreset === "clientOnboarding" ? "客户开户注册流程" : "蓝白金融认证界面"}，包含登录、注册和找回密码。`,
       260,
     ),
     language,
@@ -11258,8 +13401,9 @@ function defaultAuthScheme(payload = {}, providerConfig = {}, meta = {}) {
     model: providerConfig.model || "",
     brand: {
       name: brandName,
-      tagline: cleanText(options.tagline, stylePreset === "softPlatform" ? "人工智能 + 全过程咨询服务平台" : "安全账户服务中心", 80),
-      serviceLine: cleanText(options.serviceLine, "Client Portal", 60),
+      tagline: cleanText(options.tagline, authBrandTagline(audience, stylePreset, intent), 80),
+      serviceLine: cleanText(options.serviceLine, authServiceLine(audience, intent), 60),
+      logoPlacement,
     },
     visual: {
       accent,
@@ -11269,6 +13413,14 @@ function defaultAuthScheme(payload = {}, providerConfig = {}, meta = {}) {
       radius: stylePreset === "photoDark" ? "10px" : "18px",
       cardShadow: stylePreset === "clientOnboarding" ? "soft" : "elevated",
       composition,
+      ...layoutFields,
+      referenceStructure: layoutFields.layoutType === "centeredCard"
+        ? "居中表单，弱化或隐藏侧边品牌视觉。"
+        : layoutFields.mediaPosition === "right"
+          ? "表单在左，媒体/插画/品牌视觉在右。"
+          : layoutFields.mediaPosition === "left"
+            ? "媒体/插画/品牌视觉在左，表单在右。"
+            : "表单与品牌叙事分栏，移动端单列降级。",
     },
     experience: {
       audience,
@@ -11279,25 +13431,26 @@ function defaultAuthScheme(payload = {}, providerConfig = {}, meta = {}) {
       features,
     },
     hero: {
-      title: cleanText(options.heroTitle, heroTitle, 80),
+      title: cleanText(options.heroTitle, intent === "campaignSignup" ? "领取新客礼遇并完成开户" : heroTitle, 80),
       subtitle: cleanText(
         options.heroSubtitle,
-        heroSubtitle,
+        intent === "campaignSignup" ? "把手机号验证、活动资格、KYC 前置说明和风险披露串成清晰路径，减少新手开户犹豫。" : heroSubtitle,
         160,
       ),
       proofPoints: authCompositionProofPoints(composition, language),
       bullets: [
-        hasCaptcha || hasTwoFactor ? "验证码与安全校验降低账户风险" : "安全提交客户资料",
+        hasPromo ? "注册后锁定活动权益" : hasCaptcha || hasTwoFactor ? "验证码与安全校验降低账户风险" : "安全提交客户资料",
         hasInvite ? "支持推荐码自动关联" : "注册后可继续完成 KYC 与开户",
         registerDepth === "light" ? "移动端友好的轻量注册路径" : "注册信息按步骤清晰拆分",
       ],
     },
     screens: {
       login: {
-        title: language.startsWith("zh") ? "登录你的账户" : "Welcome Back",
-        subtitle: language.startsWith("zh") ? "使用邮箱、手机号或第三方方式进入账户" : "Sign in to access your account",
-        identifierLabel: language.startsWith("zh") ? "邮箱或手机号" : "Email Address",
-        identifierPlaceholder: language.startsWith("zh") ? "请输入您的邮箱或手机号" : "n02badd@gmail.com",
+        title: language.startsWith("zh") ? "欢迎回来" : "Welcome Back",
+        subtitle: language.startsWith("zh") ? "输入手机号或邮箱与密码登录；如需双重验证，将在下一步完成。" : "Sign in with phone or email and password; MFA continues on the next step when required.",
+        modeTabs: [],
+        identifierLabel: language.startsWith("zh") ? "账号（手机号 / 邮箱）" : "Account (phone / email)",
+        identifierPlaceholder: language.startsWith("zh") ? "请输入手机号或邮箱" : "Phone or email",
         passwordLabel: language.startsWith("zh") ? "密码" : "Password",
         passwordPlaceholder: language.startsWith("zh") ? "请输入密码" : "••••••••",
         rememberLabel: language.startsWith("zh") ? "记住账号" : "Remember me",
@@ -11306,77 +13459,94 @@ function defaultAuthScheme(payload = {}, providerConfig = {}, meta = {}) {
         registerPrompt: language.startsWith("zh") ? "没有账号？" : "Don't have an account?",
         registerAction: language.startsWith("zh") ? "立即注册" : "Open Account",
         socialProviders: hasSocial ? ["Google", "Apple"] : [],
-        extraFields: [
-          ...(hasCaptcha ? [{ id: "loginCaptcha", label: "验证码", type: "text", placeholder: "请输入验证码" }] : []),
-          ...(hasTwoFactor ? [{ id: "twoFactorCode", label: "双重验证码", type: "text", placeholder: "请输入动态验证码" }] : []),
-        ],
-        helperNotice: hasTwoFactor ? "已启用双重验证提示，保护账户登录安全" : "您的信息受到严格保护，安全加密传输",
+        extraFields: [],
+        securityFlow: {
+          requiresMfa: hasTwoFactor,
+          riskCaptcha: hasCaptcha,
+          title: language.startsWith("zh") ? "安全验证" : "Security verification",
+          subtitle: hasTwoFactor
+            ? (language.startsWith("zh") ? "此账号已开启双重验证，请输入认证器或短信中的 6 位验证码。" : "Enter the 6-digit code from your authenticator or message.")
+            : (language.startsWith("zh") ? "我们会根据登录风险触发人机校验，正常登录不会打断。" : "Human verification is triggered only when risk is elevated."),
+          deliveryHint: language.startsWith("zh") ? "验证码来自认证器应用 / 已绑定手机号" : "Code from authenticator app / bound phone",
+          primaryAction: language.startsWith("zh") ? "完成验证" : "Verify",
+          resendAction: language.startsWith("zh") ? "重新发送" : "Resend",
+          recoveryAction: language.startsWith("zh") ? "使用备用恢复码" : "Use recovery code",
+        },
+        helperNotice: hasTwoFactor ? "账号密码通过后进入 6 位验证码验证" : "人机校验按风险触发，不占用登录首屏",
       },
       register: {
-        title: registerTitle,
-        subtitle: registerSubtitle,
+        title: intent === "campaignSignup" ? "注册并锁定开户礼遇" : registerDepth === "light" ? "快速创建账户" : stylePreset === "photoDark" ? "账号注册" : "创建您的账户",
+        subtitle: intent === "campaignSignup" ? "先创建账号并验证手机号或邮箱，KYC、奖励条件和风险披露会在注册后清晰继续。" : "填写账号与密码，提交前完成人机校验，下一步验证手机号或邮箱。",
         modeTabs: ["手机号", "邮箱"],
         sections: [
           {
-            title: "基本信息",
-            description: "请填写您的个人基本信息",
+            title: "账号信息",
+            description: "先创建登录凭证，手机号或邮箱会在下一步完成验证",
               fields: [
-                { id: "name", label: "姓名", type: "text", placeholder: "请输入您的真实姓名", required: true, span: "full" },
-                { id: "country", label: "国家/地区", type: "select", placeholder: "Select country...", required: true },
-                ...(registerDepth === "light" ? [] : [{ id: "birthDate", label: "出生日期", type: "date", placeholder: "年 / 月 / 日" }]),
-                { id: "email", label: "邮箱", type: "email", placeholder: "请输入邮箱", required: true, span: "full" },
+                { id: "identifier", label: "手机号或邮箱", type: "text", placeholder: "请输入手机号或邮箱", required: true, span: "full" },
+                ...(registerDepth === "light" ? [] : [{ id: "country", label: "国家/地区", type: "select", placeholder: "请选择国家或地区", required: true, span: "full" }]),
+                { id: "password", label: "密码", type: "password", placeholder: "至少 8 位字符", required: true },
+                { id: "confirmPassword", label: "确认密码", type: "password", placeholder: "再次输入密码", required: true },
                 ...(hasInvite ? [{ id: "inviteCode", label: "推荐码 / 邀请码", type: "text", placeholder: "如有请填写", span: "full" }] : []),
               ],
             },
-            ...(registerDepth === "light" ? [] : [{
-              title: "投资背景",
-              description: "帮助我们了解您的投资经验",
+            ...(hasPromo ? [{
+              title: "活动权益",
+              description: "注册后先锁定资格，奖励发放以 KYC 审核与活动规则为准",
               fields: [
-                { id: "experience", label: "交易经验", type: "select", placeholder: "请选择", required: true },
-                { id: "income", label: "年收入范围", type: "select", placeholder: "请选择" },
-                { id: "goal", label: "投资目的", type: "radio", options: ["资产增值", "收益稳定", "短期投机", "对冲风险"], required: true, span: "full" },
-                { id: "fundSource", label: "资金来源", type: "select", placeholder: "请选择" },
+                { id: "campaignCode", label: "活动码", type: "text", placeholder: "系统自动识别或手动输入" },
+                { id: "rewardChannel", label: "奖励接收方式", type: "select", placeholder: "请选择" },
+                { id: "rewardNotice", label: "我了解奖励需满足开户、KYC 和活动规则", type: "radio", options: ["确认并继续", "先完成普通开户"], required: true, span: "full" },
               ],
-            }]),
-            {
-              title: "账户安全",
+            }] : []),
+            ...(needsKyc || needsCompliance ? [{
+              title: "开户与风险说明",
+              description: "注册成功后进入 KYC、风险测评和开户资料流程，此处只做提交前说明",
               fields: [
-                { id: "password", label: "密码", type: "password", placeholder: "至少 8 位字符", required: true },
-                { id: "confirmPassword", label: "确认密码", type: "password", placeholder: "再次输入密码", required: true },
-                ...(hasCaptcha ? [{ id: "captcha", label: "图形验证码", type: "text", placeholder: "请输入验证码", span: "full" }] : []),
-              ],
-            },
-            ...(needsCompliance ? [{
-              title: "风险确认",
-              fields: [
-                { id: "riskAgreement", label: "我了解保证金交易存在较高风险", type: "radio", options: ["已了解并继续", "稍后再看"], required: true, span: "full" },
+                { id: "onboardingNotice", label: "我了解注册后需要继续完成 KYC 与风险确认", type: "radio", options: ["已了解并继续"], required: true, span: "full" },
               ],
             }] : []),
           ],
         termsText: "我已阅读并同意 服务条款、隐私政策及风险披露，确认提交的信息真实有效。",
-        primaryAction: language.startsWith("zh") ? "提交注册" : "Create Account",
+        primaryAction: language.startsWith("zh") ? "继续验证" : "Continue",
         backAction: language.startsWith("zh") ? "返回登录" : "Back to Login",
-          trustNotice: hasCaptcha ? "注册成功前需要完成验证码校验" : "注册成功后将向邮箱发送验证码",
+          trustNotice: "提交注册前会先完成人机校验，随后验证手机号或邮箱。",
+          verification: {
+            title: language.startsWith("zh") ? "验证账号" : "Verify account",
+            subtitle: language.startsWith("zh") ? "完成一次人机校验，并输入发送到手机号或邮箱的 6 位验证码。" : "Complete a human check and enter the 6-digit phone or email code.",
+            humanCheck: language.startsWith("zh") ? "人机校验将在发送验证码前触发" : "Human check runs before sending the code",
+            deliveryHint: language.startsWith("zh") ? "验证码已发送至您的手机号或邮箱" : "Code sent to your phone or email",
+            primaryAction: language.startsWith("zh") ? "完成注册" : "Create account",
+            resendAction: language.startsWith("zh") ? "重新发送验证码" : "Resend code",
+          },
         },
       forgot: {
-        title: language.startsWith("zh") ? "Reset Password" : "Reset Password",
-        subtitle: language.startsWith("zh") ? "输入邮箱，我们会发送受保护的重置链接。" : "Enter your email and we'll send you a reset link.",
-        identifierLabel: language.startsWith("zh") ? "邮箱地址" : "Email Address",
-        identifierPlaceholder: "your@email.com",
-        primaryAction: language.startsWith("zh") ? "发送重置链接" : "Send Reset Link",
+        title: language.startsWith("zh") ? "找回密码" : "Reset Password",
+        subtitle: language.startsWith("zh") ? "输入手机号或邮箱，完成人机校验和身份验证后设置新密码。" : "Verify your phone or email before setting a new password.",
+        identifierLabel: language.startsWith("zh") ? "账号（手机号 / 邮箱）" : "Account (phone / email)",
+        identifierPlaceholder: language.startsWith("zh") ? "请输入邮箱或手机号" : "your@email.com",
+        primaryAction: language.startsWith("zh") ? "继续验证身份" : "Continue Verification",
         backAction: language.startsWith("zh") ? "返回登录" : "Back to Login",
         registerAction: language.startsWith("zh") ? "去注册" : "Create Account",
-        steps: ["使用邮箱", "验证身份", "设置新密码"],
+        steps: ["输入账号", "人机校验", "验证身份", "设置新密码"],
+        verification: {
+          title: language.startsWith("zh") ? "验证身份并设置新密码" : "Verify identity and reset password",
+          subtitle: language.startsWith("zh") ? "如果账号存在，我们会发送验证码。通过后即可设置新密码。" : "If the account exists, we will send a code before password reset.",
+          humanCheck: language.startsWith("zh") ? "发送验证码前进行人机校验，防止批量找回攻击" : "Human check protects password recovery from automation",
+          primaryAction: language.startsWith("zh") ? "确认重置密码" : "Reset password",
+          resendAction: language.startsWith("zh") ? "重新发送验证码" : "Resend code",
+        },
       },
     },
     securityNotes: [
-      hasTwoFactor ? "双重验证提示提升高风险登录安全" : "加密链接验证，保护账户安全",
+      hasTwoFactor ? "账号密码通过后进入 6 位双重验证" : "登录页仅收集账号与密码",
       "密码不会通过邮件明文发送",
-      hasCaptcha ? "验证码占位可接入真实风控服务" : "官方品牌页面，降低钓鱼风险",
+      hasCaptcha ? "人机校验在登录风险、注册提交和找回密码发送验证码前触发" : "官方品牌页面，降低钓鱼风险",
     ],
     designNotes: [
-      "参考界面仅作为质量学习标准，生成结果按当前业务目标重新组织。",
-      "登录、注册和找回密码共享品牌与安全语义，但每个流程独立渲染。",
+      "视觉素材仅作为抽象设计语言借鉴，生成结果按当前业务目标重新组织。",
+      `Logo 摆放采用 ${logoPlacement}，移动端首屏必须保留品牌识别、主登录入口和主按钮。`,
+      "登录首屏只展示账号与密码；2FA、人机校验、注册验证码和找回密码验证码都进入后续验证步骤。",
     ],
     generatedAt: new Date().toISOString(),
   };
@@ -11398,13 +13568,57 @@ function normalizeAuthFields(fields, fallbackFields) {
     }));
 }
 
+function authFieldLooksLikeInlineChallenge(field = {}) {
+  const text = `${field.id || ""} ${field.label || ""} ${field.placeholder || ""}`.toLowerCase();
+  return /captcha|验证码|动态口令|安全验证码|双重|2fa|mfa|人机/.test(text);
+}
+
+function sanitizeAuthRegisterSections(sections = []) {
+  return (Array.isArray(sections) ? sections : [])
+    .map((section) => ({
+      ...section,
+      fields: (Array.isArray(section?.fields) ? section.fields : []).filter((field) => !authFieldLooksLikeInlineChallenge(field)),
+    }))
+    .filter((section) => !authFieldLooksLikeInlineChallenge({ label: section.title, placeholder: section.description }))
+    .filter((section) => section.title || section.description || section.fields.length);
+}
+
 function normalizeAuthScheme(source, payload = {}, providerConfig = {}, meta = {}) {
   const fallback = defaultAuthScheme(payload, providerConfig, meta);
   const raw = isObjectRecord(source?.scheme) ? source.scheme : source;
   const merged = deepMergeObjects(fallback, isObjectRecord(raw) ? raw : {});
-  const stylePreset = AUTH_STYLE_PRESETS.includes(merged.stylePreset) ? merged.stylePreset : fallback.stylePreset;
+  const mergedThemeText = `${merged.experience?.theme || ""} ${merged.visual?.accent || ""}`.toLowerCase();
+  const mergedFeatureText = Array.isArray(merged.experience?.features) ? merged.experience.features.join(" ") : "";
+  const mergedIntentText = `${merged.experience?.intent || ""} ${merged.summary || ""} ${merged.hero?.title || ""} ${mergedFeatureText}`.toLowerCase();
+  const mergedDepthText = `${merged.experience?.registerDepth || ""} ${(merged.screens?.register?.sections || []).map((section) => section?.title || "").join(" ")}`.toLowerCase();
+  const requestedTheme = /blackgold|黑金|高净值|#b7791f/.test(mergedThemeText) ? "blackGold" : inferAuthTheme(payload);
+  const requestedIntent = /campaignsignup|活动|奖励|转化|权益|礼遇|promoReward/i.test(mergedIntentText) ? "campaignSignup" : inferAuthIntent(payload);
+  const requestedRegisterDepth = /compliance|专业|合规|full|kyc/.test(mergedDepthText) ? "compliance" : inferAuthRegisterDepth(payload);
+  const requestedLogoPlacement = inferAuthLogoPlacement(payload, fallback.visual?.composition, fallback.stylePreset);
+  const stylePreset = requestedTheme === "blackGold"
+    ? "photoDark"
+    : AUTH_STYLE_PRESETS.includes(merged.stylePreset)
+      ? merged.stylePreset
+      : fallback.stylePreset;
   const defaultScreen = AUTH_SCREEN_KEYS.includes(merged.defaultScreen) ? merged.defaultScreen : fallback.defaultScreen;
-  const composition = AUTH_COMPOSITION_PRESETS.includes(merged.visual?.composition) ? merged.visual.composition : fallback.visual.composition;
+  const composition = requestedIntent === "campaignSignup"
+    ? "campaignPassport"
+    : AUTH_COMPOSITION_PRESETS.includes(merged.visual?.composition)
+      ? merged.visual.composition
+      : fallback.visual.composition;
+  const requestedAccent = cleanText(authPromptAccent(payload) || merged.visual?.accent, "", 24);
+  const layoutFields = inferAuthLayoutFields({
+    ...payload,
+    visual: merged.visual,
+    options: {
+      ...(payload.options && typeof payload.options === "object" ? payload.options : {}),
+      visual: merged.visual,
+      layoutType: merged.visual?.layoutType,
+      formPosition: merged.visual?.formPosition,
+      mediaPosition: merged.visual?.mediaPosition,
+    },
+  }, composition, stylePreset);
+  const enforceSplitLayout = authExplicitSplitLayoutRequested(authPromptText(payload));
 
   const normalized = {
     ...merged,
@@ -11429,24 +13643,31 @@ function normalizeAuthScheme(source, payload = {}, providerConfig = {}, meta = {
     name: cleanText(merged.brand?.name, fallback.brand.name, 40),
     tagline: cleanText(merged.brand?.tagline, fallback.brand.tagline, 80),
     serviceLine: cleanText(merged.brand?.serviceLine, fallback.brand.serviceLine, 60),
+    logoPlacement: requestedLogoPlacement !== "heroTopLeft" ? requestedLogoPlacement : normalizeAuthLogoPlacement(merged.brand?.logoPlacement, fallback.brand.logoPlacement || "heroTopLeft"),
   };
   normalized.visual = {
     ...fallback.visual,
     ...(isObjectRecord(merged.visual) ? merged.visual : {}),
-    accent: normalizeAuthHex(merged.visual?.accent, fallback.visual.accent),
-    accent2: normalizeAuthHex(merged.visual?.accent2, fallback.visual.accent2),
+    accent: normalizeAuthHex(requestedTheme === "blackGold" && requestedAccent.toLowerCase() === "#2563eb" ? "" : requestedAccent, fallback.visual.accent),
+    accent2: normalizeAuthHex(merged.visual?.accent2, requestedTheme === "blackGold" ? "#f5c46b" : fallback.visual.accent2),
     density: ["compact", "comfortable", "spacious"].includes(merged.visual?.density) ? merged.visual.density : fallback.visual.density,
     composition,
+    layoutType: enforceSplitLayout ? layoutFields.layoutType : firstAllowed(merged.visual?.layoutType, AUTH_REFERENCE_LAYOUT_TYPES, layoutFields.layoutType),
+    formPosition: enforceSplitLayout ? layoutFields.formPosition : firstAllowed(merged.visual?.formPosition, AUTH_REFERENCE_FORM_POSITIONS, layoutFields.formPosition),
+    mediaPosition: enforceSplitLayout ? layoutFields.mediaPosition : firstAllowed(merged.visual?.mediaPosition, AUTH_REFERENCE_MEDIA_POSITIONS, layoutFields.mediaPosition),
+    heroVisibility: enforceSplitLayout ? layoutFields.heroVisibility : firstAllowed(merged.visual?.heroVisibility, AUTH_REFERENCE_HERO_VISIBILITIES, layoutFields.heroVisibility),
+    mobileStrategy: firstAllowed(merged.visual?.mobileStrategy, AUTH_REFERENCE_MOBILE_STRATEGIES, layoutFields.mobileStrategy),
+    referenceStructure: enforceSplitLayout ? authSplitReferenceStructure(layoutFields) : cleanText(merged.visual?.referenceStructure, fallback.visual?.referenceStructure || "", 220),
   };
   normalized.experience = {
     ...(isObjectRecord(fallback.experience) ? fallback.experience : {}),
     ...(isObjectRecord(merged.experience) ? merged.experience : {}),
     audience: cleanText(merged.experience?.audience, fallback.experience?.audience || "", 40),
-    intent: cleanText(merged.experience?.intent, fallback.experience?.intent || "", 40),
-    registerDepth: cleanText(merged.experience?.registerDepth, fallback.experience?.registerDepth || "", 40),
+    intent: requestedIntent || cleanText(merged.experience?.intent, fallback.experience?.intent || "", 40),
+    registerDepth: requestedRegisterDepth || cleanText(merged.experience?.registerDepth, fallback.experience?.registerDepth || "", 40),
     designStyle: cleanText(merged.experience?.designStyle, fallback.experience?.designStyle || "", 40),
-    theme: cleanText(merged.experience?.theme, fallback.experience?.theme || "", 40),
-    features: authOptionList(merged.experience?.features || fallback.experience?.features).slice(0, 12),
+    theme: requestedTheme || cleanText(merged.experience?.theme, fallback.experience?.theme || "", 40),
+    features: expandAuthFeatures(merged.experience?.features || fallback.experience?.features, payload).slice(0, 12),
   };
   normalized.hero = {
     ...fallback.hero,
@@ -11464,6 +13685,11 @@ function normalizeAuthScheme(source, payload = {}, providerConfig = {}, meta = {
     forgot: deepMergeObjects(fallback.screens.forgot, screens.forgot),
   };
 
+  normalized.screens.login.extraFields = [];
+  normalized.screens.login.modeTabs = [];
+  normalized.screens.login.identifierLabel = normalized.language.startsWith("zh") ? "账号（手机号 / 邮箱）" : "Account (phone / email)";
+  normalized.screens.login.identifierPlaceholder = normalized.language.startsWith("zh") ? "请输入手机号或邮箱" : "Phone or email";
+  normalized.screens.login.securityFlow = deepMergeObjects(fallback.screens.login.securityFlow, normalized.screens.login.securityFlow);
   normalized.screens.register.sections = (Array.isArray(normalized.screens.register.sections) ? normalized.screens.register.sections : fallback.screens.register.sections)
     .filter(Boolean)
     .slice(0, 5)
@@ -11475,15 +13701,62 @@ function normalizeAuthScheme(source, payload = {}, providerConfig = {}, meta = {
         fields: normalizeAuthFields(section.fields, fallbackSection.fields || []),
       };
     });
+  normalized.screens.register.sections = sanitizeAuthRegisterSections(normalized.screens.register.sections);
+  normalized.screens.register.verification = deepMergeObjects(fallback.screens.register.verification, normalized.screens.register.verification);
+  normalized.screens.forgot.verification = deepMergeObjects(fallback.screens.forgot.verification, normalized.screens.forgot.verification);
   normalized.screens.login.socialProviders = (Array.isArray(normalized.screens.login.socialProviders) ? normalized.screens.login.socialProviders : fallback.screens.login.socialProviders)
     .map((item) => cleanText(item, "", 30))
     .filter(Boolean)
     .slice(0, 4);
-  normalized.screens.login.extraFields = normalizeAuthFields(normalized.screens.login.extraFields, fallback.screens.login.extraFields || []).slice(0, 4);
+  if (authHasFeature(normalized.experience.features, authPromptText(payload), "socialLogin", /google|apple|第三方|social/i) && !normalized.screens.login.socialProviders.length) {
+    normalized.screens.login.socialProviders = ["Google", "Apple"];
+  }
   normalized.securityNotes = (Array.isArray(merged.securityNotes) ? merged.securityNotes : fallback.securityNotes).map((item) => cleanText(item, "", 100)).filter(Boolean).slice(0, 6);
   normalized.designNotes = (Array.isArray(merged.designNotes) ? merged.designNotes : fallback.designNotes).map((item) => cleanText(item, "", 140)).filter(Boolean).slice(0, 8);
+  if (enforceSplitLayout) {
+    normalized.designNotes = [
+      authSplitReferenceStructure(layoutFields),
+      "移动端折叠为单列，但保留 Logo、主登录入口和主按钮的首屏优先级。",
+      ...normalized.designNotes,
+    ].filter(Boolean).slice(0, 8);
+  }
+
+  if (requestedIntent === "campaignSignup") {
+    normalized.brand.tagline = authBrandTagline(normalized.experience.audience, normalized.stylePreset, requestedIntent);
+    normalized.brand.serviceLine = authServiceLine(normalized.experience.audience, requestedIntent);
+    if (/^(创建您的交易账户|登录你的账户|Welcome Back|ForexCRM 认证中心)$/i.test(normalized.hero.title || "")) {
+      normalized.hero.title = "领取新客礼遇并完成开户";
+    }
+  }
 
   return normalized;
+}
+
+function authUsesCompactProviderPrompt(config = {}) {
+  return ["kimi", "minimax"].includes(config.provider);
+}
+
+function compactAuthReferenceContext(context = {}) {
+  const assets = Array.isArray(context.referenceAssets) ? context.referenceAssets : [];
+  return {
+    promptSeeds: (Array.isArray(context.promptSeeds) ? context.promptSeeds : []).slice(0, 3),
+    referenceAssets: assets.slice(0, 3).map((asset) => ({
+      name: cleanText(asset.name, "认证视觉素材", 60),
+      styleBrief: cleanText(asset.styleBrief || asset.note || asset.promptSeed, "", 140),
+      tags: Array.isArray(asset.tags) ? asset.tags.map((item) => cleanText(item, "", 24)).filter(Boolean).slice(0, 5) : [],
+      segments: Array.isArray(asset.segments) ? asset.segments.map((item) => cleanText(item, "", 24)).filter(Boolean).slice(0, 5) : [],
+      visualStructure: asset.visualStructure
+        ? {
+            layoutType: asset.visualStructure.layoutType,
+            formPosition: asset.visualStructure.formPosition,
+            mediaPosition: asset.visualStructure.mediaPosition,
+            logoPlacement: asset.visualStructure.logoPlacement,
+            mobileStrategy: asset.visualStructure.mobileStrategy,
+            summary: cleanText(asset.visualStructure.summary, "", 120),
+          }
+        : null,
+    })),
+  };
 }
 
 function buildAuthPrompt(payload = {}, config = {}) {
@@ -11493,22 +13766,104 @@ function buildAuthPrompt(payload = {}, config = {}) {
   const stylePreset = inferAuthStylePreset(payload);
   const defaultScreen = inferAuthDefaultScreen(payload);
   const visualTrainingContext = authVisualTrainingContext(payload);
+  const compactProviderPrompt = authUsesCompactProviderPrompt(config);
   const referenceLearning = [
-    "内部学习标准（不要作为模板名输出，也不要照搬版式）：",
-    "参考素材展示了金融认证页应有的可信品牌区、低噪声表单、清晰开户注册步骤、安全找回密码、移动端友好按钮、验证码/Captcha 占位、第三方登录和合规协议表达。",
+    "内部借鉴标准（不要作为模板名输出，也不要照搬版式）：",
+    "视觉素材展示了金融认证页应有的可信品牌区、平台 Logo 摆放、低噪声表单、清晰开户注册步骤、安全找回密码、移动端友好按钮、验证码/Captcha 占位、第三方登录、交易账号登录和合规协议表达。",
     "你的任务是基于用户需求重新组合一个个性化认证模块，让客户感觉这是为当前品牌和客群生成的，而不是通用登录模板。",
   ].join("\n");
+  if (compactProviderPrompt) {
+    const system = [
+      "你是 ForexCRM 金融平台开户认证界面生成器。",
+      "只返回一个 JSON 对象，不要 Markdown、代码围栏、HTML、CSS、解释、meta、schema、version 或示例数据。",
+      "返回精简 patch JSON；本地规范器会补全默认字段。重点改写品牌、构图、hero、三流程文案、注册 section、安全提示和移动端策略。",
+      "JSON 顶层只使用这些键：name, summary, stylePreset, defaultScreen, language, brand, visual, experience, hero, screens, securityNotes, designNotes。",
+      "stylePreset 只能是 blueSplit/clientOnboarding/securityReset/softPlatform/photoDark；visual.composition 只能是 splitTrust/floatingConsole/stepperRail/identityLedger/campaignPassport/vaultMinimal；brand.logoPlacement 只能是 heroTopLeft/topCenter/formTop/mobileTop。",
+      "visual 还应返回 layoutType、formPosition、mediaPosition、heroVisibility、mobileStrategy，用来表达居中、图左、图右、背景图和移动端策略；这些字段来自视觉素材的自动结构识别，不需要人工配置。",
+      "如果用户明确写了“左右布局 / 左右分栏 / 双栏 / 两栏 / split layout”，visual.layoutType 必须是 split 或 mediaSplit，formPosition 不允许 center，heroVisibility 不允许 hidden，不能返回 centeredCard、mobileFirst 或 cardOverlay。",
+      "screens 必须包含 login/register/forgot 三个对象，但每个对象保持短字段。register.sections 最多 3 组、每组 fields 最多 4 个；数组最多 5 项；每个中文字符串尽量 6-24 字。",
+      "登录首屏只保留账号（手机号/邮箱）和密码；2FA 写入 login.securityFlow；Captcha 只写成风险触发或发送验证码前触发，不要作为常驻输入框。",
+      "注册流程：账号+密码+协议 -> 人机校验 -> 手机/邮箱 6 位验证码 -> 注册成功；KYC、投资经验、风险确认放在注册后说明，不塞进首屏。",
+      "找回密码流程：输入账号 -> 人机校验 -> 验证码 -> 新密码；不要暴露账号是否存在。",
+      "中文需求下，第三方登录、找回密码、协议提示必须中文化。",
+    ].join("\n");
+    const user = [
+      referenceLearning,
+      "",
+      "用户需求:",
+      prompt,
+      "",
+      guided
+        ? [
+            "引导式选项:",
+            compactJson({
+              audience: guided.labels?.audience || guided.audience,
+              intent: guided.labels?.intent || guided.intent,
+              registerDepth: guided.labels?.registerDepth || guided.registerDepth,
+              designStyle: guided.labels?.designStyle || guided.designStyle,
+              theme: guided.labels?.theme || guided.theme,
+              logoPlacement: guided.labels?.logoPlacement || guided.logoPlacement,
+              features: guided.labels?.features || guided.features,
+              accent: guided.accent,
+              note: guided.note,
+            }),
+            "",
+          ].join("\n")
+        : "",
+      visualTrainingContext.referenceAssets.length
+        ? [
+            "视觉素材摘要（只借鉴抽象设计语言）:",
+            compactJson(compactAuthReferenceContext(visualTrainingContext)),
+            "",
+          ].join("\n")
+        : "",
+      "当前选择:",
+      compactJson({
+        stylePreset,
+        defaultScreen,
+        brandName: options.brandName || "ForexCRM",
+        language: options.language || "zh-CN",
+        accent: options.accent || "#2563eb",
+        density: options.density || "comfortable",
+        logoPlacement: options.logoPlacement || "",
+        audience: options.audience || "",
+        intent: options.intent || "",
+        registerDepth: options.registerDepth || "",
+        designStyle: options.designStyle || "",
+        theme: options.theme || "",
+        features: options.features || [],
+        provider: config.name,
+        model: config.model,
+      }),
+      "",
+      "输出要求：返回可解析 JSON，不要代码围栏。必须体现个性化构图差异和移动端首屏 Logo/主入口/主按钮策略。summary、securityNotes、designNotes 要短。",
+      "布局字段：visual.layoutType 在 split/mediaSplit/centeredCard/fullBleed/cardOverlay/mobileFirst 中选择；visual.formPosition 在 left/right/center 中选择；visual.mediaPosition 在 left/right/background/none 中选择。图在左=mediaPosition:left+formPosition:right；图在右=mediaPosition:right+formPosition:left；居中稿=centeredCard+formPosition:center。用户要求左右布局时，必须返回 split/mediaSplit，不能返回 centeredCard。",
+    ].join("\n");
+    return { system, user };
+  }
   const system = [
     "你是 ForexCRM / 金融平台开户认证界面生成器。",
     "只返回 JSON，不要返回 Markdown，不要返回 HTML/CSS，不要解释。",
     "生成的是独立登录/注册/找回密码业务，不要引用首页 AI、首页模块、交易账号首页组件或其它业务代码。",
     "输出必须包含 login、register、forgot 三个 screen；三者共享 brand/visual，但流程文案、字段、按钮要各自完整。",
-    "界面要像真实生产级金融平台开户认证页：克制、清晰、安全、对移动端友好；同时需要有明确的客群差异和品牌差异，避免千篇一律。",
-    "字段只描述配置，不生成真实认证逻辑；验证码、Captcha、第三方登录可以作为 UI 占位。",
+      "界面要像真实生产级金融平台开户认证页：克制、清晰、安全、对移动端友好；同时需要有明确的客群差异和品牌差异，避免千篇一律。",
+      "移动端适配和移动端美观是硬要求：必须考虑手机首屏 Logo 露出、表单密度、按钮高度、三方登录、注册/找回密码入口、协议文字和单手操作。",
+      "平台 Logo 摆放是硬要求：必须返回 brand.logoPlacement，并从 heroTopLeft、topCenter、formTop、mobileTop 中选择。",
+      "视觉借鉴不能依赖人工标注。若提供 referenceAssets 或 visualStructures，必须先自动理解它们的结构：居中/左右/背景视觉、表单位置、图在左或右、Logo 位置、移动端首屏策略，并写入 visual.layoutType、visual.formPosition、visual.mediaPosition、visual.heroVisibility、visual.mobileStrategy。",
+      "如果用户明确写了“左右布局 / 左右分栏 / 双栏 / 两栏 / split layout”，visual.layoutType 必须是 split 或 mediaSplit，formPosition 不允许 center，heroVisibility 不允许 hidden，不能返回 centeredCard、mobileFirst 或 cardOverlay。",
+      "字段只描述配置，不生成真实认证逻辑；第三方登录可以作为 UI 占位，验证码/Captcha 只允许出现在后续验证步骤或风险说明中。",
     "为了避免同质化，必须显式返回 visual.composition，并从 splitTrust、floatingConsole、stepperRail、identityLedger、campaignPassport、vaultMinimal 中选择最贴合业务目标的一种。",
     "composition 不是主题色，而是首屏骨架：splitTrust=经典信任分栏；floatingConsole=深色/专属控制台感；stepperRail=开户注册步骤轨道；identityLedger=身份/邀请/协议台账；campaignPassport=活动通行证；vaultMinimal=极简安全金库。",
     "不要只替换颜色或标题。每次生成都要让 hero.proofPoints、注册 section 组织方式、登录辅助信息、安全提示和按钮语气与 composition 一起变化。",
     "stylePreset 只是内部渲染适配字段，请选择最接近的值，但不要让它限制创意；真正的个性化要体现在 brand、visual、hero、screens、experience、securityNotes 和 designNotes。",
+    "当用户要求黑金、高净值或主色 #b7791f 时，必须使用 photoDark + 金色主色，不要输出粉色、浅蓝、蓝紫渐变或通用 SaaS 风格。",
+    "当用户要求活动转化、注册送礼、活动奖励或权益锁定时，visual.composition 必须优先选择 campaignPassport，并在登录和注册文案中明确承接活动资格、奖励条件、KYC 前置说明与风险披露确认。",
+    "登录首屏必须只展示账号（手机号/邮箱）和密码；不要在登录首屏渲染验证码、Captcha、动态口令、交易账号额外输入框或安全验证码字段。",
+    "双重验证必须放在账号密码通过后的下一步：使用 screens.login.securityFlow 描述 6 位验证码页，包含 title、subtitle、deliveryHint、primaryAction、resendAction、recoveryAction。",
+    "人机校验不要作为常驻输入框。请把 CAPTCHA / hCaptcha / Turnstile 作为风险触发节点描述：登录风险、注册提交、发送手机/邮箱验证码、找回密码发送验证码前触发。",
+    "注册流程按主流平台拆分：账号（手机号/邮箱）+ 密码 + 协议 -> 人机校验 -> 手机/邮箱 6 位验证码 -> 注册成功。KYC、投资经验、风险测评可以在注册后开户链接流程说明，不要堆进注册首屏。",
+    "找回密码流程按主流平台拆分：输入账号 -> 人机校验 -> 邮箱/短信验证码 -> 设置新密码；不要暴露账号是否存在。",
+    "中文需求下，第三方登录按钮、找回密码和协议提示必须中文化，禁止混入 Client Portal、Continue with Google 等英文可见文案。",
   ].join("\n");
   const user = [
     referenceLearning,
@@ -11525,6 +13880,7 @@ function buildAuthPrompt(payload = {}, config = {}) {
             registerDepth: guided.labels?.registerDepth || guided.registerDepth,
             designStyle: guided.labels?.designStyle || guided.designStyle,
             theme: guided.labels?.theme || guided.theme,
+            logoPlacement: guided.labels?.logoPlacement || guided.logoPlacement,
             features: guided.labels?.features || guided.features,
             accent: guided.accent,
             note: guided.note,
@@ -11534,7 +13890,7 @@ function buildAuthPrompt(payload = {}, config = {}) {
       : "",
     visualTrainingContext.referenceAssets.length
       ? [
-          "登录模块视觉训练参考（只学习抽象设计语言，禁止照搬原图）:",
+          "登录模块视觉借鉴素材（只学习抽象设计语言，禁止照搬原图）:",
           compactJson(visualTrainingContext),
           "",
         ].join("\n")
@@ -11547,6 +13903,7 @@ function buildAuthPrompt(payload = {}, config = {}) {
       language: options.language || "zh-CN",
       accent: options.accent || "#2563eb",
       density: options.density || "comfortable",
+      logoPlacement: options.logoPlacement || "",
       audience: options.audience || "",
       intent: options.intent || "",
       registerDepth: options.registerDepth || "",
@@ -11557,9 +13914,12 @@ function buildAuthPrompt(payload = {}, config = {}) {
       model: config.model,
     }),
     "",
-    "请返回符合 schema 的 auth UI JSON。必须生成完整登录、注册、找回密码三套 screen。stylePreset 必须是 blueSplit、clientOnboarding、securityReset、softPlatform、photoDark 之一；visual.composition 必须是 splitTrust、floatingConsole、stepperRail、identityLedger、campaignPassport、vaultMinimal 之一。",
-    "建议额外返回 experience: { audience, registerDepth, designStyle, theme, features }，并可在 login.extraFields 中加入验证码/双重验证等字段配置。",
+    "请返回符合 schema 的 auth UI JSON。必须生成完整登录、注册、找回密码三套 screen。stylePreset 必须是 blueSplit、clientOnboarding、securityReset、softPlatform、photoDark 之一；visual.composition 必须是 splitTrust、floatingConsole、stepperRail、identityLedger、campaignPassport、vaultMinimal 之一；brand.logoPlacement 必须是 heroTopLeft、topCenter、formTop、mobileTop 之一。",
+    "visual.layoutType 必须在 split/mediaSplit/centeredCard/fullBleed/cardOverlay/mobileFirst 中选择；visual.formPosition 必须在 left/right/center 中选择；visual.mediaPosition 必须在 left/right/background/none 中选择。素材显示图在左就让 mediaPosition=left、formPosition=right；图在右则反过来；居中稿用 centeredCard + formPosition=center。用户要求左右布局时，必须返回 split/mediaSplit，不能返回 centeredCard。",
+    "建议额外返回 experience: { audience, registerDepth, designStyle, theme, features }。login.extraFields 必须为空；如需 2FA 或人机校验，请写入 login.securityFlow、register.verification、forgot.verification。",
+    "登录方式需覆盖账号密码（账号为手机号/邮箱）和可选第三方快捷登录；交易账号相关能力只能作为登录后的业务说明或可选身份绑定，不要变成登录首屏 tab。",
     "建议返回 hero.proofPoints 3-5 条，用短句表达这个构图下最关键的安全、身份、活动或开户注册证据。",
+    "designNotes 需要说明移动端布局策略、Logo 摆放理由、注册入口和找回密码入口的位置。",
   ].join("\n");
   return { system, user };
 }
@@ -11752,25 +14112,38 @@ async function handleAuthTest(req, res) {
 
 async function callProvider(payload) {
   const config = normalizeProviderConfig(payload.modelConfig);
+  const modulePolicy = buildHomepageModulePolicy(payload);
+  const policyPayload = { ...payload, modulePolicy };
   const renderMode = homepageRenderMode(payload);
   const compactAiHtmlProvider = providerUsesCompactAiHtml(config);
 
   if (process.env.HOME_AI_MOCK === "true") {
-    const rawMockConfig = enforceHomepagePromptIntent(payload, mockHomepageConfig(payload, config));
-    const guidedSnapshot = homepageGuidedSnapshotFromPayload(payload, rawMockConfig);
-    const repaired = repairHomepageConfig(rawMockConfig, guidedSnapshot);
-    const mockConfig = applyHomepagePagePlan(repaired.config, payload, repaired.repairActions);
+    const rawMockConfig = enforceHomepagePromptIntent(policyPayload, mockHomepageConfig(policyPayload, config));
+    const guidedSnapshot = homepageGuidedSnapshotFromPayload(policyPayload, rawMockConfig);
+    const repaired = repairHomepageConfig(rawMockConfig, guidedSnapshot, modulePolicy);
+    const mockConfig = applyHomepagePagePlan(repaired.config, policyPayload, repaired.repairActions);
+    const pagePlanPolicyRepair = applyHomepageModulePolicy(mockConfig, modulePolicy, repaired.repairActions);
+    applyComponentReferencesToHomepageConfig(mockConfig, policyPayload.prompt, { actions: repaired.repairActions });
+    const combinedPolicyRepair = mergeHomepageModulePolicyRepairResults(repaired.modulePolicyRepairResult, pagePlanPolicyRepair);
     repaired.config = mockConfig;
-    repaired.validation = validateHomepageConfig(mockConfig, guidedSnapshot);
-    const htmlScheme = renderModeWantsAiHtml(renderMode) ? mockAiHtmlScheme(payload, mockConfig, config) : null;
-    const finalQuality = finalizeHomepageQuality(payload, mockConfig, htmlScheme);
+    repaired.validation = validateHomepageConfig(mockConfig, guidedSnapshot, modulePolicy, combinedPolicyRepair);
+    mockConfig.validation = repaired.validation;
+    mockConfig.validationWarnings = repaired.validation.warnings || [];
+    mockConfig.modulePolicy = modulePolicy;
+    mockConfig.modulePolicyScore = repaired.validation.modulePolicy?.score ?? 100;
+    const htmlScheme = renderModeWantsAiHtml(renderMode) ? mockAiHtmlScheme(policyPayload, mockConfig, config) : null;
+    const finalQuality = finalizeHomepageQuality(policyPayload, mockConfig, htmlScheme);
     const finalConfig = {
       ...mockConfig,
       validation: repaired.validation,
+      validationWarnings: repaired.validation.warnings || [],
+      modulePolicy,
+      modulePolicyScore: finalQuality.modulePolicyScore,
       repairActions: repaired.repairActions,
       qualityScore: finalQuality.score,
       quality: finalQuality.quality,
       htmlQualityStatus: finalQuality.htmlQualityStatus,
+      productWarnings: finalQuality.productWarnings,
     };
     return {
       config: {
@@ -11783,10 +14156,14 @@ async function callProvider(payload) {
       },
       ...(htmlScheme ? { htmlScheme } : {}),
       validation: repaired.validation,
+      validationWarnings: repaired.validation.warnings || [],
+      modulePolicy,
+      modulePolicyScore: finalQuality.modulePolicyScore,
       repairActions: repaired.repairActions,
       qualityScore: finalQuality.score,
       quality: finalQuality.quality,
       htmlQualityStatus: finalQuality.htmlQualityStatus,
+      productWarnings: finalQuality.productWarnings,
       renderMode,
       activeRenderMode: activeRenderModeForRequest(renderMode, htmlScheme),
       provider: config.provider,
@@ -11802,19 +14179,26 @@ async function callProvider(payload) {
     freeHtmlError = new Error("AI HTML generation waits for repairedConfig; free raw-config HTML is disabled.");
   }
 
-  const result = await callProviderWithPrompt(payload, buildPrompt(payload, config), payload.context?.schema, "homepage_config");
+  const result = await callProviderWithPrompt(policyPayload, buildPrompt(policyPayload, config), policyPayload.context?.schema, "homepage_config");
   const rawHomepageConfig = enforceHomepagePromptIntent(
-    payload,
-    prepareProviderHomepageConfig(payload, result.json, { ...config, provider: result.provider, model: result.model }),
+    policyPayload,
+    prepareProviderHomepageConfig(policyPayload, result.json, { ...config, provider: result.provider, model: result.model }),
   );
-  const guidedSnapshot = homepageGuidedSnapshotFromPayload(payload, rawHomepageConfig);
-  const repaired = repairHomepageConfig(rawHomepageConfig, guidedSnapshot);
-  const homepageConfig = applyHomepagePagePlan(repaired.config, payload, repaired.repairActions);
+  const guidedSnapshot = homepageGuidedSnapshotFromPayload(policyPayload, rawHomepageConfig);
+  const repaired = repairHomepageConfig(rawHomepageConfig, guidedSnapshot, modulePolicy);
+  const homepageConfig = applyHomepagePagePlan(repaired.config, policyPayload, repaired.repairActions);
+  const pagePlanPolicyRepair = applyHomepageModulePolicy(homepageConfig, modulePolicy, repaired.repairActions);
+  applyComponentReferencesToHomepageConfig(homepageConfig, policyPayload.prompt, { actions: repaired.repairActions });
+  const combinedPolicyRepair = mergeHomepageModulePolicyRepairResults(repaired.modulePolicyRepairResult, pagePlanPolicyRepair);
   repaired.config = homepageConfig;
-  repaired.validation = validateHomepageConfig(homepageConfig, guidedSnapshot);
+  repaired.validation = validateHomepageConfig(homepageConfig, guidedSnapshot, modulePolicy, combinedPolicyRepair);
+  homepageConfig.validation = repaired.validation;
+  homepageConfig.validationWarnings = repaired.validation.warnings || [];
+  homepageConfig.modulePolicy = modulePolicy;
+  homepageConfig.modulePolicyScore = repaired.validation.modulePolicy?.score ?? 100;
   const resultProviderConfig = { ...config, provider: result.provider, model: result.model };
   const htmlPayload = {
-    ...payload,
+    ...policyPayload,
     modelConfig: {
       ...(payload.modelConfig || {}),
       provider: resultProviderConfig.provider,
@@ -11830,7 +14214,7 @@ async function callProvider(payload) {
 
 	  if (renderModeWantsAiHtml(renderMode)) {
 	    if (freeHtmlResult?.json) {
-      htmlScheme = repairAiHtmlScheme(freeHtmlResult.json, payload, homepageConfig, resultProviderConfig, {
+      htmlScheme = repairAiHtmlScheme(freeHtmlResult.json, policyPayload, homepageConfig, resultProviderConfig, {
         sourceType: "model/free-html",
 	        generationPipeline: "free-html-first",
 	        modelAttempted: true,
@@ -11839,11 +14223,11 @@ async function callProvider(payload) {
       htmlUsage = freeHtmlResult.usage || null;
       htmlRawText = freeHtmlResult.rawText || "";
       if (htmlScheme.qualityStatus !== "passed" && config.provider !== "minimax") {
-        const qualityReport = evaluateAiHtmlQuality(htmlScheme, payload, homepageConfig);
+        const qualityReport = evaluateAiHtmlQuality(htmlScheme, policyPayload, homepageConfig);
 	        try {
 	          const htmlResult = await callProviderWithPrompt(
 	            htmlPayload,
-	            aiHtmlPromptForProvider(resultProviderConfig, payload, homepageConfig, { qualityReport, previousScheme: htmlScheme }),
+	            aiHtmlPromptForProvider(resultProviderConfig, policyPayload, homepageConfig, { qualityReport, previousScheme: htmlScheme }),
 	            AI_HTML_SCHEME_JSON_SCHEMA,
 	            "homepage_ai_html_quality_repair",
 	          );
@@ -11857,7 +14241,7 @@ async function callProvider(payload) {
                 ...(Array.isArray(htmlResult.json?.correctionNotes) ? htmlResult.json.correctionNotes : []),
               ],
             },
-	            payload,
+	            policyPayload,
 	            homepageConfig,
 	            resultProviderConfig,
 		            { sourceType: "model-repair", generationPipeline: "free-html-quality-gate", modelAttempted: true, mock: false },
@@ -11887,7 +14271,7 @@ async function callProvider(payload) {
                 `质量返修调用失败，保留已清洗自由 HTML：${cleanText(providerFailureSummary(error), "", 140)}`,
               ],
             },
-	            payload,
+            policyPayload,
 	            homepageConfig,
 	            resultProviderConfig,
 		            { sourceType: htmlScheme.sourceType || "model/free-html", generationPipeline: "free-html-quality-gate", modelAttempted: true, mock: false },
@@ -11899,7 +14283,7 @@ async function callProvider(payload) {
         const compactHtmlGeneration = providerUsesCompactAiHtml(resultProviderConfig);
 		        const htmlResult = await callProviderWithPrompt(
 		          htmlPayload,
-		          aiHtmlPromptForProvider(resultProviderConfig, payload, homepageConfig, { previousError: freeHtmlError }),
+		          aiHtmlPromptForProvider(resultProviderConfig, policyPayload, homepageConfig, { previousError: freeHtmlError }),
 		          AI_HTML_SCHEME_JSON_SCHEMA,
 		          compactHtmlGeneration ? `homepage_ai_html_${resultProviderConfig.provider}_compact` : "homepage_ai_html_repair",
 		        );
@@ -11913,7 +14297,7 @@ async function callProvider(payload) {
 	              ...(Array.isArray(htmlResult.json?.correctionNotes) ? htmlResult.json.correctionNotes : []),
 	            ],
 	          },
-	          payload,
+	          policyPayload,
 	          homepageConfig,
 	          resultProviderConfig,
 			          {
@@ -11927,7 +14311,7 @@ async function callProvider(payload) {
         htmlRawText = htmlResult.rawText || "";
 	      } catch (error) {
         const failureSummary = providerFailureSummary(error || freeHtmlError);
-        htmlScheme = configBackedAiHtmlScheme(payload, homepageConfig, resultProviderConfig, {
+        htmlScheme = configBackedAiHtmlScheme(policyPayload, homepageConfig, resultProviderConfig, {
           providerName: resultProviderConfig.name,
           sourceType: `model/${resultProviderConfig.provider}-config-html`,
           generationPipeline: `${resultProviderConfig.provider}-config-backed-html`,
@@ -11945,14 +14329,18 @@ async function callProvider(payload) {
     }
   }
 
-  const finalQuality = finalizeHomepageQuality(payload, homepageConfig, htmlScheme);
+  const finalQuality = finalizeHomepageQuality(policyPayload, homepageConfig, htmlScheme);
   const finalConfig = {
     ...homepageConfig,
     validation: repaired.validation,
+    validationWarnings: repaired.validation.warnings || [],
+    modulePolicy,
+    modulePolicyScore: finalQuality.modulePolicyScore,
     repairActions: repaired.repairActions,
     qualityScore: finalQuality.score,
     quality: finalQuality.quality,
     htmlQualityStatus: finalQuality.htmlQualityStatus,
+    productWarnings: finalQuality.productWarnings,
   };
 
   return {
@@ -11966,10 +14354,14 @@ async function callProvider(payload) {
     },
     ...(htmlScheme ? { htmlScheme } : {}),
     validation: repaired.validation,
+    validationWarnings: repaired.validation.warnings || [],
+    modulePolicy,
+    modulePolicyScore: finalQuality.modulePolicyScore,
     repairActions: repaired.repairActions,
     qualityScore: finalQuality.score,
     quality: finalQuality.quality,
     htmlQualityStatus: finalQuality.htmlQualityStatus,
+    productWarnings: finalQuality.productWarnings,
     renderMode,
     activeRenderMode: activeRenderModeForRequest(renderMode, htmlScheme),
     provider: result.provider,
@@ -11990,7 +14382,6 @@ function buildComponentEditPromptForProvider(payload, component, config = {}) {
 }
 
 function componentProviderCanUseLocalFallback(config, error) {
-  if (config.provider !== "minimax") return false;
   const status = Number(error?.providerStatus || error?.details?.providerStatus || error?.statusCode);
   if ([400, 401, 403, 404].includes(status) && !/valid JSON object|Provider returned an empty/i.test(String(error?.message || ""))) {
     return false;
@@ -12006,6 +14397,16 @@ function componentProviderCanUseLocalFallback(config, error) {
 
 function componentProviderFallbackReason(error, fallback) {
   return cleanText(providerFailureSummary(error, fallback), fallback, 260);
+}
+
+function componentProviderFallbackComponent(payload, config, reason, options = {}) {
+  const brickFallback = componentLibraryFallbackForPayload(payload, { ...options, reason });
+  if (brickFallback) return brickFallback;
+  return {
+    ...saveComponent(mockGeneratedComponent(payload, config)),
+    sourceType: "local-fallback",
+    fallbackReason: reason,
+  };
 }
 
 async function callComponentProvider(payload) {
@@ -12028,18 +14429,34 @@ async function callComponentProvider(payload) {
   } catch (error) {
     if (!componentProviderCanUseLocalFallback(config, error)) throw error;
     const reason = componentProviderFallbackReason(error, `${config.name} 输出不是可解析 JSON，已使用本地安全组件兜底。`);
+    const component = componentProviderFallbackComponent(payload, config, reason);
     return {
-      component: saveComponent(mockGeneratedComponent(payload, config)),
+      component,
       provider: config.provider,
       model: config.model,
       rawText: "",
       usage: null,
       localFallback: true,
+      fallbackSource: component.sourceType === "brick-fallback" ? "brick-library" : "local-template",
       fallbackReason: reason,
     };
   }
   const normalized = normalizeGeneratedComponent(result.json, payload);
-  const component = saveComponent(generatedComponentTooGeneric(normalized) || generatedComponentViolatesFamily(normalized, payload) ? mockGeneratedComponent(payload, config) : normalized);
+  if (generatedComponentTooGeneric(normalized) || generatedComponentViolatesFamily(normalized, payload)) {
+    const reason = `${config.name} 已返回组件，但内容不符合当前 family 或业务字段要求，已引用积木库兜底。`;
+    const component = componentProviderFallbackComponent(payload, config, reason);
+    return {
+      component,
+      provider: result.provider,
+      model: result.model,
+      rawText: result.rawText,
+      usage: result.usage,
+      localFallback: true,
+      fallbackSource: component.sourceType === "brick-fallback" ? "brick-library" : "local-template",
+      fallbackReason: reason,
+    };
+  }
+  const component = saveComponent(normalized);
   return {
     component,
     provider: result.provider,
@@ -12070,13 +14487,21 @@ async function callComponentEditProvider(payload) {
   } catch (error) {
     if (!componentProviderCanUseLocalFallback(config, error)) throw error;
     const reason = componentProviderFallbackReason(error, `${config.name} 输出不是可解析 JSON，已使用本地安全编辑兜底。`);
+    const fallbackPayload = {
+      ...payload,
+      prompt: payload.instruction || currentComponent.sourcePrompt || currentComponent.description,
+      family: currentComponent.family,
+      size: currentComponent.size,
+    };
+    const component = componentProviderFallbackComponent(fallbackPayload, config, reason, { excludeIds: [currentComponent.id] });
     return {
-      component: saveComponent(mockEditedComponent(payload, currentComponent, config)),
+      component,
       provider: config.provider,
       model: config.model,
       rawText: "",
       usage: null,
       localFallback: true,
+      fallbackSource: component.sourceType === "brick-fallback" ? "brick-library" : "local-template",
       fallbackReason: reason,
     };
   }
@@ -12096,13 +14521,29 @@ async function callComponentEditProvider(payload) {
     },
   );
   const violatesFamily = generatedComponentViolatesFamily(normalized, { ...payload, family: currentComponent.family });
-  const component = saveComponent(
-    generatedComponentTooGeneric(normalized) || violatesFamily
-      ? violatesFamily
-        ? mockGeneratedComponent({ ...payload, family: currentComponent.family, size: currentComponent.size, prompt: payload.instruction || currentComponent.sourcePrompt }, config)
-        : mockEditedComponent(payload, currentComponent, config)
-      : normalized,
-  );
+  if (generatedComponentTooGeneric(normalized) || violatesFamily) {
+    const reason = violatesFamily
+      ? `${config.name} 已返回编辑结果，但偏离原组件 family，已引用同类积木兜底。`
+      : `${config.name} 已返回编辑结果，但内容过于通用，已引用组件库积木兜底。`;
+    const fallbackPayload = {
+      ...payload,
+      prompt: payload.instruction || currentComponent.sourcePrompt || currentComponent.description,
+      family: currentComponent.family,
+      size: currentComponent.size,
+    };
+    const component = componentProviderFallbackComponent(fallbackPayload, config, reason, { excludeIds: [currentComponent.id] });
+    return {
+      component,
+      provider: result.provider,
+      model: result.model,
+      rawText: result.rawText,
+      usage: result.usage,
+      localFallback: true,
+      fallbackSource: component.sourceType === "brick-fallback" ? "brick-library" : "local-template",
+      fallbackReason: reason,
+    };
+  }
+  const component = saveComponent(normalized);
   return {
     component,
     provider: result.provider,
@@ -12324,6 +14765,7 @@ async function handleFeedbackMemorySave(req, res) {
       scoreRecordId: cleanText(payload.scoreRecordId, "", 90),
       candidateGroupId: cleanText(payload.candidateGroupId || scoreRecord?.candidateGroupId, "", 80),
       candidateIndex: Number.isFinite(Number(payload.candidateIndex)) ? Number(payload.candidateIndex) : scoreRecord?.candidateIndex ?? null,
+      source: cleanText(payload.source, "manual-feedback", 60),
       decision,
       rating,
       note,
@@ -12336,6 +14778,7 @@ async function handleFeedbackMemorySave(req, res) {
       machineScore: Number.isFinite(Number(payload.machineScore)) ? Math.max(0, Math.min(100, Math.round(Number(payload.machineScore)))) : scoreRecord?.score ?? null,
       manualDimensions,
       referenceAssets,
+      evidence: normalizeFeedbackEvidence(payload.evidence),
       configSnapshot: homepageRecordSnapshot(config),
     });
     sendJson(res, 200, { ok: true, record, records: readFeedbackMemoryRecords() });

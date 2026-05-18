@@ -3,6 +3,71 @@
   "updatedAt": "2026-05-15T00:00:00.000Z",
   "samples": [
     {
+      "id": "spacious-white-fintech-saas-baseline",
+      "name": "宽松白底金融 SaaS 基准",
+      "scenario": "用户端首页、成熟金融 SaaS、强调白底留白、浅边框卡片、蓝色克制强调和清晰信息层级",
+      "pageIntent": "default",
+      "visualStyle": "spacious white fintech SaaS dashboard",
+      "aestheticScore": 96,
+      "tags": ["白底", "留白", "金融SaaS", "清爽专业", "浅边框", "蓝色强调", "低密度", "用户首页"],
+      "page": {
+        "name": "宽松金融客户端首页",
+        "layout": "页面居中 1400-1500px，顶部欢迎区保留呼吸感；核心资产、下一步或关键任务形成首屏唯一主焦点；后续模块按 24-32px 纵向节奏展开。",
+        "hero": "不做营销大封面，用欢迎信息、主数据或主任务建立秩序；白色卡片承载内容，浅蓝灰边框和轻阴影只负责分层。",
+        "navigation": "主操作使用蓝色按钮，次操作用白底浅边框按钮；快捷入口和状态标签保持低装饰、易扫描。",
+        "mobile": "移动端保持 20-24px 边距，模块单列堆叠，主数字和主操作先出现，次要统计降低对比。"
+      },
+      "functions": [
+        {
+          "name": "页面空间秩序",
+          "objective": "让任意首页功能在宽松、可信赖的金融 SaaS 视觉语言下呈现，而不是变成密集后台。",
+          "modules": ["welcome_header", "asset_overview", "quick_actions"],
+          "data": ["totalAssets", "walletBalance", "quickActionList"],
+          "actions": ["deposit", "openAccount"]
+        },
+        {
+          "name": "信息层级",
+          "objective": "首屏只突出 1-2 个视觉重点，其他模块通过灰蓝说明、小标签和稳定网格向下展开。",
+          "modules": ["onboarding_guide", "trading_accounts_list", "referral_link_card"],
+          "data": ["accountOpeningSteps", "tradingAccounts", "promoLink"],
+          "actions": ["accounts", "copyLink"]
+        }
+      ],
+      "sampleBlocks": [
+        {
+          "id": "spacious-canvas-rhythm",
+          "name": "页面画布与留白节奏",
+          "page": "全局版式规范",
+          "function": "控制页面宽度、左右留白、区块间距和模块 padding，使页面更接近成熟客户端首页。",
+          "componentRefs": ["system.welcomeHeader", "assetOverview.flexible", "quickActions.configDriven"],
+          "visualNotes": ["1400-1500px 居中容器", "桌面 64-96px 页面留白", "模块之间 24-32px", "卡片内 24-32px"],
+          "dataFields": []
+        },
+        {
+          "id": "spacious-card-language",
+          "name": "浅边框白卡语言",
+          "page": "所有主要模块",
+          "function": "用纯白卡片、浅蓝灰边框、轻阴影和统一圆角建立高级感，不依赖装饰背景。",
+          "componentRefs": ["assetOverview.flexible", "onboardingProgress.guideCards", "tradingAccounts.list"],
+          "visualNotes": ["纯白卡片", "浅蓝灰细边框", "轻阴影", "蓝色只做强调"],
+          "dataFields": []
+        },
+        {
+          "id": "spacious-typography-hierarchy",
+          "name": "数字与文字层级",
+          "page": "资产、账号、任务和统计模块",
+          "function": "重要金额和状态用大号粗体成为视觉锚点，说明文案用灰蓝色弱化。",
+          "componentRefs": ["assetOverview.flexible", "accountPerformance.proChart", "referralLinkCard.compact"],
+          "visualNotes": ["大数字优先", "说明文字低对比", "只保留一到两个最高视觉重点"],
+          "dataFields": ["totalAssets", "equityCurve", "registrationCount"]
+        }
+      ],
+      "componentRefs": ["system.welcomeHeader", "assetOverview.flexible", "quickActions.configDriven", "onboardingProgress.guideCards", "tradingAccounts.list", "referralLinkCard.compact"],
+      "goodPatterns": ["白底或极浅蓝灰背景", "大留白和稳定网格", "主蓝色小面积强调", "重要数字成为视觉锚点", "模块之间有 24-32px 呼吸感", "浅边框和轻阴影建立层次"],
+      "avoidPatterns": ["整页浅青色背景", "所有模块等权", "卡片套卡片", "厚重阴影", "大面积渐变", "密集后台表盘感", "照搬某张参考图的具体内容"],
+      "promptSeeds": ["默认首页使用宽松白底金融 SaaS 风格，强调留白、浅边框卡片、蓝色克制强调和清晰信息层级。", "生成用户端首页时不要固定组件结构，只应用白底、低密度、强层级和统一排版节奏。"]
+    },
+    {
       "id": "vip-capital-desk-sample",
       "name": "高净值资产中枢",
       "scenario": "高净值客户、黑金品牌、首屏强调资产安全感和资金动作",

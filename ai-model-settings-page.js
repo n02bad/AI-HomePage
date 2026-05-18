@@ -18,7 +18,7 @@
     toast: document.querySelector("[data-model-settings-toast]"),
   };
 
-  const providerOrder = ["deepseek", "kimi", "minimax", "openai", "claude"];
+  const providerOrder = settings.PROVIDER_ORDER || Object.keys(settings.AI_MODEL_PRESETS || {});
   let state = {
     config: settings.loadModelConfig(),
     providerStatus: {},

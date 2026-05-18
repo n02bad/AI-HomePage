@@ -46,6 +46,47 @@
                   <div><dt>首屏</dt><dd data-summary-hero>--</dd></div>
                 </dl>
                 <div class="governance-summary" data-governance-summary></div>
+                <div class="aesthetic-score-panel" data-aesthetic-score-panel data-tone="pending">
+                  <div class="aesthetic-score-head">
+                    <div>
+                      <span>VISUAL SCORE</span>
+                      <strong>首页审美评分</strong>
+                    </div>
+                    <b data-aesthetic-score-value>--</b>
+                  </div>
+                  <p data-aesthetic-score-status>等待评分。</p>
+                  <div class="aesthetic-score-bars" data-aesthetic-score-categories></div>
+                  <div class="aesthetic-score-list" data-aesthetic-score-issues></div>
+                  <div class="aesthetic-reference-list" data-aesthetic-score-references></div>
+                  <div class="aesthetic-manual-score" data-aesthetic-manual-score>
+                    <div class="aesthetic-manual-head">
+                      <div>
+                        <span>HUMAN SCORE</span>
+                        <strong>我的审美评分</strong>
+                      </div>
+                      <output data-aesthetic-manual-score-output>88</output>
+                    </div>
+                    <label class="aesthetic-score-slider">
+                      <span>人工评分</span>
+                      <input data-aesthetic-manual-score-input type="range" min="0" max="100" step="1" value="88" />
+                    </label>
+                    <div class="aesthetic-decision-segment" role="group" aria-label="人工审美判断">
+                      <button class="active" type="button" data-aesthetic-decision="approve">认可</button>
+                      <button type="button" data-aesthetic-decision="neutral">一般</button>
+                      <button type="button" data-aesthetic-decision="reject">不认可</button>
+                    </div>
+                    <label class="aesthetic-note-field">
+                      <span>评分原因</span>
+                      <textarea data-aesthetic-score-note rows="3" maxlength="900" placeholder="例如：首屏层级不错，但账号区太像表格；下次保留资产 Hero，减少白卡。"></textarea>
+                    </label>
+                    <small data-aesthetic-evidence-status>保存时会带上当前首页代码快照。</small>
+                  </div>
+                  <div class="aesthetic-score-actions">
+                    <button type="button" data-aesthetic-score-refresh>刷新评分</button>
+                    <button type="button" data-aesthetic-score-save>保存我的评分</button>
+                    <button type="button" data-aesthetic-score-improve>生成更优候选</button>
+                  </div>
+                </div>
               </div>
 
               <div class="studio-section skeleton-workflow-panel" data-skeleton-workflow hidden></div>

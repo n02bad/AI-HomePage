@@ -4,6 +4,22 @@ This project should treat every homepage prompt as a product-design brief, not a
 
 `design.md` is the design constitution. It limits AI freedom to the ForexCRM / Nxbroker financial CRM style: clear information hierarchy, dense but scannable modules, disciplined tokens, responsive behavior, and component-library semantics. The AI may still generate polished HTML, but polish must come from structure, spacing, state expression, data visualization, empty/loading states, and responsive refinement. It must not come from random gradients, thick shadows, oversized marketing heroes, card nesting, hard-coded colors, or newly invented business modules.
 
+## 0. Default Visual Baseline
+
+Every homepage generation should start from a spacious white fintech SaaS dashboard baseline unless the prompt explicitly asks for another brand mode such as dark terminal, black-gold VIP, campaign poster, or graphite institutional.
+
+This baseline is a layout and spacing language, not a fixed component set:
+
+- The page canvas should be white or very light blue-gray, centered, and capped around 1400-1500px on desktop.
+- Desktop side gutters should feel generous, usually 64-96px; mobile gutters should stay around 20-24px.
+- Main sections should keep 24-32px vertical rhythm, with 24-32px internal padding for most modules.
+- Cards should be white, with thin blue-gray borders, very light shadow, and restrained 8-12px radius.
+- Blue is the primary emphasis color. Use it for primary CTAs, selected states, key tags, and the most important values; do not flood the page with blue surfaces.
+- Important money, account, progress, and status values should become large visual anchors; secondary copy should be smaller and gray-blue.
+- The first screen should have only one or two dominant focal points. Do not make every module high contrast.
+- The homepage should feel calm, spacious, trustworthy, and product-like. It should not look like a dense operations back office or a marketing landing page.
+- Avoid nested card stacks, thick shadows, large decorative gradients, oversized hero posters, and equal-weight modules.
+
 ## 1. Understand First
 
 For each prompt, split the request into three layers:
@@ -183,6 +199,7 @@ Understanding protocol:
 8. Put risk disclosure at the bottom, FAQ as accordion, and account lists in the most suitable account presentation.
 9. Include autoLayout with desktop/tablet/mobile rules; paired rows must be equal height on desktop and stack on narrow content containers.
 10. Self-check the result against hard constraints before returning JSON.
+11. Apply the default spacious white fintech SaaS visual baseline unless a stronger explicit brand mode overrides it; this controls spacing, gutters, card treatment, typography hierarchy, and color restraint, not component selection.
 
 Output:
 Return only a JSON object that can be parsed by JSON.parse.

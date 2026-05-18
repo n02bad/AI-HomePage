@@ -35,7 +35,7 @@ AI 的作用不是直接生成页面代码，而是根据租户描述、品牌�
 - 页面风格预设必须产生肉眼可见的结构差异。不同预设之间不能只是同一套 DOM 结构换色、换文案或换顺序。
 - 当个性化强度为 `strong` 时，必须同时改变首屏重心、布局预设、主题预设、核心模块样式和关键模块设置。
 - 视觉词不能反向绑架业务意图。`淡蓝色`、`扁平化`、`圆角10`、`PingFang SC` 只影响 theme token 和模块视觉，不应把新客、跟单或活动需求强行改回资产/资金可信首页。
-- 首页 AI 生成通过本地 `server.js` 的 `/api/home-ai/complete` 后端代理调用 OpenAI、Claude、MiniMax、Kimi、DeepSeek；不要在前端直连外部模型接口，生产环境密钥应走环境变量。
+- 首页 AI 生成通过本地 `server.js` 的 `/api/home-ai/complete` 后端代理调用 OpenAI、Claude、MiniMax、Kimi、DeepSeek、Gemini；不要在前端直连外部模型接口，生产环境密钥应走环境变量。
 - 组件库 AI 生成通过本地 `server.js` 的 `/api/home-components/*` 接口完成。AI 只能生成受控组件定义和组合建议，不能直接改正式首页代码。
 - AI 生成模块或首页蓝图前必须先参考组件库已保存积木的字段、尺寸、按钮、标签、卡片密度和视觉层级，再根据管理员意图发挥；组件库是灵感和形态参考，不是新增业务功能授权。
 - 大模型不是首页搭建器的单点依赖。首页配置模型、模块白名单、mock 链路和发布流程必须先独立跑通；某个 provider 调不通时，不要阻塞首页编辑、预览和发布主流程。
@@ -56,7 +56,7 @@ AI 的作用不是直接生成页面代码，而是根据租户描述、品牌�
 - `home-layout-admin.js`: 输入页和预览页的控制器，负责生成草稿、切换模块样式、发布配置。
 - `home-personalization.js`: 首页蓝图引擎，负责配置标准化、方案生成、草稿/发布存储、模块渲染。
 - `home-personalization.css`: 首页个性化管理页、预览工作台、模块样式变体。
-- `大模型配置`: 保存在 `localStorage` 的 `forexcrm.home.ai.model.config`，用于预设 OpenAI、Claude、MiniMax、Kimi、DeepSeek 的模型与接口参数；MiniMax 需要额外确认 API Key 来源和 Base URL 是否匹配。
+- `大模型配置`: 保存在 `localStorage` 的 `forexcrm.home.ai.model.config`，用于预设 OpenAI、Claude、MiniMax、Kimi、DeepSeek、Gemini 的模型与接口参数；MiniMax 需要额外确认 API Key 来源和 Base URL 是否匹配。
 - `server.js`: 静态资源服务、首页大模型代理和组件库大模型代理，读取环境变量或前端临时配置调用 provider，并返回首页蓝图 JSON 或组件定义 JSON。
 - `package.json`: 使用 `npm start` 启动完整首页 AI 原型；`npm run start:mock` 可不带密钥走代理 mock 链路。
 - `client-home.html`, `client-home.js`, `client-home.css`: 用户端首页真实内容和账号交互。
@@ -70,7 +70,7 @@ AI 的作用不是直接生成页面代码，而是根据租户描述、品牌�
 - OpenAI 兼容调用应走 `POST /v1/chat/completions`，也就是 Base URL 加 `/chat/completions`；模型优先用 `MiniMax-M2.7`，需要速度再试 `MiniMax-M2.7-highspeed`。
 - MiniMax M2.x 原生 OpenAI 兼容返回的 `content` 可能包含 `<think>...</think>` 推理内容。只收首页 JSON 时，代理层要先剥离 thinking/markdown，再提取 JSON object，否则会出现“模型有返回，但系统说不是有效 JSON”的假失败。
 - Token Plan Key、按量 API Key、模型 ID、额度和区域入口必须互相匹配。出现 401、403、404、429 或 plan/key 相关报错时，先校验 key 类型、模型名、额度和 Base URL。
-- 如果目标是稳定生成首页配置，MiniMax 暂时只作为可选 provider；默认验收可以先用 mock、OpenAI、Claude、Kimi 或 DeepSeek 跑通完整链路。
+- 如果目标是稳定生成首页配置，MiniMax 暂时只作为可选 provider；默认验收可以先用 mock、OpenAI、Claude、Kimi、DeepSeek 或 Gemini 跑通完整链路。
 
 ## Kimi 调用判断
 
@@ -86,6 +86,13 @@ AI 的作用不是直接生成页面代码，而是根据租户描述、品牌�
 - 如果手动选择 `deepseek-v4-pro`，代理层应在 Pro 超时或返回不可解析 JSON 时自动用 `deepseek-v4-flash` 重试；不要让一次 Pro 慢调用阻塞首页编辑、预览和发布。
 - 环境变量优先使用 `DEEPSEEK_API_KEY`，可用 `DEEPSEEK_MODEL` 覆盖默认模型。
 - 旧的 `deepseek-chat`、`deepseek-reasoner` 不作为本项目预设入口，避免继续依赖即将废弃的兼容模型名。
+
+## Gemini 调用判断
+
+- Gemini 当前走 Google Gemini API 的 OpenAI 兼容 `POST /chat/completions`，Base URL 使用 `https://generativelanguage.googleapis.com/v1beta/openai`，不要在前端直连。
+- 首页/组件生成默认用 `gemini-2.5-flash`，可手动切换 `gemini-3-flash-preview`、`gemini-2.5-flash-lite` 或 `gemini-2.5-pro`。
+- 环境变量优先使用 `GEMINI_API_KEY`，也支持 `GOOGLE_API_KEY`；可用 `GEMINI_MODEL`、`GEMINI_BASE_URL` 覆盖默认模型和入口。
+- 对 `gemini-2.5-flash` 这类 Flash 模型，代理层会发送 `reasoning_effort: "none"` 并要求 `response_format: { "type": "json_object" }`，避免首页 JSON 生成被额外思考拖慢。
 
 新的处理思路：
 
@@ -510,6 +517,7 @@ AI 生成首页不能只靠 prompt 自觉遵守结构。每个结果都要先经
 - 没有真实密钥时先用 `npm run start:mock` 验证完整链路。
 - 真实调用 MiniMax 前，先确认 Base URL 与 Key 区域一致，并用最小 chat 请求验证模型可用。
 - 真实调用 DeepSeek 前，先确认 `DEEPSEEK_API_KEY`、`https://api.deepseek.com` 和 V4 模型 ID 可用。
+- 真实调用 Gemini 前，先确认 `GEMINI_API_KEY` 或 `GOOGLE_API_KEY`、`https://generativelanguage.googleapis.com/v1beta/openai` 和 Gemini 模型 ID 可用。
 - 输入页应无 iframe，只展示 AI 输入和建议方案。
 - 点击生成预览后应进入 `home-layout-preview.html`。
 - 预览页应有栏目拼接和模块样式控制。

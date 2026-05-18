@@ -242,6 +242,53 @@ body[data-home-emphasis-accounts="high"] .accounts-panel {
   font-weight: 750;
 }
 
+.ai-welcome-feature[data-welcome-mode="deposit"] {
+  min-height: 106px;
+  border-color: color-mix(in srgb, var(--home-primary) 20%, var(--home-glass-border));
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--home-primary) 9%, #ffffff), rgba(255, 255, 255, 0.92)),
+    var(--home-glass-card-bg);
+}
+
+.ai-welcome-deposit-actions {
+  min-width: min(100%, 390px);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ai-welcome-deposit-actions span {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--home-primary) 16%, var(--home-border));
+  border-radius: var(--home-radius-xs);
+  background: color-mix(in srgb, var(--home-primary) 6%, #ffffff);
+  color: var(--home-text-strong);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.ai-welcome-deposit-actions a,
+.ai-deposit-ladder-cta {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  border: 1px solid color-mix(in srgb, var(--home-primary) 70%, var(--home-button-border));
+  border-radius: var(--home-radius-sm);
+  background: var(--home-primary);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 950;
+  text-decoration: none;
+  box-shadow: 0 14px 28px color-mix(in srgb, var(--home-primary) 20%, transparent);
+}
+
 .ai-balance-feature,
 .ai-wallet-feature,
 .ai-action-feature,
@@ -921,6 +968,7 @@ body[data-home-layout="traderConsole"] .ai-section-rail .ai-quick-feature {
 .ai-referral-feature,
 .ai-accounts-feature,
 .ai-user-rail-feature,
+.ai-kyc-status-feature,
 .ai-performance-feature,
 .ai-wallet-list-feature,
 .ai-create-account-feature,
@@ -943,6 +991,7 @@ body[data-home-layout="traderConsole"] .ai-section-rail .ai-quick-feature {
 .ai-quick-feature,
 .ai-referral-feature,
 .ai-user-rail-feature,
+.ai-kyc-status-feature,
 .ai-performance-feature,
 .ai-wallet-list-feature,
 .ai-create-account-feature,
@@ -1914,6 +1963,50 @@ body[data-home-layout="traderConsole"] .ai-section-rail .ai-quick-feature {
 .ai-performance-account-metrics {
   display: grid;
   gap: 10px;
+}
+
+.ai-kyc-current {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--home-glass-border);
+  border-radius: var(--home-radius-sm);
+  background: var(--home-soft-panel-bg);
+}
+
+.ai-kyc-current span {
+  width: max-content;
+  max-width: 100%;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--home-primary) 12%, transparent);
+  color: var(--home-primary-strong);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.ai-kyc-current strong {
+  color: var(--home-text-strong);
+  font-size: 18px;
+  font-weight: 950;
+}
+
+.ai-kyc-current small {
+  color: var(--home-text-muted);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.ai-kyc-current button {
+  justify-self: start;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--home-primary);
+  color: var(--home-button-text);
+  font-weight: 900;
 }
 
 .ai-performance-head {
@@ -5291,6 +5384,288 @@ body[data-layout-page="home-layout-admin"] .personalization-page {
   color: #be123c;
 }
 
+.aesthetic-score-panel {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.aesthetic-score-panel[data-tone="pass"] {
+  border-color: #99f6e4;
+  background: #ecfdf5;
+}
+
+.aesthetic-score-panel[data-tone="warn"] {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.aesthetic-score-panel[data-tone="fail"] {
+  border-color: #fecaca;
+  background: #fff1f2;
+}
+
+.aesthetic-score-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.aesthetic-score-head div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.aesthetic-score-head span {
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.04em;
+}
+
+.aesthetic-score-panel[data-tone="pass"] .aesthetic-score-head span {
+  color: #0f766e;
+}
+
+.aesthetic-score-panel[data-tone="warn"] .aesthetic-score-head span {
+  color: #b45309;
+}
+
+.aesthetic-score-panel[data-tone="fail"] .aesthetic-score-head span {
+  color: #be123c;
+}
+
+.aesthetic-score-head strong {
+  color: #172033;
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.aesthetic-score-head b {
+  min-width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: #111827;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 950;
+}
+
+.aesthetic-score-panel > p {
+  margin: 0;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.55;
+}
+
+.aesthetic-score-bars {
+  display: grid;
+  gap: 8px;
+}
+
+.aesthetic-score-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 10px;
+  align-items: center;
+}
+
+.aesthetic-score-bar span,
+.aesthetic-score-bar strong {
+  color: #334155;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.aesthetic-score-bar i {
+  grid-column: 1 / -1;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e2e8f0;
+}
+
+.aesthetic-score-bar i::before {
+  content: "";
+  display: block;
+  width: var(--score, 0%);
+  height: 100%;
+  border-radius: inherit;
+  background: #2563eb;
+}
+
+.aesthetic-score-panel[data-tone="pass"] .aesthetic-score-bar i::before {
+  background: #0f766e;
+}
+
+.aesthetic-score-panel[data-tone="warn"] .aesthetic-score-bar i::before {
+  background: #d97706;
+}
+
+.aesthetic-score-panel[data-tone="fail"] .aesthetic-score-bar i::before {
+  background: #e11d48;
+}
+
+.aesthetic-score-list,
+.aesthetic-reference-list {
+  display: grid;
+  gap: 6px;
+}
+
+.aesthetic-score-list small,
+.aesthetic-reference-list span {
+  padding: 8px 9px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #475569;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.aesthetic-manual-score {
+  display: grid;
+  gap: 9px;
+  padding: 10px;
+  border: 1px solid rgba(37, 99, 235, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.aesthetic-manual-head,
+.aesthetic-score-slider span,
+.aesthetic-note-field span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.aesthetic-manual-head div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.aesthetic-manual-head span {
+  color: #2563eb;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.04em;
+}
+
+.aesthetic-manual-head strong,
+.aesthetic-score-slider span,
+.aesthetic-note-field span {
+  color: #172033;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.aesthetic-manual-head output {
+  min-width: 42px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: #172033;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.aesthetic-score-slider,
+.aesthetic-note-field {
+  display: grid;
+  gap: 7px;
+}
+
+.aesthetic-score-slider input[type="range"] {
+  width: 100%;
+  accent-color: #2563eb;
+}
+
+.aesthetic-decision-segment {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.aesthetic-decision-segment button {
+  min-height: 30px;
+  border: 1px solid #dbe4ef;
+  border-radius: 8px;
+  background: #fff;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.aesthetic-decision-segment button.active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.aesthetic-note-field textarea {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  padding: 9px 10px;
+  border: 1px solid #dbe4ef;
+  border-radius: 8px;
+  background: #fff;
+  color: #172033;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.aesthetic-manual-score > small {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.aesthetic-score-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.aesthetic-score-actions button {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #172033;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.aesthetic-score-actions button[data-aesthetic-score-save],
+.aesthetic-score-actions button[data-aesthetic-score-improve] {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #fff;
+}
+
+.aesthetic-score-actions button[data-aesthetic-score-improve] {
+  grid-column: 1 / -1;
+}
+
 .module-outline,
 .module-style-controls {
   display: grid;
@@ -6354,7 +6729,7 @@ body[data-layout-page="home-layout-admin"] .personalization-page {
 .model-call-table-head,
 .model-call-row {
   display: grid;
-  grid-template-columns: 88px 132px minmax(150px, 1fr) 92px 76px minmax(180px, 1.4fr);
+  grid-template-columns: 76px 88px 132px minmax(150px, 1fr) 96px 76px minmax(180px, 1.4fr);
   gap: 10px;
   align-items: center;
 }
@@ -6864,10 +7239,37 @@ body:not([data-home-layout="tradingPro"]) .ai-balance-feature[data-module-style=
 
 .ai-home-block-polished.ai-promo-feature[data-module-style="deposit-ladder"] {
   grid-template-columns: minmax(0, 1fr);
+  border-color: color-mix(in srgb, var(--home-primary) 24%, #ffffff);
+  background:
+    radial-gradient(circle at 96% 0%, color-mix(in srgb, var(--home-primary) 18%, transparent), transparent 30%),
+    linear-gradient(135deg, color-mix(in srgb, var(--home-primary) 9%, #ffffff), #ffffff 54%),
+    var(--home-card-bg);
+  color: var(--home-text-strong);
 }
 
 .ai-home-block-polished.ai-promo-feature[data-module-style="deposit-ladder"] .ai-deposit-ladder-copy {
   align-content: start;
+}
+
+.ai-home-block-polished.ai-promo-feature[data-module-style="deposit-ladder"] .ai-deposit-ladder-copy span {
+  color: var(--home-primary);
+}
+
+.ai-home-block-polished.ai-promo-feature[data-module-style="deposit-ladder"] .ai-deposit-ladder-copy strong,
+.ai-home-block-polished.ai-promo-feature[data-module-style="deposit-ladder"] .ai-deposit-ladder-tiers b {
+  color: var(--home-text-strong);
+}
+
+.ai-home-block-polished.ai-promo-feature[data-module-style="deposit-ladder"] .ai-deposit-ladder-copy p,
+.ai-home-block-polished.ai-promo-feature[data-module-style="deposit-ladder"] .ai-deposit-ladder-note,
+.ai-home-block-polished.ai-promo-feature[data-module-style="deposit-ladder"] .ai-deposit-ladder-tiers small {
+  color: var(--home-text-muted);
+}
+
+.ai-home-block-polished.ai-promo-feature[data-module-style="deposit-ladder"] .ai-deposit-ladder-tiers article {
+  border-color: color-mix(in srgb, var(--home-primary) 18%, #ffffff);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 16px 34px rgba(37, 99, 235, 0.09);
 }
 
 .ai-ad-carousel-feature[data-module-style="clean"] .ai-ad-carousel {
@@ -8864,7 +9266,7 @@ body:not([data-tenant-theme="darkTech"]):not([data-home-color-mode="dark"]) .ai-
   }
 
   .model-call-table {
-    min-width: 860px;
+    min-width: 940px;
   }
 
   .model-call-detail-panel {
@@ -8899,7 +9301,7 @@ body:not([data-tenant-theme="darkTech"]):not([data-home-color-mode="dark"]) .ai-
   }
 
   .model-call-table {
-    min-width: 780px;
+    min-width: 900px;
   }
 }
 
@@ -9574,6 +9976,14 @@ body[data-home-render-mode="aiHtml"] .dashboard-customize-link {
 .home-skeleton-ai-component,
 .home-skeleton-ai-component-body {
   min-width: 0;
+}
+
+.home-skeleton-ai-component.is-brick-fallback {
+  width: 100%;
+}
+
+.home-skeleton-ai-component.is-brick-fallback .home-skeleton-ai-component-body > * {
+  width: 100%;
 }
 
 .home-skeleton-local-component {

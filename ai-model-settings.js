@@ -11,7 +11,9 @@
   const KIMI_CN_BASE_URL = "https://api.moonshot.cn/v1";
   const KIMI_GLOBAL_BASE_URL = "https://api.moonshot.ai/v1";
   const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
-  const PROVIDER_ORDER = ["deepseek", "kimi", "minimax", "openai", "claude"];
+  const GEMINI_OPENAI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai";
+  const GEMINI_DEFAULT_MODEL = "gemini-2.5-flash";
+  const PROVIDER_ORDER = ["gemini", "deepseek", "kimi", "minimax", "openai", "claude"];
 
   const AI_MODEL_PRESETS = {
     openai: {
@@ -73,6 +75,18 @@
       apiMode: "openai-chat",
       apiKeyLabel: "DEEPSEEK_API_KEY",
       note: "DeepSeek V4 官方 API 模型。V4-Flash 适合稳定生成，V4-Pro 可手动选择。",
+    },
+    gemini: {
+      provider: "gemini",
+      name: "Gemini",
+      badge: "OpenAI Compatible",
+      model: GEMINI_DEFAULT_MODEL,
+      models: [GEMINI_DEFAULT_MODEL, "gemini-3-flash-preview", "gemini-2.5-flash-lite", "gemini-2.5-pro"],
+      baseUrl: GEMINI_OPENAI_BASE_URL,
+      endpoint: "/chat/completions",
+      apiMode: "openai-chat",
+      apiKeyLabel: "GEMINI_API_KEY",
+      note: `Google Gemini API 的 OpenAI 兼容接口；默认使用 ${GEMINI_DEFAULT_MODEL}，Base URL 是 ${GEMINI_OPENAI_BASE_URL}。`,
     },
   };
 
@@ -143,17 +157,21 @@
 
   function normalizeBaseUrl(provider, value) {
     const baseUrl = String(value || "").trim().replace(/\/+$/, "");
-    if (!["minimax", "kimi"].includes(provider)) return baseUrl;
+    if (!["minimax", "kimi", "gemini"].includes(provider)) return baseUrl;
 
     try {
       const target = new URL(baseUrl);
       if (provider === "minimax" && ["api.minimaxi.cn", "api.minimax.io"].includes(target.hostname)) return MINIMAX_CN_BASE_URL;
       if (provider === "kimi" && target.hostname === "api.moonshot.ai") return KIMI_CN_BASE_URL;
+      if (provider === "gemini" && target.hostname === "generativelanguage.googleapis.com") {
+        if (target.pathname === "/" || target.pathname === "/v1beta" || target.pathname === "/v1beta/openai/") return GEMINI_OPENAI_BASE_URL;
+      }
     } catch (error) {
       return baseUrl;
     }
 
     if (provider === "minimax") return [MINIMAX_CN_TYPED_ALIAS_BASE_URL, MINIMAX_GLOBAL_BASE_URL].includes(baseUrl) ? MINIMAX_CN_BASE_URL : baseUrl;
+    if (provider === "gemini") return baseUrl === "https://generativelanguage.googleapis.com/v1beta/openai/" ? GEMINI_OPENAI_BASE_URL : baseUrl;
     return baseUrl === KIMI_GLOBAL_BASE_URL ? KIMI_CN_BASE_URL : baseUrl;
   }
 
@@ -595,6 +613,7 @@
     RECENT_KEY,
     LEGACY_CONFIG_KEYS,
     AI_MODEL_PRESETS,
+    PROVIDER_ORDER,
     DEFAULT_MODEL_CONFIG,
     providerPreset,
     providerStatus,

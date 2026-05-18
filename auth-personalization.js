@@ -1,7 +1,14 @@
 (function () {
   const STYLE_PRESETS = ["blueSplit", "clientOnboarding", "securityReset", "softPlatform", "photoDark"];
-  const SCREEN_KEYS = ["login", "register", "forgot"];
+  const SCREEN_KEYS = ["login", "register", "forgot", "mfa", "registerVerify", "forgotVerify"];
+  const PRIMARY_SCREEN_KEYS = ["login", "register", "forgot"];
   const COMPOSITION_PRESETS = ["splitTrust", "floatingConsole", "stepperRail", "identityLedger", "campaignPassport", "vaultMinimal"];
+  const LOGO_PLACEMENTS = ["heroTopLeft", "topCenter", "formTop", "mobileTop"];
+  const LAYOUT_TYPES = ["split", "mediaSplit", "centeredCard", "fullBleed", "cardOverlay", "mobileFirst"];
+  const FORM_POSITIONS = ["left", "right", "center"];
+  const MEDIA_POSITIONS = ["left", "right", "background", "none"];
+  const HERO_VISIBILITIES = ["full", "compact", "hidden"];
+  const MOBILE_STRATEGIES = ["logoFirst", "formFirst", "mediaMuted", "singleColumn"];
 
   const icons = {
     arrowRight: '<path d="M5 12h14" /><path d="m13 6 6 6-6 6" />',
@@ -11,6 +18,7 @@
     chevronDown: '<path d="m7 10 5 5 5-5" />',
     eye: '<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z" /><circle cx="12" cy="12" r="3" />',
     globe: '<circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c2 2.4 3 5.4 3 9s-1 6.6-3 9c-2-2.4-3-5.4-3-9s1-6.6 3-9z" />',
+    key: '<path d="M21 2l-2 2m-7.6 7.6a5 5 0 1 1-2.9-2.9L21 2z" /><path d="m15 5 4 4" />',
     lock: '<rect x="5" y="10" width="14" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" />',
     mail: '<rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" />',
     phone: '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.7 2.6a2 2 0 0 1-.5 2.1L8 9.7a16 16 0 0 0 6.3 6.3l1.3-1.3a2 2 0 0 1 2.1-.5c.8.3 1.7.6 2.6.7a2 2 0 0 1 1.7 2z" />',
@@ -65,10 +73,10 @@
     if (STYLE_PRESETS.includes(options.stylePreset)) return options.stylePreset;
     const guidedText = `${options.intent || ""} ${options.designStyle || ""} ${options.theme || ""} ${options.audience || ""} ${options.registerDepth || ""}`.toLowerCase();
     if (/resettrust|securelogin/.test(guidedText)) return "securityReset";
-    if (/partnerinvite/.test(guidedText)) return "clientOnboarding";
-    if (/campaignsignup/.test(guidedText)) return "softPlatform";
-    if (/compliance|合规|clientonboarding/.test(guidedText)) return "clientOnboarding";
     if (/premium|blackgold|高净值|黑金|graphite|高级/.test(guidedText)) return "photoDark";
+    if (/partnerinvite/.test(guidedText)) return "clientOnboarding";
+    if (/campaignsignup/.test(guidedText)) return "photoDark";
+    if (/compliance|合规|clientonboarding/.test(guidedText)) return "clientOnboarding";
     if (/soft|friendly|亲和|轻量/.test(guidedText)) return "softPlatform";
     if (/secure|security|twofactor|科技安全|双重/.test(guidedText)) return "securityReset";
     const text = `${prompt} ${options.stylePreset || ""}`.toLowerCase();
@@ -78,6 +86,56 @@
     if (/照片|城市|移民|深色|statue|haame|photo|dark/.test(text)) return "photoDark";
     if (/平台|浅蓝|咨询|数字化|soft/.test(text)) return "softPlatform";
     return "blueSplit";
+  }
+
+  function inferIntent(prompt = "", options = {}) {
+    const explicit = cleanText(options.intent, "", 40);
+    if (explicit) return explicit;
+    const text = String(prompt || "").toLowerCase();
+    if (/活动|campaign|promo|奖励|转化|注册送|权益/.test(text)) return "campaignSignup";
+    if (/代理|ib|渠道|邀请/.test(text)) return "partnerInvite";
+    if (/找回|忘记|重置|reset|forgot/.test(text)) return "resetTrust";
+    if (/安全登录|双重|2fa|securelogin/.test(text)) return "secureLogin";
+    return "openAccount";
+  }
+
+  function inferRegisterDepth(prompt = "", options = {}) {
+    const explicit = cleanText(options.registerDepth, "", 40);
+    if (explicit) return explicit;
+    const text = String(prompt || "").toLowerCase();
+    if (/专业版|合规增强|合规版|compliance|full[_\s-]?kyc|kyc 前置|风险披露/.test(text)) return "compliance";
+    if (/基础版|轻量|light/.test(text)) return "light";
+    return "standard";
+  }
+
+  function inferTheme(prompt = "", options = {}) {
+    const explicit = cleanText(options.theme, "", 40);
+    if (explicit) return explicit;
+    const text = String(prompt || "").toLowerCase();
+    if (/黑金|高净值|blackgold|private|premium/.test(text)) return "blackGold";
+    if (/石墨|银|graphite/.test(text)) return "graphiteSilver";
+    if (/玫红|rose/.test(text)) return "roseCampaign";
+    if (/青绿|绿色|emerald/.test(text)) return "emeraldSecure";
+    return "blueTrust";
+  }
+
+  function expandFeatures(features = [], prompt = "") {
+    const text = String(prompt || "").toLowerCase();
+    const next = new Set(listValue(features));
+    [
+      ["phoneEmailLogin", /手机号|手机|邮箱|email|phone/],
+      ["socialLogin", /第三方|google|apple|social/],
+      ["tradingAccountLogin", /交易账号|交易账户|mt4|mt5|trading account/],
+      ["captcha", /验证码|captcha|图形验证/],
+      ["twoFactor", /双重|2fa|动态口令|two-factor|two factor/],
+      ["inviteCode", /推荐码|邀请码|invite|referral|ib/],
+      ["kycPrelude", /kyc|实名|身份|前置说明/],
+      ["riskConsent", /风险|risk|披露|保证金/],
+      ["promoReward", /活动|奖励|注册送|权益|礼遇|转化/],
+    ].forEach(([feature, pattern]) => {
+      if (pattern.test(text)) next.add(feature);
+    });
+    return [...next];
   }
 
   function inferScreen(prompt = "", options = {}) {
@@ -120,6 +178,100 @@
     return /^#[0-9a-f]{3}(?:[0-9a-f]{3})?$/i.test(raw) ? raw : fallback;
   }
 
+  function normalizeLogoPlacement(value, fallback = "heroTopLeft") {
+    return LOGO_PLACEMENTS.includes(value) ? value : fallback;
+  }
+
+  function inferLogoPlacement(prompt = "", options = {}, composition = "splitTrust", stylePreset = "blueSplit") {
+    const explicit = cleanText(options.logoPlacement || options.brand?.logoPlacement, "", 40);
+    if (LOGO_PLACEMENTS.includes(explicit)) return explicit;
+    const text = `${prompt} ${options.intent || ""} ${options.designStyle || ""} ${options.theme || ""}`.toLowerCase();
+    if (/表单顶部|form\s*top|formtop/.test(text)) return "formTop";
+    if (/顶部居中|top\s*center|topcenter/.test(text)) return "topCenter";
+    if (/logo\s*(?:在|放在|置于|优先|固定)?[^。；，,.;\n]{0,12}(?:移动端|手机|mobile)|(?:移动端|手机|mobile)\s*logo/.test(text)) return "mobileTop";
+    if (explicitSplitLayoutRequested(text)) return "heroTopLeft";
+    if (composition === "vaultMinimal" || stylePreset === "softPlatform") return "formTop";
+    return "heroTopLeft";
+  }
+
+  function explicitSplitLayoutRequested(text = "") {
+    const source = String(text || "").toLowerCase();
+    if (/不要(?:用|做)?(?:左右|分栏|双栏|两栏)|不要.*split/.test(source)) return false;
+    return /左右布局|左右分栏|左右结构|左右版式|左右排版|左右两栏|双栏|两栏|分栏布局|side[\s-]*by[\s-]*side|split[\s-]*layout|two[\s-]*column|2[\s-]*column/.test(source);
+  }
+
+  function allowedValue(value, allowed, fallback) {
+    const raw = cleanText(value, "", 48);
+    return allowed.includes(raw) ? raw : fallback;
+  }
+
+  function inferLayoutFields(prompt = "", options = {}, composition = "splitTrust", stylePreset = "blueSplit") {
+    const visual = isObject(options.visual) ? options.visual : {};
+    const text = [
+      prompt,
+      options.layoutType,
+      options.formPosition,
+      options.mediaPosition,
+      visual.layoutType,
+      visual.formPosition,
+      visual.mediaPosition,
+      options.designStyle,
+      options.theme,
+    ].filter(Boolean).join(" ").toLowerCase();
+    const wantsSplitLayout = explicitSplitLayoutRequested(text);
+    const hasCenter = !wantsSplitLayout && /居中|center|centered|中间|单卡|单列/.test(text);
+    const hasOverlay = /背景图|背景视觉|浮层|overlay|full.?bleed|全屏|沉浸/.test(text);
+    const hasMedia = wantsSplitLayout || /图|图片|插画|视觉|媒体|photo|image|illustration|卡通/.test(text);
+    const mediaRight = /图在右|右图|右侧图|右侧视觉|视觉在右|媒体在右|插画在右|image right|media right|right visual/.test(text);
+    const mediaLeft = /图在左|左图|左侧图|左侧视觉|视觉在左|媒体在左|插画在左|image left|media left|left visual/.test(text);
+    const formLeft = /表单在左|左表单|form left|form-left/.test(text) || mediaRight;
+    const formRight = /表单在右|右表单|form right|form-right/.test(text) || mediaLeft;
+    const requestedLayout = cleanText(options.layoutType || visual.layoutType, "", 40);
+    const layoutType = wantsSplitLayout
+      ? (hasMedia || mediaLeft || mediaRight ? "mediaSplit" : "split")
+      : allowedValue(
+          requestedLayout,
+          LAYOUT_TYPES,
+          hasCenter
+            ? "centeredCard"
+            : hasOverlay
+              ? "cardOverlay"
+              : hasMedia
+                ? "mediaSplit"
+                : stylePreset === "softPlatform" || composition === "vaultMinimal"
+                  ? "centeredCard"
+                  : "split",
+        );
+    const formPosition = wantsSplitLayout
+      ? (formLeft ? "left" : "right")
+      : allowedValue(
+          options.formPosition || visual.formPosition,
+          FORM_POSITIONS,
+          layoutType === "centeredCard" ? "center" : formLeft ? "left" : formRight ? "right" : "right",
+        );
+    const mediaPosition = wantsSplitLayout
+      ? (formPosition === "left" ? "right" : "left")
+      : allowedValue(
+          options.mediaPosition || visual.mediaPosition,
+          MEDIA_POSITIONS,
+          layoutType === "centeredCard" ? "none" : layoutType === "cardOverlay" ? "background" : formPosition === "left" || mediaRight ? "right" : formPosition === "right" || mediaLeft ? "left" : "none",
+        );
+    return {
+      layoutType,
+      formPosition,
+      mediaPosition,
+      heroVisibility: wantsSplitLayout ? "full" : allowedValue(visual.heroVisibility, HERO_VISIBILITIES, layoutType === "centeredCard" ? "hidden" : layoutType === "cardOverlay" || layoutType === "mobileFirst" ? "compact" : "full"),
+      mobileStrategy: allowedValue(visual.mobileStrategy, MOBILE_STRATEGIES, /移动端|手机|mobile|单手/.test(text) ? "logoFirst" : layoutType === "centeredCard" ? "formFirst" : "singleColumn"),
+    };
+  }
+
+  function splitReferenceStructure(layoutFields = {}) {
+    if (layoutFields.layoutType === "centeredCard") return "居中表单，弱化侧边品牌视觉。";
+    if (layoutFields.mediaPosition === "right") return "左右分栏：表单在左，媒体/插画/品牌视觉在右。";
+    if (layoutFields.mediaPosition === "left") return "左右分栏：媒体/插画/品牌视觉在左，表单在右。";
+    return "左右分栏：品牌叙事区与表单区并排，移动端单列降级。";
+  }
+
   function listValue(value) {
     return Array.isArray(value) ? value.filter(Boolean).map(String) : [];
   }
@@ -149,6 +301,20 @@
     return map[audience] || fallback;
   }
 
+  function brandTagline(options = {}, stylePreset = "blueSplit", intent = "openAccount") {
+    if (intent === "campaignSignup") return "新客礼遇开户中心";
+    if (stylePreset === "photoDark") return "黑金账户安全入口";
+    if (options.audience === "ibPartner") return "合作伙伴账户入口";
+    if (stylePreset === "softPlatform") return "轻量开户注册中心";
+    return "安全账户服务中心";
+  }
+
+  function serviceLineFor(options = {}, intent = "openAccount") {
+    if (intent === "campaignSignup") return "活动开户通行证";
+    if (options.audience === "ibPartner") return "邀请关系确认台";
+    return "客户认证中心";
+  }
+
   function compositionProofPoints(composition, isZh = true) {
     const zh = {
       splitTrust: ["官方安全入口", "资料加密传输", "开户链接承接 KYC"],
@@ -170,19 +336,19 @@
   }
 
   function buildRegisterSections(options = {}, prompt = "", isZh = true) {
-    const features = listValue(options.features);
+    const features = expandFeatures(options.features, prompt);
     const depth = String(options.registerDepth || "standard");
     const needsInvite = hasFeature(features, prompt, "inviteCode", /推荐码|邀请码|invite|ib/i);
-    const needsCaptcha = hasFeature(features, prompt, "captcha", /验证码|captcha|hcaptcha/i);
     const needsRisk = hasFeature(features, prompt, "riskConsent", /风险|risk/i) || depth === "compliance";
     const needsKyc = hasFeature(features, prompt, "kycPrelude", /kyc|实名|身份/i) || depth === "compliance";
+    const needsPromo = hasFeature(features, prompt, "promoReward", /活动|奖励|权益|注册送|礼遇|转化/i);
     const basicFields = [
-      { id: "name", label: isZh ? "姓名" : "Full name", type: "text", placeholder: isZh ? "请输入您的真实姓名" : "Enter full name", required: true, span: "full" },
-      { id: "country", label: isZh ? "国家/地区" : "Country/Region", type: "select", placeholder: isZh ? "请选择国家或地区" : "Select country", required: true },
-      { id: "email", label: isZh ? "邮箱" : "Email", type: "email", placeholder: isZh ? "请输入邮箱" : "name@example.com", required: true },
+      { id: "identifier", label: isZh ? "手机号或邮箱" : "Phone or email", type: "text", placeholder: isZh ? "请输入手机号或邮箱" : "Phone or email", required: true, span: "full" },
+      { id: "password", label: isZh ? "密码" : "Password", type: "password", placeholder: isZh ? "至少 8 位字符" : "At least 8 characters", required: true },
+      { id: "confirmPassword", label: isZh ? "确认密码" : "Confirm password", type: "password", placeholder: isZh ? "再次输入密码" : "Confirm password", required: true },
     ];
     if (depth !== "light") {
-      basicFields.splice(2, 0, { id: "phone", label: isZh ? "手机号" : "Phone", type: "tel", placeholder: isZh ? "请输入手机号" : "Phone number", required: true });
+      basicFields.splice(1, 0, { id: "country", label: isZh ? "国家/地区" : "Country/Region", type: "select", placeholder: isZh ? "请选择国家或地区" : "Select country", required: true, span: "full" });
     }
     if (needsInvite) {
       basicFields.push({ id: "inviteCode", label: isZh ? "推荐码 / 邀请码" : "Invitation code", type: "text", placeholder: isZh ? "如有请填写" : "Optional", span: "full" });
@@ -190,50 +356,30 @@
 
     const sections = [
       {
-        title: isZh ? "基础资料" : "Profile",
-        description: isZh ? "用于创建客户资料并关联后续开户注册流程" : "Create the customer profile and connect the onboarding flow",
+        title: isZh ? "账号信息" : "Account",
+        description: isZh ? "先创建登录凭证，手机号或邮箱会在下一步完成验证" : "Create the credential first; phone or email is verified in the next step",
         fields: basicFields,
       },
     ];
 
-    if (depth !== "light") {
+    if (needsPromo) {
       sections.push({
-        title: isZh ? "投资背景" : "Investment background",
-        description: isZh ? "帮助平台判断适配的账户和风险提示" : "Help tailor account setup and risk notices",
+        title: isZh ? "活动权益" : "Campaign eligibility",
+        description: isZh ? "注册后先锁定资格，奖励发放以 KYC 审核与活动规则为准" : "Reserve eligibility before KYC review and campaign rule checks",
         fields: [
-          { id: "experience", label: isZh ? "交易经验" : "Trading experience", type: "select", placeholder: isZh ? "请选择" : "Select", required: true },
-          { id: "income", label: isZh ? "年收入范围" : "Annual income", type: "select", placeholder: isZh ? "请选择" : "Select" },
-          { id: "goal", label: isZh ? "投资目的" : "Investment goal", type: "radio", options: isZh ? ["资产增值", "收益稳定", "短期交易", "风险对冲"] : ["Growth", "Yield", "Trading", "Hedging"], required: true, span: "full" },
-          { id: "fundSource", label: isZh ? "资金来源" : "Source of funds", type: "select", placeholder: isZh ? "请选择" : "Select" },
+          { id: "campaignCode", label: isZh ? "活动码" : "Campaign code", type: "text", placeholder: isZh ? "系统自动识别或手动输入" : "Auto-detected or manual" },
+          { id: "rewardChannel", label: isZh ? "奖励接收方式" : "Reward channel", type: "select", placeholder: isZh ? "请选择" : "Select" },
+          { id: "rewardNotice", label: isZh ? "我了解奖励需满足开户、KYC 和活动规则" : "I understand reward eligibility rules", type: "radio", options: isZh ? ["确认并继续", "先完成普通开户"] : ["Confirm", "Standard signup"], required: true, span: "full" },
         ],
       });
     }
 
-    if (needsKyc) {
+    if (needsKyc || needsRisk) {
       sections.push({
-        title: isZh ? "身份与合规提示" : "Identity and compliance",
-        description: isZh ? "注册后可继续完成 KYC 和开户地址验证" : "Continue with KYC and address verification after registration",
+        title: isZh ? "开户与风险说明" : "Onboarding notice",
+        description: isZh ? "注册成功后进入 KYC、风险测评和开户资料流程，此处只做提交前说明" : "After signup, continue to KYC, risk profiling, and account opening",
         fields: [
-          { id: "idType", label: isZh ? "证件类型" : "ID type", type: "select", placeholder: isZh ? "请选择" : "Select" },
-          { id: "residence", label: isZh ? "居住地" : "Residence", type: "select", placeholder: isZh ? "请选择" : "Select" },
-        ],
-      });
-    }
-
-    sections.push({
-      title: isZh ? "账户安全" : "Account security",
-      fields: [
-        { id: "password", label: isZh ? "密码" : "Password", type: "password", placeholder: isZh ? "至少 8 位字符" : "At least 8 characters", required: true },
-        { id: "confirmPassword", label: isZh ? "确认密码" : "Confirm password", type: "password", placeholder: isZh ? "再次输入密码" : "Confirm password", required: true },
-        ...(needsCaptcha ? [{ id: "captcha", label: isZh ? "图形验证码" : "Captcha", type: "text", placeholder: isZh ? "请输入验证码" : "Enter code", span: "full" }] : []),
-      ],
-    });
-
-    if (needsRisk) {
-      sections.push({
-        title: isZh ? "风险确认" : "Risk acknowledgement",
-        fields: [
-          { id: "riskAgreement", label: isZh ? "我了解保证金交易存在较高风险" : "I understand margin trading risk", type: "radio", options: isZh ? ["已了解并继续", "稍后再看"] : ["I understand", "Review later"], required: true, span: "full" },
+          { id: "onboardingNotice", label: isZh ? "我了解注册后需要继续完成 KYC 与风险确认" : "I understand KYC and risk checks continue after signup", type: "radio", options: isZh ? ["已了解并继续"] : ["Continue"], required: true, span: "full" },
         ],
       });
     }
@@ -246,29 +392,29 @@
     const stylePreset = inferStylePreset(prompt, options);
     const defaultScreen = inferScreen(prompt, options);
     const composition = inferComposition(prompt, options, stylePreset);
+    const logoPlacement = inferLogoPlacement(prompt, options, composition, stylePreset);
+    const layoutFields = inferLayoutFields(prompt, options, composition, stylePreset);
     const language = cleanText(options.language, "zh-CN", 20);
     const brandName = cleanText(options.brandName, "ForexCRM", 40);
-    const features = listValue(options.features);
-    const intent = cleanText(options.intent, "openAccount", 40);
+    const features = expandFeatures(options.features, prompt);
+    const intent = inferIntent(prompt, options);
     const audience = cleanText(options.audience, "newTrader", 40);
-    const registerDepth = cleanText(options.registerDepth, "standard", 40);
+    const registerDepth = inferRegisterDepth(prompt, options);
     const designStyle = cleanText(options.designStyle, "trustClean", 40);
-    const theme = cleanText(options.theme, "blueTrust", 40);
-    const accent = normalizeHex(options.accent, guidedAccentFallback(options, stylePreset));
-    const accent2 = normalizeHex(options.accent2, stylePreset === "softPlatform" ? "#24b7aa" : "#1d4ed8");
+    const theme = inferTheme(prompt, options);
+    const promptAccent = String(prompt || "").match(/#[0-9a-f]{3}(?:[0-9a-f]{3})?/i)?.[0] || "";
+    const requestedAccent = cleanText(promptAccent || options.accent, "", 24);
+    const accent = normalizeHex(theme === "blackGold" && requestedAccent.toLowerCase() === "#2563eb" ? "" : requestedAccent, guidedAccentFallback({ ...options, theme }, stylePreset));
+    const accent2 = normalizeHex(options.accent2, theme === "blackGold" ? "#f5c46b" : stylePreset === "softPlatform" ? "#24b7aa" : "#1d4ed8");
     const isZh = language.startsWith("zh");
     const [audienceTitle, audienceSubtitle] = audienceCopy(audience, [
       defaultScreen === "register" ? "创建您的交易账户" : defaultScreen === "forgot" ? "安全重置密码，放心回到您的账户" : "Welcome Back",
       defaultScreen === "register" ? "填写注册信息，系统将自动创建客户资料并进入后续账户流程。" : "Sign in to access your account",
     ]);
-    const registerSections = buildRegisterSections(options, prompt, isZh);
+    const registerSections = buildRegisterSections({ ...options, features, registerDepth }, prompt, isZh);
     const hasSocial = hasFeature(features, prompt, "socialLogin", /google|apple|第三方|social/i);
     const hasCaptcha = hasFeature(features, prompt, "captcha", /验证码|captcha|hcaptcha/i);
     const hasTwoFactor = hasFeature(features, prompt, "twoFactor", /双重|2fa|two-factor|two factor/i);
-    const loginExtraFields = [
-      ...(hasCaptcha ? [{ id: "loginCaptcha", label: isZh ? "验证码" : "Verification code", type: "text", placeholder: isZh ? "请输入验证码" : "Enter code" }] : []),
-      ...(hasTwoFactor ? [{ id: "twoFactorCode", label: isZh ? "双重验证码" : "2FA code", type: "text", placeholder: isZh ? "请输入动态验证码" : "Authenticator code" }] : []),
-    ];
 
     return {
       id: `auth-local-${Date.now().toString(36)}`,
@@ -288,8 +434,9 @@
       },
       brand: {
         name: brandName,
-        tagline: stylePreset === "softPlatform" ? "轻量开户注册中心" : audience === "ibPartner" ? "合作伙伴账户入口" : "安全账户服务中心",
-        serviceLine: "Client Portal",
+        tagline: brandTagline({ audience }, stylePreset, intent),
+        serviceLine: serviceLineFor({ audience }, intent),
+        logoPlacement,
       },
       visual: {
         accent,
@@ -298,23 +445,32 @@
         density: stylePreset === "clientOnboarding" ? "compact" : "comfortable",
         radius: stylePreset === "photoDark" ? "10px" : "18px",
         composition,
+        ...layoutFields,
+        referenceStructure: layoutFields.layoutType === "centeredCard"
+          ? "居中表单，弱化侧边品牌视觉。"
+          : layoutFields.mediaPosition === "right"
+            ? "表单在左，媒体/插画/品牌视觉在右。"
+            : layoutFields.mediaPosition === "left"
+              ? "媒体/插画/品牌视觉在左，表单在右。"
+              : "表单与品牌叙事分栏，移动端单列降级。",
       },
       hero: {
-        title: audienceTitle,
-        subtitle: audienceSubtitle,
+        title: intent === "campaignSignup" ? "领取新客礼遇并完成开户" : audienceTitle,
+        subtitle: intent === "campaignSignup" ? "把手机号验证、活动资格、KYC 前置说明和风险披露串成清晰路径，减少新手开户犹豫。" : audienceSubtitle,
         proofPoints: compositionProofPoints(composition, isZh),
         bullets: [
-          hasCaptcha || hasTwoFactor ? "验证码与安全校验降低账户风险" : "安全提交客户资料",
+          hasFeature(features, prompt, "promoReward", /活动|奖励|权益|注册送/i) ? "注册后锁定活动权益" : hasCaptcha || hasTwoFactor ? "验证码与安全校验降低账户风险" : "安全提交客户资料",
           hasFeature(features, prompt, "inviteCode", /推荐码|邀请码|invite|ib/i) ? "支持推荐码自动关联" : "注册后可继续完成 KYC 与开户",
           registerDepth === "light" ? "移动端友好的轻量注册路径" : "注册信息按步骤清晰拆分",
         ],
       },
       screens: {
         login: {
-          title: isZh ? "登录你的账户" : "Welcome Back",
-          subtitle: isZh ? "使用邮箱、手机号或第三方方式进入账户" : "Sign in to access your account",
-          identifierLabel: isZh ? "邮箱或手机号" : "Email Address",
-          identifierPlaceholder: isZh ? "请输入您的邮箱或手机号" : "n02badd@gmail.com",
+          title: isZh ? "欢迎回来" : "Welcome Back",
+          subtitle: isZh ? "输入手机号或邮箱与密码登录；如需双重验证，将在下一步完成。" : "Sign in with phone or email and password; MFA continues on the next step when required.",
+          modeTabs: [],
+          identifierLabel: isZh ? "账号（手机号 / 邮箱）" : "Account (phone / email)",
+          identifierPlaceholder: isZh ? "请输入手机号或邮箱" : "Phone or email",
           passwordLabel: isZh ? "密码" : "Password",
           passwordPlaceholder: isZh ? "请输入密码" : "••••••••",
           rememberLabel: isZh ? "记住账号" : "Remember me",
@@ -323,36 +479,67 @@
           registerPrompt: isZh ? "没有账号？" : "Don't have an account?",
           registerAction: isZh ? "立即注册" : "Open Account",
           socialProviders: hasSocial ? ["Google", "Apple"] : [],
-          extraFields: loginExtraFields,
-          helperNotice: hasTwoFactor ? "已启用双重验证提示，保护账户登录安全" : "您的信息受到严格保护，安全加密传输",
+          extraFields: [],
+          securityFlow: {
+            requiresMfa: hasTwoFactor,
+            riskCaptcha: hasCaptcha,
+            title: isZh ? "安全验证" : "Security verification",
+            subtitle: hasTwoFactor
+              ? (isZh ? "此账号已开启双重验证，请输入认证器或短信中的 6 位验证码。" : "Enter the 6-digit code from your authenticator or message.")
+              : (isZh ? "我们会根据登录风险触发人机校验，正常登录不会打断。" : "Human verification is triggered only when risk is elevated."),
+            deliveryHint: isZh ? "验证码来自认证器应用 / 已绑定手机号" : "Code from authenticator app / bound phone",
+            primaryAction: isZh ? "完成验证" : "Verify",
+            resendAction: isZh ? "重新发送" : "Resend",
+            recoveryAction: isZh ? "使用备用恢复码" : "Use recovery code",
+          },
+          helperNotice: hasTwoFactor ? "账号密码通过后进入 6 位验证码验证" : "人机校验按风险触发，不占用登录首屏",
         },
         register: {
-          title: registerDepth === "light" ? "快速创建账户" : stylePreset === "clientOnboarding" ? "客户注册流程" : stylePreset === "photoDark" ? "账号注册" : "创建您的交易账户",
-          subtitle: registerDepth === "light" ? "先完成必要信息，后续再补充开户地址和 KYC。" : stylePreset === "clientOnboarding" ? "标准客户注册，收集基本信息并自动进入后续审核。" : "填写注册信息，系统将自动创建客户资料并进入后续账户流程。",
+          title: intent === "campaignSignup" ? "注册并锁定开户礼遇" : registerDepth === "light" ? "快速创建账户" : stylePreset === "photoDark" ? "账号注册" : "创建您的账户",
+          subtitle: intent === "campaignSignup" ? "先创建账号并验证手机号或邮箱，KYC、奖励条件和风险披露会在注册后清晰继续。" : "填写账号与密码，提交前完成人机校验，下一步验证手机号或邮箱。",
           modeTabs: ["手机号", "邮箱"],
           sections: registerSections,
           termsText: "我已阅读并同意 服务条款、隐私政策及风险披露，确认提交的信息真实有效。",
-          primaryAction: isZh ? "提交注册" : "Create Account",
+          primaryAction: isZh ? "继续验证" : "Continue",
           backAction: isZh ? "返回登录" : "Back to Login",
-          trustNotice: hasCaptcha ? "注册成功前需要完成验证码校验" : "注册成功后将向邮箱发送验证码",
+          trustNotice: "提交注册前会先完成人机校验，随后验证手机号或邮箱。",
+          verification: {
+            title: isZh ? "验证账号" : "Verify account",
+            subtitle: isZh ? "完成一次人机校验，并输入发送到手机号或邮箱的 6 位验证码。" : "Complete a human check and enter the 6-digit phone or email code.",
+            humanCheck: isZh ? "人机校验将在发送验证码前触发" : "Human check runs before sending the code",
+            deliveryHint: isZh ? "验证码已发送至您的手机号或邮箱" : "Code sent to your phone or email",
+            primaryAction: isZh ? "完成注册" : "Create account",
+            resendAction: isZh ? "重新发送验证码" : "Resend code",
+          },
         },
         forgot: {
-          title: "Reset Password",
-          subtitle: isZh ? "输入邮箱，我们会发送受保护的重置链接。" : "Enter your email and we'll send you a reset link.",
-          identifierLabel: isZh ? "邮箱地址" : "Email Address",
-          identifierPlaceholder: "your@email.com",
-          primaryAction: isZh ? "发送重置链接" : "Send Reset Link",
+          title: isZh ? "找回密码" : "Reset Password",
+          subtitle: isZh ? "输入手机号或邮箱，完成人机校验和身份验证后设置新密码。" : "Verify your phone or email before setting a new password.",
+          identifierLabel: isZh ? "账号（手机号 / 邮箱）" : "Account (phone / email)",
+          identifierPlaceholder: isZh ? "请输入邮箱或手机号" : "your@email.com",
+          primaryAction: isZh ? "继续验证身份" : "Continue Verification",
           backAction: isZh ? "返回登录" : "Back to Login",
           registerAction: isZh ? "去注册" : "Create Account",
-          steps: ["使用邮箱", "验证身份", "设置新密码"],
+          steps: ["输入账号", "人机校验", "验证身份", "设置新密码"],
+          verification: {
+            title: isZh ? "验证身份并设置新密码" : "Verify identity and reset password",
+            subtitle: isZh ? "如果账号存在，我们会发送验证码。通过后即可设置新密码。" : "If the account exists, we will send a code before password reset.",
+            humanCheck: isZh ? "发送验证码前进行人机校验，防止批量找回攻击" : "Human check protects password recovery from automation",
+            primaryAction: isZh ? "确认重置密码" : "Reset password",
+            resendAction: isZh ? "重新发送验证码" : "Resend code",
+          },
         },
       },
       securityNotes: [
-        hasTwoFactor ? "双重验证提示提升高风险登录安全" : "加密链接验证，保护账户安全",
+        hasTwoFactor ? "账号密码通过后进入 6 位双重验证" : "登录页仅收集账号与密码",
         "密码不会通过邮件明文发送",
-        hasCaptcha ? "验证码占位可接入真实风控服务" : "官方品牌页面，降低钓鱼风险",
+        hasCaptcha ? "人机校验在登录风险、注册提交和找回密码发送验证码前触发" : "官方品牌页面，降低钓鱼风险",
       ],
-      designNotes: ["参考界面仅作为质量学习标准，生成结果按当前业务目标重新组织。", "登录、注册和找回密码共享品牌与安全语义，但每个流程独立渲染。"],
+      designNotes: [
+        "视觉素材仅作为抽象设计语言借鉴，生成结果按当前业务目标重新组织。",
+        `Logo 摆放采用 ${logoPlacement}，移动端首屏必须保留品牌识别、主登录入口和主按钮。`,
+        "登录首屏只展示账号与密码；2FA、人机校验、注册验证码和找回密码验证码都进入后续验证步骤。",
+      ],
     };
   }
 
@@ -360,9 +547,30 @@
     const fallback = defaultScheme(options);
     const raw = isObject(source?.scheme) ? source.scheme : source;
     const merged = merge(fallback, raw);
-    const stylePreset = STYLE_PRESETS.includes(merged.stylePreset) ? merged.stylePreset : fallback.stylePreset;
+    const prompt = options.prompt || "";
+    const mergedThemeText = `${merged.experience?.theme || ""} ${merged.visual?.accent || ""}`.toLowerCase();
+    const mergedFeatureText = Array.isArray(merged.experience?.features) ? merged.experience.features.join(" ") : "";
+    const mergedIntentText = `${merged.experience?.intent || ""} ${merged.summary || ""} ${merged.hero?.title || ""} ${mergedFeatureText}`.toLowerCase();
+    const mergedDepthText = `${merged.experience?.registerDepth || ""} ${(merged.screens?.register?.sections || []).map((section) => section?.title || "").join(" ")}`.toLowerCase();
+    const requestedTheme = /blackgold|黑金|高净值|#b7791f/.test(mergedThemeText) ? "blackGold" : inferTheme(prompt, options);
+    const requestedIntent = /campaignsignup|活动|奖励|转化|权益|礼遇|promoReward/i.test(mergedIntentText) ? "campaignSignup" : inferIntent(prompt, options);
+    const requestedRegisterDepth = /compliance|专业|合规|full|kyc/.test(mergedDepthText) ? "compliance" : inferRegisterDepth(prompt, options);
+    const requestedLogoPlacement = inferLogoPlacement(prompt, options, fallback.visual?.composition, fallback.stylePreset);
+    const stylePreset = requestedTheme === "blackGold"
+      ? "photoDark"
+      : STYLE_PRESETS.includes(merged.stylePreset)
+        ? merged.stylePreset
+        : fallback.stylePreset;
     const defaultScreen = SCREEN_KEYS.includes(merged.defaultScreen) ? merged.defaultScreen : fallback.defaultScreen;
-    const composition = COMPOSITION_PRESETS.includes(merged.visual?.composition) ? merged.visual.composition : fallback.visual.composition;
+    const composition = requestedIntent === "campaignSignup"
+      ? "campaignPassport"
+      : COMPOSITION_PRESETS.includes(merged.visual?.composition)
+        ? merged.visual.composition
+        : fallback.visual.composition;
+    const promptAccent = String(prompt || "").match(/#[0-9a-f]{3}(?:[0-9a-f]{3})?/i)?.[0] || "";
+    const requestedAccent = cleanText(promptAccent || merged.visual?.accent, "", 24);
+    const layoutFields = inferLayoutFields(prompt, { ...options, visual: merged.visual }, composition, stylePreset);
+    const enforceSplitLayout = explicitSplitLayoutRequested(`${prompt} ${options.layoutType || ""} ${options.formPosition || ""} ${options.mediaPosition || ""}`);
     const normalized = {
       ...merged,
       stylePreset,
@@ -370,9 +578,15 @@
       brand: merge(fallback.brand, merged.brand),
       visual: {
         ...merge(fallback.visual, merged.visual),
-        accent: normalizeHex(merged.visual?.accent, fallback.visual.accent),
-        accent2: normalizeHex(merged.visual?.accent2, fallback.visual.accent2),
+        accent: normalizeHex(requestedTheme === "blackGold" && requestedAccent.toLowerCase() === "#2563eb" ? "" : requestedAccent, fallback.visual.accent),
+        accent2: normalizeHex(merged.visual?.accent2, requestedTheme === "blackGold" ? "#f5c46b" : fallback.visual.accent2),
         composition,
+        layoutType: enforceSplitLayout ? layoutFields.layoutType : allowedValue(merged.visual?.layoutType, LAYOUT_TYPES, layoutFields.layoutType),
+        formPosition: enforceSplitLayout ? layoutFields.formPosition : allowedValue(merged.visual?.formPosition, FORM_POSITIONS, layoutFields.formPosition),
+        mediaPosition: enforceSplitLayout ? layoutFields.mediaPosition : allowedValue(merged.visual?.mediaPosition, MEDIA_POSITIONS, layoutFields.mediaPosition),
+        heroVisibility: enforceSplitLayout ? layoutFields.heroVisibility : allowedValue(merged.visual?.heroVisibility, HERO_VISIBILITIES, layoutFields.heroVisibility),
+        mobileStrategy: allowedValue(merged.visual?.mobileStrategy, MOBILE_STRATEGIES, layoutFields.mobileStrategy),
+        referenceStructure: enforceSplitLayout ? splitReferenceStructure(layoutFields) : cleanText(merged.visual?.referenceStructure, fallback.visual?.referenceStructure || "", 220),
       },
       hero: {
         ...merge(fallback.hero, merged.hero),
@@ -388,8 +602,35 @@
       securityNotes: (Array.isArray(merged.securityNotes) ? merged.securityNotes : fallback.securityNotes).slice(0, 6),
       designNotes: (Array.isArray(merged.designNotes) ? merged.designNotes : fallback.designNotes).slice(0, 8),
     };
-    if (Array.isArray(merged.screens?.login?.extraFields)) {
-      normalized.screens.login.extraFields = merged.screens.login.extraFields.slice(0, 4);
+    normalized.brand.logoPlacement = requestedLogoPlacement !== "heroTopLeft" ? requestedLogoPlacement : normalizeLogoPlacement(merged.brand?.logoPlacement, fallback.brand.logoPlacement || "heroTopLeft");
+    normalized.experience.intent = requestedIntent || normalized.experience.intent;
+    normalized.experience.theme = requestedTheme || normalized.experience.theme;
+    normalized.experience.registerDepth = requestedRegisterDepth || normalized.experience.registerDepth;
+    normalized.experience.features = expandFeatures(normalized.experience.features || [], prompt);
+    normalized.screens.login.extraFields = [];
+    normalized.screens.login.modeTabs = [];
+    normalized.screens.login.identifierLabel = normalized.language?.startsWith("zh") ? "账号（手机号 / 邮箱）" : "Account (phone / email)";
+    normalized.screens.login.identifierPlaceholder = normalized.language?.startsWith("zh") ? "请输入手机号或邮箱" : "Phone or email";
+    if (hasFeature(normalized.experience.features, prompt, "socialLogin", /google|apple|第三方|social/i) && (!Array.isArray(normalized.screens.login.socialProviders) || !normalized.screens.login.socialProviders.length)) {
+      normalized.screens.login.socialProviders = ["Google", "Apple"];
+    }
+    normalized.screens.login.securityFlow = merge(fallback.screens.login.securityFlow, normalized.screens.login.securityFlow);
+    normalized.screens.register.sections = sanitizeRegisterSections(normalized.screens.register.sections);
+    normalized.screens.register.verification = merge(fallback.screens.register.verification, normalized.screens.register.verification);
+    normalized.screens.forgot.verification = merge(fallback.screens.forgot.verification, normalized.screens.forgot.verification);
+    if (requestedIntent === "campaignSignup") {
+      normalized.brand.tagline = brandTagline({ audience: normalized.experience.audience }, normalized.stylePreset, requestedIntent);
+      normalized.brand.serviceLine = serviceLineFor({ audience: normalized.experience.audience }, requestedIntent);
+      if (/^(创建您的交易账户|登录你的账户|Welcome Back|ForexCRM 认证中心)$/i.test(normalized.hero.title || "")) {
+        normalized.hero.title = "领取新客礼遇并完成开户";
+      }
+    }
+    if (enforceSplitLayout) {
+      normalized.designNotes = [
+        splitReferenceStructure(layoutFields),
+        "移动端折叠为单列，但保留 Logo、主登录入口和主按钮的首屏优先级。",
+        ...(Array.isArray(normalized.designNotes) ? normalized.designNotes : []),
+      ].filter(Boolean).slice(0, 8);
     }
     return normalized;
   }
@@ -398,15 +639,39 @@
     return normalizeScheme(null, { ...options, prompt });
   }
 
+  function fieldLooksLikeInlineChallenge(field = {}) {
+    const text = `${field.id || ""} ${field.label || ""} ${field.placeholder || ""}`.toLowerCase();
+    return /captcha|验证码|动态口令|安全验证码|双重|2fa|mfa|人机/.test(text);
+  }
+
+  function sanitizeRegisterSections(sections = []) {
+    return (Array.isArray(sections) ? sections : [])
+      .map((section) => ({
+        ...section,
+        fields: (Array.isArray(section?.fields) ? section.fields : []).filter((field) => !fieldLooksLikeInlineChallenge(field)),
+      }))
+      .filter((section) => !fieldLooksLikeInlineChallenge({ label: section.title, placeholder: section.description }))
+      .filter((section) => section.title || section.description || section.fields.length);
+  }
+
+  function featureEnabled(scheme = {}, feature) {
+    return listValue(scheme.experience?.features).includes(feature);
+  }
+
+  function hasProgressiveLoginChallenge(scheme = {}) {
+    const flow = scheme.screens?.login?.securityFlow || {};
+    return Boolean(flow.requiresMfa || flow.riskCaptcha || featureEnabled(scheme, "twoFactor") || featureEnabled(scheme, "captcha"));
+  }
+
   function providerBadge(provider) {
     const value = cleanText(provider, "", 30);
     if (!value) return "";
     return `<span class="auth-source-badge">${escapeHtml(value)}</span>`;
   }
 
-  function renderBrandMark(scheme) {
+  function renderBrandMark(scheme, variant = "hero") {
     return `
-      <div class="auth-brand-lockup">
+      <div class="auth-brand-lockup auth-brand-lockup-${escapeHtml(variant)}">
         <span class="auth-brand-mark">${svg("chart")}</span>
         <span>
           <b>${escapeHtml(scheme.brand.name)}</b>
@@ -414,6 +679,16 @@
         </span>
       </div>
     `;
+  }
+
+  function renderFormLogo(scheme) {
+    if (scheme.brand.logoPlacement !== "formTop") return "";
+    return `<div class="auth-form-logo">${renderBrandMark(scheme, "form")}</div>`;
+  }
+
+  function renderMobileFormBrand(scheme) {
+    if (scheme.brand.logoPlacement === "formTop") return "";
+    return `<div class="auth-mobile-form-brand">${renderBrandMark(scheme, "mobile")}</div>`;
   }
 
   function renderHero(scheme, screen) {
@@ -431,9 +706,10 @@
         <div class="auth-artifact-lines">${proofMarkup}</div>
       </div>
     `;
+    const showHeroLogo = !["topCenter", "formTop", "mobileTop"].includes(scheme.brand.logoPlacement);
     return `
       <aside class="auth-hero-panel" aria-label="认证品牌说明">
-        ${renderBrandMark(scheme)}
+        ${showHeroLogo ? renderBrandMark(scheme) : ""}
         <div class="auth-hero-center">
           <span class="auth-hero-icon">${svg(screen === "forgot" ? "mail" : "chart")}</span>
           <h1>${escapeHtml(scheme.hero.title)}</h1>
@@ -467,10 +743,32 @@
     `;
   }
 
-  function renderSocialButton(provider) {
+  function renderSocialButton(provider, language = "zh-CN") {
     const isApple = /apple/i.test(provider);
-    const label = /google/i.test(provider) ? "Continue with Google" : /apple/i.test(provider) ? "Continue with Apple" : `Continue with ${provider}`;
+    const isZh = String(language || "").startsWith("zh");
+    const label = /google/i.test(provider)
+      ? (isZh ? "使用 Google 继续" : "Continue with Google")
+      : /apple/i.test(provider)
+        ? (isZh ? "使用 Apple 继续" : "Continue with Apple")
+        : (isZh ? `使用 ${provider} 继续` : `Continue with ${provider}`);
     return `<button class="auth-social-button${isApple ? " apple" : ""}" type="button"><span>${escapeHtml(provider.slice(0, 1))}</span>${escapeHtml(label)}</button>`;
+  }
+
+  function renderCampaignOffer(scheme, screen = "login") {
+    const features = listValue(scheme.experience?.features);
+    const shouldShow = scheme.visual?.composition === "campaignPassport" || scheme.experience?.intent === "campaignSignup" || features.includes("promoReward");
+    if (!shouldShow) return "";
+    const copy = {
+      login: ["新客礼遇待领取", "登录或注册后锁定活动资格，KYC 与风险确认将在提交前说明。"],
+      register: ["注册即锁定活动资格", "完成手机/邮箱验证后进入 KYC，奖励发放以活动规则与审核结果为准。"],
+      forgot: ["安全找回不影响权益", "通过验证后继续使用原活动资格，敏感操作会触发二次校验。"],
+    }[screen] || ["活动资格", "完成验证后继续开户流程。"];
+    return `
+      <div class="auth-offer-strip">
+        <b>${escapeHtml(copy[0])}</b>
+        <span>${escapeHtml(copy[1])}</span>
+      </div>
+    `;
   }
 
   function renderScreenTabs(activeScreen) {
@@ -485,28 +783,62 @@
 
   function renderModeTabs(labels = []) {
     if (!Array.isArray(labels) || !labels.length) return "";
-    return `<div class="auth-mode-tabs">${labels.map((label, index) => `<button class="${index === 0 ? "active" : ""}" type="button">${index === 0 ? svg("phone") : svg("mail")}${escapeHtml(label)}</button>`).join("")}</div>`;
+    const iconForLabel = (label, index) => /交易|account/i.test(label) ? "user" : index === 0 ? "phone" : "mail";
+    return `<div class="auth-mode-tabs">${labels.map((label, index) => `<button class="${index === 0 ? "active" : ""}" type="button">${svg(iconForLabel(label, index))}${escapeHtml(label)}</button>`).join("")}</div>`;
+  }
+
+  function renderStepPills(items = [], activeIndex = 0) {
+    const steps = Array.isArray(items) && items.length ? items : ["账号密码", "安全验证", "完成"];
+    return `
+      <ol class="auth-step-pills">
+        ${steps.map((item, index) => `<li class="${index === activeIndex ? "active" : index < activeIndex ? "done" : ""}"><span>${index + 1}</span>${escapeHtml(item)}</li>`).join("")}
+      </ol>
+    `;
+  }
+
+  function renderOtpInput(label = "6 位验证码") {
+    return `
+      <label class="auth-otp-field">
+        <span>${escapeHtml(label)}</span>
+        <div class="auth-otp-grid" aria-label="${escapeHtml(label)}">
+          ${Array.from({ length: 6 }, (_, index) => `<input inputmode="numeric" maxlength="1" aria-label="验证码第 ${index + 1} 位" />`).join("")}
+        </div>
+      </label>
+    `;
+  }
+
+  function renderHumanCheck(text = "人机校验将在关键步骤触发") {
+    return `
+      <div class="auth-human-check">
+        <span>${svg("shield")}</span>
+        <div>
+          <b>人机校验</b>
+          <small>${escapeHtml(text)}</small>
+        </div>
+        <i>按风险触发</i>
+      </div>
+    `;
   }
 
   function renderLogin(scheme) {
     const screen = scheme.screens.login || {};
     const socialProviders = Array.isArray(screen.socialProviders) ? screen.socialProviders : [];
-    const social = socialProviders.map(renderSocialButton).join("");
-    const socialBlock = scheme.stylePreset === "photoDark" || !social ? "" : `<div class="auth-social-stack">${social}</div><div class="auth-divider"><span>OR CONTINUE WITH</span></div>`;
-    const extraFields = (Array.isArray(screen.extraFields) ? screen.extraFields : []).slice(0, 4).map(renderField).join("");
+    const social = socialProviders.map((provider) => renderSocialButton(provider, scheme.language)).join("");
+    const socialBlock = social ? `<div class="auth-social-stack">${social}</div><div class="auth-divider"><span>或使用账号登录</span></div>` : "";
     return `
       <article class="auth-form-card auth-login-card">
+        ${renderFormLogo(scheme)}
         ${scheme.stylePreset === "softPlatform" ? renderScreenTabs("login") : ""}
         <header class="auth-form-head">
           <h2>${escapeHtml(screen.title)}</h2>
           <p>${escapeHtml(screen.subtitle)}</p>
         </header>
-        ${scheme.stylePreset === "softPlatform" ? renderModeTabs(["手机号", "邮箱"]) : ""}
+        ${renderCampaignOffer(scheme, "login")}
+        ${renderModeTabs(screen.modeTabs || [])}
         ${socialBlock}
-        <form class="auth-form" data-auth-demo-form>
+        <form class="auth-form" data-auth-demo-form="login">
           ${renderInput(/mail|email/i.test(screen.identifierLabel) ? "mail" : "user", screen.identifierLabel, screen.identifierPlaceholder, "text", /@/.test(screen.identifierPlaceholder || "") ? screen.identifierPlaceholder : "")}
           ${renderInput("lock", screen.passwordLabel, screen.passwordPlaceholder, "password")}
-          ${extraFields}
           <div class="auth-inline-row">
             <label class="auth-checkbox"><input type="checkbox" checked /><span>${escapeHtml(screen.rememberLabel)}</span></label>
             <button type="button" data-auth-screen-switch="forgot">${escapeHtml(screen.forgotLabel)}</button>
@@ -514,6 +846,37 @@
           <button class="auth-primary-action" type="submit">${escapeHtml(screen.primaryAction)} ${svg("arrowRight")}</button>
           <p class="auth-switch-copy">${escapeHtml(screen.registerPrompt)} <button type="button" data-auth-screen-switch="register">${escapeHtml(screen.registerAction)}</button></p>
           <small class="auth-trust-line">${svg("shield")}${escapeHtml(screen.helperNotice)}</small>
+          <output data-auth-submit-status hidden></output>
+        </form>
+      </article>
+    `;
+  }
+
+  function renderMfa(scheme) {
+    const login = scheme.screens.login || {};
+    const flow = login.securityFlow || {};
+    const needsMfa = Boolean(flow.requiresMfa || featureEnabled(scheme, "twoFactor"));
+    const title = cleanText(flow.title, needsMfa ? "双重验证" : "安全验证", 60);
+    const subtitle = cleanText(flow.subtitle, needsMfa ? "请输入认证器应用或短信中的 6 位验证码。" : "当前登录需要先完成一次人机校验。", 120);
+    return `
+      <article class="auth-form-card auth-mfa-card">
+        ${renderFormLogo(scheme)}
+        <button class="auth-back-link" type="button" data-auth-screen-switch="login">${svg("arrowLeft")} 返回登录</button>
+        ${renderStepPills(["账号密码", needsMfa ? "双重验证" : "风险校验", "进入账户"], 1)}
+        <span class="auth-reset-icon">${svg(needsMfa ? "key" : "shield")}</span>
+        <header class="auth-form-head centered">
+          <h2>${escapeHtml(title)}</h2>
+          <p>${escapeHtml(subtitle)}</p>
+        </header>
+        <form class="auth-form" data-auth-demo-form="mfa">
+          ${renderHumanCheck(flow.riskCaptcha ? "异常设备、连续失败或发送验证码前会触发" : "当前步骤会校验设备与请求风险")}
+          ${needsMfa ? renderOtpInput("6 位验证码") : ""}
+          <small class="auth-delivery-hint">${svg("lock")}${escapeHtml(flow.deliveryHint || "验证码来自认证器应用 / 已绑定手机号")}</small>
+          <button class="auth-primary-action" type="submit">${escapeHtml(flow.primaryAction || "完成验证")} ${svg("arrowRight")}</button>
+          <div class="auth-forgot-links">
+            <button type="button">${escapeHtml(flow.resendAction || "重新发送")}</button>
+            <button type="button">${escapeHtml(flow.recoveryAction || "使用备用恢复码")}</button>
+          </div>
           <output data-auth-submit-status hidden></output>
         </form>
       </article>
@@ -559,12 +922,14 @@
     `).join("");
     return `
       <article class="auth-form-card auth-register-card wide">
+        ${renderFormLogo(scheme)}
         <button class="auth-back-link" type="button" data-auth-screen-switch="login">${svg("arrowLeft")} ${escapeHtml(screen.backAction || "返回登录")}</button>
         <header class="auth-form-head">
           <h2>${escapeHtml(screen.title)}</h2>
           <p>${escapeHtml(screen.subtitle)}</p>
         </header>
-        <form class="auth-form" data-auth-demo-form>
+        ${renderCampaignOffer(scheme, "register")}
+        <form class="auth-form" data-auth-demo-form="register">
           ${sections}
           <label class="auth-terms-box"><input type="checkbox" /> <span>${escapeHtml(screen.termsText)}</span></label>
           <button class="auth-primary-action" type="submit">${escapeHtml(screen.primaryAction)}</button>
@@ -576,19 +941,25 @@
 
   function renderCompactRegister(scheme) {
     const screen = scheme.screens.register || {};
-    const firstSection = screen.sections?.[0] || { fields: [] };
-    const securitySection = screen.sections?.find((section) => /安全|密码/.test(section.title || "")) || screen.sections?.[2] || { fields: [] };
-    const fields = [...(firstSection.fields || []).slice(0, 2), ...(securitySection.fields || []).slice(0, 2)];
+    const flatFields = (screen.sections || []).flatMap((section) => section.fields || []);
+    const preferredIds = ["identifier", "country", "password", "confirmPassword", "inviteCode"];
+    const pickedFields = preferredIds
+      .map((id) => flatFields.find((field) => field.id === id))
+      .filter(Boolean)
+      .slice(0, 4);
+    const fields = pickedFields.length >= 2 ? pickedFields : flatFields.slice(0, 4);
     return `
       <article class="auth-form-card auth-register-card">
+        ${renderFormLogo(scheme)}
         ${scheme.stylePreset === "softPlatform" ? renderScreenTabs("register") : ""}
         <header class="auth-form-head">
           <h2>${escapeHtml(screen.title)}</h2>
           <p>${escapeHtml(screen.subtitle)}</p>
         </header>
+        ${renderCampaignOffer(scheme, "register")}
         ${renderModeTabs(screen.modeTabs)}
         <div class="auth-info-strip">${svg("shield")}<span>${escapeHtml(screen.trustNotice || "注册成功后将向邮箱发送验证码")}</span></div>
-        <form class="auth-form" data-auth-demo-form>
+        <form class="auth-form" data-auth-demo-form="register">
           <div class="auth-field-grid single">${fields.map(renderField).join("")}</div>
           <label class="auth-checkbox auth-terms-inline"><input type="checkbox" /> <span>${escapeHtml(screen.termsText)}</span></label>
           <button class="auth-primary-action" type="submit">${escapeHtml(screen.primaryAction)} ${svg("arrowRight")}</button>
@@ -603,14 +974,16 @@
     const screen = scheme.screens.forgot || {};
     return `
       <article class="auth-form-card auth-forgot-card">
+        ${renderFormLogo(scheme)}
         ${scheme.stylePreset === "softPlatform" ? renderScreenTabs("forgot") : ""}
         <span class="auth-reset-icon">${svg("mail")}</span>
         <header class="auth-form-head centered">
           <h2>${escapeHtml(screen.title)}</h2>
           <p>${escapeHtml(screen.subtitle)}</p>
         </header>
-        <form class="auth-form" data-auth-demo-form>
-          ${renderInput("mail", screen.identifierLabel, screen.identifierPlaceholder, "email")}
+        ${renderCampaignOffer(scheme, "forgot")}
+        <form class="auth-form" data-auth-demo-form="forgot">
+          ${renderInput("mail", screen.identifierLabel, screen.identifierPlaceholder, "text")}
           <button class="auth-primary-action" type="submit">${escapeHtml(screen.primaryAction)}</button>
           <div class="auth-forgot-links">
             <button type="button" data-auth-screen-switch="login">${svg("arrowLeft")} ${escapeHtml(screen.backAction)}</button>
@@ -622,9 +995,69 @@
     `;
   }
 
+  function renderRegisterVerify(scheme) {
+    const screen = scheme.screens.register || {};
+    const verification = screen.verification || {};
+    return `
+      <article class="auth-form-card auth-register-verify-card">
+        ${renderFormLogo(scheme)}
+        <button class="auth-back-link" type="button" data-auth-screen-switch="register">${svg("arrowLeft")} ${escapeHtml(screen.backAction || "返回注册")}</button>
+        ${renderStepPills(["账号信息", "人机校验", "验证码", "完成"], 2)}
+        <header class="auth-form-head">
+          <h2>${escapeHtml(verification.title || "验证账号")}</h2>
+          <p>${escapeHtml(verification.subtitle || "完成一次人机校验，并输入发送到手机号或邮箱的 6 位验证码。")}</p>
+        </header>
+        <form class="auth-form" data-auth-demo-form="registerVerify">
+          ${renderHumanCheck(verification.humanCheck || "人机校验将在发送验证码前触发")}
+          ${renderOtpInput("手机号 / 邮箱验证码")}
+          <small class="auth-delivery-hint">${svg("mail")}${escapeHtml(verification.deliveryHint || "验证码已发送至您的手机号或邮箱")}</small>
+          <button class="auth-primary-action" type="submit">${escapeHtml(verification.primaryAction || "完成注册")} ${svg("arrowRight")}</button>
+          <div class="auth-forgot-links">
+            <button type="button">${escapeHtml(verification.resendAction || "重新发送验证码")}</button>
+            <button type="button" data-auth-screen-switch="login">返回登录</button>
+          </div>
+          <output data-auth-submit-status hidden></output>
+        </form>
+      </article>
+    `;
+  }
+
+  function renderForgotVerify(scheme) {
+    const screen = scheme.screens.forgot || {};
+    const verification = screen.verification || {};
+    return `
+      <article class="auth-form-card auth-forgot-verify-card">
+        ${renderFormLogo(scheme)}
+        <button class="auth-back-link" type="button" data-auth-screen-switch="forgot">${svg("arrowLeft")} ${escapeHtml(screen.backAction || "返回")}</button>
+        ${renderStepPills(screen.steps || ["输入账号", "人机校验", "验证身份", "设置新密码"], 2)}
+        <header class="auth-form-head">
+          <h2>${escapeHtml(verification.title || "验证身份并设置新密码")}</h2>
+          <p>${escapeHtml(verification.subtitle || "如果账号存在，我们会发送验证码。通过后即可设置新密码。")}</p>
+        </header>
+        <form class="auth-form" data-auth-demo-form="forgotVerify">
+          ${renderHumanCheck(verification.humanCheck || "发送验证码前进行人机校验，防止批量找回攻击")}
+          ${renderOtpInput("身份验证码")}
+          ${renderInput("lock", "新密码", "请输入新密码", "password")}
+          ${renderInput("lock", "确认新密码", "再次输入新密码", "password")}
+          <button class="auth-primary-action" type="submit">${escapeHtml(verification.primaryAction || "确认重置密码")}</button>
+          <div class="auth-forgot-links">
+            <button type="button">${escapeHtml(verification.resendAction || "重新发送验证码")}</button>
+            <button type="button" data-auth-screen-switch="login">返回登录</button>
+          </div>
+          <output data-auth-submit-status hidden></output>
+        </form>
+      </article>
+    `;
+  }
+
   function renderForm(scheme, screen) {
+    if (screen === "mfa") return renderMfa(scheme);
+    if (screen === "registerVerify") return renderRegisterVerify(scheme);
+    if (screen === "forgotVerify") return renderForgotVerify(scheme);
     if (screen === "register") {
-      return scheme.stylePreset === "clientOnboarding" ? renderFullRegister(scheme) : renderCompactRegister(scheme);
+      const depth = String(scheme.experience?.registerDepth || "");
+      const needsFullRegister = scheme.stylePreset === "clientOnboarding" || /compliance|专业|合规|full/i.test(depth);
+      return needsFullRegister ? renderFullRegister(scheme) : renderCompactRegister(scheme);
     }
     if (screen === "forgot") return renderForgot(scheme);
     return renderLogin(scheme);
@@ -641,6 +1074,19 @@
     host.querySelectorAll("[data-auth-demo-form]").forEach((form) => {
       form.addEventListener("submit", (event) => {
         event.preventDefault();
+        const flow = form.dataset.authDemoForm || "";
+        if (flow === "login" && hasProgressiveLoginChallenge(scheme)) {
+          renderAuthPreview(host, scheme, { ...options, screen: "mfa" });
+          return;
+        }
+        if (flow === "register") {
+          renderAuthPreview(host, scheme, { ...options, screen: "registerVerify" });
+          return;
+        }
+        if (flow === "forgot") {
+          renderAuthPreview(host, scheme, { ...options, screen: "forgotVerify" });
+          return;
+        }
         const output = form.querySelector("[data-auth-submit-status]");
         if (!output) return;
         output.hidden = false;
@@ -657,22 +1103,34 @@
     const scheme = normalizeScheme(rawScheme, options);
     const screen = SCREEN_KEYS.includes(options.screen) ? options.screen : scheme.defaultScreen;
     const style = scheme.stylePreset;
+    const layoutType = allowedValue(scheme.visual?.layoutType, LAYOUT_TYPES, "split");
+    const formPosition = allowedValue(scheme.visual?.formPosition, FORM_POSITIONS, "right");
+    const mediaPosition = allowedValue(scheme.visual?.mediaPosition, MEDIA_POSITIONS, formPosition === "left" ? "right" : "left");
+    const heroVisibility = allowedValue(scheme.visual?.heroVisibility, HERO_VISIBILITIES, layoutType === "centeredCard" ? "hidden" : "full");
+    const mobileStrategy = allowedValue(scheme.visual?.mobileStrategy, MOBILE_STRATEGIES, "singleColumn");
+    const formMarkup = `
+      <main class="auth-form-side" aria-label="${escapeHtml(screen)} form">
+        ${renderMobileFormBrand(scheme)}
+        ${renderForm(scheme, screen)}
+      </main>
+    `;
+    const heroMarkup = heroVisibility === "hidden" ? "" : renderHero(scheme, screen);
+    const formFirst = formPosition === "left" && heroMarkup;
     host.dataset.authPreviewMounted = "true";
     host.innerHTML = `
       <section
-        class="auth-preview-shell auth-style-${escapeHtml(style)} auth-composition-${escapeHtml(scheme.visual.composition || "splitTrust")} auth-screen-${escapeHtml(screen)}"
+        class="auth-preview-shell auth-style-${escapeHtml(style)} auth-composition-${escapeHtml(scheme.visual.composition || "splitTrust")} auth-layout-${escapeHtml(layoutType)} auth-form-${escapeHtml(formPosition)} auth-media-${escapeHtml(mediaPosition)} auth-hero-${escapeHtml(heroVisibility)} auth-mobile-${escapeHtml(mobileStrategy)} auth-logo-${escapeHtml(scheme.brand.logoPlacement || "heroTopLeft")} auth-screen-${escapeHtml(screen)}"
         style="--auth-accent:${escapeHtml(scheme.visual.accent)};--auth-accent-2:${escapeHtml(scheme.visual.accent2)}"
       >
         <div class="auth-preview-meta">
           ${providerBadge(scheme.sourceType)}
           ${scheme.fallbackReason ? `<span>${escapeHtml(scheme.fallbackReason)}</span>` : ""}
         </div>
+        ${["topCenter", "mobileTop"].includes(scheme.brand.logoPlacement) ? renderBrandMark(scheme, "shell") : ""}
         ${renderLanguageControl(scheme)}
         <div class="auth-preview-grid">
-          ${renderHero(scheme, screen)}
-          <main class="auth-form-side" aria-label="${escapeHtml(screen)} form">
-            ${renderForm(scheme, screen)}
-          </main>
+          ${formFirst ? formMarkup : heroMarkup}
+          ${formFirst ? heroMarkup : formMarkup}
         </div>
       </section>
     `;

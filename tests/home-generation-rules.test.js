@@ -18,6 +18,7 @@ const ALLOWED_BLOCKS = new Set([
   "pamm_products",
   "copytrading_signals",
   "referral_link_card",
+  "kyc_status_card",
   "announcements",
   "market_news",
   "risk_disclosure",
@@ -133,6 +134,23 @@ function brickForComponent(config, blockId) {
   return (config.brickPlan || []).find((brick) => brick.component === blockId || brick.feature === blockId);
 }
 
+function homepageStructuralSignature(config) {
+  return [
+    config.layoutPreset,
+    config.designGenome,
+    config.pageStory,
+    config.heroFocus,
+    (config.sections || []).map((section) => `${section.type}:${(section.slots || []).join("+")}`).join("|"),
+    (config.brickPlan || []).map((brick) => `${brick.zone}:${brick.brickId}`).join("|"),
+    config.moduleStyles?.quickActions,
+  ].join(" || ");
+}
+
+function assertVariantDiversity(home, prompt, expectedMin = 2) {
+  const signatures = new Set([0, 1, 2].map((variant) => homepageStructuralSignature(home.promptToConfig(prompt, variant))));
+  assert(signatures.size >= expectedMin, `expected at least ${expectedMin} structural variants for prompt`);
+}
+
 function visibleCoreMorphModules(config) {
   return [...new Set(collectBlocks(config).map((block) => BLOCK_TO_MORPH_MODULE[block]).filter(Boolean))];
 }
@@ -153,6 +171,39 @@ function assertVisibleModulesHaveMorph(config) {
     assert(morphs[moduleId], `${moduleId} must include componentMorphs contract`);
     assert(morphs[moduleId].morph || morphs[moduleId].morphId, `${moduleId} must include morph/morphId`);
   });
+}
+
+function assertComponentReferencesApplied(config) {
+  const references = Array.isArray(config.componentReferences) ? config.componentReferences : [];
+  assert(references.length > 0, "homepage config must expose component-library references");
+  const visibleModules = visibleCoreMorphModules(config);
+  const coreReference = references.find((reference) => visibleModules.includes(reference.module));
+  assert(coreReference, "component references must cover at least one visible core morph module");
+  assert(coreReference.componentId, "component reference must include componentId");
+  assert(coreReference.variantHint || coreReference.morphHint || coreReference.styleHint, "component reference must include applied structure hints");
+  assert.strictEqual(config.componentMorphs?.[coreReference.module]?.referenceComponentId, coreReference.componentId);
+  assert(
+    (config.brickPlan || []).some((brick) => brick.referenceComponentId === coreReference.componentId),
+    "brickPlan must preserve the component reference used for its slot",
+  );
+}
+
+function normalizedLibraryScore(component) {
+  const score = Number(component?.score);
+  if (!Number.isFinite(score)) return 5;
+  return Math.max(1, Math.min(10, Math.round(score)));
+}
+
+function assertNoBlockedComponentReferences(config, componentLibrary) {
+  const scoreById = new Map((componentLibrary.components || []).map((component) => [component.id, normalizedLibraryScore(component)]));
+  const ids = new Set([
+    ...(Array.isArray(config.componentReferences) ? config.componentReferences.map((reference) => reference.componentId || reference.id) : []),
+    ...(Array.isArray(config.brickPlan) ? config.brickPlan.map((brick) => brick.referenceComponentId) : []),
+    ...Object.values(config.componentMorphs || {}).map((morph) => morph.referenceComponentId),
+    ...(Array.isArray(config.htmlScheme?.componentReferences) ? config.htmlScheme.componentReferences.map((reference) => reference.componentId || reference.id) : []),
+  ].filter(Boolean));
+  const blocked = [...ids].filter((id) => scoreById.has(id) && scoreById.get(id) <= 5);
+  assert.deepStrictEqual(blocked, [], "5-point-or-lower component-library bricks must not be referenced by generated homepage output");
 }
 
 function postJson(port, payload) {
@@ -186,6 +237,17 @@ function postJson(port, payload) {
     req.on("error", reject);
     req.end(body);
   });
+}
+
+async function assertServerVariantDiversity(port, prompt, expectedMin = 2) {
+  const responses = [];
+  for (const variant of [0, 1, 2]) {
+    const response = await postJson(port, { prompt, variant, modelConfig: { provider: "openai" } });
+    assert.strictEqual(response.ok, true);
+    responses.push(response.config);
+  }
+  const signatures = new Set(responses.map(homepageStructuralSignature));
+  assert(signatures.size >= expectedMin, `expected at least ${expectedMin} server structural variants for prompt`);
 }
 
 async function waitForServer(child, port) {
@@ -283,6 +345,27 @@ async function run() {
 	  assert.strictEqual(normalizedAiHtml.htmlScheme.qualityScore, 88);
 	  assert.strictEqual(normalizedAiHtml.htmlScheme.qualityStatus, "passed");
 	  assert.deepStrictEqual(normalizedAiHtml.htmlScheme.aestheticChecks, ["使用首页主题 token。"]);
+
+  const normalizedComponentRefs = home.normalizeConfig({
+    schemaVersion: 4,
+    sections: [{ id: "hero", type: "hero", slots: ["asset_overview", "quick_actions"] }],
+    componentReferences: [
+      {
+        componentId: "quickactions-command-ref",
+        name: "快捷操作命令栏",
+        family: "QuickActions",
+        module: "QuickActions",
+        component: "quick_actions",
+        tags: ["commandBar", "operationDock"],
+        layoutHints: ["命令栏"],
+        reason: "参考命令栏结构",
+      },
+    ],
+  });
+  assert.strictEqual(normalizedComponentRefs.modules.QuickActions.variant, "commandBar");
+  assert.strictEqual(normalizedComponentRefs.moduleStyles.quickActions, "command-bar");
+  assert.strictEqual(normalizedComponentRefs.componentMorphs.QuickActions.referenceComponentId, "quickactions-command-ref");
+  assert.strictEqual(normalizedComponentRefs.componentReferences[0].variantHint, "commandBar");
 
   const normalizedSkeletonHtml = home.normalizeConfig({
     schemaVersion: 4,
@@ -521,6 +604,43 @@ async function run() {
 		  assert.notStrictEqual(localOpeningWithTradingTerms.layoutPreset, "tradingCommand");
 		  assert.strictEqual(hasBlock(localOpeningWithTradingTerms, "onboarding_guide"), true);
 
+  const localDepositConversion = home.promptToConfig(
+    "请为 ForexCRM 用户端首页生成可发布的首页方案；页面目标：推动首次入金；全页主 CTA 统一为立即入金。主 CTA：立即入金（data-home-action=deposit）。专业版，蓝色金融，精致美观。必选模块：账户概览、快捷入口、新手 Onboarding 引导；欢迎模块必须第一栏；KYC 状态：未提交、待审、通过、拒绝，只展示当前状态；首页 Banner、账号表现、CopyTrading、推广链接卡片、FAQ、风险提示；交易账号列表必须同时包含真实交易账号和模拟交易账号。",
+    2,
+  );
+  assertOnlyAllowedBlocks(localDepositConversion);
+  assertVisibleModulesHaveMorph(localDepositConversion);
+  assert.strictEqual(localDepositConversion.pageIntent.primaryIntent, "deposit");
+  assert.strictEqual(localDepositConversion.layoutPreset, "conversionFirst");
+  assert.strictEqual(localDepositConversion.heroFocus, "promo_banner");
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(localDepositConversion.sections[0].slots)), ["welcome_header"]);
+  assert.strictEqual(hasBlock(localDepositConversion, "promo_banner"), true);
+  assert.strictEqual(hasBlock(localDepositConversion, "asset_overview"), true);
+  assert.strictEqual(hasBlock(localDepositConversion, "onboarding_guide"), true);
+  assert.strictEqual(hasBlock(localDepositConversion, "quick_actions"), true);
+  assert.strictEqual(hasBlock(localDepositConversion, "trading_account_highlight"), true);
+  assert.strictEqual(hasBlock(localDepositConversion, "trading_accounts_list"), true);
+  assert.strictEqual(hasBlock(localDepositConversion, "copytrading_signals"), true);
+  assert.strictEqual(hasBlock(localDepositConversion, "referral_link_card"), true);
+  assert.strictEqual(hasBlock(localDepositConversion, "faq_section"), true);
+  assert.strictEqual(hasBlock(localDepositConversion, "risk_disclosure"), true);
+  ["promoHighlight", "walletBalance", "fundActions", "openAccountActions"].forEach((legacySlot) => {
+    assert.strictEqual(collectBlocks(localDepositConversion).includes(legacySlot), false, `${legacySlot} must not leak into deposit homepage`);
+  });
+  assert.strictEqual(localDepositConversion.pageIntent.primaryCta.label, "立即入金");
+  assert.strictEqual(localDepositConversion.pageIntent.primaryCta.action, "deposit");
+  assert.strictEqual(localDepositConversion.componentMorphs.PromotionBanner.morphId, "depositLadder");
+  assert.strictEqual(localDepositConversion.componentMorphs.AssetOverview.morphId, "metricTriplet");
+  assert(["accentCards", "segmentedPanel"].includes(localDepositConversion.componentMorphs.QuickActions.morphId));
+  assert.strictEqual(localDepositConversion.componentMorphs.TradingAccounts.morphId, "liveDemoSplit");
+  assert.strictEqual(localDepositConversion.moduleSettings.userKycRail.kycStatus, "verified");
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(localDepositConversion.moduleSettings.quickActions.actions)), []);
+  assert.strictEqual(localDepositConversion.moduleSettings.assets.enabled, true);
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(localDepositConversion.moduleSettings.assets.visibleFields)), ["total", "wallet", "tradingAccount"]);
+  assert.strictEqual(localDepositConversion.moduleSettings.tradingAccounts.grouping, "separated");
+  assert.strictEqual(localDepositConversion.moduleSettings.tradingAccounts.realViewMode, "list");
+  assert.strictEqual(localDepositConversion.moduleSettings.tradingAccounts.demoViewMode, "list");
+
 	  assert.strictEqual(homeSource.includes("showEyebrow"), false);
   assert.strictEqual(homeSource.includes('class="section-kicker">真实账号'), false);
   assert.strictEqual(homeSource.includes('class="section-kicker">模拟账号'), false);
@@ -591,12 +711,19 @@ async function run() {
   assert.strictEqual(brickForComponent(localProfessionalTrader, "trading_account_highlight").size, "3x2");
   assert.strictEqual(brickForComponent(localProfessionalTrader, "trading_account_highlight").zone, "full");
   const localProfessionalChecks = Object.fromEntries((localProfessionalTrader.pageGovernance?.checks || []).map((item) => [item.id, item.passed]));
-  assert.strictEqual(localProfessionalChecks["professional-theme"], true);
-  assert.strictEqual(localProfessionalChecks["combined-card-accounts"], true);
-  assert.strictEqual(localProfessionalChecks["no-cost-board"], true);
-  assert.strictEqual(localProfessionalChecks["data-contract"], true);
+	  assert.strictEqual(localProfessionalChecks["professional-theme"], true);
+	  assert.strictEqual(localProfessionalChecks["combined-card-accounts"], true);
+	  assert.strictEqual(localProfessionalChecks["no-cost-board"], true);
+	  assert.strictEqual(localProfessionalChecks["data-contract"], true);
 
-  const localMinimalLightTrader = home.promptToConfig(
+	  const growthDepositVariantPrompt = "增长活动首页，首屏展示活动报名、入金奖励、推广链接和快捷入口。";
+	  const partnerVariantPrompt = "合作伙伴首页，展示推广链接、邀请码、注册转化率、返佣和开户链接。";
+	  assertVariantDiversity(home, proTraderCostPrompt, 3);
+	  assertVariantDiversity(home, professionalTraderWorkbenchPrompt, 3);
+	  assertVariantDiversity(home, growthDepositVariantPrompt, 3);
+	  assertVariantDiversity(home, partnerVariantPrompt, 3);
+
+	  const localMinimalLightTrader = home.promptToConfig(
     "极简的淡色风格，生成专业交易客户首页，首屏展示交易账号状态、账户表现图表和快捷入口，要考虑白天模式跟暗夜模式。",
   );
   assertOnlyAllowedBlocks(localMinimalLightTrader);
@@ -618,6 +745,19 @@ async function run() {
   assert(["calm-table", "ops-table"].includes(localAccountPerformance.moduleStyles.tradingAccounts));
   assert.strictEqual(localAccountPerformance.moduleSettings.tradingAccounts.grouping, "separated");
   assert.strictEqual(localAccountPerformance.moduleSettings.tradingAccounts.viewMode, "list");
+
+  const localProfessionalKyc = home.promptToConfig(
+    "tier=professional 专业版首页，heroFocus=asset_overview，需要资产概览、账号表现、推广链接；CRM 账户 KYC 状态：未提交，只展示当前状态，未提交时展示去提交按钮。",
+  );
+  assertOnlyAllowedBlocks(localProfessionalKyc);
+  assert.strictEqual(hasBlock(localProfessionalKyc, "asset_overview"), true);
+  assert.strictEqual(hasBlock(localProfessionalKyc, "trading_account_highlight"), true);
+  assert.strictEqual(hasBlock(localProfessionalKyc, "referral_link_card"), true);
+  assert.strictEqual(hasBlock(localProfessionalKyc, "kyc_status_card"), true);
+  assert.notStrictEqual(localProfessionalKyc.layoutPreset, "onboardingJourney");
+  assert.strictEqual(localProfessionalKyc.moduleSettings.userKycRail.enabled, true);
+  assert.strictEqual(localProfessionalKyc.moduleSettings.userKycRail.kycStatus, "pending");
+  assert(sectionForSlot(localProfessionalKyc, "asset_overview"), "asset overview should be rendered");
 
   const flatAccountPrompt =
     "账号表现的数据指标排版需要更简洁扁平，不要模块内还有好多模块；交易账号卡片排版做视觉优化，单个小卡片里面模块太多、重点太多。";
@@ -660,6 +800,7 @@ async function run() {
   assert(personalizationCss.includes(".ai-accounts-feature .accounts-list-view[hidden]"), "inactive account view must stay hidden in AI preview CSS");
   const serverSource = fs.readFileSync(path.join(ROOT, "server.js"), "utf8");
   const adminSource = fs.readFileSync(path.join(ROOT, "home-layout-admin.js"), "utf8");
+  const adminHtmlSource = fs.readFileSync(path.join(ROOT, "home-layout-admin.html"), "utf8");
   assert(serverSource.includes("空间利用是硬约束"), "AI prompt must treat space utilization as a hard constraint");
   assert(serverSource.includes("同一组账号数据不得在同一个模块里同时渲染上方摘要卡/摘要行和下方列表/表格"), "AI prompt must forbid duplicate account card plus table views");
   assert(serverSource.includes("账号类型(accountKind=Live/Demo)和账户类型(accountType=ECN Standard/Demo ECN)"), "AI prompt must distinguish account kind and account type");
@@ -677,8 +818,10 @@ async function run() {
   assert(serverSource.includes("function isKimiFixedTemperatureModel"), "Kimi K2.6/K2.5 requests should use model-specific fixed parameters");
   assert(serverSource.includes('body.thinking = { type: "disabled" }'), "Kimi K2.6/K2.5 JSON requests should disable thinking to avoid homepage generation timeouts");
   assert(serverSource.includes("return isKimiFixedTemperatureModel(model) ? 0.6 : 1"), "Kimi K2.6/K2.5 non-thinking requests should force temperature 0.6");
-  assert(!serverSource.includes('["minimax", "kimi"].includes(config.provider) ? Math.min(config.temperature, 0.6)'), "Kimi structured JSON requests must not be clamped below its required temperature");
+	  assert(!serverSource.includes('["minimax", "kimi"].includes(config.provider) ? Math.min(config.temperature, 0.6)'), "Kimi structured JSON requests must not be clamped below its required temperature");
 	  assert(serverSource.includes("buildLowLatencyHomepagePrompt"), "MiniMax and Kimi should use a short homepage prompt to avoid provider timeouts");
+	  assert(serverSource.includes('config.provider === "kimi" || config.provider === "deepseek"'), "DeepSeek config generation should also use the short homepage prompt");
+	  assert(serverSource.includes("productWarnings"), "homepage responses should expose productWarnings separately from HTML quality");
 	  assert(serverSource.includes("质量门禁"), "AI HTML generation must include an aesthetic quality gate");
 	  assert(serverSource.includes("designRulesPromptReference"), "AI generation must load design.md as prompt governance");
 	  assert(serverSource.includes("design.md 设计治理"), "AI prompts must explicitly reference design.md governance");
@@ -687,18 +830,36 @@ async function run() {
 	  assert(serverSource.includes("按钮仍像原生控件"), "AI HTML quality gate must penalize native-looking browser controls");
 	  assert(serverSource.includes("组件库参考是硬约束"), "AI HTML prompts must treat component-library references as a hard constraint");
 	  assert(serverSource.includes("componentReferences 至少覆盖 3 个 requiredModules"), "AI HTML prompts must require broad component-library reference coverage");
-	  assert(serverSource.includes("componentReferenceHints"), "AI HTML generation must use component-library reference hints");
+		  assert(serverSource.includes("componentReferenceHints"), "AI HTML generation must use component-library reference hints");
+		  assert(serverSource.includes("applyComponentReferencesToHomepageConfig"), "homepage config generation must apply component-library references to modules and morphs");
+		  assert(serverSource.includes("referenceComponentId"), "homepage config must persist applied component-library reference ids");
+		  assert(serverSource.includes("COMPONENT_REFERENCE_SCORE_POLICY"), "homepage generation must centralize component-library score reference policy");
+		  assert(serverSource.includes("5 分及以下禁止参考"), "homepage generation must block low-scored component-library references");
+		  assert(personalizationSource.includes("normalizeHomepageComponentReferences"), "homepage renderer must normalize top-level component-library references");
+	  assert(personalizationSource.includes("dataset.componentReference"), "homepage renderer must expose component reference provenance on rendered slots");
 	  assert(serverSource.includes("implementationContract"), "AI HTML generation must require per-module implementation contracts");
 	  assert(serverSource.includes("无法证明 AI HTML 不是静态外观空壳"), "AI HTML quality gate must reject static shell drafts");
 	  assert(serverSource.includes("质量返修得分"), "AI HTML quality repair must not replace a higher-scoring free HTML draft");
 	  assert(serverSource.includes("aiHtmlResponsiveFallbackCss"), "AI HTML repair must add a responsive fallback when the model omits media rules");
 	  assert(serverSource.includes("aiHtmlControlFallbackCss"), "AI HTML repair must add scoped control styles when the model leaves native buttons");
 			  assert(serverSource.includes("buildCompactAiHtmlPrompt"), "DeepSeek/Kimi AI HTML calls should use a compact JSON-first prompt");
-			  assert(serverSource.includes('return ["minimax", "deepseek", "kimi"].includes(config.provider)'), "MiniMax, DeepSeek and Kimi should all use compact model-generated AI HTML instead of skipping HTML generation");
+			  assert(
+			    serverSource.includes("function providerUsesCompactAiHtml") &&
+			      ["minimax", "deepseek", "kimi"].every((provider) => serverSource.includes(`"${provider}"`)),
+			    "MiniMax, DeepSeek and Kimi should all use compact model-generated AI HTML instead of skipping HTML generation",
+			  );
 			  assert(serverSource.includes("function validateHomepageConfig"), "server must validate homepage config before HTML generation");
 			  assert(serverSource.includes("function repairHomepageConfig"), "server must repair homepage config before HTML generation");
+			  assert(serverSource.includes("function buildHomepageModulePolicy"), "server must build modulePolicy before homepage generation");
+			  assert(serverSource.includes("function validateHomepageModulePolicy"), "server must validate model output against modulePolicy");
+			  assert(serverSource.includes("modulePolicyScore"), "homepage quality must include modulePolicyScore");
 			  assert(serverSource.includes("buildHomepagePagePlan"), "server must create a pagePlan before final homepage assembly");
-			  assert(serverSource.includes("HOMEPAGE_OPTIONAL_BLOCK_MATERIAL_GATES"), "optional homepage modules must have material gates");
+		  assert(serverSource.includes("HOMEPAGE_OPTIONAL_BLOCK_REQUEST_PATTERNS"), "optional homepage modules must preserve prompt request patterns");
+		  const removedMaterialAdmissionLabel = ["素材", "准入"].join("");
+		  assert(!adminHtmlSource.includes(removedMaterialAdmissionLabel), "guided builder must not render the removed material-admission section");
+		  assert(!adminHtmlSource.includes('data-guided-group="materials"'), "guided builder must not expose material-admission choices");
+		  assert(!adminSource.includes(removedMaterialAdmissionLabel), "guided prompt builder must not mention material admission");
+		  assert(!serverSource.includes(`${removedMaterialAdmissionLabel}硬约束`), "server prompts must not inject material-admission constraints");
 			  assert(serverSource.includes("pagePlan.mainVisual"), "AI HTML prompts must preserve the single visual hero from pagePlan");
 			  assert(serverSource.includes("homepageRepairedConfigPromptContract"), "AI HTML prompts must receive repairedConfig sections");
 			  assert(serverSource.includes("必须严格按照 repairedConfig.sections 渲染"), "AI HTML prompt must forbid adding, deleting, or reordering modules");
@@ -708,13 +869,18 @@ async function run() {
 		  assert(serverSource.includes("synthesizeAiHtmlImplementationContract"), "compact AI HTML repair must synthesize implementation contracts when short-output models omit them");
 		  assert(serverSource.includes("AI_UI_GENERATION_PROTOCOL.md"), "AI generation must include the UI protocol governance reference");
 		  assert(serverSource.includes("providerFailureSummary"), "AI HTML fallback reasons should include parse/finish diagnostics");
+		  assert(adminSource.includes('"/api/home-ai/complete"'), "homepage-generate must use the home AI completion endpoint");
+		  assert(!adminSource.includes("/api/auth-ai/generate"), "homepage-generate must not call the auth AI generation endpoint");
 	  assert(serverSource.includes("风险披露提示条"), "RiskDisclosure skeleton component fallback must render a real risk disclosure component");
 	  assert(serverSource.includes("在线客服、客户经理、服务时间和帮助入口"), "SupportContact generation must have a dedicated family contract");
-	  assert(serverSource.includes("在线客服服务卡"), "SupportContact mock fallback must render a real support card");
-	  assert(!serverSource.includes("<strong>${prompt}</strong>"), "component fallbacks must not paste the administrator prompt into the customer UI");
-	  assert(serverSource.includes("generatedComponentViolatesFamily"), "component generation must reject family-mismatched RiskDisclosure output");
-	  assert(adminSource.includes("在线客服硬性要求"), "skeleton slot prompt must include SupportContact-specific constraints");
-	  assert(adminSource.includes("isRealModelAiHtmlScheme"), "admin distinct-generation guard must preserve real model AI HTML");
+		  assert(serverSource.includes("在线客服服务卡"), "SupportContact mock fallback must render a real support card");
+		  assert(!serverSource.includes("<strong>${prompt}</strong>"), "component fallbacks must not paste the administrator prompt into the customer UI");
+		  assert(serverSource.includes("generatedComponentViolatesFamily"), "component generation must reject family-mismatched RiskDisclosure output");
+	  assert(adminSource.includes("interpretationRound += 1;"), "normal homepage generation must advance interpretation variant");
+	  assert(serverSource.includes("applyHomepageUnderstandingToServerConfig(next, prompt, payload.variant)"), "server prompt governance must receive the generation variant");
+	  assert(serverSource.includes("depositGovernedBrickPlan(payload.variant)"), "server deposit governance must preserve variant diversity");
+		  assert(adminSource.includes("在线客服硬性要求"), "skeleton slot prompt must include SupportContact-specific constraints");
+		  assert(adminSource.includes("isRealModelAiHtmlScheme"), "admin distinct-generation guard must preserve real model AI HTML");
 	  assert(adminSource.includes("serverHtmlLooksModelGenerated"), "admin history must not mislabel model/free-html as fallback when server metadata is older");
 	  assert(adminSource.includes("prepareConfigForPublish"), "publishing must normalize skeleton drafts into a clean final customer config");
 	  assert(personalizationCss.includes(".home-skeleton-render-host.is-published-skeleton"), "published skeleton pages must hide editor shell markers");
@@ -747,9 +913,11 @@ async function run() {
       modelConfig: { provider: "openai" },
     });
     assert.strictEqual(response.ok, true);
-    assertOnlyAllowedBlocks(response.config);
-    assertVisibleModulesHaveMorph(response.config);
-    assert.deepStrictEqual(response.config.moduleSettings.assets.visibleFields, ["wallet", "tradingAccount"]);
+	    assertOnlyAllowedBlocks(response.config);
+	    assertVisibleModulesHaveMorph(response.config);
+	    assertComponentReferencesApplied(response.config);
+	    assertNoBlockedComponentReferences(response.config, componentLibrary);
+	    assert.deepStrictEqual(response.config.moduleSettings.assets.visibleFields, ["wallet", "tradingAccount"]);
     assert.strictEqual(response.config.moduleSettings.quickActions.count, 5);
     assert.deepStrictEqual(response.config.moduleSettings.quickActions.actions, []);
     assert.strictEqual(response.config.moduleSettings.pamm.enabled, true);
@@ -859,49 +1027,72 @@ async function run() {
 		    assert.strictEqual(guidedPollutionResponse.config.themePreset, "blueFinance");
 		    assert.strictEqual(guidedPollutionResponse.config.theme, "blueFinance");
 
-		    const guidedMaterialGateResponse = await postJson(port, {
+			    const modulePolicyBlockedResponse = await postJson(port, {
 		      inputMode: "guided",
-		      prompt: "请根据引导表单生成开户首页；缺少素材的选填模块不要生成。",
+		      prompt: "请生成开户首页；没有 FAQ 内容不要生成 FAQ，不要生成风险提示，也不要生成推广链接。",
+		      context: { userRole: "client" },
+			      guidedIntake: {
+			        source: "guided-builder",
+			        pageGoal: { id: "openAccount", label: "开真实账户" },
+			        primaryAction: { action: "openAccount", label: "立即开户" },
+			        canonical: {
+			          primaryIntent: "onboarding",
+			          layoutPreset: "onboardingJourney",
+		          heroFocus: "onboarding_guide",
+		          mustHave: ["asset_overview", "quick_actions", "onboarding_guide", "trading_accounts_list", "faq_section", "risk_disclosure", "referral_link_card"],
+		        },
+		        modules: [
+		          { id: "accountOverview", label: "账户概览", canonicalTargets: ["asset_overview"] },
+			          { id: "quickActions", label: "快捷入口", canonicalTargets: ["quick_actions"] },
+			          { id: "openingFlow", label: "新手引导", canonicalTargets: ["onboarding_guide"] },
+			          { id: "tradingAccounts", label: "交易账号", canonicalTargets: ["trading_accounts_list"] },
+			          { id: "faq", label: "FAQ", canonicalTargets: ["faq_section"] },
+			          { id: "riskDisclosure", label: "风险提示", canonicalTargets: ["risk_disclosure"] },
+			          { id: "referralLink", label: "推广链接", canonicalTargets: ["referral_link_card"] },
+			        ],
+			      },
+		      modelConfig: { provider: "openai" },
+		    });
+		    assert.strictEqual(modulePolicyBlockedResponse.ok, true);
+		    assertOnlyAllowedBlocks(modulePolicyBlockedResponse.config);
+		    assert.strictEqual(hasBlock(modulePolicyBlockedResponse.config, "faq_section"), false);
+		    assert.strictEqual(hasBlock(modulePolicyBlockedResponse.config, "risk_disclosure"), false);
+		    assert.strictEqual(hasBlock(modulePolicyBlockedResponse.config, "referral_link_card"), false);
+		    assert(modulePolicyBlockedResponse.modulePolicy.blockedModules.includes("faq_section"));
+		    assert(modulePolicyBlockedResponse.modulePolicy.blockedModules.includes("risk_disclosure"));
+		    assert(modulePolicyBlockedResponse.modulePolicy.blockedModules.includes("referral_link_card"));
+		    assert(modulePolicyBlockedResponse.repairActions.some((action) => action.includes("modulePolicy")));
+		    assert(modulePolicyBlockedResponse.validationWarnings.some((warning) => warning.includes("modulePolicy removed")));
+		    assert(modulePolicyBlockedResponse.modulePolicyScore < 100);
+		    assert(modulePolicyBlockedResponse.qualityScore <= modulePolicyBlockedResponse.modulePolicyScore);
+
+		    const systemRequiredRiskResponse = await postJson(port, {
+		      inputMode: "guided",
+		      prompt: "开户首页，不要生成风险提示；但当前租户合规要求固定展示风险披露。",
+		      context: { userRole: "client", riskDisclosureRequired: true },
 		      guidedIntake: {
 		        source: "guided-builder",
-		        materialGateEnabled: true,
 		        pageGoal: { id: "openAccount", label: "开真实账户" },
-		        primaryAction: { action: "openAccount", label: "立即开户" },
-		        materials: [],
 		        canonical: {
 		          primaryIntent: "onboarding",
 		          layoutPreset: "onboardingJourney",
 		          heroFocus: "onboarding_guide",
-		          mustHave: ["asset_overview", "quick_actions", "onboarding_guide", "trading_accounts_list", "promo_banner", "faq_section", "support_contact"],
+		          mustHave: ["asset_overview", "quick_actions", "onboarding_guide", "trading_accounts_list"],
 		        },
 		        modules: [
 		          { id: "accountOverview", label: "账户概览", canonicalTargets: ["asset_overview"] },
 		          { id: "quickActions", label: "快捷入口", canonicalTargets: ["quick_actions"] },
 		          { id: "openingFlow", label: "新手引导", canonicalTargets: ["onboarding_guide"] },
 		          { id: "tradingAccounts", label: "交易账号", canonicalTargets: ["trading_accounts_list"] },
-		          { id: "heroBanner", label: "首页 Banner", canonicalTargets: ["promo_banner"], materialRequirements: ["campaignConfig"], eligible: false },
-		          { id: "faq", label: "FAQ", canonicalTargets: ["faq_section"], materialRequirements: ["faqContent"], eligible: false },
-		          { id: "customerService", label: "在线客服", canonicalTargets: ["support_contact"], materialRequirements: ["supportConfig"], eligible: false },
-		        ],
-		        excludedModules: [
-		          { id: "heroBanner", label: "首页 Banner", canonicalTargets: ["promo_banner"], materialRequirements: ["campaignConfig"], eligible: false },
-		          { id: "faq", label: "FAQ", canonicalTargets: ["faq_section"], materialRequirements: ["faqContent"], eligible: false },
-		          { id: "customerService", label: "在线客服", canonicalTargets: ["support_contact"], materialRequirements: ["supportConfig"], eligible: false },
 		        ],
 		      },
 		      modelConfig: { provider: "openai" },
 		    });
-		    assert.strictEqual(guidedMaterialGateResponse.ok, true);
-		    assertOnlyAllowedBlocks(guidedMaterialGateResponse.config);
-		    assert.strictEqual(hasBlock(guidedMaterialGateResponse.config, "promo_banner"), false);
-		    assert.strictEqual(hasBlock(guidedMaterialGateResponse.config, "faq_section"), false);
-		    assert.strictEqual(hasBlock(guidedMaterialGateResponse.config, "support_contact"), false);
-		    assert.strictEqual(guidedMaterialGateResponse.config.moduleSettings.faq.enabled, false);
-		    assert.strictEqual(guidedMaterialGateResponse.config.moduleSettings.supportContact.enabled, false);
-		    assert.strictEqual(guidedMaterialGateResponse.config.moduleSettings.promoHighlight.enabled, false);
-		    assert.strictEqual(guidedMaterialGateResponse.config.pagePlan.pageGoal, "openAccount");
-		    assert.strictEqual(guidedMaterialGateResponse.config.pagePlan.primaryAction.action, "openAccount");
-		    assert(guidedMaterialGateResponse.config.pagePlan.excludedModules.some((item) => item.module === "promo_banner"));
+		    assert.strictEqual(systemRequiredRiskResponse.ok, true);
+		    assert.strictEqual(hasBlock(systemRequiredRiskResponse.config, "risk_disclosure"), true);
+		    assert(systemRequiredRiskResponse.modulePolicy.systemRequiredModules.includes("risk_disclosure"));
+		    assert.strictEqual(systemRequiredRiskResponse.modulePolicy.blockedModules.includes("risk_disclosure"), false);
+		    assert.strictEqual(systemRequiredRiskResponse.config.sections.at(-1).slots.includes("risk_disclosure"), true);
 
 		    const guidedAccountOverviewResponse = await postJson(port, {
 		      inputMode: "guided",
@@ -1059,10 +1250,46 @@ async function run() {
     assert.strictEqual(professionalTraderResponse.config.dataContract.fields.charts.binding, "api.trading.performanceSeries");
     assert.strictEqual(professionalTraderResponse.config.brickPlan.some((brick) => String(brick.brickId).includes("costBoard")), false);
     assert.strictEqual(sectionForSlot(professionalTraderResponse.config, "trading_accounts_list").type, "full");
-    assert.strictEqual(sectionForSlot(professionalTraderResponse.config, "trading_account_highlight").type, "full");
-    assert.notStrictEqual(sectionForSlot(professionalTraderResponse.config, "trading_accounts_list").id, sectionForSlot(professionalTraderResponse.config, "trading_account_highlight").id);
-    assert.strictEqual(brickForComponent(professionalTraderResponse.config, "trading_account_highlight").size, "3x2");
-    assert.strictEqual(brickForComponent(professionalTraderResponse.config, "trading_account_highlight").zone, "full");
+	    assert.strictEqual(sectionForSlot(professionalTraderResponse.config, "trading_account_highlight").type, "full");
+	    assert.notStrictEqual(sectionForSlot(professionalTraderResponse.config, "trading_accounts_list").id, sectionForSlot(professionalTraderResponse.config, "trading_account_highlight").id);
+	    assert.strictEqual(brickForComponent(professionalTraderResponse.config, "trading_account_highlight").size, "3x2");
+	    assert.strictEqual(brickForComponent(professionalTraderResponse.config, "trading_account_highlight").zone, "full");
+	    await assertServerVariantDiversity(port, proTraderCostPrompt, 3);
+	    await assertServerVariantDiversity(port, growthDepositVariantPrompt, 2);
+
+	    const professionalKycResponse = await postJson(port, {
+      prompt:
+        "tier=professional 专业版首页，heroFocus=asset_overview，必须有资产概览、账号表现、交易账号列表、推广链接；CRM 账户 KYC 状态：未提交、待审、通过、拒绝；只展示当前状态，未提交时展示去提交按钮，拒绝时展示再次提交。",
+      modelConfig: { provider: "openai" },
+    });
+    assert.strictEqual(professionalKycResponse.ok, true);
+    assertOnlyAllowedBlocks(professionalKycResponse.config);
+    assert.strictEqual(hasBlock(professionalKycResponse.config, "asset_overview"), true);
+    assert.strictEqual(hasBlock(professionalKycResponse.config, "trading_account_highlight"), true);
+    assert.strictEqual(hasBlock(professionalKycResponse.config, "trading_accounts_list"), true);
+    assert.strictEqual(hasBlock(professionalKycResponse.config, "referral_link_card"), true);
+    assert.strictEqual(hasBlock(professionalKycResponse.config, "kyc_status_card"), true);
+    assert.notStrictEqual(professionalKycResponse.config.layoutPreset, "onboardingJourney");
+    assert.strictEqual(professionalKycResponse.config.moduleSettings.userKycRail.enabled, true);
+    assert.strictEqual(professionalKycResponse.config.moduleSettings.userKycRail.kycStatus, "verified");
+    const assetSectionIndex = (professionalKycResponse.config.sections || []).findIndex((section) => section.slots?.includes("asset_overview"));
+    const onboardingSectionIndex = (professionalKycResponse.config.sections || []).findIndex((section) => section.slots?.includes("onboarding_guide"));
+    assert(assetSectionIndex >= 0 && assetSectionIndex <= 1, "asset overview must be in the first two core sections when heroFocus=asset_overview");
+    if (onboardingSectionIndex >= 0) assert(assetSectionIndex < onboardingSectionIndex, "asset overview must appear before onboarding guide");
+    assert(Array.isArray(professionalKycResponse.productWarnings), "response should include productWarnings");
+    assert.strictEqual(professionalKycResponse.productWarnings.includes("professional tier was converted to onboarding layout"), false);
+    assert.strictEqual(professionalKycResponse.productWarnings.includes("referral_link_card was mentioned but not selected"), false);
+    assert.strictEqual(professionalKycResponse.productWarnings.includes("kyc_status was mentioned but not rendered"), false);
+
+    const agentReferralResponse = await postJson(port, {
+      prompt: "生成专业版客户首页，突出资产概览、快捷操作和交易账号列表。",
+      context: { userRole: "agent", tenant: { features: ["referral"] } },
+      modelConfig: { provider: "openai" },
+    });
+    assert.strictEqual(agentReferralResponse.ok, true);
+    assertOnlyAllowedBlocks(agentReferralResponse.config);
+    assert.strictEqual(hasBlock(agentReferralResponse.config, "referral_link_card"), true);
+    assert.strictEqual(agentReferralResponse.config.moduleSettings.referralLinkCard.enabled, true);
 
     const accountPerformanceResponse = await postJson(port, {
       prompt: accountPerformancePrompt,
@@ -1105,8 +1332,10 @@ async function run() {
 		    assert(["publishable", "needs-polish", "needs-repair", "fallback"].includes(aiHtmlResponse.quality.status), "server response must expose mapped quality.status");
 		    assert.strictEqual(aiHtmlResponse.htmlQualityStatus, aiHtmlResponse.quality.status);
 		    assert.strictEqual(aiHtmlResponse.config.htmlQualityStatus, aiHtmlResponse.quality.status);
-		    assertLegalHomepageSections(aiHtmlResponse.config);
-		    assert.strictEqual(aiHtmlResponse.validation.invalidSections.length, 0);
+			    assertLegalHomepageSections(aiHtmlResponse.config);
+			    assertComponentReferencesApplied(aiHtmlResponse.config);
+			    assertNoBlockedComponentReferences(aiHtmlResponse.config, componentLibrary);
+			    assert.strictEqual(aiHtmlResponse.validation.invalidSections.length, 0);
     assert.strictEqual(aiHtmlResponse.config.htmlScheme.enabled, true);
 		    assert.strictEqual(aiHtmlResponse.htmlScheme.enabled, true);
 		    assert.strictEqual(aiHtmlResponse.htmlScheme.generationPipeline, "mock-free-html");
@@ -1120,13 +1349,16 @@ async function run() {
 			    assert(aiHtmlResponse.htmlScheme.qualityScore >= 70, "mock AI HTML should pass the basic aesthetic floor");
 			    assert(aiHtmlResponse.htmlScheme.requiredModules.includes("资产概览"), "server AI HTML scheme must expose required module contract");
 			    assert(Array.isArray(aiHtmlResponse.htmlScheme.implementationContract), "server AI HTML scheme must expose implementation contracts");
-			    ["onboarding_guide", "pamm_products", "referral_link_card", "app_download", "faq_section", "support_contact", "risk_disclosure"].forEach((moduleId) => {
+				    ["onboarding_guide", "pamm_products", "app_download", "faq_section", "support_contact", "risk_disclosure"].forEach((moduleId) => {
 		      assert(
 		        aiHtmlResponse.htmlScheme.implementationContract.some((contract) => contract.module === moduleId),
 		        `AI HTML required module must include ${moduleId}`,
 			      );
 			      assert(aiHtmlResponse.htmlScheme.html.includes(`data-ai-html-module="${moduleId}"`), `AI HTML must visibly render ${moduleId}`);
 			    });
+		    assert.strictEqual(hasBlock(aiHtmlResponse.config, "referral_link_card"), false);
+		    assert(aiHtmlResponse.modulePolicy.blockedModules.includes("referral_link_card"));
+		    assert(!aiHtmlResponse.htmlScheme.html.includes('data-ai-html-module="referral_link_card"'), "openAccount non-agent AI HTML must not render referral_link_card");
 		    assert(aiHtmlResponse.htmlScheme.implementationContract.some((contract) => contract.module === "asset_overview"), "server AI HTML implementation contract must include asset overview");
 		    assert(aiHtmlResponse.htmlScheme.qualityIssues.every((issue) => !issue.includes("静态外观空壳")), "mock AI HTML must satisfy the anti-shell quality gate");
 		    assert(Array.isArray(aiHtmlResponse.htmlScheme.componentReferences), "server AI HTML scheme must expose component references");

@@ -25,6 +25,8 @@
   const KIMI_BASE_URL = KIMI_CN_BASE_URL;
   const KIMI_DEFAULT_MODEL = "kimi-k2.6";
   const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
+  const GEMINI_OPENAI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai";
+  const GEMINI_DEFAULT_MODEL = "gemini-2.5-flash";
   const PREVIEW_SIZE_PRESETS = {
     mobile: { label: "手机", meta: "390x844" },
     tablet: { label: "平板", meta: "768x1024" },
@@ -118,6 +120,18 @@
       apiKeyLabel: "DEEPSEEK_API_KEY",
       note: "DeepSeek V4 官方 API 模型。首页生成默认用 V4-Flash 提升稳定性；V4-Pro 仍可手动选择，代理会关闭 thinking 并在超时后降级到 Flash。",
     },
+    gemini: {
+      provider: "gemini",
+      name: "Gemini",
+      badge: "OpenAI Compatible",
+      model: GEMINI_DEFAULT_MODEL,
+      models: [GEMINI_DEFAULT_MODEL, "gemini-3-flash-preview", "gemini-2.5-flash-lite", "gemini-2.5-pro"],
+      baseUrl: GEMINI_OPENAI_BASE_URL,
+      endpoint: "/chat/completions",
+      apiMode: "openai-chat",
+      apiKeyLabel: "GEMINI_API_KEY",
+      note: `Google Gemini API 的 OpenAI 兼容接口。默认用 ${GEMINI_DEFAULT_MODEL} 生成稳定 JSON；Gemini 3 Flash Preview 可手动选择，Base URL 使用 ${GEMINI_OPENAI_BASE_URL}。`,
+    },
   };
 
   const DEFAULT_MODEL_CONFIG = {
@@ -159,6 +173,21 @@
     strength: document.querySelector("[data-summary-strength]"),
     hero: document.querySelector("[data-summary-hero]"),
     governanceSummary: document.querySelector("[data-governance-summary]"),
+    aestheticScorePanel: document.querySelector("[data-aesthetic-score-panel]"),
+    aestheticScoreValue: document.querySelector("[data-aesthetic-score-value]"),
+    aestheticScoreStatus: document.querySelector("[data-aesthetic-score-status]"),
+    aestheticScoreCategories: document.querySelector("[data-aesthetic-score-categories]"),
+    aestheticScoreIssues: document.querySelector("[data-aesthetic-score-issues]"),
+    aestheticScoreReferences: document.querySelector("[data-aesthetic-score-references]"),
+    aestheticScoreRefresh: document.querySelector("[data-aesthetic-score-refresh]"),
+    aestheticScoreSave: document.querySelector("[data-aesthetic-score-save]"),
+    aestheticScoreImprove: document.querySelector("[data-aesthetic-score-improve]"),
+    aestheticManualScore: document.querySelector("[data-aesthetic-manual-score]"),
+    aestheticManualScoreInput: document.querySelector("[data-aesthetic-manual-score-input]"),
+    aestheticManualScoreOutput: document.querySelector("[data-aesthetic-manual-score-output]"),
+    aestheticDecisionButtons: [...document.querySelectorAll("[data-aesthetic-decision]")],
+    aestheticScoreNote: document.querySelector("[data-aesthetic-score-note]"),
+    aestheticEvidenceStatus: document.querySelector("[data-aesthetic-evidence-status]"),
     skeletonWorkflow: document.querySelector("[data-skeleton-workflow]"),
     decisionReasons: document.querySelector("[data-decision-reasons]"),
     variantSummary: document.querySelector("[data-variant-summary]"),
@@ -203,8 +232,14 @@
   let modelTestState = { tone: "", message: "尚未测试" };
   let suggestionRound = 0;
   let suggestionCards = [];
+  let fallbackComponentLibrary = null;
   let skeletonFillRunning = false;
   let skeletonAutoStarted = false;
+  let aestheticScoreTimer = 0;
+  let aestheticScoreSignature = "";
+  let aestheticScoreState = { pending: false, report: null, record: null, error: "" };
+  let aestheticManualDecision = "approve";
+  let aestheticManualScoreTouched = false;
 
   function escapeHtml(value) {
     return String(value)
@@ -676,6 +711,350 @@
 	    renderPreviewSourceBadge(config);
 	  }
 
+  function aestheticStatusLabel(status) {
+    return (
+      {
+        publishable: "可发布",
+        "needs-polish": "需打磨",
+        "needs-repair": "需返修",
+        fallback: "兜底",
+        excellent: "优秀",
+        good: "良好",
+        fair: "一般",
+        weak: "偏弱",
+      }[status] || status || "待评分"
+    );
+  }
+
+  function aestheticTone(score, status) {
+    const value = Number(score);
+    if (status === "fallback" || value < 60) return "fail";
+    if (status === "needs-repair" || value < 75) return "warn";
+    if (value >= 86 || status === "publishable") return "pass";
+    return "warn";
+  }
+
+  function aestheticConfigSignature(config) {
+    const normalized = home.normalizeConfig(config);
+    return JSON.stringify({
+      prompt: window.localStorage.getItem(PROMPT_KEY) || "",
+      name: normalized.name,
+      layoutPreset: normalized.layoutPreset,
+      themePreset: normalized.themePreset || normalized.theme,
+      activeRenderMode: normalized.activeRenderMode || normalized.renderMode || "config",
+      sections: normalized.sections,
+      brickPlan: (normalized.brickPlan || []).map((brick) => ({
+        id: brick.brickId || brick.id,
+        component: brick.component || brick.feature,
+        zone: brick.zone,
+        morph: brick.morphHint,
+      })),
+      componentMorphs: normalized.componentMorphs,
+      htmlQualityScore: normalized.htmlScheme?.qualityScore || null,
+      htmlQualityStatus: normalized.htmlScheme?.qualityStatus || "",
+    });
+  }
+
+  function normalizeAestheticManualScore(value, fallback = 88) {
+    const score = Number(value);
+    const next = Number.isFinite(score) ? score : fallback;
+    return Math.max(0, Math.min(100, Math.round(next)));
+  }
+
+  function aestheticDecisionForScore(score) {
+    const value = normalizeAestheticManualScore(score);
+    if (value >= 80) return "approve";
+    if (value <= 59) return "reject";
+    return "neutral";
+  }
+
+  function aestheticRatingFromScore(score) {
+    return Math.max(1, Math.min(5, Math.round(normalizeAestheticManualScore(score) / 20) || 1));
+  }
+
+  function syncAestheticManualScore(report, options = {}) {
+    if (!els.aestheticManualScoreInput) return;
+    const score = normalizeAestheticManualScore(report?.score, normalizeAestheticManualScore(els.aestheticManualScoreInput.value));
+    if (options.force || !aestheticManualScoreTouched) {
+      els.aestheticManualScoreInput.value = String(score);
+      aestheticManualDecision = aestheticDecisionForScore(score);
+    }
+    renderAestheticManualControls();
+  }
+
+  function renderAestheticManualControls() {
+    if (!els.aestheticManualScore) return;
+    const score = normalizeAestheticManualScore(els.aestheticManualScoreInput?.value, aestheticScoreState.report?.score || 88);
+    if (els.aestheticManualScoreOutput) els.aestheticManualScoreOutput.textContent = String(score);
+    els.aestheticDecisionButtons.forEach((button) => {
+      const active = button.dataset.aestheticDecision === aestheticManualDecision;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+    if (els.aestheticEvidenceStatus && !aestheticScoreState.feedbackRecord) {
+      els.aestheticEvidenceStatus.textContent = "保存时会带上当前首页代码快照。";
+    }
+  }
+
+  function trimAestheticEvidenceText(value, limit = 24000) {
+    return String(value || "").trim().slice(0, limit);
+  }
+
+  function previewCodeEvidence(config = currentConfig) {
+    const normalized = home.normalizeConfig(config);
+    let frameDocument = null;
+    let frameLocation = "";
+    try {
+      frameDocument = els.preview?.contentDocument || els.preview?.contentWindow?.document || null;
+      frameLocation = els.preview?.contentWindow?.location?.href || "";
+    } catch (error) {
+      frameDocument = null;
+    }
+
+    const root =
+      frameDocument?.querySelector(".client-home-page") ||
+      frameDocument?.querySelector(".client-shell") ||
+      frameDocument?.body ||
+      null;
+    const renderedHtml = trimAestheticEvidenceText(root?.outerHTML || "", 50000);
+    const htmlScheme = normalized.htmlScheme?.enabled ? normalized.htmlScheme : null;
+    const skeletonScheme = normalized.skeletonHtmlScheme?.enabled ? normalized.skeletonHtmlScheme : null;
+
+    return {
+      captureType: "code",
+      capturedAt: new Date().toISOString(),
+      pageUrl: frameLocation || els.preview?.src || "",
+      renderMode: activePreviewRenderMode(normalized),
+      previewSize: activePreviewSize,
+      colorMode: activePreviewColorMode,
+      summary: [
+        normalized.name,
+        renderModeLabel(activePreviewRenderMode(normalized)),
+        home.themeLabel?.(normalized.themePreset || normalized.theme) || normalized.themePreset || normalized.theme,
+        renderedHtml ? "已捕获 iframe DOM" : "已捕获配置代码",
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      code: {
+        renderedHtml,
+        configJson: trimAestheticEvidenceText(JSON.stringify(normalized, null, 2), 50000),
+        aiHtml: trimAestheticEvidenceText(htmlScheme?.html || "", 30000),
+        aiCss: trimAestheticEvidenceText(htmlScheme?.css || "", 30000),
+        skeletonHtml: skeletonScheme ? trimAestheticEvidenceText(JSON.stringify(skeletonScheme, null, 2), 24000) : "",
+      },
+    };
+  }
+
+  function aestheticManualDimensions() {
+    const categories = Array.isArray(aestheticScoreState.report?.categories) ? aestheticScoreState.report.categories : [];
+    return Object.fromEntries(
+      categories
+        .map((category) => [String(category.key || category.label || "").trim(), Math.max(0, Math.min(10, Math.round((Number(category.score) || 0) / 10)))])
+        .filter(([key]) => key),
+    );
+  }
+
+  function aestheticPreferenceSignals(score, decision, evidence) {
+    const categories = Array.isArray(aestheticScoreState.report?.categories) ? aestheticScoreState.report.categories : [];
+    return [
+      `人工审美分 ${score}/100`,
+      decision === "approve" ? "保留类似首页结构和视觉层级" : "",
+      decision === "reject" ? "避免类似首页结构和视觉层级" : "",
+      evidence?.code?.renderedHtml ? "评分证据包含当前首页 DOM 代码快照" : "评分证据包含当前首页配置代码",
+      ...categories.slice(0, 4).map((category) => `${category.label || category.key} 机器参考 ${normalizeAestheticManualScore(category.score)}/100`),
+    ]
+      .filter(Boolean)
+      .slice(0, 10);
+  }
+
+  function renderAestheticScorePanel() {
+    if (!els.aestheticScorePanel) return;
+
+    const { pending, report, error } = aestheticScoreState;
+    const score = Number(report?.score);
+    const tone = pending ? "pending" : error ? "fail" : Number.isFinite(score) ? aestheticTone(score, report?.status) : "pending";
+    els.aestheticScorePanel.dataset.tone = tone;
+
+    if (els.aestheticScoreValue) els.aestheticScoreValue.textContent = pending ? "..." : Number.isFinite(score) ? String(Math.round(score)) : "--";
+    if (els.aestheticScoreStatus) {
+      els.aestheticScoreStatus.textContent = pending
+        ? "正在检查首屏焦点、组件库复用、模块层级和响应式安全。"
+        : error
+          ? `评分失败：${error}`
+          : report
+            ? `${aestheticStatusLabel(report.status)} · ${report.issues?.[0] || "已生成可追踪的视觉质量报告。"}`
+            : "等待评分。";
+    }
+
+    const categories = Array.isArray(report?.categories) ? report.categories : [];
+    if (els.aestheticScoreCategories) {
+      els.aestheticScoreCategories.innerHTML = categories
+        .slice(0, 6)
+        .map((category) => {
+          const categoryScore = Math.max(0, Math.min(100, Math.round(Number(category.score) || 0)));
+          return `
+            <div class="aesthetic-score-bar">
+              <span>${escapeHtml(category.label || category.key || "评分项")}</span>
+              <strong>${categoryScore}</strong>
+              <i style="--score:${categoryScore}%"></i>
+            </div>
+          `;
+        })
+        .join("");
+    }
+
+    const issues = Array.isArray(report?.issues) ? report.issues : [];
+    const suggestions = Array.isArray(report?.suggestions) ? report.suggestions : [];
+    if (els.aestheticScoreIssues) {
+      const items = [...issues.slice(0, 2), ...suggestions.slice(0, 2).map((item) => `建议：${item}`)];
+      els.aestheticScoreIssues.innerHTML = items.length
+        ? items.map((item) => `<small>${escapeHtml(item)}</small>`).join("")
+        : report
+          ? "<small>暂无明显问题，可以继续用候选生成做风格探索。</small>"
+          : "";
+    }
+
+    const references = Array.isArray(report?.componentReferences) ? report.componentReferences : [];
+    if (els.aestheticScoreReferences) {
+      els.aestheticScoreReferences.innerHTML = references.length
+        ? references
+            .slice(0, 4)
+            .map((item) => `<span>${escapeHtml(item.name || item.id || "组件参考")} · ${escapeHtml(item.family || "")}</span>`)
+            .join("")
+        : report
+          ? "<span>未命中足够组件库参考</span>"
+          : "";
+    }
+
+    renderAestheticManualControls();
+  }
+
+  async function scoreCurrentPreview(options = {}) {
+    if (!els.previewPage || !els.aestheticScorePanel) return null;
+
+    const config = home.normalizeConfig(currentConfig);
+    const signature = aestheticConfigSignature(config);
+    if (!options.force && aestheticScoreSignature === signature && aestheticScoreState.report) {
+      renderAestheticScorePanel();
+      return aestheticScoreState.report;
+    }
+
+    aestheticScoreState = {
+      pending: true,
+      report: aestheticScoreState.report,
+      record: aestheticScoreState.record,
+      feedbackRecord: aestheticScoreState.feedbackRecord || null,
+      error: "",
+    };
+    renderAestheticScorePanel();
+
+    try {
+      const response = await requestJsonEndpoint("/api/home-ai/aesthetic-score", {
+        action: options.action || "preview-score",
+        prompt: window.localStorage.getItem(PROMPT_KEY) || promptValue(),
+        config,
+        source: options.source || "preview",
+        label: config.name,
+        message: config.aiSummary,
+        renderMode: config.activeRenderMode || config.renderMode || "config",
+        providerId: aiModelConfig.provider,
+        provider: providerPreset(aiModelConfig.provider).name,
+        model: aiModelConfig.model,
+      });
+      aestheticScoreSignature = signature;
+      aestheticScoreState = {
+        pending: false,
+        report: response.report || null,
+        record: response.record || null,
+        feedbackRecord: null,
+        error: "",
+      };
+      syncAestheticManualScore(response.report);
+      renderAestheticScorePanel();
+      return response.report || null;
+    } catch (error) {
+      aestheticScoreState = {
+        pending: false,
+        report: aestheticScoreState.report,
+        record: aestheticScoreState.record,
+        feedbackRecord: aestheticScoreState.feedbackRecord || null,
+        error: errorMessage(error, 180),
+      };
+      renderAestheticScorePanel();
+      return null;
+    }
+  }
+
+  async function saveManualAestheticFeedback() {
+    if (!els.previewPage || !els.aestheticScoreSave) return;
+
+    const config = home.normalizeConfig(currentConfig);
+    const manualScore = normalizeAestheticManualScore(els.aestheticManualScoreInput?.value, aestheticScoreState.report?.score || 88);
+    const decision = aestheticManualDecision || aestheticDecisionForScore(manualScore);
+    const note = String(els.aestheticScoreNote?.value || "").trim();
+    const prompt = window.localStorage.getItem(PROMPT_KEY) || promptValue();
+    const previousLabel = els.aestheticScoreSave.textContent.trim();
+
+    els.aestheticScoreSave.disabled = true;
+    els.aestheticScoreSave.classList.add("is-loading");
+    els.aestheticScoreSave.textContent = "保存中";
+    if (els.aestheticEvidenceStatus) els.aestheticEvidenceStatus.textContent = "正在整理当前首页代码快照...";
+
+    try {
+      if (!aestheticScoreState.record || !aestheticScoreState.report) {
+        await scoreCurrentPreview({ force: true, action: "manual-feedback-score", source: "preview-feedback" });
+      }
+
+      const evidence = previewCodeEvidence(config);
+      const machineScore = Number.isFinite(Number(aestheticScoreState.report?.score)) ? Math.round(Number(aestheticScoreState.report.score)) : null;
+      const response = await requestJsonEndpoint("/api/home-ai/feedback", {
+        prompt,
+        source: "preview-manual-score",
+        scoreRecordId: aestheticScoreState.record?.id || "",
+        candidateGroupId: aestheticScoreState.record?.candidateGroupId || "",
+        candidateIndex: aestheticScoreState.record?.candidateIndex ?? null,
+        decision,
+        rating: aestheticRatingFromScore(manualScore),
+        note,
+        tags: [config.themePreset || config.theme, config.layoutPreset, config.pageIntent?.primaryIntent || config.brickTrace?.intent].filter(Boolean),
+        preferenceSignals: aestheticPreferenceSignals(manualScore, decision, evidence),
+        pageIntent: config.pageIntent?.primaryIntent || config.brickTrace?.intent || "",
+        visualStyle: config.themePreset || config.theme || "",
+        score: manualScore,
+        manualScore,
+        machineScore,
+        manualDimensions: aestheticManualDimensions(),
+        evidence,
+        config,
+      });
+
+      aestheticScoreState = { ...aestheticScoreState, feedbackRecord: response.record || null };
+      if (els.aestheticEvidenceStatus) {
+        els.aestheticEvidenceStatus.textContent = response.record
+          ? `已保存到 AI 审美记忆：人工 ${manualScore}/100，证据为首页代码快照。`
+          : `已保存人工 ${manualScore}/100。`;
+      }
+      renderAestheticScorePanel();
+      updateStatus("人工审美评分已保存，后续生成会参考", true);
+      showToast("人工评分已保存，AI 下次会参考");
+    } catch (error) {
+      if (els.aestheticEvidenceStatus) els.aestheticEvidenceStatus.textContent = `保存失败：${errorMessage(error, 140)}`;
+      showToast(`人工评分保存失败：${errorMessage(error, 160)}`);
+    } finally {
+      els.aestheticScoreSave.disabled = false;
+      els.aestheticScoreSave.classList.remove("is-loading");
+      els.aestheticScoreSave.textContent = previousLabel || "保存我的评分";
+    }
+  }
+
+  function scheduleAestheticScore(options = {}) {
+    if (!els.previewPage || !els.aestheticScorePanel) return;
+    window.clearTimeout(aestheticScoreTimer);
+    aestheticScoreTimer = window.setTimeout(() => {
+      scoreCurrentPreview(options);
+    }, options.delay ?? 360);
+  }
+
   function renderIntelligenceSummary() {
     if (!els.intelligenceSummary) return;
 
@@ -721,7 +1100,7 @@
           <article>
             <span>${escapeHtml(item.label)}</span>
             <strong>${escapeHtml(item.variantLabel)}</strong>
-            <small>${escapeHtml(item.variant)}</small>
+            <small>${escapeHtml([item.variant, item.referenceName ? `参考 ${item.referenceName}` : ""].filter(Boolean).join(" · "))}</small>
           </article>
         `,
       )
@@ -730,6 +1109,8 @@
 
   function setConfig(config, statusText, options = {}) {
     currentConfig = home.normalizeConfig(config);
+    aestheticScoreState = { pending: false, report: null, record: null, feedbackRecord: null, error: "" };
+    aestheticManualScoreTouched = false;
     if (options.saveDraft) home.saveDraft(currentConfig);
     renderSummary();
     renderIntelligenceSummary();
@@ -743,6 +1124,7 @@
     renderSkeletonWorkflow();
     applyPreview(true);
     maybeStartSkeletonWorkflow();
+    scheduleAestheticScore({ action: "preview-change-score", source: "preview", delay: 420 });
     updateStatus(statusText || "草稿预览", false);
   }
 
@@ -954,6 +1336,144 @@
       }
     }
     throw new Error(`${lastMessage || "Failed to fetch"} · 已尝试 ${endpoints.join(" -> ")}`);
+  }
+
+  async function loadFallbackComponentLibrary() {
+    if (Array.isArray(fallbackComponentLibrary)) return fallbackComponentLibrary;
+    const endpoints = localApiEndpointCandidates("/home-component-library.json");
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(endpoint, { method: "GET" });
+        if (!response.ok) continue;
+        const data = await response.json().catch(() => null);
+        fallbackComponentLibrary = Array.isArray(data?.components)
+          ? data.components.filter((component) => component && typeof component === "object" && component.html && component.css)
+          : [];
+        return fallbackComponentLibrary;
+      } catch (error) {
+        // Try the next local/static endpoint.
+      }
+    }
+    fallbackComponentLibrary = [];
+    return fallbackComponentLibrary;
+  }
+
+  function fallbackComponentSizeParts(size, fallback = "2x1") {
+    const normalized = String(size || fallback).trim().toLowerCase().replace(/[×*]/g, "x");
+    const match = normalized.match(/^([1-9]\d?)x([1-9]\d?)$/);
+    return match ? { columns: Number(match[1]) || 2, rows: Number(match[2]) || 1, value: normalized } : fallbackComponentSizeParts(fallback, "2x1");
+  }
+
+  function fallbackComponentSizeDistance(firstSize, secondSize) {
+    const first = fallbackComponentSizeParts(firstSize);
+    const second = fallbackComponentSizeParts(secondSize);
+    return Math.abs(first.columns - second.columns) + Math.abs(first.rows - second.rows);
+  }
+
+  function fallbackComponentScore(component, fallback = 5) {
+    const score = Number(component?.score);
+    if (!Number.isFinite(score)) return fallback;
+    return Math.max(1, Math.min(10, Math.round(score)));
+  }
+
+  function fallbackComponentReferenceTier(component) {
+    const score = fallbackComponentScore(component, 5);
+    if (score >= 8) return "strong";
+    if (score >= 6) return "moderate";
+    return "blocked";
+  }
+
+  function fallbackComponentReferencePriority(component) {
+    const tier = fallbackComponentReferenceTier(component);
+    if (tier === "strong") return 260;
+    if (tier === "moderate") return 72;
+    return -10000;
+  }
+
+  function fallbackComponentCanReference(component) {
+    return fallbackComponentReferenceTier(component) !== "blocked";
+  }
+
+  function fallbackComponentSearchText(component) {
+    return [
+      component.id,
+      component.name,
+      component.family,
+      component.size,
+      component.description,
+      ...(Array.isArray(component.tags) ? component.tags : []),
+      ...(Array.isArray(component.layoutHints) ? component.layoutHints : []),
+      ...(Array.isArray(component.dataRequirements) ? component.dataRequirements : []),
+    ]
+      .join(" ")
+      .toLowerCase();
+  }
+
+  function selectedFallbackComponentFromLibrary(components, slot, action, config = currentConfig) {
+    const normalized = home.normalizeConfig(config);
+    const slotId = slot.id || slot.slot || "";
+    const family = skeletonSlotFamily(slotId);
+    const size = skeletonSlotSize(slot);
+    const brick = skeletonBrickForSlot(slot, normalized);
+    const referenceIds = new Set(
+      [
+        brick?.referenceComponentId,
+        ...(Array.isArray(normalized.componentReferences)
+          ? normalized.componentReferences
+              .filter((reference) => reference?.family === family || reference?.module === family || reference?.component === slotId)
+              .map((reference) => reference.componentId || reference.id)
+          : []),
+      ]
+        .map((id) => String(id || "").trim())
+        .filter(Boolean),
+    );
+    const promptText = [slot.label, slot.sectionTitle, slotId, brick?.brickName, brick?.reason, action].filter(Boolean).join(" ").toLowerCase();
+    const referenceableComponents = components.filter(fallbackComponentCanReference);
+    const sameFamily = referenceableComponents.filter((component) => component.family === family);
+    const pool = sameFamily.length ? sameFamily : referenceableComponents.filter((component) => component.family === "ClientHomeAtoms");
+    const candidates = pool.length ? pool : components;
+    return candidates
+      .filter(fallbackComponentCanReference)
+      .map((component, index) => {
+        const haystack = fallbackComponentSearchText(component);
+        const promptHits = promptText
+          .split(/\s+|[，,。；;、]/)
+          .filter((word) => word.length >= 2 && haystack.includes(word)).length;
+        const referenceScore = referenceIds.has(component.id) ? 160 : 0;
+        const familyScore = component.family === family ? 100 : 0;
+        const exactSizeScore = component.size === size ? 36 : 0;
+        const sizeScore = Math.max(0, 28 - fallbackComponentSizeDistance(component.size, size) * 7);
+        const userScore = fallbackComponentScore(component, 5);
+        return {
+          component,
+          score: fallbackComponentReferencePriority(component) + referenceScore + familyScore + exactSizeScore + sizeScore + promptHits * 8 + userScore * 4 - index * 0.01,
+        };
+      })
+      .sort((a, b) => b.score - a.score)
+      .map((item) => item.component)[0] || null;
+  }
+
+  async function brickFallbackSlotComponent(slot, action, error = null) {
+    const components = await loadFallbackComponentLibrary();
+    const selected = selectedFallbackComponentFromLibrary(components, slot, action);
+    if (!selected) return localFallbackSlotComponent(slot, action, error);
+    const size = skeletonSlotSize(slot);
+    const reason = error
+      ? `模型生成失败，已引用积木库「${selected.name || selected.id}」：${errorMessage(error, 120)}`
+      : `已引用积木库「${selected.name || selected.id}」作为组件级兜底。`;
+    return {
+      ...selected,
+      slot: slot.id || slot.slot || "",
+      size: selected.size || size,
+      sourceType: "brick-fallback",
+      fallbackReason: reason,
+      referenceComponentId: selected.id || "",
+      referenceComponentName: selected.name || "",
+      referenceFamily: selected.family || skeletonSlotFamily(slot.id),
+      requestedSize: size,
+      generatedAt: new Date().toISOString(),
+      layoutHints: [...(Array.isArray(selected.layoutHints) ? selected.layoutHints : []), `requested-size:${size}`].slice(0, 8),
+    };
   }
 
   function localFallbackSlotComponent(slot, action, error = null) {
@@ -1271,11 +1791,12 @@
             modelConfig: aiRequestModelConfig(),
           };
       const result = await requestJsonEndpoint(isStyleEdit ? "/api/home-components/edit" : "/api/home-components/generate", payload);
+      const resultComponent = result.component || (await brickFallbackSlotComponent(slot, action));
       const component = {
-        ...(result.component || localFallbackSlotComponent(slot, action)),
+        ...resultComponent,
         slot: slotId,
-        sourceType: result.localFallback ? "fallback-component-ai" : result.mock ? "mock-component-ai" : "component-ai",
-        fallbackReason: result.fallbackReason || "",
+        sourceType: resultComponent.sourceType || (result.localFallback ? "fallback-component-ai" : result.mock ? "mock-component-ai" : "component-ai"),
+        fallbackReason: result.fallbackReason || resultComponent.fallbackReason || "",
         provider: result.provider || "",
         model: result.model || "",
         generatedAt: new Date().toISOString(),
@@ -1287,9 +1808,9 @@
         component,
         { action: action === "style" ? "style" : "regenerate" },
       );
-      setConfig(next, `已生成：${slot.label}`, { saveDraft: true });
+      setConfig(next, result.localFallback || component.sourceType === "brick-fallback" ? `已引用积木兜底：${slot.label}` : `已生成：${slot.label}`, { saveDraft: true });
     } catch (error) {
-      const fallback = localFallbackSlotComponent(slot, action, error);
+      const fallback = await brickFallbackSlotComponent(slot, action, error);
       const next = withSkeletonSlotUpdate(
         currentConfig,
         slotId,
@@ -1297,8 +1818,9 @@
         fallback,
         { action: "fallback" },
       );
-      setConfig(next, `模型生成失败，已使用本地兜底：${slot.label}`, { saveDraft: true });
-      showToast(`模块生成失败，已兜底：${slot.label}`);
+      const fallbackLabel = fallback.sourceType === "brick-fallback" ? "积木兜底" : "本地兜底";
+      setConfig(next, `模型生成失败，已使用${fallbackLabel}：${slot.label}`, { saveDraft: true });
+      showToast(`模块生成失败，已${fallbackLabel}：${slot.label}`);
     }
   }
 
@@ -1463,35 +1985,8 @@
     downloadApp: "app_download",
     learnMore: "asset_overview",
   };
-  const GUIDED_MODULE_MATERIAL_REQUIREMENTS = {
-    heroBanner: ["campaignConfig"],
-    accountBenefits: ["performanceData"],
-    depositBonus: ["campaignConfig"],
-    rewardRules: ["campaignConfig"],
-    pammProducts: ["pammData"],
-    copyTrading: ["copyTradingData"],
-    rewardActivity: ["campaignConfig"],
-    referralLink: ["referralData"],
-    appDownload: ["downloadLinks"],
-    customerService: ["supportConfig"],
-    faq: ["faqContent"],
-    riskDisclosure: ["riskCopy"],
-  };
-
   function isGuidedRequiredModule(value) {
     return GUIDED_REQUIRED_MODULE_IDS.includes(value);
-  }
-
-  function guidedModuleMaterialRequirements(value) {
-    return GUIDED_MODULE_MATERIAL_REQUIREMENTS[value] || [];
-  }
-
-  function guidedModuleEligible(value, materialValues) {
-    if (isGuidedRequiredModule(value)) return true;
-    const requirements = guidedModuleMaterialRequirements(value);
-    if (!requirements.length) return true;
-    const materialSet = new Set(Array.isArray(materialValues) ? materialValues : []);
-    return requirements.some((item) => materialSet.has(item));
   }
 
   function guidedPrimaryActionForGoal(goal) {
@@ -1545,18 +2040,6 @@
       customerService: "在线客服、客户经理或一对一协助入口",
       faq: "FAQ 常见问题：展示一些平台设置的常见问题，demo 可以放 4-10 条",
       riskDisclosure: "风险提示：展示一段风险解释的文案",
-    },
-    materials: {
-      performanceData: "账号表现数据：允许生成 trading_account_highlight，趋势、PnL、净值和指标来自接口或预览样例",
-      campaignConfig: "活动 / Banner 配置：允许生成 promo_banner、活动权益、奖励规则或入金奖励承接",
-      pammData: "PAMM 产品数据：允许生成 pamm_products，产品字段来自接口或预览样例",
-      copyTradingData: "CopyTrading 信号源：允许生成 copytrading_signals，收益、回撤和曲线来自接口或预览样例",
-      referralData: "推广链接 / 邀请码：允许生成 referral_link_card，链接、邀请码和基础统计来自后台",
-      faqContent: "FAQ 内容：允许生成 faq_section，问题答案来自后台配置",
-      supportConfig: "客服配置：允许生成 support_contact，客服状态、时间和入口来自后台",
-      riskCopy: "风险披露文案：允许生成 risk_disclosure，正式文案来自合规后台",
-      downloadLinks: "下载链接 / 二维码：允许生成 app_download，不能编造下载地址",
-      walletData: "多币种钱包数据：允许生成 wallet_list，多币种余额来自接口",
     },
     theme: {
       blueFinance: "蓝色金融，清爽专业",
@@ -1677,7 +2160,6 @@
       level: selectedGuidedValue("level"),
       pageGoal: selectedGuidedValue("pageGoal"),
       modules: selectedGuidedValues("modules"),
-      materials: selectedGuidedValues("materials"),
       assetFields: selectedGuidedValues("assetFields"),
       designStyle: selectedGuidedValue("designStyle"),
       theme: selectedGuidedValue("theme"),
@@ -1703,22 +2185,15 @@
 
   function buildGuidedAiIntake() {
     const state = readGuidedState();
-    const materialSet = new Set(state.materials);
     const pageGoal = guidedChoiceDescriptor("pageGoal", state.pageGoal);
     const primaryAction = guidedPrimaryActionForGoal(state.pageGoal);
     const allModules = state.modules.map((value) => {
-      const requirements = guidedModuleMaterialRequirements(value);
-      const matchedMaterials = requirements.filter((item) => materialSet.has(item));
       return {
         ...guidedChoiceDescriptor("modules", value),
         canonicalTargets: GUIDED_CANONICAL_TARGETS[value] || [],
-        materialRequirements: requirements,
-        materialMatched: matchedMaterials,
-        eligible: guidedModuleEligible(value, state.materials),
       };
     });
-    const modules = allModules.filter((module) => module.eligible);
-    const excludedModules = allModules.filter((module) => !module.eligible);
+    const modules = allModules;
     const canonicalMustHave = uniqueList([
       modules.map((module) => module.canonicalTargets || []),
     ]);
@@ -1728,15 +2203,12 @@
 
     return {
       source: "guided-builder",
-      materialGateEnabled: true,
       pageGoal,
       primaryAction,
       audience: state.audience.map((value) => guidedChoiceDescriptor("audience", value)),
       level: guidedChoiceDescriptor("level", state.level),
       designStyle: guidedChoiceDescriptor("designStyle", state.designStyle),
       modules,
-      excludedModules,
-      materials: state.materials.map((value) => guidedChoiceDescriptor("materials", value)),
       theme: {
         ...guidedChoiceDescriptor("theme", state.theme),
         themePreset: state.theme,
@@ -1770,10 +2242,7 @@
     const state = readGuidedState();
     const requiredModules = GUIDED_REQUIRED_MODULE_IDS.map((value) => guidedPromptCopy("modules", value));
     const optionalModuleIds = state.modules.filter((value) => !isGuidedRequiredModule(value));
-    const eligibleOptionalModules = optionalModuleIds.filter((value) => guidedModuleEligible(value, state.materials));
-    const excludedOptionalModules = optionalModuleIds.filter((value) => !guidedModuleEligible(value, state.materials));
-    const optionalModules = eligibleOptionalModules.map((value) => guidedPromptCopy("modules", value));
-    const selectedMaterials = state.materials.map((value) => guidedPromptCopy("materials", value));
+    const optionalModules = optionalModuleIds.map((value) => guidedPromptCopy("modules", value));
     const primaryAction = guidedPrimaryActionForGoal(state.pageGoal);
     const designInstruction = guidedPromptCopy("designStyle", state.designStyle);
     const visualInstruction = state.themeCustom
@@ -1789,13 +2258,8 @@
       `语气：${guidedPromptCopy("tone", state.tone)}`,
       `必选模块（不可撤销）：${requiredModules.join("、")}`,
       "交易账号模块必须同时包含真实交易账号和模拟交易账号",
-      `已提供素材：${selectedMaterials.length ? selectedMaterials.join("、") : "无"}`,
       `选填模块：${optionalModules.length ? optionalModules.join("、") : "无"}`,
-      excludedOptionalModules.length
-        ? `以下选填模块因缺少对应素材，不要生成：${excludedOptionalModules.map((value) => guidedLabel("modules", value)).join("、")}`
-        : "",
       "允许在白名单内重排 sections、brickPlan、模块变体和密度，优先让所选模块和分级决定首屏",
-      "选填模块必须通过素材准入：没有活动配置就不要生成 Banner/活动，没有 FAQ 内容就不要生成 FAQ，没有下载链接就不要生成 APP 下载，没有客服配置就不要生成客服模块",
       "不要编造收益、下载链接、后台未提供的数据或未选择的辅助模块",
     ].filter(Boolean);
 
@@ -2226,14 +2690,12 @@
     const state = readGuidedState();
     const optionalModules = state.modules.filter((value) => !isGuidedRequiredModule(value));
     const themeLabel = state.themeCustom || guidedLabel("theme", state.theme);
-    const selectedMaterials = state.materials.map((value) => guidedLabel("materials", value));
     const rows = [
       ["目标", guidedLabel("pageGoal", state.pageGoal)],
       ["分级", guidedLabel("level", state.level)],
       ["设计", guidedLabel("designStyle", state.designStyle)],
       ["风格", `${themeLabel} · ${guidedLabel("tone", state.tone)}`],
       ["模块", guidedModuleCountText(optionalModules)],
-      ["素材", selectedMaterials.length ? selectedMaterials.join("、") : "未提供"],
     ];
 
     if (els.guidedSummaryTitle) els.guidedSummaryTitle.textContent = `${guidedLabel("pageGoal", state.pageGoal)}方案`;
@@ -2478,17 +2940,21 @@
 
   function normalizeModelBaseUrl(provider, value) {
     const baseUrl = String(value || "").trim().replace(/\/+$/, "");
-    if (!["minimax", "kimi"].includes(provider)) return baseUrl;
+    if (!["minimax", "kimi", "gemini"].includes(provider)) return baseUrl;
 
     try {
       const target = new URL(baseUrl);
       if (provider === "minimax" && ["api.minimaxi.cn", "api.minimax.io"].includes(target.hostname)) return MINIMAX_CN_BASE_URL;
       if (provider === "kimi" && target.hostname === "api.moonshot.ai") return KIMI_CN_BASE_URL;
+      if (provider === "gemini" && target.hostname === "generativelanguage.googleapis.com") {
+        if (target.pathname === "/" || target.pathname === "/v1beta" || target.pathname === "/v1beta/openai/") return GEMINI_OPENAI_BASE_URL;
+      }
     } catch (error) {
       return baseUrl;
     }
 
     if (provider === "minimax") return [MINIMAX_CN_TYPED_ALIAS_BASE_URL, MINIMAX_GLOBAL_BASE_URL].includes(baseUrl) ? MINIMAX_CN_BASE_URL : baseUrl;
+    if (provider === "gemini") return baseUrl === "https://generativelanguage.googleapis.com/v1beta/openai/" ? GEMINI_OPENAI_BASE_URL : baseUrl;
     return baseUrl === KIMI_GLOBAL_BASE_URL ? KIMI_CN_BASE_URL : baseUrl;
   }
 
@@ -3230,6 +3696,11 @@
     [els.generateSuggestions, els.refreshSuggestions].filter(Boolean).forEach((button) => {
       button.disabled = busy;
     });
+    [els.aestheticScoreRefresh, els.aestheticScoreSave, els.aestheticScoreImprove].filter(Boolean).forEach((button) => {
+      button.disabled = busy;
+    });
+    if (els.aestheticManualScoreInput) els.aestheticManualScoreInput.disabled = busy;
+    if (els.aestheticScoreNote) els.aestheticScoreNote.readOnly = busy;
     els.generationModeButtons.forEach((button) => {
       button.disabled = busy;
     });
@@ -3342,6 +3813,9 @@
     if (details.provider === "deepseek" || /DeepSeek/i.test(identity)) {
       return "处理建议：DeepSeek API Key 无效或未配置，请在模型配置里填写 DEEPSEEK_API_KEY 对应密钥；Base URL 使用 https://api.deepseek.com。";
     }
+    if (details.provider === "gemini" || /Gemini|Google/i.test(identity)) {
+      return `处理建议：Gemini API Key 无效或未配置，请在模型配置里填写 GEMINI_API_KEY 或 GOOGLE_API_KEY；Base URL 使用 ${GEMINI_OPENAI_BASE_URL}。`;
+    }
     if (details.provider === "kimi" || /Kimi|Moonshot|moonshot/i.test(identity)) {
       return `处理建议：Kimi / Moonshot API Key 无效或未配置，请在模型配置里填写 MOONSHOT_API_KEY 或 KIMI_API_KEY 对应密钥；Base URL 使用国内入口 ${KIMI_CN_BASE_URL}。`;
     }
@@ -3365,7 +3839,7 @@
     if (/valid homepage JSON|AI response did not contain valid homepage JSON/i.test(source)) {
       if (details.likelyTruncated || /length|max_tokens/i.test(String(details.finishReason || ""))) {
         if (details.provider === "minimax") {
-          return "处理建议：MiniMax 输出达到 2048 上限导致截断；代理已改用首页短 patch JSON，并在 AI HTML 模式下跳过长自由 HTML，改为按 MiniMax 配置蓝图装配安全预览。仍失败时请降低 Temperature 或切到 Kimi/DeepSeek 这类更高输出上限模型。";
+          return "处理建议：MiniMax 输出达到 2048 上限导致截断；代理已改用首页短 patch JSON，并在 AI HTML 模式下跳过长自由 HTML，改为按 MiniMax 配置蓝图装配安全预览。仍失败时请降低 Temperature 或切到 Kimi/DeepSeek/Gemini 这类更高输出上限模型。";
         }
         return "处理建议：模型返回了 JSON 开头，但输出可能被截断；已自动回退本地方案。Kimi 会使用 max_completion_tokens；仍失败时请把 Max output tokens 保持在 6000 以上并降低 Temperature。";
       }
@@ -3373,7 +3847,7 @@
     }
 
     if (/timed out|timeout|超时/i.test(source)) {
-      return "处理建议：模型连通正常，但首页蓝图生成超过代理等待时间；MiniMax/Kimi 已改用短 prompt，Kimi 会关闭 thinking 并使用 max_completion_tokens，Kimi 旧模型会自动尝试当前默认模型，DeepSeek Pro 会自动降级到 Flash。仍失败时再回退本地方案。";
+      return "处理建议：模型连通正常，但首页蓝图生成超过代理等待时间；MiniMax/Kimi/Gemini 已改用短 prompt，Kimi 会关闭 thinking 并使用 max_completion_tokens，Gemini Flash 会关闭 thinking，Kimi 旧模型会自动尝试当前默认模型，DeepSeek Pro 会自动降级到 Flash。仍失败时再回退本地方案。";
     }
 
     return "";
@@ -3813,6 +4287,58 @@
     }
   }
 
+  async function generateBetterAestheticCandidate() {
+    if (!els.previewPage || !els.aestheticScoreImprove) return;
+
+    interpretationRound += 1;
+    const prompt = window.localStorage.getItem(PROMPT_KEY) || promptValue();
+    const config = home.normalizeConfig(currentConfig);
+    const renderMode = normalizeRenderMode(config.renderMode || config.activeRenderMode || currentGenerationRenderMode());
+    const previousLabel = els.aestheticScoreImprove.textContent.trim();
+
+    els.aestheticScoreImprove.disabled = true;
+    els.aestheticScoreImprove.classList.add("is-loading");
+    els.aestheticScoreImprove.textContent = "优选中";
+    setAiBusy(true, aiBusyLabel("正在优选候选"));
+    updateStatus("正在生成 3 个候选并按审美评分排序", false);
+
+    try {
+      const response = await requestJsonEndpoint("/api/home-ai/candidates", {
+        prompt,
+        variant: interpretationRound,
+        count: 3,
+        renderMode,
+        modelConfig: aiRequestModelConfig(),
+        context: aiRequestContext({ inputMode: "quick", renderMode }),
+      });
+      const candidates = Array.isArray(response.candidates) ? response.candidates : [];
+      const best = candidates
+        .filter((candidate) => candidate?.config)
+        .sort((a, b) => Number(b.score || 0) - Number(a.score || 0))[0];
+
+      if (!best) throw new Error("候选生成没有返回可应用方案");
+
+      const next = home.normalizeConfig(best.config);
+      next.aiSummary = [
+        next.aiSummary,
+        `已从 ${candidates.length} 个候选中选择审美评分 ${Math.round(Number(best.score) || 0)} 分的方案。`,
+      ]
+        .filter(Boolean)
+        .join(" ");
+      setConfig(next, `已应用更优候选：${Math.round(Number(best.score) || 0)} 分`, { saveDraft: true });
+      showToast(`已应用更优候选：${Math.round(Number(best.score) || 0)} 分`);
+      scheduleAestheticScore({ force: true, action: "best-candidate-score", source: "candidate-best", delay: 80 });
+    } catch (error) {
+      updateStatus("候选优选失败，保留当前草稿", false);
+      showToast(`候选优选失败：${errorMessage(error, 160)}`);
+    } finally {
+      els.aestheticScoreImprove.disabled = false;
+      els.aestheticScoreImprove.classList.remove("is-loading");
+      els.aestheticScoreImprove.textContent = previousLabel || "生成更优候选";
+      setAiBusy(false);
+    }
+  }
+
   function buildSchemeOptions() {
     schemeOptions = home.generateSchemeOptions(promptValue(), 4);
     activeSchemeIndex = 0;
@@ -4198,6 +4724,32 @@
 	    applySuggestionPrompt(button);
 	  });
 
+  els.aestheticScoreRefresh?.addEventListener("click", () => {
+    scoreCurrentPreview({ force: true, action: "manual-preview-score", source: "preview-manual" });
+  });
+
+  els.aestheticManualScoreInput?.addEventListener("input", () => {
+    aestheticManualScoreTouched = true;
+    const score = normalizeAestheticManualScore(els.aestheticManualScoreInput.value);
+    aestheticManualDecision = aestheticDecisionForScore(score);
+    renderAestheticManualControls();
+  });
+
+  els.aestheticDecisionButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      aestheticManualDecision = button.dataset.aestheticDecision || "neutral";
+      renderAestheticManualControls();
+    });
+  });
+
+  els.aestheticScoreSave?.addEventListener("click", () => {
+    saveManualAestheticFeedback();
+  });
+
+  els.aestheticScoreImprove?.addEventListener("click", () => {
+    generateBetterAestheticCandidate();
+  });
+
 	  els.renderModeButtons.forEach((button) => {
 	    button.addEventListener("click", () => {
 	      const mode = normalizeRenderMode(button.dataset.renderModeButton, "config");
@@ -4289,14 +4841,15 @@
     showToast("已换一批提示语");
   });
 
-	  els.generate?.addEventListener("click", async () => {
-	    savePrompt();
-	    setAiBusy(true, aiBusyLabel("正在生成"));
-	    let shouldResetBusy = true;
-	    try {
-	      const config = await generateConfigWithFallback(promptValue(), { variant: interpretationRound, distinctFrom: currentConfig });
-	      generatePreview(config);
-	      shouldResetBusy = false;
+  els.generate?.addEventListener("click", async () => {
+    savePrompt();
+    interpretationRound += 1;
+    setAiBusy(true, aiBusyLabel("正在生成"));
+    let shouldResetBusy = true;
+    try {
+      const config = await generateConfigWithFallback(promptValue(), { variant: interpretationRound, distinctFrom: currentConfig });
+      generatePreview(config);
+      shouldResetBusy = false;
     } finally {
       if (shouldResetBusy) setAiBusy(false);
     }
@@ -4363,6 +4916,7 @@
 	    renderModuleSettingControls();
 	    renderRenderModeControls();
 	    renderSkeletonWorkflow();
+	    scheduleAestheticScore({ force: true, action: "publish-score", source: "preview-publish", delay: 160 });
 	    applyPreview(true);
 	    updateStatus("已发布到首页", true);
     showToast("首页配置已发布");
@@ -4386,6 +4940,7 @@
 	    renderModuleSettingControls();
 	    renderRenderModeControls();
 	    renderSkeletonWorkflow();
+	    scheduleAestheticScore({ force: true, action: "reset-score", source: "preview-reset", delay: 160 });
 	    applyPreview(true);
     updateStatus("已恢复默认", true);
     showToast("已恢复默认首页");
@@ -4433,6 +4988,8 @@
 	    renderModuleSettingControls();
 	    renderRenderModeControls();
 	    renderSkeletonWorkflow();
+	    renderAestheticScorePanel();
+	    scheduleAestheticScore({ action: "preview-open-score", source: "preview-open", delay: 120 });
 	    maybeStartSkeletonWorkflow();
 	    updateStatus("草稿预览", false);
 	  }

@@ -1,5 +1,184 @@
 {
   "version": 1,
-  "updatedAt": "2026-05-17T04:01:10.383Z",
-  "records": []
+  "updatedAt": "2026-05-18T09:08:59.236Z",
+  "records": [
+    {
+      "id": "auth-reference-1779095339232-530e4bd22f6b1",
+      "at": "2026-05-18T09:08:59.231Z",
+      "name": "original-c14dc0e0cab4084986832c55f7167fa6.webp",
+      "type": "image",
+      "mime": "image/webp",
+      "size": 59506,
+      "fileName": "auth-reference-1779095339232-530e4bd22f6b1-original-c14dc0e0cab4084986832c55f7167fa6.webp",
+      "storagePath": "artifacts/auth-ai-reference-assets/auth-reference-1779095339232-530e4bd22f6b1-original-c14dc0e0cab4084986832c55f7167fa6.webp",
+      "url": "/artifacts/auth-ai-reference-assets/auth-reference-1779095339232-530e4bd22f6b1-original-c14dc0e0cab4084986832c55f7167fa6.webp",
+      "flow": "登录",
+      "note": "",
+      "styleBrief": "",
+      "promptSeed": "借鉴「original-c14dc0e0cab4084986832c55f7167fa6.webp」的抽象设计语言，不要复制原图。 适用流程：登录。 界面分格：品牌叙事区、Logo 位置、表单卡片、安全信任点。",
+      "tags": [],
+      "segments": [
+        "品牌叙事区",
+        "Logo 位置",
+        "表单卡片",
+        "安全信任点"
+      ],
+      "textExcerpt": "",
+      "createdAt": "2026-05-18T09:08:59.231Z"
+    },
+    {
+      "id": "auth-reference-1779092982179-048a2a5603b51",
+      "at": "2026-05-18T08:29:42.178Z",
+      "name": "original-be05991200f3911da3471f82b273dadf.webp",
+      "type": "image",
+      "mime": "image/webp",
+      "size": 25340,
+      "fileName": "auth-reference-1779092982179-048a2a5603b51-original-be05991200f3911da3471f82b273dadf.webp",
+      "storagePath": "artifacts/auth-ai-reference-assets/auth-reference-1779092982179-048a2a5603b51-original-be05991200f3911da3471f82b273dadf.webp",
+      "url": "/artifacts/auth-ai-reference-assets/auth-reference-1779092982179-048a2a5603b51-original-be05991200f3911da3471f82b273dadf.webp",
+      "flow": "三流程",
+      "note": "",
+      "styleBrief": "",
+      "promptSeed": "借鉴「original-be05991200f3911da3471f82b273dadf.webp」的抽象设计语言，不要复制原图。 适用流程：三流程。 视觉标签：卡通-右侧版面很棒。 界面分格：品牌叙事区、Logo 位置、表单卡片、背景/媒体区、社交登录/验证码。",
+      "tags": [
+        "卡通-右侧版面很棒"
+      ],
+      "segments": [
+        "品牌叙事区",
+        "Logo 位置",
+        "表单卡片",
+        "背景/媒体区",
+        "社交登录/验证码"
+      ],
+      "textExcerpt": "",
+      "createdAt": "2026-05-18T08:29:42.178Z"
+    },
+    {
+      "id": "auth-reference-1779008640133-02b9770532349",
+      "at": "2026-05-17T09:04:00.133Z",
+      "name": "74bbfef992bbb12b3a5822479ce1cad7.webp",
+      "type": "image",
+      "mime": "image/webp",
+      "size": 91936,
+      "fileName": "auth-reference-1779008640133-02b9770532349-74bbfef992bbb12b3a5822479ce1cad7.webp",
+      "storagePath": "artifacts/auth-ai-reference-assets/auth-reference-1779008640133-02b9770532349-74bbfef992bbb12b3a5822479ce1cad7.webp",
+      "url": "/artifacts/auth-ai-reference-assets/auth-reference-1779008640133-02b9770532349-74bbfef992bbb12b3a5822479ce1cad7.webp",
+      "flow": "三流程",
+      "note": "",
+      "styleBrief": "",
+      "promptSeed": "借鉴「74bbfef992bbb12b3a5822479ce1cad7.webp」的抽象设计语言，不要复制原图。 适用流程：三流程。 视觉标签：移动端视觉。 界面分格：Logo 位置、表单卡片、社交登录/验证码。",
+      "tags": [
+        "移动端视觉"
+      ],
+      "segments": [
+        "Logo 位置",
+        "表单卡片",
+        "社交登录/验证码"
+      ],
+      "textExcerpt": "",
+      "createdAt": "2026-05-17T09:04:00.133Z"
+    },
+    {
+      "id": "auth-reference-1779008334273-60061b8ae4d49",
+      "at": "2026-05-17T08:58:54.273Z",
+      "name": "original-ccdf71b1bb8eb86c0341cf50da37c8a0.webp",
+      "type": "image",
+      "mime": "image/webp",
+      "size": 174004,
+      "fileName": "auth-reference-1779008334273-60061b8ae4d49-original-ccdf71b1bb8eb86c0341cf50da37c8a0.webp",
+      "storagePath": "artifacts/auth-ai-reference-assets/auth-reference-1779008334273-60061b8ae4d49-original-ccdf71b1bb8eb86c0341cf50da37c8a0.webp",
+      "url": "/artifacts/auth-ai-reference-assets/auth-reference-1779008334273-60061b8ae4d49-original-ccdf71b1bb8eb86c0341cf50da37c8a0.webp",
+      "flow": "三流程",
+      "note": "",
+      "styleBrief": "左侧有很棒的视觉方案",
+      "promptSeed": "借鉴「original-ccdf71b1bb8eb86c0341cf50da37c8a0.webp」的抽象设计语言，不要复制原图。 适用流程：三流程。 视觉标签：科技风。 界面分格：品牌叙事区、背景/媒体区、社交登录/验证码。 风格提炼：左侧有很棒的视觉方案",
+      "tags": [
+        "科技风"
+      ],
+      "segments": [
+        "品牌叙事区",
+        "背景/媒体区",
+        "社交登录/验证码"
+      ],
+      "textExcerpt": "",
+      "createdAt": "2026-05-17T08:58:54.273Z"
+    },
+    {
+      "id": "auth-reference-1779008260184-e02636cb54422",
+      "at": "2026-05-17T08:57:40.184Z",
+      "name": "original-46e3d227550bfeef1b30866338462c19.webp",
+      "type": "image",
+      "mime": "image/webp",
+      "size": 43182,
+      "fileName": "auth-reference-1779008260184-e02636cb54422-original-46e3d227550bfeef1b30866338462c19.webp",
+      "storagePath": "artifacts/auth-ai-reference-assets/auth-reference-1779008260184-e02636cb54422-original-46e3d227550bfeef1b30866338462c19.webp",
+      "url": "/artifacts/auth-ai-reference-assets/auth-reference-1779008260184-e02636cb54422-original-46e3d227550bfeef1b30866338462c19.webp",
+      "flow": "三流程",
+      "note": "",
+      "styleBrief": "",
+      "promptSeed": "借鉴「original-46e3d227550bfeef1b30866338462c19.webp」的抽象设计语言，不要复制原图。 适用流程：三流程。 视觉标签：温暖居中。 界面分格：背景/媒体区、安全信任点、社交登录/验证码。",
+      "tags": [
+        "温暖居中"
+      ],
+      "segments": [
+        "背景/媒体区",
+        "安全信任点",
+        "社交登录/验证码"
+      ],
+      "textExcerpt": "",
+      "createdAt": "2026-05-17T08:57:40.184Z"
+    },
+    {
+      "id": "auth-reference-1779007202874-a6335fa65e1b7",
+      "at": "2026-05-17T08:40:02.874Z",
+      "name": "original-fe1b408c24443f44e0334d43da9d1ed3.webp",
+      "type": "image",
+      "mime": "image/webp",
+      "size": 63724,
+      "fileName": "auth-reference-1779007202874-a6335fa65e1b7-original-fe1b408c24443f44e0334d43da9d1ed3.webp",
+      "storagePath": "artifacts/auth-ai-reference-assets/auth-reference-1779007202874-a6335fa65e1b7-original-fe1b408c24443f44e0334d43da9d1ed3.webp",
+      "url": "/artifacts/auth-ai-reference-assets/auth-reference-1779007202874-a6335fa65e1b7-original-fe1b408c24443f44e0334d43da9d1ed3.webp",
+      "flow": "三流程",
+      "note": "",
+      "styleBrief": "",
+      "promptSeed": "借鉴「original-fe1b408c24443f44e0334d43da9d1ed3.webp」的抽象设计语言，不要复制原图。 适用流程：三流程。 视觉标签：左右布局极简。 界面分格：品牌叙事区、表单卡片、安全信任点、社交登录/验证码。",
+      "tags": [
+        "左右布局极简"
+      ],
+      "segments": [
+        "品牌叙事区",
+        "表单卡片",
+        "安全信任点",
+        "社交登录/验证码"
+      ],
+      "textExcerpt": "",
+      "createdAt": "2026-05-17T08:40:02.874Z"
+    },
+    {
+      "id": "auth-reference-1779007202871-e957cba760e4e",
+      "at": "2026-05-17T08:40:02.871Z",
+      "name": "original-49033f5a3dd8d8d9a006f9c2e90d2e3f.webp",
+      "type": "image",
+      "mime": "image/webp",
+      "size": 68330,
+      "fileName": "auth-reference-1779007202871-e957cba760e4e-original-49033f5a3dd8d8d9a006f9c2e90d2e3f.webp",
+      "storagePath": "artifacts/auth-ai-reference-assets/auth-reference-1779007202871-e957cba760e4e-original-49033f5a3dd8d8d9a006f9c2e90d2e3f.webp",
+      "url": "/artifacts/auth-ai-reference-assets/auth-reference-1779007202871-e957cba760e4e-original-49033f5a3dd8d8d9a006f9c2e90d2e3f.webp",
+      "flow": "三流程",
+      "note": "",
+      "styleBrief": "",
+      "promptSeed": "借鉴「original-49033f5a3dd8d8d9a006f9c2e90d2e3f.webp」的抽象设计语言，不要复制原图。 适用流程：三流程。 视觉标签：左右布局极简。 界面分格：品牌叙事区、表单卡片、安全信任点、社交登录/验证码。",
+      "tags": [
+        "左右布局极简"
+      ],
+      "segments": [
+        "品牌叙事区",
+        "表单卡片",
+        "安全信任点",
+        "社交登录/验证码"
+      ],
+      "textExcerpt": "",
+      "createdAt": "2026-05-17T08:40:02.871Z"
+    }
+  ]
 }

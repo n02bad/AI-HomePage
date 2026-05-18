@@ -13,6 +13,8 @@
   const MINIMAX_CN_BASE_URL = "https://api.minimaxi.com/v1";
   const KIMI_CN_BASE_URL = "https://api.moonshot.cn/v1";
   const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
+  const GEMINI_OPENAI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai";
+  const GEMINI_DEFAULT_MODEL = "gemini-2.5-flash";
   const BACKGROUND_JOB_POLL_MS = 1100;
   const BACKGROUND_JOB_MAX_WAIT_MS = 20 * 60 * 1000;
 
@@ -67,6 +69,16 @@
       apiMode: "openai-chat",
       apiKeyLabel: "DEEPSEEK_API_KEY",
     },
+    gemini: {
+      provider: "gemini",
+      name: "Gemini",
+      model: GEMINI_DEFAULT_MODEL,
+      models: [GEMINI_DEFAULT_MODEL, "gemini-3-flash-preview", "gemini-2.5-flash-lite", "gemini-2.5-pro"],
+      baseUrl: GEMINI_OPENAI_BASE_URL,
+      endpoint: "/chat/completions",
+      apiMode: "openai-chat",
+      apiKeyLabel: "GEMINI_API_KEY",
+    },
   };
 
   const DEFAULT_MODEL_CONFIG = {
@@ -115,12 +127,19 @@
     features: {
       phoneEmailLogin: "手机号 / 邮箱登录",
       socialLogin: "第三方登录",
+      tradingAccountLogin: "交易账号登录",
       captcha: "验证码 / Captcha",
       twoFactor: "双重验证",
       inviteCode: "推荐码 / 邀请码",
       kycPrelude: "KYC 前置说明",
       riskConsent: "风险披露确认",
       promoReward: "注册送礼 / 活动奖励",
+    },
+    logoPlacement: {
+      heroTopLeft: "品牌区左上",
+      topCenter: "顶部居中",
+      formTop: "表单顶部",
+      mobileTop: "移动端优先",
     },
   };
 
@@ -132,42 +151,44 @@
     roseCampaign: "#e11d48",
   };
 
+  const DEFAULT_AUTH_FEATURES = ["phoneEmailLogin", "socialLogin", "captcha", "twoFactor", "riskConsent"];
+
   const AUTH_SUGGESTIONS = [
     {
       id: "trust-new-trader",
-      title: "新手开户链接",
-      prompt: "生成一套面向新手客户的 ForexCRM 登录注册模块：中文，注册流程要清楚拆分基本资料、国家地区、投资经验、账户安全和协议确认，登录支持手机号/邮箱，整体像可信的金融客户端，不要像通用 SaaS 模板。",
-      tags: ["新手", "开户注册", "可信"],
+      title: "移动首屏视觉",
+      prompt: "生成一套移动端首屏视觉方案：Logo 在手机首屏自然露出，表单卡片轻盈但可信，按钮层级清晰，留白和输入框高度适合单手操作；桌面端必须是左右布局，左侧品牌平台开户说明，右侧表单。功能按默认完整登录、注册、找回密码模块处理。",
+      tags: ["新手", "开户", "移动端", "Logo", "首屏"],
     },
     {
       id: "premium-client",
-      title: "高净值客户",
-      prompt: "生成一套高净值客户使用的登录注册模块：视觉高级克制，黑金或石墨银倾向，首屏强调账户安全、专属服务和隐私保护，注册表单不要拥挤，找回密码流程要显得正式可靠。",
-      tags: ["高净值", "高级", "安全"],
+      title: "高端私密视觉",
+      prompt: "生成一套高端私密视觉方案：黑金或石墨银倾向，背景低噪声，Logo 和安全标识克制呈现，表单像专属账户入口而不是营销页；移动端保持轻量、高质感和私密感。功能按默认完整登录、注册、找回密码模块处理。",
+      tags: ["高净值", "高级", "私密", "黑金", "石墨银"],
     },
     {
       id: "campaign-lead",
-      title: "活动转化",
-      prompt: "生成一套活动落地页风格的登录注册模块：突出注册送体验金、推荐码和手机号验证码，注册步骤尽量短，登录仍保持专业金融感，页面需要同时包含找回密码和风险提示。",
-      tags: ["活动", "转化", "验证码"],
+      title: "活动氛围视觉",
+      prompt: "生成一套活动落地页气质的视觉方案：首屏有权益感和转化焦点，但保持金融平台的可信边界；使用更鲜明的强调色、轻量动效感、奖励提示区和明确主按钮层级。功能按默认完整登录、注册、找回密码模块处理。",
+      tags: ["活动", "转化", "权益", "强调色", "移动端"],
     },
     {
       id: "ib-partner",
-      title: "代理邀请",
-      prompt: "生成一套面向 IB / 代理客户的认证模块：登录和注册都要支持邀请码，注册信息包含联系方式、国家地区、合作身份和协议确认，视觉要像专业渠道后台入口，避免花哨营销感。",
-      tags: ["IB", "邀请", "渠道"],
+      title: "渠道专业视觉",
+      prompt: "生成一套渠道合作入口视觉方案：结构像专业业务后台入口，Logo、身份标识和协议信息有清晰层级，分隔线、步骤轨道和信息密度偏理性；移动端要高效、清爽，避免花哨营销感。功能按默认完整登录、注册、找回密码模块处理。",
+      tags: ["IB", "邀请", "渠道", "专业", "后台"],
     },
     {
       id: "secure-reset",
-      title: "安全找回",
-      prompt: "生成一套强调安全的登录注册和找回密码模块：登录支持双重验证提示，找回密码需要邮箱验证、身份确认和新密码步骤，文案要降低客户对钓鱼页面的担心。",
-      tags: ["安全", "找回密码", "双重验证"],
+      title: "安全可信视觉",
+      prompt: "生成一套强调安全可信的视觉方案：Logo 摆放强化官方感，背景、边框和提示区都要低噪声，安全图标和校验提示清楚但不压迫表单；移动端先让用户确认这是可信入口。功能按默认完整登录、注册、找回密码模块处理。",
+      tags: ["安全", "可信", "找回", "低噪声", "Logo"],
     },
     {
       id: "mobile-first",
-      title: "移动优先",
-      prompt: "生成一套移动端优先的认证模块：手机号验证码作为主路径，邮箱密码作为备选，注册字段分步骤展示，按钮和表单适合手机单手操作，同时在桌面端保持完整品牌区域。",
-      tags: ["移动端", "手机号", "分步骤"],
+      title: "精致移动表单",
+      prompt: "生成一套精致移动表单视觉方案：输入框、按钮、辅助入口和协议文字的密度要适合手机首屏，Logo、标题和主按钮形成稳定视觉轴线；桌面端扩展为更完整的品牌区域。功能按默认完整登录、注册、找回密码模块处理。",
+      tags: ["移动端", "表单", "单手", "密度", "精致"],
     },
   ];
 
@@ -375,10 +396,10 @@
 
   function guidedStylePresetHint(guidedState) {
     if (guidedState.intent === "resetTrust" || guidedState.intent === "secureLogin") return "securityReset";
+    if (guidedState.theme === "blackGold" || guidedState.designStyle === "premiumCalm") return "photoDark";
     if (guidedState.intent === "partnerInvite") return "clientOnboarding";
     if (guidedState.intent === "campaignSignup") return "softPlatform";
     if (guidedState.registerDepth === "compliance") return "clientOnboarding";
-    if (guidedState.theme === "blackGold" || guidedState.designStyle === "premiumCalm") return "photoDark";
     if (guidedState.designStyle === "softFriendly") return "softPlatform";
     if (guidedState.designStyle === "techSecure" || guidedState.features.includes("twoFactor")) return "securityReset";
     return "blueSplit";
@@ -390,6 +411,7 @@
     const designStyle = activeGuidedValue("designStyle", "trustClean");
     const registerDepth = activeGuidedValue("registerDepth", "standard");
     const audience = activeGuidedValue("audience", "newTrader");
+    const logoPlacement = activeGuidedValue("logoPlacement", "heroTopLeft");
     const features = activeGuidedValues("features");
     return {
       intent,
@@ -397,6 +419,7 @@
       registerDepth,
       designStyle,
       theme,
+      logoPlacement,
       features,
       flows: activeGuidedValues("flows"),
       brandName: els.brandName?.value || "ForexCRM",
@@ -415,6 +438,7 @@
       brandName: guidedState.brandName,
       language: guidedState.language,
       accent: guidedState.accent,
+      features: DEFAULT_AUTH_FEATURES.slice(),
       screen: state.screen,
     };
     const guidedOptions = useGuided
@@ -427,6 +451,7 @@
           theme: guidedState.theme,
           features: guidedState.features,
           flows: guidedState.flows,
+          logoPlacement: guidedState.logoPlacement,
           stylePreset: guidedState.stylePreset,
         }
       : {};
@@ -445,10 +470,15 @@
       `客户对象：${guidedLabel("audience", guidedState.audience)}。`,
       `注册深度：${guidedLabel("registerDepth", guidedState.registerDepth)}。`,
       `视觉气质：${guidedLabel("designStyle", guidedState.designStyle)}，主题倾向：${guidedLabel("theme", guidedState.theme)}，主色 ${guidedState.accent}。`,
+      `平台 Logo 摆放：${guidedLabel("logoPlacement", guidedState.logoPlacement)}；移动端首屏必须能自然露出 Logo、主登录入口和主按钮。`,
       `增强能力：${compactList(guidedState.features.map((feature) => guidedLabel("features", feature)), "保持标准登录注册能力")}。`,
-      "请生成的是一个个性化认证业务模块，不要套用固定模板；参考界面只作为质量标准学习，不能把参考版式当作可见模板名输出。",
+      "布局硬约束：如果补充要求或快速输入里出现“左右布局、左右分栏、双栏、两栏”，桌面端必须输出左右分栏；不能生成居中单卡。",
+      "登录首屏必须只保留账号（手机号/邮箱）和密码；双重验证进入下一步输入 6 位验证码，人机校验只在风险、注册提交、找回密码发送验证码前触发。",
+      "请生成的是一个个性化认证业务模块，不要套用固定模板；素材只作为抽象设计语言借鉴，不能把素材名、素材来源或原版式当作可见内容输出。",
+      "如果选择了视觉素材，请先自动识别结构，不依赖人工标签：识别居中/左右/背景视觉、表单位置、图在左或右、Logo 位置和移动端首屏策略，并让这些结构真实影响预览布局。",
       "需要有让人耳目一新的构图差异，不能只改颜色、标题或按钮文案；请明确选择适合业务目标的首屏骨架和信息表达方式。",
-      "需要包含登录、注册、找回密码三条流程的字段、状态、按钮文案、安全提示、合规提示和移动端适配策略。",
+      "移动端适配和移动端美观是硬要求：表单密度、按钮高度、入口位置、三方登录、协议文字、找回密码和注册入口都要适合手机单手操作。",
+      "需要包含登录、注册、找回密码三条流程的字段、状态、按钮文案、安全提示、合规提示、账号密码/三方入口、注册验证和找回密码验证的响应式摆放策略。",
     ];
     if (guidedState.note.trim()) lines.push(`补充要求：${guidedState.note.trim()}`);
     return lines.join("\n");
@@ -464,6 +494,7 @@
         registerDepth: guidedLabel("registerDepth", guidedState.registerDepth),
         designStyle: guidedLabel("designStyle", guidedState.designStyle),
         theme: guidedLabel("theme", guidedState.theme),
+        logoPlacement: guidedLabel("logoPlacement", guidedState.logoPlacement),
         features: guidedState.features.map((feature) => guidedLabel("features", feature)),
       },
     };
@@ -621,34 +652,44 @@
 
   function authReferencePromptSeed(asset = {}) {
     return [
-      `参考「${asset.name || "认证视觉参考"}」的抽象设计语言，不要复制原图。`,
+      `借鉴「${asset.name || "认证视觉素材"}」的抽象设计语言，不要复制原图。`,
       "适用流程：登录、注册、找回密码。",
-      "界面分格：品牌叙事区、表单卡片、安全信任点。",
-      "生成要求：把参考稿转译成新的 ForexCRM 认证模块，三条流程都要完整。",
+      "系统会自动识别结构：居中、图左图右、背景视觉、表单位置、Logo 摆放和移动端首屏节奏。",
+      "界面分格：品牌叙事区、Logo 位置、表单卡片、安全信任点、移动端首屏节奏。",
+      "生成要求：把素材转译成新的 ForexCRM 认证模块，三条流程都要完整。",
     ].join("\n");
+  }
+
+  function authVisualStructureSummary(asset = {}) {
+    const structure = asset.visualStructure || {};
+    if (!structure.summary) return "";
+    return [
+      structure.summary,
+      `布局 ${structure.layoutType || "split"} · 表单 ${structure.formPosition || "right"} · 视觉 ${structure.mediaPosition || "left"}`,
+    ].join(" / ");
   }
 
   async function uploadAuthReferenceFiles(filesLike) {
     const files = [...(filesLike || [])].slice(0, 3);
     if (!files.length) return;
     if (filesLike.length > 3) setStatus("一次最多上传 3 张，已自动取前 3 张。");
-    else setStatus(`正在上传 ${files.length} 张认证视觉参考...`);
+    else setStatus(`正在上传 ${files.length} 张认证视觉素材...`);
 
     const payloads = await Promise.all(files.map(readAuthReferenceFilePayload));
     const assets = payloads.map((filePayload) => ({
       ...filePayload,
       flow: "三流程",
-      tags: ["生成页上传", "认证视觉参考"],
-      segments: ["品牌叙事区", "表单卡片", "安全信任点"],
-      styleBrief: "从登录注册生成页快速上传，用于本次认证模块生成。",
-      note: "用户希望 AI 参考这组认证界面的布局、比例、表单密度和视觉气质。",
+      tags: ["生成页上传", "认证视觉素材"],
+      segments: ["品牌叙事区", "Logo 位置", "表单卡片", "安全信任点", "移动端首屏"],
+      styleBrief: "从登录注册生成页快速上传；保存后由系统自动识别布局结构。",
+      note: "用户希望 AI 自动识别这组认证界面的布局、比例、表单密度、Logo 摆放、移动端节奏和视觉气质。",
       promptSeed: authReferencePromptSeed(filePayload),
     }));
     const data = await requestJsonEndpoint("/api/auth-ai/reference-assets", { assets });
     state.authReferences = data.records || [];
     saveSelectedReferenceIds(state.authReferences.slice(0, Math.min(3, state.authReferences.length)).map((asset) => asset.id));
     renderAuthReferenceSummary();
-    setStatus(`已上传 ${assets.length} 张参考稿，本次生成会直接使用。`, "success");
+    setStatus(`已上传 ${assets.length} 张视觉素材，本次生成会直接借鉴。`, "success");
   }
 
   function referenceIdsForGeneration() {
@@ -661,18 +702,18 @@
   function renderAuthReferenceSummary() {
     const total = state.authReferences.length;
     const selected = referenceIdsForGeneration().length;
-    if (els.referenceCount) els.referenceCount.textContent = `${total} 个参考`;
+    if (els.referenceCount) els.referenceCount.textContent = `${total} 个素材`;
     if (els.referenceSummary) {
       els.referenceSummary.textContent = total
-        ? `当前生成会读取 ${selected} 个认证视觉参考，学习分格、表单密度、按钮层级和风格提示词。`
-        : "直接上传 1-3 张登录/注册/找回密码稿件，上传后本次生成会立即参考。保存位置：auth-ai-reference-assets.json 和 artifacts/auth-ai-reference-assets/。";
+        ? `当前生成会读取 ${selected} 个认证视觉素材，优先使用自动结构识别：居中、图左图右、背景视觉、表单位置、Logo 摆放和移动端策略。`
+        : "直接上传 1-3 张登录/注册/找回密码素材，上传后系统自动识别结构并立即用于本次生成。保存位置：auth-ai-reference-assets.json 和 artifacts/auth-ai-reference-assets/。";
     }
     if (els.referenceList) {
       const selectedIds = new Set(referenceIdsForGeneration());
       els.referenceList.innerHTML = state.authReferences.length
         ? state.authReferences.slice(0, 6).map((asset) => {
             const selectedClass = selectedIds.has(asset.id) ? " is-selected" : "";
-            const meta = [asset.flow || asset.type || "参考稿", ...(Array.isArray(asset.tags) ? asset.tags.slice(0, 2) : [])].filter(Boolean).join(" · ");
+            const meta = authVisualStructureSummary(asset) || [asset.flow || asset.type || "视觉素材", ...(Array.isArray(asset.tags) ? asset.tags.slice(0, 2) : [])].filter(Boolean).join(" · ");
             const thumb = asset.type === "image" && asset.url
               ? `<img src="${escapeHtml(asset.url)}" alt="${escapeHtml(asset.name)}" />`
               : `<span>${escapeHtml((asset.type || "file").toUpperCase())}</span>`;
@@ -680,13 +721,13 @@
               <article class="auth-reference-inline-card${selectedClass}">
                 <div class="auth-reference-inline-thumb">${thumb}</div>
                 <div>
-                  <strong>${escapeHtml(asset.name || "认证视觉参考")}</strong>
+                  <strong>${escapeHtml(asset.name || "认证视觉素材")}</strong>
                   <small>${escapeHtml(meta || "已保存到认证视觉库")}</small>
                 </div>
               </article>
             `;
           }).join("")
-        : `<p>暂无已保存参考稿。上传后会在这里回显，重启后从本地文件重新读取。</p>`;
+        : `<p>暂无已保存视觉素材。上传后会在这里回显，重启后从本地文件重新读取。</p>`;
     }
   }
 
@@ -731,7 +772,7 @@
     const options = readOptions({ prompt, inputMode: isGuided ? "guided" : "quick", useGuided: isGuided });
     const guidedIntake = isGuided ? buildGuidedIntake() : null;
     window.localStorage.setItem(PROMPT_KEY, prompt);
-    setBusy(true, isGuided ? "正在生成引导式认证模块..." : "正在生成登录注册模块...");
+    setBusy(true, isGuided ? "正在生成引导式认证视觉方案..." : "正在生成登录注册视觉方案...");
 
     try {
       const requestPayload = {
@@ -1045,6 +1086,7 @@
       ["分级", guidedLabel("registerDepth", guidedState.registerDepth)],
       ["设计", guidedLabel("designStyle", guidedState.designStyle)],
       ["风格", `${guidedLabel("theme", guidedState.theme)} · ${guidedLabel("intent", guidedState.intent)}`],
+      ["Logo", guidedLabel("logoPlacement", guidedState.logoPlacement)],
       ["模块", `必选 ${requiredFlows} 项 · 选填 ${optionalFeatures.length} 项`],
     ];
     if (els.guidedSummaryTitle) els.guidedSummaryTitle.textContent = `${guidedLabel("registerDepth", guidedState.registerDepth)}方案`;
@@ -1098,7 +1140,7 @@
     window.localStorage.setItem(SUGGESTION_HISTORY_KEY, JSON.stringify([...new Set(history)].slice(-AUTH_SUGGESTIONS.length)));
   }
 
-  function renderSuggestionCards(note = "推荐可直接套用的登录注册模块提示语") {
+  function renderSuggestionCards(note = "推荐可直接套用的视觉方向") {
     if (!els.suggestionPanel) return;
     const cards = pickSuggestionCards();
     rememberSuggestionCards(cards);
@@ -1226,8 +1268,8 @@
       refreshAuthReferences.timer = window.setTimeout(refreshAuthReferences, 360);
     });
     els.referenceRefresh?.addEventListener("click", () => {
-      setStatus("正在刷新认证视觉参考...");
-      refreshAuthReferences().then(() => setStatus("认证视觉参考已刷新。", "success")).catch((error) => setStatus(String(error.message || error).slice(0, 160), "error"));
+      setStatus("正在刷新认证视觉素材...");
+      refreshAuthReferences().then(() => setStatus("认证视觉素材已刷新。", "success")).catch((error) => setStatus(String(error.message || error).slice(0, 160), "error"));
     });
     els.referenceFile?.addEventListener("change", () => {
       const files = [...(els.referenceFile.files || [])];
@@ -1239,11 +1281,11 @@
     });
     els.generateSuggestions?.addEventListener("click", () => {
       state.suggestionRound += 1;
-      renderSuggestionCards("已根据当前输入生成提示语");
+      renderSuggestionCards("已根据当前输入生成视觉方案");
     });
     els.refreshSuggestions?.addEventListener("click", () => {
       state.suggestionRound += 1;
-      renderSuggestionCards("已换一批认证模块提示语");
+      renderSuggestionCards("已换一批认证模块视觉方案");
     });
     bindGuidedControls();
   }
@@ -1253,7 +1295,7 @@
       els.prompt.value =
         window.localStorage.getItem(PROMPT_KEY) ||
         els.prompt.value ||
-        "帮我生成一套适合外汇平台开户的登录注册模块：中文，蓝白金融科技感，登录支持邮箱/手机号，注册要包含国家地区、投资经验、密码和协议，整体要可信但不要像通用模板。";
+        "帮我生成一套适合外汇平台开户的登录注册模块：中文，移动端优先且必须美观，布局方案为左右布局，桌面端左侧品牌平台开户说明、右侧登录表单，移动端折叠为单列但保留 Logo、主入口和主按钮优先级。平台 Logo 摆放要有明确方案。登录首屏只保留账号（手机号/邮箱）和密码，可提供 Google / Apple 快捷登录；如账号开启双重验证，下一步输入 6 位验证码。注册和找回密码在提交、发送验证码等关键步骤触发人机校验，KYC 与风险确认放到注册后的开户流程说明里，整体可信但不要像通用模板。";
     }
     state.screen = state.scheme?.defaultScreen || state.screen;
     if (!state.scheme) state.scheme = auth.localSchemeFromPrompt(els.prompt?.value || "", readOptions());

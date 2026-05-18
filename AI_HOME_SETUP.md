@@ -56,13 +56,17 @@ export KIMI_BASE_URL="https://api.moonshot.cn/v1"
 export KIMI_MODEL="kimi-k2.6"
 export DEEPSEEK_API_KEY="..."
 export DEEPSEEK_MODEL="deepseek-v4-flash"
+export GEMINI_API_KEY="..."
+export GEMINI_BASE_URL="https://generativelanguage.googleapis.com/v1beta/openai"
+export GEMINI_MODEL="gemini-2.5-flash"
 npm start
 ```
 
-页面里的「大模型配置」可以选择 OpenAI、Claude、MiniMax、Kimi、DeepSeek，以及模型 ID、Base URL、接口路径和调用方式。
+页面里的「大模型配置」可以选择 OpenAI、Claude、MiniMax、Kimi、DeepSeek、Gemini，以及模型 ID、Base URL、接口路径和调用方式。
 MiniMax CN 站点的 OpenAI 兼容 Base URL 是 `https://api.minimaxi.com/v1`，不是 `https://api.minimaxi.cn/v1`；如果表单里误填 `.cn` 或旧的国际入口 `.io`，前后端都会按 CN 官方 API Host 自动纠正到 `.com`。MiniMax OpenAI 兼容接口的 `max_completion_tokens` 上限按 2048 处理，首页蓝图生成会使用短 prompt 和紧凑 JSON，避免完整配置被截断。
 Kimi / Moonshot 默认使用 `kimi-k2.6` 与国内入口 `https://api.moonshot.cn/v1`；如果旧配置里还保存着 `https://api.moonshot.ai/v1`，前后端会自动纠正到 `.cn`。代理会向 Kimi 发送 `max_completion_tokens`，首页 JSON 生成会显式关闭 `thinking` 来避免慢思考拖到代理超时；K2.6/K2.5 在关闭 thinking 时会固定 `temperature=0.6`，避免 `only 0.6 is allowed` 的 400 错误。
 DeepSeek V4 使用 OpenAI 兼容接口，Base URL 是 `https://api.deepseek.com`，当前预设包含 `deepseek-v4-flash` 和 `deepseek-v4-pro`。首页/组件生成默认使用 `deepseek-v4-flash`；如果手动选择 `deepseek-v4-pro`，代理会关闭 thinking mode，并在 Pro 超时或返回不可解析 JSON 时自动降级重试 Flash。
+Gemini 使用 Google Gemini API 的 OpenAI 兼容接口，Base URL 是 `https://generativelanguage.googleapis.com/v1beta/openai`，当前预设包含 `gemini-2.5-flash`、`gemini-3-flash-preview`、`gemini-2.5-flash-lite` 和 `gemini-2.5-pro`。首页/组件生成默认使用 `gemini-2.5-flash`，代理会用 `reasoning_effort=none` 降低 JSON 输出延迟；也可以通过 `GOOGLE_API_KEY` 作为 `GEMINI_API_KEY` 的备用环境变量。
 
 ## 开发自测
 
