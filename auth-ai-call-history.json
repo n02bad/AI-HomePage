@@ -1,6 +1,134 @@
 {
   "records": [
     {
+      "id": "auth-1779103012191-8c12c8543b541",
+      "at": "2026-05-18T11:16:52.191Z",
+      "source": "authServerProxy",
+      "action": "auth-generate",
+      "providerId": "deepseek",
+      "provider": "DeepSeek",
+      "model": "deepseek-v4-flash",
+      "apiMode": "openai-chat",
+      "callMode": "serverProxy",
+      "baseUrl": "https://api.deepseek.com",
+      "endpoint": "/chat/completions",
+      "temperature": 0.6,
+      "maxOutputTokens": 12000,
+      "status": "success",
+      "mock": false,
+      "durationMs": 19347,
+      "prompt": "生成一套强调安全可信的视觉方案：Logo 摆放强化官方感，背景、边框和提示区都要低噪声，安全图标和校验提示清楚但不压迫表单；移动端先让用户确认这是可信入口。功能按默认完整登录、注册、找回密码模块处理。",
+      "message": "ForexCRM 认证中心",
+      "schemeSnapshot": {
+        "name": "ForexCRM 认证中心",
+        "stylePreset": "securityReset",
+        "defaultScreen": "login",
+        "language": "zh-CN",
+        "brand": "ForexCRM",
+        "sourceType": "model",
+        "fallbackReason": "",
+        "audience": "general",
+        "registerDepth": "standard",
+        "screens": [
+          "login",
+          "register",
+          "forgot"
+        ]
+      },
+      "usage": {
+        "prompt_tokens": 7155,
+        "completion_tokens": 2097,
+        "total_tokens": 9252,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 7155
+      }
+    },
+    {
+      "id": "auth-1779102933250-ae482f7dbd86a",
+      "at": "2026-05-18T11:15:33.250Z",
+      "source": "authServerProxy",
+      "action": "auth-generate",
+      "providerId": "kimi",
+      "provider": "Kimi",
+      "model": "kimi-k2.6",
+      "apiMode": "openai-chat",
+      "callMode": "serverProxy",
+      "baseUrl": "https://api.moonshot.cn/v1",
+      "endpoint": "/chat/completions",
+      "temperature": 0.6,
+      "maxOutputTokens": 12000,
+      "status": "success",
+      "mock": false,
+      "durationMs": 22087,
+      "prompt": "生成一套强调安全可信的视觉方案：Logo 摆放强化官方感，背景、边框和提示区都要低噪声，安全图标和校验提示清楚但不压迫表单；移动端先让用户确认这是可信入口。功能按默认完整登录、注册、找回密码模块处理。",
+      "message": "ForexCRM安全认证中心",
+      "schemeSnapshot": {
+        "name": "ForexCRM安全认证中心",
+        "stylePreset": "securityReset",
+        "defaultScreen": "login",
+        "language": "zh-CN",
+        "brand": "ForexCRM",
+        "sourceType": "model",
+        "fallbackReason": "",
+        "audience": "newTrader",
+        "registerDepth": "standard",
+        "screens": [
+          "login",
+          "register",
+          "forgot"
+        ]
+      },
+      "usage": {
+        "prompt_tokens": 1773,
+        "completion_tokens": 651,
+        "total_tokens": 2424
+      }
+    },
+    {
+      "id": "auth-1779102107515-0a26cffa87d66",
+      "at": "2026-05-18T11:01:47.515Z",
+      "source": "authServerProxy",
+      "action": "auth-generate",
+      "providerId": "openai",
+      "provider": "OpenAI",
+      "model": "gemini-2.5-flash",
+      "apiMode": "openai-chat",
+      "callMode": "serverProxy",
+      "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai",
+      "endpoint": "/chat/completions",
+      "temperature": 0.6,
+      "maxOutputTokens": 6000,
+      "status": "success",
+      "mock": false,
+      "durationMs": 23935,
+      "prompt": "为 ForexCRM 生成一套完整的登录、注册、找回密码认证模块。 模块主旨：活动转化。 客户对象：新手开户客户。 注册深度：专业版。 视觉气质：可信清爽，主题倾向：淡蓝色，扁平化。 平台 Logo 摆放：顶部居中；移动端首屏必须能自然露出 Logo、主登录入口和主按钮。 增强能力：手机号 / 邮箱登录、第三方登录、交易账号登录、验证码 / Captcha、双重验证、推荐码 / 邀请码、KYC 前置说明、风险披露确认、注册送礼 / 活动奖励。 请生成的是一个个性化认证业务模块，不要套用固定模板；素材只作为抽象设计语言借鉴，不能把素材名、素材来源或原版式当作可见内容输出。 需要有让人耳目一新的构图差异，不能只改颜色、标题或按钮文案；请明确选择适合业务目标的首屏骨架和信息表达方式。 移动端适配和移动端美观是硬要求：表单密度、按钮高度、入口位置、三方登录、协议文字、找回密码和注册入口都要适合手机单手操作。 需要包含登录、注册、找回密码三条流程的字段、状态、按钮文案、安全提示、合规提示、账号密码/验证码/三方/交易账号登录入口和响应式摆放策略。",
+      "message": "ForexCRM 认证中心",
+      "schemeSnapshot": {
+        "name": "ForexCRM 认证中心",
+        "stylePreset": "blueSplit",
+        "defaultScreen": "login",
+        "language": "zh-CN",
+        "brand": "ForexCRM",
+        "sourceType": "model",
+        "fallbackReason": "",
+        "audience": "新手开户客户",
+        "registerDepth": "compliance",
+        "screens": [
+          "login",
+          "register",
+          "forgot"
+        ]
+      },
+      "usage": {
+        "completion_tokens": 2413,
+        "prompt_tokens": 4938,
+        "total_tokens": 9631
+      }
+    },
+    {
       "id": "auth-1779096510162-0bc97571271c3",
       "at": "2026-05-18T09:28:30.162Z",
       "source": "authServerProxy",

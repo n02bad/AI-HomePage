@@ -94,6 +94,35 @@ function loadHomeEngine() {
   return sandbox.window.HomePersonalization;
 }
 
+function loadModelSettingsEngine() {
+  const code = fs.readFileSync(path.join(ROOT, "ai-model-settings.js"), "utf8");
+  const storage = {};
+  const sandbox = {
+    console,
+    window: {
+      localStorage: {
+        getItem(key) {
+          return Object.prototype.hasOwnProperty.call(storage, key) ? storage[key] : null;
+        },
+        setItem(key, value) {
+          storage[key] = String(value);
+        },
+        removeItem(key) {
+          delete storage[key];
+        },
+      },
+      dispatchEvent() {},
+      CustomEvent: function CustomEvent(type, init) {
+        return { type, ...init };
+      },
+    },
+  };
+  sandbox.CustomEvent = sandbox.window.CustomEvent;
+  vm.createContext(sandbox);
+  vm.runInContext(code, sandbox);
+  return sandbox.window.ForexCRMModelSettings;
+}
+
 function collectBlocks(config) {
   return [
     ...(config.sections || []).flatMap((section) => section.slots || []),
@@ -196,11 +225,13 @@ function normalizedLibraryScore(component) {
 
 function assertNoBlockedComponentReferences(config, componentLibrary) {
   const scoreById = new Map((componentLibrary.components || []).map((component) => [component.id, normalizedLibraryScore(component)]));
+  const skeletonSlotComponents = Object.values(config.skeletonHtmlScheme?.slotComponents || {});
   const ids = new Set([
     ...(Array.isArray(config.componentReferences) ? config.componentReferences.map((reference) => reference.componentId || reference.id) : []),
     ...(Array.isArray(config.brickPlan) ? config.brickPlan.map((brick) => brick.referenceComponentId) : []),
     ...Object.values(config.componentMorphs || {}).map((morph) => morph.referenceComponentId),
     ...(Array.isArray(config.htmlScheme?.componentReferences) ? config.htmlScheme.componentReferences.map((reference) => reference.componentId || reference.id) : []),
+    ...skeletonSlotComponents.flatMap((component) => [component?.id, component?.referenceComponentId]),
   ].filter(Boolean));
   const blocked = [...ids].filter((id) => scoreById.has(id) && scoreById.get(id) <= 5);
   assert.deepStrictEqual(blocked, [], "5-point-or-lower component-library bricks must not be referenced by generated homepage output");
@@ -271,6 +302,7 @@ async function waitForServer(child, port) {
 
 async function run() {
   const home = loadHomeEngine();
+  const modelSettings = loadModelSettingsEngine();
   const homeSource = fs.readFileSync(path.join(ROOT, "home-personalization.js"), "utf8");
   const clientSourceForTitles = fs.readFileSync(path.join(ROOT, "client-home.js"), "utf8");
 
@@ -283,6 +315,30 @@ async function run() {
   assert.strictEqual(home.DEFAULT_CONFIG.moduleSettings.referralLinkCard.enabled, false);
   assert.strictEqual(home.t("home.asset.title"), "资产概览");
   assert.strictEqual(home.t("home.asset.totalLabel"), "余额合计");
+  assert.strictEqual(
+    modelSettings.sanitizeModelConfig({
+      provider: "openai",
+      model: "gemini-2.5-flash",
+      baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+      endpoint: "/chat/completions",
+      apiMode: "openai-chat",
+    }).provider,
+    "gemini",
+    "stale OpenAI-compatible Gemini configs must be inferred as Gemini",
+  );
+  assert.strictEqual(
+    modelSettings.providerIdFromValue("OpenAI Compatible gemini-2.5-flash"),
+    "gemini",
+    "model picker history must not classify Gemini OpenAI-compatible records as OpenAI",
+  );
+  [
+    "gemini-3.1-flash-lite",
+    "gemini-3.1-flash-lite-preview",
+    "gemini-3.1-pro-preview",
+    "gemini-3.1-pro-preview-customtools",
+  ].forEach((model) => {
+    assert(modelSettings.AI_MODEL_PRESETS.gemini.models.includes(model), `Gemini picker should include ${model}`);
+  });
 
   const normalizedAiHtml = home.normalizeConfig({
     schemaVersion: 4,
@@ -801,6 +857,8 @@ async function run() {
   const serverSource = fs.readFileSync(path.join(ROOT, "server.js"), "utf8");
   const adminSource = fs.readFileSync(path.join(ROOT, "home-layout-admin.js"), "utf8");
   const adminHtmlSource = fs.readFileSync(path.join(ROOT, "home-layout-admin.html"), "utf8");
+  const modelSettingsSource = fs.readFileSync(path.join(ROOT, "ai-model-settings.js"), "utf8");
+  const modulePreviewSource = fs.readFileSync(path.join(ROOT, "home-module-preview.js"), "utf8");
   assert(serverSource.includes("空间利用是硬约束"), "AI prompt must treat space utilization as a hard constraint");
   assert(serverSource.includes("同一组账号数据不得在同一个模块里同时渲染上方摘要卡/摘要行和下方列表/表格"), "AI prompt must forbid duplicate account card plus table views");
   assert(serverSource.includes("账号类型(accountKind=Live/Demo)和账户类型(accountType=ECN Standard/Demo ECN)"), "AI prompt must distinguish account kind and account type");
@@ -821,6 +879,15 @@ async function run() {
 	  assert(!serverSource.includes('["minimax", "kimi"].includes(config.provider) ? Math.min(config.temperature, 0.6)'), "Kimi structured JSON requests must not be clamped below its required temperature");
 	  assert(serverSource.includes("buildLowLatencyHomepagePrompt"), "MiniMax and Kimi should use a short homepage prompt to avoid provider timeouts");
 	  assert(serverSource.includes('config.provider === "kimi" || config.provider === "deepseek"'), "DeepSeek config generation should also use the short homepage prompt");
+	  assert(serverSource.includes("function inferProviderId"), "server proxy must infer Gemini/compatible providers from stale model configs");
+	  assert(serverSource.includes('explicit === "openai" && inferred && inferred !== "openai"'), "stale OpenAI provider ids must yield to Gemini/compatible model signatures");
+	  assert(serverSource.includes("GEMINI_TEXT_MODELS"), "server provider metadata must expose the expanded Gemini text model list");
+	  assert(modelSettingsSource.includes("function inferProviderFromConfig"), "shared model settings must infer the provider from model/baseUrl signatures");
+	  assert(modelSettingsSource.includes("gemini-3.1-pro-preview-customtools"), "shared model settings must list current Gemini 3.1 Pro custom tools text model");
+	  assert(adminSource.includes("function inferProviderFromConfig"), "home admin must infer provider before sending model configs");
+	  assert(adminSource.includes("gemini-3.1-flash-lite"), "home admin must expose Gemini 3.1 Flash-Lite choices");
+	  assert(modulePreviewSource.includes("function inferProviderFromConfig"), "module preview must infer provider before sending model configs");
+	  assert(modulePreviewSource.includes("gemini-3.1-pro-preview"), "module preview must expose Gemini 3.1 Pro Preview choices");
 	  assert(serverSource.includes("productWarnings"), "homepage responses should expose productWarnings separately from HTML quality");
 	  assert(serverSource.includes("质量门禁"), "AI HTML generation must include an aesthetic quality gate");
 	  assert(serverSource.includes("designRulesPromptReference"), "AI generation must load design.md as prompt governance");
@@ -835,6 +902,13 @@ async function run() {
 		  assert(serverSource.includes("referenceComponentId"), "homepage config must persist applied component-library reference ids");
 		  assert(serverSource.includes("COMPONENT_REFERENCE_SCORE_POLICY"), "homepage generation must centralize component-library score reference policy");
 		  assert(serverSource.includes("5 分及以下禁止参考"), "homepage generation must block low-scored component-library references");
+		  assert(serverSource.includes("componentReferenceConstraintPolicy"), "homepage generation must expose a brick-first component reference constraint policy");
+		  assert(serverSource.includes("保底同款微调"), "homepage generation must document same-brick fallback with micro tuning");
+		  assert(serverSource.includes("brickBackedAiHtmlScheme"), "AI HTML fallback must be able to assemble high-scored brick-backed HTML");
+		  assert(serverSource.includes("high-score-brick-backed-html"), "AI HTML fallback pipeline must identify high-score brick-backed rendering");
+		  assert(adminSource.includes("high-score-same-brick-micro-tune"), "admin skeleton fallback must preserve high-score same-brick fallback metadata");
+		  assert(serverSource.includes("purgeBlockedComponentReferencesFromConfig"), "homepage generation must directly purge low-scored component-library references");
+		  assert(serverSource.includes("已直接杜绝"), "homepage repair actions must record direct elimination of low-scored component references");
 		  assert(personalizationSource.includes("normalizeHomepageComponentReferences"), "homepage renderer must normalize top-level component-library references");
 	  assert(personalizationSource.includes("dataset.componentReference"), "homepage renderer must expose component reference provenance on rendered slots");
 	  assert(serverSource.includes("implementationContract"), "AI HTML generation must require per-module implementation contracts");
@@ -848,6 +922,10 @@ async function run() {
 			      ["minimax", "deepseek", "kimi"].every((provider) => serverSource.includes(`"${provider}"`)),
 			    "MiniMax, DeepSeek and Kimi should all use compact model-generated AI HTML instead of skipping HTML generation",
 			  );
+			  const compactAiHtmlProviderFunction = serverSource.match(/function providerUsesCompactAiHtml[\s\S]*?\n}/)?.[0] || "";
+			  assert(!compactAiHtmlProviderFunction.includes('"gemini"'), "Gemini should use the full repaired AI HTML prompt so it receives richer component-library context");
+			  assert(serverSource.includes("aiHtmlComponentReferenceRegion"), "AI HTML quality gate must inspect each referenced brick region, not just whole-page signals");
+			  assert(serverSource.includes("score < 82"), "AI HTML below the publishable quality line must fall back to high-score brick-backed HTML");
 			  assert(serverSource.includes("function validateHomepageConfig"), "server must validate homepage config before HTML generation");
 			  assert(serverSource.includes("function repairHomepageConfig"), "server must repair homepage config before HTML generation");
 			  assert(serverSource.includes("function buildHomepageModulePolicy"), "server must build modulePolicy before homepage generation");

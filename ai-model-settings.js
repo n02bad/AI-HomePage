@@ -13,6 +13,16 @@
   const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
   const GEMINI_OPENAI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai";
   const GEMINI_DEFAULT_MODEL = "gemini-2.5-flash";
+  const GEMINI_TEXT_MODELS = [
+    GEMINI_DEFAULT_MODEL,
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-pro",
+    "gemini-3-flash-preview",
+    "gemini-3.1-flash-lite",
+    "gemini-3.1-flash-lite-preview",
+    "gemini-3.1-pro-preview",
+    "gemini-3.1-pro-preview-customtools",
+  ];
   const PROVIDER_ORDER = ["gemini", "deepseek", "kimi", "minimax", "openai", "claude"];
 
   const AI_MODEL_PRESETS = {
@@ -81,12 +91,12 @@
       name: "Gemini",
       badge: "OpenAI Compatible",
       model: GEMINI_DEFAULT_MODEL,
-      models: [GEMINI_DEFAULT_MODEL, "gemini-3-flash-preview", "gemini-2.5-flash-lite", "gemini-2.5-pro"],
+      models: GEMINI_TEXT_MODELS,
       baseUrl: GEMINI_OPENAI_BASE_URL,
       endpoint: "/chat/completions",
       apiMode: "openai-chat",
       apiKeyLabel: "GEMINI_API_KEY",
-      note: `Google Gemini API 的 OpenAI 兼容接口；默认使用 ${GEMINI_DEFAULT_MODEL}，Base URL 是 ${GEMINI_OPENAI_BASE_URL}。`,
+      note: `Google Gemini API 的 OpenAI 兼容接口；可选择 Gemini 2.5、Gemini 3 Flash Preview、Gemini 3.1 Flash-Lite 和 Gemini 3.1 Pro Preview 文本模型。Base URL 是 ${GEMINI_OPENAI_BASE_URL}。`,
     },
   };
 
@@ -135,12 +145,28 @@
   }
 
   function providerIdFromValue(value) {
-    const source = String(value || "").toLowerCase();
-    return (
-      Object.values(AI_MODEL_PRESETS).find((preset) => {
-        return source === preset.provider || source === preset.name.toLowerCase() || source.includes(preset.provider) || source.includes(preset.name.toLowerCase());
-      })?.provider || ""
-    );
+    const source = String(value || "").trim().toLowerCase();
+    if (!source) return "";
+
+    const exact = PROVIDER_ORDER.find((provider) => source === provider || source === providerPreset(provider).name.toLowerCase());
+    if (exact) return exact;
+
+    if (/generativelanguage\.googleapis\.com|\bgemini[-_\s]/i.test(source)) return "gemini";
+    if (/api\.deepseek\.com|\bdeepseek[-_\s]/i.test(source)) return "deepseek";
+    if (/api\.moonshot\.(?:cn|ai)|\bkimi[-_\s]|\bmoonshot[-_\s]/i.test(source)) return "kimi";
+    if (/api\.minimax(?:i)?\.(?:com|cn|io)|\bminimax[-_\s]/i.test(source)) return "minimax";
+    if (/anthropic\.com|\bclaude[-_\s]/i.test(source)) return "claude";
+    if (/api\.openai\.com|\bgpt[-_\s]|\bo[0-9]/i.test(source)) return "openai";
+
+    return PROVIDER_ORDER.find((provider) => source.includes(provider) || source.includes(providerPreset(provider).name.toLowerCase())) || "";
+  }
+
+  function inferProviderFromConfig(source = {}) {
+    const raw = source && typeof source === "object" ? source : {};
+    const explicit = providerIdFromValue(raw.provider || raw.providerId || raw.providerName || raw.name);
+    const inferred = providerIdFromValue([raw.model, raw.baseUrl, raw.endpoint, raw.apiMode].filter(Boolean).join(" "));
+    if (explicit && !(explicit === "openai" && inferred && inferred !== "openai")) return explicit;
+    return inferred || explicit || "openai";
   }
 
   function isKimiFixedTemperatureModel(model) {
@@ -196,7 +222,7 @@
 
   function sanitizeModelConfig(source = {}, options = {}) {
     const raw = source && typeof source === "object" ? source : {};
-    const provider = providerPreset(raw.provider).provider;
+    const provider = inferProviderFromConfig(raw);
     const preset = providerPreset(provider);
     const sourceProviderConfigs = raw.providerConfigs && typeof raw.providerConfigs === "object" ? raw.providerConfigs : {};
     const storedProviderConfig = sourceProviderConfigs[provider] && typeof sourceProviderConfigs[provider] === "object" ? sourceProviderConfigs[provider] : {};
@@ -387,7 +413,7 @@
     const historyOptions = Array.isArray(history)
       ? history
           .map((record) => ({
-            provider: providerIdFromValue(record.providerId || record.provider),
+            provider: inferProviderFromConfig(record),
             model: record.model,
             source: "调用记录",
             at: record.at,
@@ -618,6 +644,7 @@
     providerPreset,
     providerStatus,
     providerIdFromValue,
+    inferProviderFromConfig,
     sanitizeModelConfig,
     loadModelConfig,
     saveModelConfig,

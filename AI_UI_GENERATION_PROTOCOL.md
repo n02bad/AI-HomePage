@@ -82,12 +82,15 @@ If the user asks for white-label trust, fund safety, mature broker client, or li
 Component-library freedom rule:
 
 - Saved components and compositions are inspiration and shape references, not permission to add new business capabilities.
+- Component-library scores are admission control, not decoration. Only bricks scoring above 5 may be used as references. Bricks scoring 5 or lower must not enter prompt context, `componentReferences`, `brickPlan.referenceComponentId`, fallback components, or aesthetic samples.
+- The minimum acceptable fallback is high-score brick parity: if the model cannot produce a clearly better result, the system should use the closest same-family / same-size brick as the structure baseline and only micro-adjust copy, theme tokens, responsive behavior, system actions, and spacing.
+- The recommended result is high-score brick improvement: keep the selected brick's business fields, density, state tags, chart/list expression, and button hierarchy, then improve page planning, layout rhythm, module proportion, visual hierarchy, and responsive composition.
 - Risk disclosure is a footer compliance region. If `risk_disclosure` is selected, place it as the final full-width section using `legal-strip` style; it should hold long rich-text disclosure copy from backend/compliance, not short metric cards.
 - FAQ should default to an accordion question list. Do not render all answers as static cards unless explicitly requested.
 - Trading accounts should choose from table/list, split real-demo lists, switchable workbench, or card wall based on account count and fields. Do not default every account module to cards.
 - Avoid redundant module labels. If the title already explains the module, omit the eyebrow/tag.
 - A generated module should be traceable to an existing parent module, field set, size token, or component interaction pattern.
-- Do not copy a saved brick verbatim or only recolor it; the new result should change layout, density, hierarchy, or composition in a way that supports the prompt intent.
+- For recommended model output, do not copy a saved brick verbatim or only recolor it; the new result should change layout, density, hierarchy, or composition in a way that supports the prompt intent. Verbatim or near-verbatim reuse is allowed only as the explicit safety fallback above.
 - Do not embed component-library HTML/CSS into homepage blueprints. Homepage output still uses `sections`, `brickPlan`, `moduleStyles`, and `moduleSettings`.
 
 Responsive auto layout rule:
@@ -200,6 +203,7 @@ Understanding protocol:
 9. Include autoLayout with desktop/tablet/mobile rules; paired rows must be equal height on desktop and stack on narrow content containers.
 10. Self-check the result against hard constraints before returning JSON.
 11. Apply the default spacious white fintech SaaS visual baseline unless a stronger explicit brand mode overrides it; this controls spacing, gutters, card treatment, typography hierarchy, and color restraint, not component selection.
+12. Use score-gated bricks: only reference bricks scoring above 5. If the result is not clearly better than the brick, fall back to the closest high-score brick structure with only micro-tuning. If improving, explain how the layout, hierarchy, density, or composition became better than the source brick.
 
 Output:
 Return only a JSON object that can be parsed by JSON.parse.

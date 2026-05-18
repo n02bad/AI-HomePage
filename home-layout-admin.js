@@ -27,6 +27,16 @@
   const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
   const GEMINI_OPENAI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai";
   const GEMINI_DEFAULT_MODEL = "gemini-2.5-flash";
+  const GEMINI_TEXT_MODELS = [
+    GEMINI_DEFAULT_MODEL,
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-pro",
+    "gemini-3-flash-preview",
+    "gemini-3.1-flash-lite",
+    "gemini-3.1-flash-lite-preview",
+    "gemini-3.1-pro-preview",
+    "gemini-3.1-pro-preview-customtools",
+  ];
   const PREVIEW_SIZE_PRESETS = {
     mobile: { label: "手机", meta: "390x844" },
     tablet: { label: "平板", meta: "768x1024" },
@@ -125,14 +135,15 @@
       name: "Gemini",
       badge: "OpenAI Compatible",
       model: GEMINI_DEFAULT_MODEL,
-      models: [GEMINI_DEFAULT_MODEL, "gemini-3-flash-preview", "gemini-2.5-flash-lite", "gemini-2.5-pro"],
+      models: GEMINI_TEXT_MODELS,
       baseUrl: GEMINI_OPENAI_BASE_URL,
       endpoint: "/chat/completions",
       apiMode: "openai-chat",
       apiKeyLabel: "GEMINI_API_KEY",
-      note: `Google Gemini API 的 OpenAI 兼容接口。默认用 ${GEMINI_DEFAULT_MODEL} 生成稳定 JSON；Gemini 3 Flash Preview 可手动选择，Base URL 使用 ${GEMINI_OPENAI_BASE_URL}。`,
+      note: `Google Gemini API 的 OpenAI 兼容接口。可选择 Gemini 2.5、Gemini 3 Flash Preview、Gemini 3.1 Flash-Lite 和 Gemini 3.1 Pro Preview 文本模型；Base URL 使用 ${GEMINI_OPENAI_BASE_URL}。`,
     },
   };
+  const PROVIDER_ORDER = ["gemini", "deepseek", "kimi", "minimax", "openai", "claude"];
 
   const DEFAULT_MODEL_CONFIG = {
     ...AI_MODEL_PRESETS.openai,
@@ -1409,7 +1420,16 @@
       .toLowerCase();
   }
 
-  function selectedFallbackComponentFromLibrary(components, slot, action, config = currentConfig) {
+  function fallbackComponentVisibleText(component) {
+    return String(component?.html || "")
+      .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
+      .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function rankedFallbackComponentsForSlot(components, slot, action, config = currentConfig) {
     const normalized = home.normalizeConfig(config);
     const slotId = slot.id || slot.slot || "";
     const family = skeletonSlotFamily(slotId);
@@ -1449,8 +1469,29 @@
           score: fallbackComponentReferencePriority(component) + referenceScore + familyScore + exactSizeScore + sizeScore + promptHits * 8 + userScore * 4 - index * 0.01,
         };
       })
-      .sort((a, b) => b.score - a.score)
-      .map((item) => item.component)[0] || null;
+      .sort((a, b) => b.score - a.score);
+  }
+
+  function selectedFallbackComponentFromLibrary(components, slot, action, config = currentConfig) {
+    return rankedFallbackComponentsForSlot(components, slot, action, config).map((item) => item.component)[0] || null;
+  }
+
+  async function skeletonHighScoreReferenceContext(slot, action, config = currentConfig) {
+    const components = await loadFallbackComponentLibrary();
+    return rankedFallbackComponentsForSlot(components, slot, action, config)
+      .slice(0, 6)
+      .map(({ component }) => ({
+        type: "skeleton-slot-high-score",
+        componentId: component.id || "",
+        family: component.family || skeletonSlotFamily(slot.id),
+        name: component.name || component.id || "高分积木",
+        size: component.size || skeletonSlotSize(slot),
+        score: fallbackComponentScore(component, 5),
+        visibleText: fallbackComponentVisibleText(component).slice(0, 240),
+        description: String(component.description || "").slice(0, 180),
+        layoutHints: Array.isArray(component.layoutHints) ? component.layoutHints.slice(0, 4) : [],
+        dataRequirements: Array.isArray(component.dataRequirements) ? component.dataRequirements.slice(0, 4) : [],
+      }));
   }
 
   async function brickFallbackSlotComponent(slot, action, error = null) {
@@ -1467,9 +1508,13 @@
       size: selected.size || size,
       sourceType: "brick-fallback",
       fallbackReason: reason,
+      fallbackMode: "high-score-same-brick-micro-tune",
+      fallbackContract: "高分积木同款保底：保留原组件 HTML/CSS 主结构，只做主题 token、响应式、动作绑定、文案和尺寸适配微调。",
       referenceComponentId: selected.id || "",
       referenceComponentName: selected.name || "",
       referenceFamily: selected.family || skeletonSlotFamily(slot.id),
+      referenceScore: fallbackComponentScore(selected, 5),
+      referenceTier: fallbackComponentReferenceTier(selected),
       requestedSize: size,
       generatedAt: new Date().toISOString(),
       layoutHints: [...(Array.isArray(selected.layoutHints) ? selected.layoutHints : []), `requested-size:${size}`].slice(0, 8),
@@ -1709,13 +1754,21 @@
     }[slot.id] || "生成当前 slot 对应的真实业务组件，内容要服务当前模块，不要扩展成无关首页区块。";
   }
 
-  function skeletonSlotPrompt(slot, action) {
+  function skeletonSlotPrompt(slot, action, highScoreReferences = []) {
     const normalized = home.normalizeConfig(currentConfig);
     const actionText = action === "style" ? "更换一种明显不同的组件样式" : "生成这个 slot 的完整组件";
     const brick = skeletonBrickForSlot(slot, normalized);
     const relatedSettings = skeletonRelatedSettings(slot, normalized);
+    const references = Array.isArray(highScoreReferences) ? highScoreReferences : [];
     return [
       skeletonPageBrief(normalized),
+      "",
+      "骨架 HTML 生成总约束:",
+      "当前是整页骨架里的单 slot 生成：只填充当前 slot，但视觉必须融入整页的 layout、theme、density、首屏重心和相邻模块节奏。",
+      "AI 可以自行发挥新的组件形态，但必须先参考组件库里的高分积木；灵感来自字段密度、按钮层级、状态标签、图表/列表表达、卡片比例和响应式方式。",
+      "组件库评分规则：8-10 分强参考，6-7 分适度参考，5 分及以下禁止参考。若无法明显提升，就按最匹配高分积木同款微调，只调整文案、主题 token、动作绑定、响应式和 spacing。",
+      "生成结果要像高分积木上的升级版：保留真实业务字段和动作，同时改进结构、层级、密度或组合方式；不要从零生成普通白卡片。",
+      references.length ? `当前 slot 优先参考的高分积木：${compactPromptJson(references, 980)}` : "当前 slot 暂无显式高分积木参考时，也必须遵守同 family 积木语言和设计治理。",
       "",
       "当前模块 brief:",
       `当前步骤：${actionText}，只处理当前模块，不要改整页骨架和其他模块。`,
@@ -1776,18 +1829,22 @@
       const existing = scheme.slotComponents?.[slotId];
       const family = skeletonSlotFamily(slotId);
       const size = skeletonSlotSize(slot);
+      const scoreContext = await skeletonHighScoreReferenceContext(slot, action, currentConfig);
+      const slotPrompt = skeletonSlotPrompt(slot, action, scoreContext);
       const isStyleEdit = action === "style" && existing?.id;
       const payload = isStyleEdit
         ? {
             componentId: existing.id,
             component: existing,
-            instruction: `${skeletonSlotPrompt(slot, action)}\n请保持业务能力不变，但重做视觉层级、排版、密度或结构。`,
+            instruction: `${slotPrompt}\n请保持业务能力不变，但重做视觉层级、排版、密度或结构；优先参考上面的高分积木，不要只换颜色。`,
+            scoreContext,
             modelConfig: aiRequestModelConfig(),
           }
         : {
-            prompt: skeletonSlotPrompt(slot, action),
+            prompt: slotPrompt,
             family,
             size,
+            scoreContext,
             modelConfig: aiRequestModelConfig(),
           };
       const result = await requestJsonEndpoint(isStyleEdit ? "/api/home-components/edit" : "/api/home-components/generate", payload);
@@ -2923,6 +2980,31 @@
     return AI_MODEL_PRESETS[provider] || AI_MODEL_PRESETS.openai;
   }
 
+  function providerIdFromValue(value) {
+    const source = String(value || "").trim().toLowerCase();
+    if (!source) return "";
+
+    const exact = PROVIDER_ORDER.find((provider) => source === provider || source === providerPreset(provider).name.toLowerCase());
+    if (exact) return exact;
+
+    if (/generativelanguage\.googleapis\.com|\bgemini[-_\s]/i.test(source)) return "gemini";
+    if (/api\.deepseek\.com|\bdeepseek[-_\s]/i.test(source)) return "deepseek";
+    if (/api\.moonshot\.(?:cn|ai)|\bkimi[-_\s]|\bmoonshot[-_\s]/i.test(source)) return "kimi";
+    if (/api\.minimax(?:i)?\.(?:com|cn|io)|\bminimax[-_\s]/i.test(source)) return "minimax";
+    if (/anthropic\.com|\bclaude[-_\s]/i.test(source)) return "claude";
+    if (/api\.openai\.com|\bgpt[-_\s]|\bo[0-9]/i.test(source)) return "openai";
+
+    return PROVIDER_ORDER.find((provider) => source.includes(provider) || source.includes(providerPreset(provider).name.toLowerCase())) || "";
+  }
+
+  function inferProviderFromConfig(source = {}) {
+    const raw = source && typeof source === "object" ? source : {};
+    const explicit = providerIdFromValue(raw.provider || raw.providerId || raw.providerName || raw.name);
+    const inferred = providerIdFromValue([raw.model, raw.baseUrl, raw.endpoint, raw.apiMode].filter(Boolean).join(" "));
+    if (explicit && !(explicit === "openai" && inferred && inferred !== "openai")) return explicit;
+    return inferred || explicit || "openai";
+  }
+
   function isKimiFixedTemperatureModel(model) {
     return /^kimi-k2\.(?:6|5)\b/i.test(String(model || ""));
   }
@@ -2959,8 +3041,9 @@
   }
 
   function sanitizeModelConfig(config) {
-    const preset = providerPreset(config?.provider);
     const source = config && typeof config === "object" ? config : {};
+    const inferredProvider = inferProviderFromConfig(source);
+    const preset = providerPreset(inferredProvider);
     const apiKeys = {
       ...(DEFAULT_MODEL_CONFIG.apiKeys || {}),
       ...(source.apiKeys && typeof source.apiKeys === "object" ? source.apiKeys : {}),

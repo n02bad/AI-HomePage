@@ -90,7 +90,7 @@ AI 的作用不是直接生成页面代码，而是根据租户描述、品牌�
 ## Gemini 调用判断
 
 - Gemini 当前走 Google Gemini API 的 OpenAI 兼容 `POST /chat/completions`，Base URL 使用 `https://generativelanguage.googleapis.com/v1beta/openai`，不要在前端直连。
-- 首页/组件生成默认用 `gemini-2.5-flash`，可手动切换 `gemini-3-flash-preview`、`gemini-2.5-flash-lite` 或 `gemini-2.5-pro`。
+- 首页/组件生成默认用 `gemini-2.5-flash`，可手动切换 Gemini 文本模型：`gemini-2.5-flash`、`gemini-2.5-flash-lite`、`gemini-2.5-pro`、`gemini-3-flash-preview`、`gemini-3.1-flash-lite`、`gemini-3.1-flash-lite-preview`、`gemini-3.1-pro-preview`、`gemini-3.1-pro-preview-customtools`。
 - 环境变量优先使用 `GEMINI_API_KEY`，也支持 `GOOGLE_API_KEY`；可用 `GEMINI_MODEL`、`GEMINI_BASE_URL` 覆盖默认模型和入口。
 - 对 `gemini-2.5-flash` 这类 Flash 模型，代理层会发送 `reasoning_effort: "none"` 并要求 `response_format: { "type": "json_object" }`，避免首页 JSON 生成被额外思考拖慢。
 

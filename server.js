@@ -81,6 +81,16 @@ const DEEPSEEK_PRO_TIMEOUT_MS = 75_000;
 const DEEPSEEK_FLASH_TIMEOUT_MS = 120_000;
 const GEMINI_OPENAI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai";
 const GEMINI_DEFAULT_MODEL = "gemini-2.5-flash";
+const GEMINI_TEXT_MODELS = [
+  GEMINI_DEFAULT_MODEL,
+  "gemini-2.5-flash-lite",
+  "gemini-2.5-pro",
+  "gemini-3-flash-preview",
+  "gemini-3.1-flash-lite",
+  "gemini-3.1-flash-lite-preview",
+  "gemini-3.1-pro-preview",
+  "gemini-3.1-pro-preview-customtools",
+];
 const KIMI_TIMEOUT_MS = 120_000;
 
 const PROVIDERS = {
@@ -139,6 +149,7 @@ const PROVIDERS = {
     keyEnv: ["GEMINI_API_KEY", "GOOGLE_API_KEY"],
     modelEnv: ["GEMINI_MODEL"],
     baseUrlEnv: ["GEMINI_BASE_URL", "GOOGLE_GENERATIVE_LANGUAGE_BASE_URL"],
+    models: GEMINI_TEXT_MODELS,
   },
 };
 
@@ -287,6 +298,57 @@ function providerKeyStatus(provider) {
 
 function normalizeBaseUrl(value) {
   return String(value || "").trim().replace(/\/+$/, "");
+}
+
+function providerSignatureText(modelConfig = {}) {
+  const source = modelConfig && typeof modelConfig === "object" ? modelConfig : {};
+  return [
+    source.provider,
+    source.providerId,
+    source.providerName,
+    source.name,
+    source.model,
+    source.baseUrl,
+    source.endpoint,
+    source.apiMode,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function providerIdFromExplicitValue(value) {
+  const source = String(value || "").trim().toLowerCase();
+  if (!source) return "";
+  const exactId = Object.keys(PROVIDERS).find((id) => source === id);
+  if (exactId) return exactId;
+  const exactName = Object.entries(PROVIDERS).find(([, provider]) => source === provider.name.toLowerCase());
+  return exactName?.[0] || "";
+}
+
+function providerIdFromSignature(source) {
+  const text = String(source || "").toLowerCase();
+  if (!text) return "";
+  if (/generativelanguage\.googleapis\.com|\bgemini[-_\s]/i.test(text)) return "gemini";
+  if (/api\.deepseek\.com|\bdeepseek[-_\s]/i.test(text)) return "deepseek";
+  if (/api\.moonshot\.(?:cn|ai)|\bkimi[-_\s]|\bmoonshot[-_\s]/i.test(text)) return "kimi";
+  if (/api\.minimax(?:i)?\.(?:com|cn|io)|\bminimax[-_\s]/i.test(text)) return "minimax";
+  if (/anthropic\.com|\bclaude[-_\s]/i.test(text)) return "claude";
+  if (/api\.openai\.com|\bgpt[-_\s]|\bo[0-9]/i.test(text)) return "openai";
+  return "";
+}
+
+function inferProviderId(modelConfig = {}) {
+  const source = modelConfig && typeof modelConfig === "object" ? modelConfig : {};
+  const explicit =
+    providerIdFromExplicitValue(source.provider) ||
+    providerIdFromExplicitValue(source.providerId) ||
+    providerIdFromExplicitValue(source.providerName) ||
+    providerIdFromExplicitValue(source.name);
+  const inferred = providerIdFromSignature(providerSignatureText(source));
+
+  if (explicit && !(explicit === "openai" && inferred && inferred !== "openai")) return explicit;
+  return inferred || explicit || "openai";
 }
 
 function normalizeProviderBaseUrl(providerId, value) {
@@ -2125,7 +2187,7 @@ function readJsonBody(req) {
 }
 
 function normalizeProviderConfig(modelConfig = {}) {
-  const providerId = PROVIDERS[modelConfig.provider] ? modelConfig.provider : "openai";
+  const providerId = inferProviderId(modelConfig);
   const preset = PROVIDERS[providerId];
   const model = String(modelConfig.model || envValue(preset.modelEnv) || preset.model).trim().slice(0, 100);
   const baseUrl = normalizeProviderBaseUrl(providerId, modelConfig.baseUrl || envValue(preset.baseUrlEnv) || preset.baseUrl);
@@ -2513,6 +2575,16 @@ const COMPONENT_REFERENCE_SCORE_POLICY = Object.freeze({
   blockedMax: 5,
 });
 
+function componentReferenceConstraintPolicy() {
+  const minimumReferenceScore = COMPONENT_REFERENCE_SCORE_POLICY.blockedMax + 1;
+  return {
+    mode: "brick-first-controlled-html",
+    referenceableScore: `只允许参考 ${minimumReferenceScore}-10 分积木；5 分及以下不得进入模型上下文、兜底、componentReferences 或 brickPlan 引用。`,
+    safeFallback: "如果模型无法稳定做得更好，最保底直接采用同家族/同尺寸最高匹配的高分积木原 HTML/CSS 作为结构底稿，只做主题 token、响应式、动作绑定和少量文案微调。",
+    recommendedPolish: "推荐方案是在高分积木上做可解释升级：优化模块比例、信息层级、排版节奏、字段密度、状态标签、图表/列表表达和首屏规划，而不是从零自由写一套页面。",
+  };
+}
+
 function componentReferenceTierFromScore(score) {
   const normalized = normalizeComponentScore(score, COMPONENT_REFERENCE_SCORE_POLICY.blockedMax);
   if (normalized >= COMPONENT_REFERENCE_SCORE_POLICY.strongMin) return "strong";
@@ -2536,8 +2608,8 @@ function componentReferenceTierLabel(tier) {
 
 function componentReferenceRuleForTier(tier) {
   return {
-    strong: "必须优先参考该积木的结构、字段密度、按钮层级、状态标签和图表/步骤表达，但不要照搬 HTML/CSS。",
-    moderate: "只在业务家族、尺寸或当前需求匹配时适度参考局部字段和布局节奏，不得决定首屏主结构。",
+    strong: "必须优先参考该积木的结构、字段密度、按钮层级、状态标签和图表/步骤表达；推荐在其基础上升级排版层级，保底可同款微调。",
+    moderate: "只在业务家族、尺寸或当前需求匹配时适度参考局部字段和布局节奏，不得压过强参考；保底只做局部同款承接。",
     blocked: "禁止作为组件库参考、兜底组件或模型灵感来源；如果模型返回该引用，服务端必须剔除。",
   }[tier] || "";
 }
@@ -2580,6 +2652,7 @@ function componentReferencePolicyPrompt(components = [], payload = {}) {
     });
   });
   return {
+    constraintPolicy: componentReferenceConstraintPolicy(),
     strongReference: "8-10 分：强参考。生成时必须优先吸收结构、字段密度、按钮层级、状态标签和图表/步骤表达。",
     moderateReference: "6-7 分：适度参考。只在业务家族、尺寸或需求匹配时用于局部字段和节奏，不得压过强参考。",
     blockedReference: "5 分及以下：禁止参考。不得进入模型上下文、兜底组件、componentReferences、brickPlan 引用或审美样本。",
@@ -2590,7 +2663,7 @@ function componentReferencePolicyPrompt(components = [], payload = {}) {
       referenceable: grouped.strong.length + grouped.moderate.length,
       total: grouped.strong.length + grouped.moderate.length + grouped.blocked.length,
     },
-    blockedComponents: grouped.blocked.slice(0, 16),
+    blockedHandling: "5 分及以下组件已从可参考上下文中移除，只保留数量用于审计。",
   };
 }
 
@@ -3194,6 +3267,129 @@ function summarizeComponentForPrompt(component) {
   };
 }
 
+function componentStructureSignals(component = {}) {
+  const html = String(component.html || "");
+  const css = String(component.css || "");
+  const combined = `${html}\n${css}`;
+  const signals = [];
+  const add = (condition, label) => {
+    if (condition && !signals.includes(label)) signals.push(label);
+  };
+
+  add(/<table\b|<thead\b|<tbody\b/i.test(html), "表格/列表字段密度");
+  add(/svg|path/i.test(html), "图标或图形表达");
+  add(/chart|curve|sparkline|area|trend|echart|净值|PnL|收益率|曲线/i.test(combined), "趋势/图表证据");
+  add(/step|timeline|journey|mission|progress|KYC|开户|入金/i.test(combined), "步骤/状态路径");
+  add(/button|data-home-action|cta|primary/i.test(combined), "明确按钮层级");
+  add(/badge|tag|status|pill|已|待|进行中|Live|Demo/i.test(combined), "状态标签");
+  add(/grid-template-columns\s*:\s*repeat\(\s*3/i.test(css), "三列指标/入口结构");
+  add(/grid-template-columns\s*:\s*repeat\(\s*[4-8]/i.test(css), "高密度入口矩阵");
+  add(/@media/i.test(css), "响应式降级");
+
+  return signals.slice(0, 8);
+}
+
+function compactComponentReferenceForPrompt(component = {}, options = {}) {
+  const summary = summarizeComponentForPrompt(component);
+  return {
+    ...summary,
+    htmlClassHints: [...new Set((String(component.html || "").match(/class=(["'])(.*?)\1/gi) || [])
+      .flatMap((item) => item.replace(/^class=(["'])|["']$/g, "").split(/\s+/))
+      .filter(Boolean))]
+      .slice(0, 8),
+    structureSignals: componentStructureSignals(component),
+    mustInherit: [
+      "业务字段密度",
+      "按钮层级",
+      "状态标签",
+      "卡片比例",
+      ...(componentStructureSignals(component).includes("趋势/图表证据") ? ["趋势/图表表达"] : []),
+      ...(componentStructureSignals(component).includes("步骤/状态路径") ? ["步骤路径表达"] : []),
+    ].filter((item, index, list) => list.indexOf(item) === index).slice(0, 8),
+    htmlContract: {
+      module: cleanText(options.module || "", "", 80),
+      requiredAttribute: `data-component-reference="${cleanText(component.id, "", 96)}"`,
+      rule: "对应 data-ai-html-module 区域必须带 data-component-reference，且至少继承两个 mustInherit 维度；不能只把组件 ID 写进 componentReferences。",
+    },
+  };
+}
+
+function seedHomepageConfigFromPrompt(payload = {}) {
+  const prompt = String(payload.prompt || "");
+  const guidedIntake = guidedAiIntakeFromPayload(payload);
+  const intentProfile = applyGuidedIntentProfile(buildHomepageIntentProfile(prompt), guidedIntake);
+  const mustHave = Array.isArray(intentProfile.mustHave) && intentProfile.mustHave.length
+    ? intentProfile.mustHave
+    : AI_HTML_REQUIRED_FALLBACK_BLOCKS;
+  return {
+    pageIntent: intentProfile,
+    heroFocus: intentProfile.heroFocus,
+    sections: mustHave.slice(0, 8).map((slot, index) => ({
+      id: `local-intent-${index + 1}`,
+      type: index === 0 ? "hero" : "full",
+      slots: [canonicalHomeBlock(slot) || slot],
+    })),
+  };
+}
+
+function homepageLocalPromptBrickContext(payload = {}, config = {}, options = {}) {
+  const prompt = cleanText(payload.prompt, "", 1200);
+  const seedConfig = config && Object.keys(config).length ? config : seedHomepageConfigFromPrompt(payload);
+  const requiredModules = aiHtmlRequiredModuleContracts(payload, seedConfig);
+  const blockCandidates = [
+    ...requiredModules.map((item) => item.component),
+    ...collectHomepageBlocks(seedConfig),
+    ...(Array.isArray(seedConfig.brickPlan) ? seedConfig.brickPlan.flatMap((item) => [item.component, item.feature]) : []),
+  ]
+    .map(canonicalHomeBlock)
+    .filter(Boolean);
+  const blocks = [...new Set(blockCandidates)].slice(0, 16);
+  const usedIds = new Set();
+  const matchedBricks = blocks
+    .map((block) => {
+      const selected = selectHighScoreBrickForHomepageBlock(block, payload, seedConfig, usedIds);
+      if (!selected) return null;
+      const moduleContract = requiredModules.find((item) => item.component === block) || AI_HTML_MODULE_CONTRACTS[block] || {};
+      const brick = homepageBrickPlanItemForBlock(seedConfig, block);
+      return {
+        module: block,
+        label: moduleContract.label || block,
+        requiredFamily: selected.requestedFamily,
+        requestedSize: selected.requestedSize,
+        sourceBrickId: cleanText(brick?.brickId, "", 96),
+        sourceBrickName: cleanText(brick?.brickName, "", 96),
+        sourceBrickReason: cleanText(brick?.reason || brick?.brickReason, "", 180),
+        reference: compactComponentReferenceForPrompt(selected.component, { module: block }),
+      };
+    })
+    .filter(Boolean)
+    .slice(0, Number(options.limit) || 10);
+
+  const primaryCta = expectedPrimaryCtaForPrompt(prompt, seedConfig);
+  return {
+    processingPipeline: "local-prompt-understanding -> canonical-block-map -> high-score-brick-hit -> model-reference-pack -> post-generation-conformance-gate",
+    promptUnderstanding: {
+      primaryIntent: seedConfig.pageIntent?.primaryIntent || homepageIntentFromPrompt(prompt),
+      heroFocus: cleanText(seedConfig.heroFocus || seedConfig.pageIntent?.heroFocus, "", 80),
+      primaryCta: primaryCta ? { label: primaryCta.label, action: primaryCta.action } : null,
+      requiredBlocks: blocks,
+      forbiddenCarryOver: [
+        "不能直接把用户 prompt 发给模型自由发挥",
+        "不能只在 componentReferences 写 ID 而 HTML 仍是普通白卡",
+        "不能使用 5 分及以下积木作为参考或兜底",
+      ],
+    },
+    matchedBricks,
+    modelHardRules: [
+      "生成前必须先按 matchedBricks 决定模块结构，模型只做同款微调或可解释升级。",
+      "每个命中积木的 data-ai-html-module 区域必须写 data-component-reference=componentId。",
+      "HTML 必须继承 reference.mustInherit 中至少两个维度，例如字段密度、按钮层级、状态标签、图表/列表/步骤表达。",
+      "componentReferences 只是追踪记录，不能替代 HTML 里的真实结构表达。",
+      "如果无法证明比高分积木更好，直接回到高分积木同款微调。",
+    ],
+  };
+}
+
 function rankComponentReferences(components, options = {}) {
   const family = cleanText(options.family, "", 60);
   const size = cleanText(options.size, "", 12);
@@ -3280,9 +3476,13 @@ function componentLibraryFallbackForPayload(payload = {}, options = {}) {
     ...selected,
     sourceType: "brick-fallback",
     fallbackReason: reason,
+    fallbackMode: "high-score-same-brick-micro-tune",
+    fallbackContract: "高分积木同款保底：保留原组件 HTML/CSS 主结构，只允许主题 token、响应式、动作绑定、文案和尺寸适配的微调。",
     referenceComponentId: selected.id,
     referenceComponentName: selected.name,
     referenceFamily: selected.family,
+    referenceScore: componentReferenceScore(selected, payload),
+    referenceTier: componentReferenceTierFromScore(componentReferenceScore(selected, payload)),
     requestedFamily: family,
     requestedSize: size,
     generatedAt: new Date().toISOString(),
@@ -3300,8 +3500,9 @@ function componentLibraryPromptReference(options = {}) {
   const policy = componentReferencePolicyPrompt(components, options);
 
   return {
-    referenceMode: "先参考已保存组件库积木的业务字段、尺寸、按钮、标签、卡片密度和视觉层级，再根据本次意图做新组合或新变体。",
+    referenceMode: "先用 5 分以上可参考积木锁定业务字段、尺寸、按钮、标签、卡片密度和视觉层级；保底同款微调，推荐在积木基础上做更好的页面规划和排版升级。",
     scoringRule: "score 为用户 1-10 分评分；8-10 分强参考，6-7 分适度参考，5 分及以下禁止参考。",
+    constraintPolicy: componentReferenceConstraintPolicy(),
     referencePolicy: policy,
     freedomRule: "允许有 AI 灵感，但灵感必须依托现有父模块、真实字段、可用尺寸或组件语言；不能把组件库参考当成新增业务能力授权。",
     availableCount: components.length,
@@ -3520,6 +3721,93 @@ function normalizeHomepageConfigComponentReferences(value) {
     .slice(0, 12);
 }
 
+function blockedComponentReferenceIdSet(components = readComponentLibrary().components) {
+  return new Set(
+    (Array.isArray(components) ? components : [])
+      .filter((component) => !componentReferenceAllowed(component))
+      .map((component) => component.id)
+      .filter(Boolean),
+  );
+}
+
+function stripBlockedComponentReferenceFields(value = {}) {
+  const next = { ...value };
+  [
+    "referenceComponentId",
+    "referenceComponentName",
+    "referenceFamily",
+    "referenceScore",
+    "referenceTier",
+    "referenceRule",
+    "referenceReason",
+    "componentReferenceId",
+    "componentReferenceName",
+  ].forEach((key) => {
+    delete next[key];
+  });
+  return next;
+}
+
+function purgeBlockedComponentReferencesFromConfig(config, options = {}) {
+  if (!config || typeof config !== "object") return config;
+  const components = readComponentLibrary().components;
+  const lookup = componentLibraryLookup(components);
+  const blockedIds = blockedComponentReferenceIdSet(components);
+  const removed = new Set();
+  const isBlockedReference = (reference = {}) => {
+    const id = cleanText(reference.componentId || reference.id || reference.referenceComponentId || reference.componentReferenceId, "", 96);
+    const blocked = (id && blockedIds.has(id)) || !componentReferenceAllowedByPolicy(reference, lookup);
+    if (blocked && id) removed.add(id);
+    return blocked;
+  };
+
+  const componentReferences = normalizeHomepageConfigComponentReferences(config.componentReferences);
+  config.componentReferences = componentReferences.filter((reference) => !isBlockedReference(reference));
+
+  if (config.componentMorphs && typeof config.componentMorphs === "object") {
+    config.componentMorphs = Object.fromEntries(
+      Object.entries(config.componentMorphs).map(([moduleId, morph]) => {
+        if (!morph || typeof morph !== "object" || !isBlockedReference(morph)) return [moduleId, morph];
+        return [moduleId, stripBlockedComponentReferenceFields(morph)];
+      }),
+    );
+  }
+
+  if (Array.isArray(config.brickPlan)) {
+    config.brickPlan = config.brickPlan.map((brick) => {
+      if (!brick || typeof brick !== "object" || !isBlockedReference(brick)) return brick;
+      return stripBlockedComponentReferenceFields(brick);
+    });
+  }
+
+  if (config.htmlScheme && typeof config.htmlScheme === "object" && Array.isArray(config.htmlScheme.componentReferences)) {
+    config.htmlScheme = {
+      ...config.htmlScheme,
+      componentReferences: normalizeAiHtmlComponentReferences(config.htmlScheme.componentReferences).filter((reference) => !isBlockedReference(reference)),
+    };
+  }
+
+  if (config.skeletonHtmlScheme && typeof config.skeletonHtmlScheme === "object" && config.skeletonHtmlScheme.slotComponents && typeof config.skeletonHtmlScheme.slotComponents === "object") {
+    const slotComponents = { ...config.skeletonHtmlScheme.slotComponents };
+    Object.entries(slotComponents).forEach(([slotId, component]) => {
+      if (!component || typeof component !== "object") return;
+      const reference = {
+        id: component.id,
+        componentId: component.referenceComponentId || component.id,
+        score: component.score,
+        referenceTier: component.referenceTier,
+      };
+      if (isBlockedReference(reference)) delete slotComponents[slotId];
+    });
+    config.skeletonHtmlScheme = { ...config.skeletonHtmlScheme, slotComponents };
+  }
+
+  if (removed.size && Array.isArray(options.actions)) {
+    options.actions.push(`已直接杜绝 ${removed.size} 个 5 分及以下组件引用：${[...removed].slice(0, 6).join(", ")}。`);
+  }
+  return config;
+}
+
 function shouldApplyHomepageReferenceVariant(config, moduleId, variantHint) {
   if (!variantHint) return false;
   const existingVariant = moduleVariantFromConfig(config, moduleId);
@@ -3669,6 +3957,7 @@ function applyComponentReferencesToHomepageConfig(config, prompt = "", options =
     options.actions.push(`已把组件库积木参考应用到模块变体：${[...new Set(appliedModules)].join(", ")}。`);
   }
   enforceServerComponentMorphs(config);
+  purgeBlockedComponentReferencesFromConfig(config, options);
   return config.componentReferences;
 }
 
@@ -4957,6 +5246,15 @@ function normalizeAiHtmlComponentReferences(value, fallback = []) {
         score: Number.isFinite(Number(item.score)) ? normalizeComponentScore(item.score, COMPONENT_REFERENCE_SCORE_POLICY.blockedMax) : undefined,
         visibleText: cleanText(item.visibleText, "", 220),
         styleSignals: normalizeAiHtmlTextList(item.styleSignals || item.hints, 6, 60),
+        structureSignals: normalizeAiHtmlTextList(item.structureSignals, 8, 80),
+        mustInherit: normalizeAiHtmlTextList(item.mustInherit, 8, 80),
+        htmlContract: item.htmlContract && typeof item.htmlContract === "object"
+          ? {
+              module: cleanText(item.htmlContract.module, "", 80),
+              requiredAttribute: cleanText(item.htmlContract.requiredAttribute, "", 140),
+              rule: cleanText(item.htmlContract.rule, "", 220),
+            }
+          : null,
       }, lookup);
     })
     .filter((item) => item && (item.componentId || item.family || item.module || item.reason))
@@ -5100,9 +5398,33 @@ function aiHtmlReferenceCoversFamily(reference = {}, family = "") {
   return actual.some((item) => expected.includes(item));
 }
 
-function aiHtmlComponentReferenceHints(requiredModules, prompt) {
+function aiHtmlComponentReferenceHints(requiredModules, prompt, context = {}) {
   const families = new Set(requiredModules.map((item) => item.family).filter(Boolean));
   const selected = [];
+  const localContext = context.localPromptBrickContext || (context.payload || context.config ? homepageLocalPromptBrickContext(context.payload || { prompt }, context.config || {}, { limit: 12 }) : null);
+  (localContext?.matchedBricks || []).forEach((item) => {
+    const reference = item.reference || {};
+    const componentId = cleanText(reference.id || reference.componentId, "", 96);
+    if (!componentId || selected.some((entry) => entry.componentId === componentId)) return;
+    selected.push({
+      componentId,
+      name: reference.name,
+      family: reference.family,
+      score: reference.score,
+      referenceTier: reference.referenceTier,
+      referenceRule: reference.referenceRule,
+      requiredFamily: item.requiredFamily || reference.family,
+      module: item.module,
+      reason: item.sourceBrickName
+        ? `本地命中积木「${item.sourceBrickName}」：参考「${reference.name}」的 ${reference.mustInherit?.slice(0, 4).join("、") || "字段密度和结构"}。`
+        : `${reference.name} ${componentReferenceTierLabel(reference.referenceTier)}，可参考 ${reference.styleSignals?.slice(0, 3).join("、") || "业务字段和布局密度"}`,
+      visibleText: reference.visibleText,
+      styleSignals: reference.styleSignals,
+      structureSignals: reference.structureSignals,
+      mustInherit: reference.mustInherit,
+      htmlContract: reference.htmlContract,
+    });
+  });
   families.forEach((family) => {
     const reference = aiHtmlReferenceFamilies(family)
       .flatMap((referenceFamily) => componentLibraryPromptReference({ prompt, family: referenceFamily, limit: 4 }).selectedComponents)
@@ -5175,6 +5497,105 @@ function expectedPrimaryCtaForPrompt(prompt, config = {}) {
   return null;
 }
 
+function escapeRegexLiteral(value) {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function aiHtmlReferenceStructureHitCount(reference = {}, html = "", css = "") {
+  const combined = `${html}\n${css}`;
+  const signals = [...(Array.isArray(reference.mustInherit) ? reference.mustInherit : []), ...(Array.isArray(reference.structureSignals) ? reference.structureSignals : [])];
+  const uniqueSignals = [...new Set(signals.map((item) => cleanText(item, "", 80)).filter(Boolean))];
+  const signalPatterns = [
+    { keys: ["字段密度", "表格", "列表"], pattern: /<table\b|<thead\b|<tbody\b|ai-html-(?:table|list|row|account)|交易环境|账号|Live|Demo/i },
+    { keys: ["图标", "图形"], pattern: /<svg\b|<path\b|icon/i },
+    { keys: ["趋势", "图表", "曲线"], pattern: /chart|curve|sparkline|trend|area|净值|PnL|收益率|曲线|回撤/i },
+    { keys: ["步骤", "路径"], pattern: /step|timeline|journey|mission|progress|KYC|开户|入金|01|02|03/i },
+    { keys: ["按钮", "CTA"], pattern: /data-home-action|<button\b|<a\b/i },
+    { keys: ["状态", "标签"], pattern: /badge|tag|pill|status|已|待|进行中|Live|Demo|认证/i },
+    { keys: ["三列", "指标"], pattern: /grid-template-columns\s*:\s*repeat\(\s*3|ai-html-(?:metric|asset|kpi|stat)/i },
+    { keys: ["矩阵", "入口"], pattern: /grid-template-columns\s*:\s*repeat\(\s*[4-8]|ai-html-(?:quick|action|dock|grid|matrix)/i },
+    { keys: ["响应式"], pattern: /@media/i },
+  ];
+
+  return signalPatterns.reduce((count, item) => {
+    const needed = uniqueSignals.some((signal) => item.keys.some((key) => signal.includes(key)));
+    return count + (needed && item.pattern.test(combined) ? 1 : 0);
+  }, 0);
+}
+
+function aiHtmlComponentReferenceRegion(reference = {}, html = "") {
+  const componentId = cleanText(reference.componentId || reference.id, "", 96);
+  if (!componentId) return "";
+  const id = escapeRegexLiteral(componentId);
+  const source = String(html || "");
+  const tagPattern = new RegExp(
+    `<(section|article|div|header|main|nav)\\b[^>]*data-component-reference=["']${id}["'][^>]*>[\\s\\S]*?<\\/\\1>`,
+    "i",
+  );
+  const directMatch = source.match(tagPattern);
+  if (directMatch) return directMatch[0];
+
+  const attrPattern = new RegExp(`.{0,900}data-component-reference=["']${id}["'].{0,1800}`, "i");
+  const looseMatch = source.match(attrPattern);
+  return looseMatch ? looseMatch[0] : "";
+}
+
+function evaluateAiHtmlBrickReferenceConformance(source = {}, payload = {}, config = {}, requiredModules = [], componentReferences = [], componentReferenceHints = []) {
+  if (source.mock || source.sourceType === "mock" || source.isFallback) {
+    return { issues: [], checks: ["Mock/Fallback 预览跳过强积木一致性门禁。"], missingReferenceAttributes: [], weakInheritedModules: [] };
+  }
+  const html = String(source.html || "");
+  const css = String(source.css || "");
+  const references = normalizeAiHtmlComponentReferences(
+    (Array.isArray(componentReferences) && componentReferences.length ? componentReferences : componentReferenceHints) || [],
+    componentReferenceHints,
+  );
+  const requiredSet = new Set((Array.isArray(requiredModules) ? requiredModules : []).map((item) => canonicalHomeBlock(item?.component)).filter(Boolean));
+  const candidates = references
+    .filter((reference) => {
+      const moduleId = canonicalHomeBlock(reference.module || reference.component);
+      const score = Number(reference.score);
+      return reference.componentId && (!requiredSet.size || requiredSet.has(moduleId)) && (!Number.isFinite(score) || score > COMPONENT_REFERENCE_SCORE_POLICY.blockedMax);
+    })
+    .slice(0, 8);
+  if (!candidates.length) return { issues: [], checks: [], missingReferenceAttributes: [], weakInheritedModules: [] };
+
+  const missingReferenceAttributes = candidates.filter((reference) => {
+    const id = escapeRegexLiteral(reference.componentId);
+    return !new RegExp(`data-component-reference=["']${id}["']`, "i").test(html);
+  });
+  const weakInheritedModules = candidates.filter((reference) => {
+    const regionHtml = aiHtmlComponentReferenceRegion(reference, html);
+    const moduleId = canonicalHomeBlock(reference.module || reference.component);
+    const moduleRegionMatched = moduleId
+      ? new RegExp(`data-ai-html-module=["']${escapeRegexLiteral(moduleId)}["']`, "i").test(regionHtml || "")
+      : true;
+    const structureHitCount = regionHtml
+      ? aiHtmlReferenceStructureHitCount(reference, regionHtml, css)
+      : 0;
+    if (!moduleRegionMatched) return true;
+    return structureHitCount < 2;
+  });
+
+  const issues = [];
+  const checks = [];
+  if (missingReferenceAttributes.length) {
+    issues.push(
+      missingReferenceAttributes.length === candidates.length
+        ? "命中积木没有落实到 HTML：所有参考只停留在 componentReferences，缺少 data-component-reference。"
+        : `部分命中积木没有落实到 HTML：${missingReferenceAttributes.map((item) => item.name || item.componentId).slice(0, 4).join("、")}。`,
+    );
+  } else {
+    checks.push("HTML 区域带有命中积木 data-component-reference。");
+  }
+  if (weakInheritedModules.length) {
+    issues.push(`命中积木结构继承不足：${weakInheritedModules.map((item) => item.name || item.componentId).slice(0, 4).join("、")} 仍像普通白卡或弱占位。`);
+  } else {
+    checks.push("HTML 继承了命中积木的字段/状态/按钮/图表等结构特征。");
+  }
+  return { issues, checks, missingReferenceAttributes, weakInheritedModules, candidates };
+}
+
 function evaluateAiHtmlQuality(scheme, payload = {}, config = {}) {
   const source = scheme && typeof scheme === "object" ? scheme : {};
   const html = String(source.html || "");
@@ -5186,8 +5607,16 @@ function evaluateAiHtmlQuality(scheme, payload = {}, config = {}) {
     source.implementationContract || source.moduleImplementation || source.capabilityContract,
     requiredModules,
   );
-  const componentReferenceHints = aiHtmlComponentReferenceHints(requiredModules, payload.prompt || "");
+  const componentReferenceHints = aiHtmlComponentReferenceHints(requiredModules, payload.prompt || "", { payload, config });
   const componentReferences = normalizeAiHtmlComponentReferences(source.componentReferences, []);
+  const brickConformance = evaluateAiHtmlBrickReferenceConformance(
+    source,
+    payload,
+    config,
+    requiredModules,
+    componentReferences,
+    componentReferenceHints,
+  );
   const issues = [];
   const checks = [];
   const strengths = [];
@@ -5272,7 +5701,7 @@ function evaluateAiHtmlQuality(scheme, payload = {}, config = {}) {
 	  if (thinVisibleModules.length) {
 	    miss(Math.min(24, thinVisibleModules.length * 6), `要求模块只有标题或弱露出，缺少可见字段/状态/动作：${thinVisibleModules.map((item) => item.label).slice(0, 4).join("、")}。`);
 	  }
-		  if (requiredModules.length >= 3) {
+	  if (requiredModules.length >= 3) {
 		    const requiredFamilies = [...new Set(requiredModules.map((item) => item.family).filter(Boolean))];
 		    const coveredFamilies = requiredFamilies.filter((family) => componentReferences.some((reference) => aiHtmlReferenceCoversFamily(reference, family)));
 		    if (!componentReferences.length) {
@@ -5283,6 +5712,16 @@ function evaluateAiHtmlQuality(scheme, payload = {}, config = {}) {
 	      pass("componentReferences 覆盖多个组件库家族。");
 	    }
 	  }
+
+  if (brickConformance.issues.length) {
+    const allReferencesMissing =
+      brickConformance.missingReferenceAttributes.length &&
+      brickConformance.missingReferenceAttributes.length === (brickConformance.candidates || []).length;
+    miss(allReferencesMissing ? 22 : Math.min(16, brickConformance.missingReferenceAttributes.length * 5 + 6), brickConformance.issues[0]);
+    if (brickConformance.issues[1]) miss(Math.min(18, brickConformance.weakInheritedModules.length * 5 + 6), brickConformance.issues[1]);
+  } else {
+    brickConformance.checks.forEach(pass);
+  }
 
   if (!implementationContract.length) {
     miss(18, "缺少 implementationContract，无法证明 AI HTML 不是静态外观空壳。");
@@ -5606,7 +6045,7 @@ function repairAiHtmlScheme(scheme, payload = {}, config = {}, providerConfig = 
   const expectedModules = aiHtmlRequiredModuleContracts(payload, config);
   const synthesizedImplementationContract = synthesizeAiHtmlImplementationContract(expectedModules, html);
   const implementationContract = normalized.implementationContract.length ? normalized.implementationContract : synthesizedImplementationContract;
-  const componentReferenceHints = aiHtmlComponentReferenceHints(expectedModules, payload.prompt || "");
+  const componentReferenceHints = aiHtmlComponentReferenceHints(expectedModules, payload.prompt || "", { payload, config });
   const componentReferences = normalized.componentReferences.length
     ? normalized.componentReferences
     : normalizeAiHtmlComponentReferences(componentReferenceHints);
@@ -6221,7 +6660,214 @@ function mockAiHtmlScheme(payload = {}, config = {}, providerConfig = {}) {
   );
 }
 
+function homepageBrickPlanItemForBlock(config = {}, block = "") {
+  const canonical = canonicalHomeBlock(block);
+  return (Array.isArray(config.brickPlan) ? config.brickPlan : []).find((item) => canonicalHomeBlock(item?.component || item?.feature || item?.brickId) === canonical) || null;
+}
+
+function selectHighScoreBrickForHomepageBlock(block, payload = {}, config = {}, usedIds = new Set()) {
+  const canonical = canonicalHomeBlock(block);
+  if (!canonical) return null;
+  const meta = homepageBlockMeta(canonical);
+  const brick = homepageBrickPlanItemForBlock(config, canonical);
+  const family = cleanText(brick?.family || meta.family || homepageComponentReferenceForBlock(canonical), "", 80);
+  if (!family) return null;
+  const size = normalizeComponentSize(brick?.size || meta.size || "", meta.size || autoComponentSizeForFamily(family));
+  const families = new Set(aiHtmlReferenceFamilies(family));
+  const libraryComponents = readComponentLibrary().components.filter(
+    (component) => componentReferenceAllowed(component, payload) && families.has(component.family) && !usedIds.has(component.id),
+  );
+  if (!libraryComponents.length) return null;
+  const ranked = rankComponentReferences(libraryComponents, {
+    prompt: payload.prompt,
+    family,
+    size,
+    limit: Math.min(12, libraryComponents.length),
+  });
+  const selected =
+    ranked.find((component) => component.family === family && component.size === size) ||
+    ranked
+      .filter((component) => component.family === family)
+      .sort((a, b) => componentSizeDistance(a.size, size) - componentSizeDistance(b.size, size))[0] ||
+    ranked[0];
+  if (!selected) return null;
+  usedIds.add(selected.id);
+  return {
+    block: canonical,
+    requestedFamily: family,
+    requestedSize: size,
+    component: selected,
+    admission: componentReferenceAdmission(selected, payload),
+    hints: inferHomepageComponentReferenceHints(family, selected),
+  };
+}
+
+function brickBackedContractSlotMarkup(block) {
+  const canonical = canonicalHomeBlock(block);
+  const contract = canonical ? AI_HTML_MODULE_CONTRACTS[canonical] : null;
+  if (!canonical || !contract) return "";
+  const capability = aiHtmlModuleCapability(canonical);
+  const action = (Array.isArray(capability.actions) ? capability.actions : []).find(Boolean);
+  return `
+    <article class="ai-html-contract-filler" data-ai-html-module="${escapeHtmlText(canonical)}">
+      <header><strong>${escapeHtmlText(contract.label || canonical)}</strong></header>
+      <p>${escapeHtmlText(contract.expectation || "按当前模块契约承接真实业务数据。")}</p>
+      <small>数据来自系统配置或接口，缺失显示 --。</small>
+      ${action ? `<a data-home-action="${escapeHtmlText(action)}" href="#${escapeHtmlText(action)}">${escapeHtmlText(action)}</a>` : ""}
+    </article>
+  `;
+}
+
+function brickBackedAiHtmlScheme(payload = {}, config = {}, providerConfig = {}, options = {}) {
+  const sections = (Array.isArray(config.sections) && config.sections.length ? config.sections : collectHomepageBlocks(config).map((block, index) => homepageSectionForSingleSlot(block, index)))
+    .map(parseHomepageSectionInput)
+    .filter((section) => section.slots.length);
+  const blocks = [...new Set(sections.flatMap((section) => section.slots).map(canonicalHomeBlock).filter(Boolean))];
+  if (!blocks.length) return null;
+
+  const usedIds = new Set();
+  const selectedByBlock = new Map();
+  blocks.forEach((block) => {
+    const selected = selectHighScoreBrickForHomepageBlock(block, payload, config, usedIds);
+    if (selected) selectedByBlock.set(block, selected);
+  });
+
+  const requiredModules = aiHtmlRequiredModuleContracts(payload, config);
+  const minimumBrickCoverage = Math.min(3, Math.max(1, requiredModules.length || blocks.length));
+  if (selectedByBlock.size < minimumBrickCoverage) return null;
+
+  const references = [...selectedByBlock.values()].map(({ block, requestedFamily, component, admission, hints }) => ({
+    componentId: component.id,
+    id: component.id,
+    name: component.name,
+    family: component.family,
+    requiredFamily: requestedFamily,
+    module: block,
+    component: block,
+    size: component.size,
+    score: admission.score,
+    referenceTier: admission.tier,
+    referenceRule: admission.rule,
+    visibleText: stripHtmlTags(component.html).slice(0, 220),
+    styleSignals: componentStyleSignals(component.css),
+    variantHint: hints.variant,
+    morphHint: hints.morph,
+    styleHint: hints.style,
+    reason: `高分积木同款保底：沿用「${component.name}」主结构，仅做页面容器、主题 token、响应式和动作绑定微调。`,
+  }));
+
+  const sectionMarkup = sections
+    .map((section) => {
+      const slots = section.slots
+        .map((slot) => {
+          const selected = selectedByBlock.get(slot);
+          if (!selected) return brickBackedContractSlotMarkup(slot);
+          const component = selected.component;
+          return `
+            <article class="ai-html-brick-slot" data-ai-html-module="${escapeHtmlText(slot)}" data-component-reference="${escapeHtmlText(component.id)}" data-reference-score="${selected.admission.score}">
+              ${component.html}
+            </article>
+          `;
+        })
+        .filter(Boolean)
+        .join("\n");
+      return `
+        <section class="ai-html-brick-section ai-html-brick-section-${escapeHtmlText(section.type)}" data-ai-html-section="${escapeHtmlText(section.id)}">
+          ${slots}
+        </section>
+      `;
+    })
+    .join("\n");
+
+  const title = escapeHtmlText(cleanText(config.name, "高分积木约束首页", 48));
+  const componentCss = [...new Set([...selectedByBlock.values()].map((item) => sanitizeAiHtmlCss(item.component.css).trim()).filter(Boolean))].join("\n\n");
+  const html = `
+    <section class="ai-html-page ai-html-brick-backed-page" data-ai-html-source="high-score-bricks" data-ai-html-pipeline="high-score-brick-backed-html">
+      <header class="ai-html-brick-backed-head">
+        <div>
+          <small>高分积木约束</small>
+          <h1>${title}</h1>
+          <p>优先沿用 5 分以上积木结构；模型输出不稳定时，回到同款积木并做可控微调。</p>
+        </div>
+      </header>
+      <main class="ai-html-brick-backed-flow">
+        ${sectionMarkup}
+      </main>
+    </section>
+  `;
+  const css = `
+    .ai-html-brick-backed-page{display:grid;gap:18px;padding:16px;background:var(--home-bg,#f6f8fb);color:var(--home-text,#172033)}
+    .ai-html-brick-backed-page *{box-sizing:border-box}
+    .ai-html-brick-backed-head{display:grid;gap:8px;padding:18px 20px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-card-bg,#fff)}
+    .ai-html-brick-backed-head h1{margin:0;font-size:28px;line-height:1.15;letter-spacing:0}
+    .ai-html-brick-backed-head p{margin:0;color:var(--home-text-muted,#64748b);line-height:1.6}
+    .ai-html-brick-backed-head small{color:var(--home-primary,#2563eb);font-weight:900}
+    .ai-html-brick-backed-flow{display:grid;gap:16px}
+    .ai-html-brick-section{display:grid;gap:14px}
+    .ai-html-brick-section-hero,.ai-html-brick-section-split{grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch}
+    .ai-html-brick-section-full{grid-template-columns:1fr}
+    .ai-html-brick-slot{min-width:0;display:block}
+    .ai-html-contract-filler{display:grid;gap:10px;padding:16px;border:1px dashed var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-card-bg,#fff)}
+    .ai-html-contract-filler p{margin:0;color:var(--home-text-muted,#64748b);line-height:1.6}
+    .ai-html-brick-backed-page a[data-home-action],.ai-html-brick-backed-page button{min-height:40px;display:inline-grid;place-items:center;width:max-content;max-width:100%;padding:0 14px;border:1px solid var(--home-button-border,var(--home-primary,#2563eb));border-radius:var(--home-radius-sm,8px);background:var(--home-button-bg,var(--home-primary,#2563eb));color:var(--home-button-text,#fff);font:inherit;font-weight:900;text-decoration:none}
+    @media(max-width:860px){.ai-html-brick-backed-page{padding:12px}.ai-html-brick-section-hero,.ai-html-brick-section-split{grid-template-columns:1fr}.ai-html-brick-backed-head h1{font-size:24px}.ai-html-brick-backed-page a[data-home-action],.ai-html-brick-backed-page button{width:100%}}
+    ${componentCss}
+  `;
+
+  const uncoveredBlocks = blocks.filter((block) => !selectedByBlock.has(block));
+  return repairAiHtmlScheme(
+    {
+      name: `${cleanText(config.name, "首页", 48)} · 高分积木 HTML`,
+      summary: "AI HTML 受控兜底：用 5 分以上积木直接装配页面，保证最差结果仍接近已保存积木。",
+      visualBrief: "保留高分积木的原始组件结构，再通过页面栅格、主题 token、响应式和动作绑定做轻量整合。",
+      html,
+      css,
+      dataBindings: aiHtmlDataBindingsFromConfig(config),
+      requiredModules: requiredModules.map((item) => item.label),
+      implementationContract: synthesizeAiHtmlImplementationContract(requiredModules, html),
+      componentReferences: references,
+      designNotes: [
+        "保底模式采用高分积木同款微调，不从零自由写 HTML。",
+        "推荐继续让模型在这些积木基础上升级首屏规划、模块比例和字段层级。",
+      ],
+      safetyNotes: ["已过滤 5 分及以下积木，只装配可参考的高分组件。"],
+      correctionNotes: [
+        `高分积木同款保底覆盖 ${selectedByBlock.size}/${blocks.length} 个模块。`,
+        uncoveredBlocks.length ? `未命中高分积木的模块使用契约填充：${uncoveredBlocks.slice(0, 5).join("、")}。` : "所有可见模块均命中高分积木。",
+        ...(Array.isArray(options.correctionNotes) ? options.correctionNotes : []),
+      ],
+      generationPipeline: "high-score-brick-backed-html",
+      correctionStatus: "brick-backed",
+      sourceType: "brick-library-backed",
+      isFallback: false,
+      fallbackReason: cleanText(options.fallbackReason, "", 220),
+      modelAttempted: typeof options.modelAttempted === "boolean" ? options.modelAttempted : true,
+      mock: false,
+    },
+    payload,
+    config,
+    providerConfig,
+    {
+      sourceType: "brick-library-backed",
+      generationPipeline: "high-score-brick-backed-html",
+      modelAttempted: typeof options.modelAttempted === "boolean" ? options.modelAttempted : true,
+      mock: false,
+      fallbackReason: options.fallbackReason || "",
+    },
+  );
+}
+
 function configBackedAiHtmlScheme(payload = {}, config = {}, providerConfig = {}, options = {}) {
+  const brickBacked = brickBackedAiHtmlScheme(payload, config, providerConfig, {
+    modelAttempted: true,
+    fallbackReason: options.failureSummary || options.fallbackReason || "",
+    correctionNotes: [
+      "AI HTML 模型长输出未采用，已切换为高分积木同款保底预览。",
+      ...(Array.isArray(options.correctionNotes) ? options.correctionNotes : []),
+    ],
+  });
+  if (brickBacked) return brickBacked;
+
   const localScheme = mockAiHtmlScheme(payload, config, providerConfig);
   const providerName = cleanText(options.providerName || providerConfig.name || providerConfig.provider || "模型", "模型", 40);
   const providerId = cleanText(providerConfig.provider || options.providerId || "provider", "provider", 32).toLowerCase();
@@ -6271,6 +6917,18 @@ function configBackedAiHtmlScheme(payload = {}, config = {}, providerConfig = {}
     config,
     providerConfig,
   );
+}
+
+function aiHtmlNeedsBrickBackedFallback(scheme = {}) {
+  if (!scheme?.enabled || scheme.sourceType === "brick-library-backed") return false;
+  if (scheme.mock || scheme.isFallback) return false;
+  const score = Number(scheme.qualityScore);
+  const issues = Array.isArray(scheme.qualityIssues) ? scheme.qualityIssues.join(" ") : "";
+  if (scheme.qualityStatus === "needs-repair") return true;
+  if (scheme.qualityStatus !== "passed" && Number.isFinite(score) && score < 82) return true;
+  if (Number.isFinite(score) && score < 68) return true;
+  if (/命中积木没有落实到 HTML|命中积木结构继承不足|普通白卡|弱占位/.test(issues)) return true;
+  return false;
 }
 
 function minimaxConfigBackedAiHtmlScheme(payload = {}, config = {}, providerConfig = {}) {
@@ -6325,7 +6983,12 @@ function buildFreeAiHtmlPrompt(payload) {
     })),
   });
   const componentReference = componentLibraryPromptReference({ prompt, limit: 12 });
-  const referenceHints = aiHtmlComponentReferenceHints(requiredModules, prompt);
+  const localBrickContext = homepageLocalPromptBrickContext(payload, { sections: (Array.isArray(intentProfile.mustHave) ? intentProfile.mustHave : []).map((slot, index) => ({
+    id: `intent-${index + 1}`,
+    type: index === 0 ? "hero" : "main",
+    slots: [slot],
+  })) });
+  const referenceHints = aiHtmlComponentReferenceHints(requiredModules, prompt, { payload, localPromptBrickContext: localBrickContext });
   const trainingContext = aestheticTrainingContext({ prompt }, { sampleLimit: 4, componentLimit: 10, feedbackLimit: 6 });
   const designGovernance = designRulesPromptReference();
   const system = [
@@ -6339,7 +7002,9 @@ function buildFreeAiHtmlPrompt(payload) {
     "必须先理解 requiredModules，每个要求模块都要在 HTML 中有可见表达；不能把 KYC、交易账号、账户表现、推广链接等业务要求简化成普通标题或空白卡片。",
     "必须参考 componentLibraryReference 和 componentReferenceHints 的业务字段、按钮密度、卡片比例、状态标签、图表/列表表达；允许变形和重组，但要在 componentReferences 写明参考了哪些积木以及如何自由发挥。",
     "组件库参考是硬约束：componentReferences 至少覆盖 3 个 requiredModules 或组件家族；HTML 必须把参考转成具体结构差异，例如指标带、任务时间线、账号列表、趋势图、操作 Dock、FAQ 折叠或风险提示条。",
+    "本地 prompt 加工结果是硬约束：localBrickContext.matchedBricks 已经完成意图到积木的命中；对应 HTML 区域必须带 data-component-reference，并继承命中积木的 mustInherit 结构，不得只写普通白卡。",
     "组件库评分是硬约束：8-10 分积木必须优先参考；6-7 分只适度参考；5 分及以下禁止参考、禁止出现在 componentReferences 或自由发挥来源。",
+    "积木约束生成策略：最差结果必须接近命中的高分积木同款，只能微调文案、主题 token、响应式和动作绑定；推荐结果是在高分积木上提升首屏规划、排版层级、字段密度和模块组合，而不是从零发明 HTML。",
     "必须参考 designTrainingContext：样本页面用于判断整体页面骨架和功能流，beautifulComponents 用于吸收漂亮积木块的视觉细节，feedbackMemory 用于避开用户否定过的审美方向。",
     "moduleMapping 必须说明每个 requiredModules 如何映射到 HTML 中的区域、参考的组件家族，以及自由变形点。",
     "implementationContract 必须是数组，每个 requiredModules 至少一项，字段包括 module、label、family、dataFields、states、actions、interactions、renderEvidence；它用来证明该模块不是静态外观空壳。",
@@ -6377,6 +7042,9 @@ function buildFreeAiHtmlPrompt(payload) {
     "",
     "建议优先参考的积木:",
     compactJson(referenceHints),
+    "",
+    "本地 prompt 加工与积木命中结果:",
+    compactJson(localBrickContext),
     "",
     "审美训练上下文:",
     compactJson(trainingContext),
@@ -6416,6 +7084,8 @@ function buildAiHtmlPrompt(payload, configScheme = {}, options = {}) {
   const previousScheme = options.previousScheme || null;
   const trainingContext = aestheticTrainingContext({ prompt }, { sampleLimit: 4, componentLimit: 10, feedbackLimit: 6 });
   const designGovernance = designRulesPromptReference();
+  const localBrickContext = homepageLocalPromptBrickContext(payload, configScheme);
+  const referenceHints = aiHtmlComponentReferenceHints(requiredModules, prompt, { payload, config: configScheme, localPromptBrickContext: localBrickContext });
   const system = [
     "你是 ForexCRM 首页视觉设计修正器。",
     "只输出一个能被 JSON.parse 解析的紧凑 JSON object，不要 markdown、代码块或解释。",
@@ -6431,7 +7101,9 @@ function buildAiHtmlPrompt(payload, configScheme = {}, options = {}) {
     "如果 repairedConfig.pagePlan 存在，必须让 pagePlan.mainVisual 成为唯一最高视觉权重；其它模块不得使用更大的标题、更强背景或重复强 CTA。",
     "每个 repairedConfig.sections[].slots 都必须按原顺序生成 data-ai-html-module 可见区域，section 顺序也必须和 repairedConfig.sections 完全一致。",
     "组件库参考是硬约束：componentReferences 至少覆盖 3 个 requiredModules 或组件家族，并把参考转成结构差异，不要只写普通白卡片。",
+    "本地 prompt 加工结果是硬约束：localBrickContext 已把管理员需求映射成 matchedBricks；每个命中模块的 HTML 区域必须带 data-component-reference，并继承 mustInherit 中至少两个结构维度。",
     "组件库评分是硬约束：8-10 分积木强参考；6-7 分积木适度参考；5 分及以下积木禁止借鉴，不能作为兜底或 componentReferences。",
+    "积木约束生成策略：保底同款微调，推荐在高分积木基础上升级排版规划；如果你无法证明比积木更好，就回到积木结构，不要自由发挥成普通白卡片。",
     "必须同时参考 designTrainingContext：样本页面决定页面级构图和功能流，beautifulComponents 决定积木级细节，feedbackMemory 决定用户长期偏好。",
     "如果上一版问题指出模块缺失、token 不足、结构太平或占位符太多，这一版必须通过不同布局和更具体业务表达修复。",
     "implementationContract 必须逐模块写明 dataFields、states、actions、interactions、renderEvidence；修正版必须补齐上一版缺失的模块实现协议。",
@@ -6456,6 +7128,12 @@ function buildAiHtmlPrompt(payload, configScheme = {}, options = {}) {
     "",
     "组件库视觉参考摘要:",
     compactJson(componentLibraryPromptReference({ prompt, limit: 10 })),
+    "",
+    "优先参考的积木提示:",
+    compactJson(referenceHints),
+    "",
+    "本地 prompt 加工与积木命中结果:",
+    compactJson(localBrickContext),
     "",
     "审美训练上下文:",
     compactJson(trainingContext),
@@ -6512,7 +7190,8 @@ function buildMiniMaxAiHtmlPrompt(payload, configScheme = {}, options = {}) {
           })),
         };
 	  const requiredModules = aiHtmlRequiredModuleContracts(payload, seedConfig).slice(0, 5);
-  const referenceHints = aiHtmlComponentReferenceHints(requiredModules, prompt).slice(0, 5);
+  const localBrickContext = homepageLocalPromptBrickContext(payload, seedConfig, { limit: 6 });
+  const referenceHints = aiHtmlComponentReferenceHints(requiredModules, prompt, { payload, config: seedConfig, localPromptBrickContext: localBrickContext }).slice(0, 5);
 	  const qualityReport = options.qualityReport || null;
 	  const designGovernance = designRulesPromptReference();
 
@@ -6529,6 +7208,8 @@ function buildMiniMaxAiHtmlPrompt(payload, configScheme = {}, options = {}) {
 	    "如果 repairedConfig.pagePlan 存在，pagePlan.mainVisual 是唯一最高视觉权重模块，其它模块只能做解释、证明或收口。",
 	    "每个 requiredModules 至少在 html 中有 data-ai-html-module 可见区域；模块内容必须短，可用 Sample 或 --。",
 	    "必须参考 referenceHints 的 componentId、name、visibleText 和 styleSignals；即使不返回完整 componentReferences，HTML 也要体现对应积木的字段密度、状态标签和布局语言。",
+	    "本地 prompt 加工已在 localBrickContext 命中积木；对应模块区域必须带 data-component-reference，并尽量同款微调高分积木结构。",
+	    "保底同款微调：如果篇幅不够或无法稳定发挥，就按 referenceHints 的高分积木结构输出最接近的 HTML，只微调排版、token、文案和 data-home-action。",
 	    "禁止 JS、script、iframe、form、input、事件属性、远程图片、真实下载链接或稳赚/监管承诺。",
 	  ].join("\n");
 
@@ -6565,7 +7246,18 @@ function buildMiniMaxAiHtmlPrompt(payload, configScheme = {}, options = {}) {
 	      reason: item.reason,
 	      visibleText: item.visibleText,
 	      styleSignals: item.styleSignals,
+	      structureSignals: item.structureSignals,
+	      mustInherit: item.mustInherit,
+	      htmlContract: item.htmlContract,
 	    }))),
+	    "",
+	    "localBrickContext:",
+	    compactJson({
+	      processingPipeline: localBrickContext.processingPipeline,
+	      promptUnderstanding: localBrickContext.promptUnderstanding,
+	      matchedBricks: localBrickContext.matchedBricks?.slice(0, 5),
+	      modelHardRules: localBrickContext.modelHardRules,
+	    }),
 	    "",
 	    "design.md 摘要:",
     compactJson({
@@ -6602,7 +7294,8 @@ function buildCompactAiHtmlPrompt(payload, configScheme = {}, options = {}) {
           })),
 	        };
   const requiredModules = aiHtmlRequiredModuleContracts(payload, seedConfig).slice(0, 6);
-  const referenceHints = aiHtmlComponentReferenceHints(requiredModules, prompt).slice(0, 5);
+  const localBrickContext = homepageLocalPromptBrickContext(payload, seedConfig, { limit: 6 });
+  const referenceHints = aiHtmlComponentReferenceHints(requiredModules, prompt, { payload, config: seedConfig, localPromptBrickContext: localBrickContext }).slice(0, 5);
   const qualityReport = options.qualityReport || null;
   const previousScheme = options.previousScheme || null;
   const designGovernance = designRulesPromptReference();
@@ -6619,6 +7312,8 @@ function buildCompactAiHtmlPrompt(payload, configScheme = {}, options = {}) {
 	    "如果 repairedConfig.pagePlan 存在，pagePlan.mainVisual 是唯一最高视觉权重模块，其它模块不能用更强背景、标题或 CTA 抢戏。",
 	    "每个 repairedConfig.sections[].slots 都必须按原顺序生成 data-ai-html-module 可见区域；服务端会根据配置补齐 implementationContract。",
 	    "组件库参考是硬约束：必须参考 referenceHints 的 componentId、name、visibleText 和 styleSignals，把积木字段密度、状态标签、按钮层级和图表/列表表达转成 HTML 结构。",
+	    "本地 prompt 加工已在 localBrickContext 命中积木；对应模块区域必须带 data-component-reference，并继承 mustInherit 中至少两个结构维度。",
+	    "保底同款微调：如果无法做出明确提升，就按高分积木的结构近似复刻；推荐再优化首屏规划、模块比例和信息层级。",
 	    "至少包含三种结构：首屏/指标/步骤或列表/风险提示中的三类；所有 a/button 必须显式样式化，不能保留浏览器默认按钮。",
 	    "真实数据缺失时用 Sample、-- 或后台绑定说明，不得编造稳赚收益、监管承诺、真实下载链接或后台未提供的数据。",
 	  ].join("\n");
@@ -6656,7 +7351,18 @@ function buildCompactAiHtmlPrompt(payload, configScheme = {}, options = {}) {
 	      reason: item.reason,
 	      visibleText: item.visibleText,
 	      styleSignals: item.styleSignals,
+	      structureSignals: item.structureSignals,
+	      mustInherit: item.mustInherit,
+	      htmlContract: item.htmlContract,
 	    }))),
+    "",
+    "本地 prompt 加工与积木命中结果:",
+    compactJson({
+      processingPipeline: localBrickContext.processingPipeline,
+      promptUnderstanding: localBrickContext.promptUnderstanding,
+      matchedBricks: localBrickContext.matchedBricks?.slice(0, 5),
+      modelHardRules: localBrickContext.modelHardRules,
+    }),
     "",
     "design.md 设计治理摘要:",
     compactJson({
@@ -6695,7 +7401,7 @@ function buildCompactAiHtmlPrompt(payload, configScheme = {}, options = {}) {
 }
 
 function providerUsesCompactAiHtml(config = {}) {
-  return ["minimax", "deepseek", "kimi", "gemini"].includes(config.provider);
+  return ["minimax", "deepseek", "kimi"].includes(config.provider);
 }
 
 function aiHtmlPromptForProvider(config, payload, configScheme = {}, options = {}) {
@@ -6931,6 +7637,7 @@ function buildComponentPrompt(payload) {
     "必须遵守 design.md 设计治理：组件漂亮来自主焦点、字段层级、状态细节、按钮主次和响应式稳定，不来自大圆角、厚阴影、随机渐变或营销装饰。",
     "生成前必须先参考用户消息里的“组件库参考”“用户评分优先参考”和“漂亮积木审美参考”：理解已保存积木的业务字段、尺寸、按钮、标签、卡片密度、视觉层级和漂亮组件的结构手法，再围绕本次需求发挥。",
     "用户评分为 1-10 分；同类或同尺寸组件中优先参考高分积木，但不要逐字复制。",
+    "组件生成底线：只参考 5 分以上积木；如果模型无法明显提升，就返回最接近高分积木的同款微调版，不要自由生成普通卡片。",
     "漂亮不是装饰更多，而是主次更清楚、比例更成熟、字段更贴近业务、动作更有层级；不要用大面积空白、厚重阴影、营销渐变或英文装饰标签假装高级。",
     "允许创造新的结构和样式变体，但必须能追溯到现有父模块、真实业务字段、尺寸语言或组件库里的积木表达；不要凭空发明业务能力。",
     "不要逐字复制某个已保存组件，也不要只换标题或颜色；需要在布局、密度、层级或组合方式上形成新的有用变体。",
@@ -8241,6 +8948,15 @@ function buildMiniMaxPrompt(payload) {
   const modulePolicy = buildHomepageModulePolicy(payload);
   const humanUnderstanding = extractHomepageUnderstanding(prompt);
   const designGovernance = designRulesPromptReference();
+  const localBrickContext = homepageLocalPromptBrickContext(payload, {
+    pageIntent: intentProfile,
+    heroFocus: intentProfile.heroFocus,
+    sections: (Array.isArray(intentProfile.mustHave) ? intentProfile.mustHave : []).map((slot, index) => ({
+      id: `prompt-intent-${index + 1}`,
+      type: index === 0 ? "hero" : "full",
+      slots: [slot],
+    })),
+  });
   const system = [
     "你是 ForexCRM 首页蓝图生成器。",
     "只输出一个能被 JSON.parse 解析的紧凑 JSON object。",
@@ -8299,6 +9015,7 @@ function buildMiniMaxPrompt(payload) {
     "模型返回必须包含 pageIntent；如果 pageIntent 与管理员需求有冲突，仍以服务端识别结果为准。",
     "必须先选择 designGenome 和 pageStory，再选择积木：magazineCampaign=活动专题封面，tradingCommand=交易指挥中心，onboardingJourney=新客旅程，privateWealthDesk=私行服务台，accountOpsConsole=账户运营控制台。",
     "生成模块表达时必须参考 componentLibraryReference：先吸收已保存积木的字段、尺寸、按钮、标签和卡片密度，再结合 pageIntent 发挥；不要脱离组件库语言空想新模块。",
+    "用户原始 prompt 在发送前已经由服务端加工为 localPromptBrickContext：先识别意图和模块，再命中高分积木。brickPlan、sections、componentMorphs 必须优先服从 matchedBricks，不能只写积木名字却换成普通白卡结构。",
     "组件库评分分档是硬约束：8-10 分必须优先参考，6-7 分适度参考，5 分及以下禁止借鉴、禁止兜底、禁止进入 componentReferences 或 brickPlan 的 referenceComponentId。",
     "生成页面审美时必须参考 aestheticTraining：samplePages 决定页面级构图和功能流，beautifulComponents 决定漂亮积木块细节，feedbackMemory 决定用户长期偏好；不要输出平均白卡表单页。",
     "componentLibraryReference 只能作为形态和灵感参考，不能授权新增 allowedBlocks 以外的业务模块，也不能把组件 HTML/CSS 直接塞进首页配置。",
@@ -8320,6 +9037,7 @@ function buildMiniMaxPrompt(payload) {
     humanUnderstanding,
     brickReference: canonicalHomepageReference(),
     componentMorphPool: CORE_COMPONENT_MORPH_POOL,
+    localPromptBrickContext: localBrickContext,
     componentLibraryReference: componentLibraryPromptReference({ prompt, limit: 12 }),
     aestheticTraining: aestheticTrainingContext({ prompt }, { sampleLimit: 4, componentLimit: 10, feedbackLimit: 6 }),
     savedCompositionReference: savedCompositionPromptReference(6),
@@ -8746,6 +9464,15 @@ function buildLowLatencyHomepagePrompt(payload, config = {}) {
   const design = homepageDesignForIntent(intentProfile.primaryIntent);
   const providerName = config.name || PROVIDERS[config.provider]?.name || "AI";
   const designGovernance = designRulesPromptReference();
+  const localBrickContext = homepageLocalPromptBrickContext(payload, {
+    pageIntent: intentProfile,
+    heroFocus: intentProfile.heroFocus,
+    sections: (Array.isArray(intentProfile.mustHave) ? intentProfile.mustHave : []).map((slot, index) => ({
+      id: `compact-intent-${index + 1}`,
+      type: index === 0 ? "hero" : "full",
+      slots: [slot],
+    })),
+  }, { limit: 6 });
 
   const system = [
     "你是 ForexCRM 首页蓝图生成器。",
@@ -8760,6 +9487,7 @@ function buildLowLatencyHomepagePrompt(payload, config = {}) {
     "PAMM 和 CopyTrading 必须分别用 pamm_products 与 copytrading_signals，不能合并。",
     "连续收益、净值、PnL、回撤等趋势数据必须表达为折线或面积折线，真实数据在 dataContract 标记接口绑定和 fallback。",
     "紧凑输出契约会包含 aestheticSamples、beautifulComponents 和 feedbackMemory；必须用它们决定页面级构图、漂亮积木块细节和用户偏好，不能只输出平均白卡布局。",
+    "紧凑输出契约也包含 localPromptBrickContext；这是服务端对原始 prompt 的本地加工和高分积木命中结果，brickPlan 与 moduleStyles 必须优先贴合 matchedBricks。",
     "组件库评分必须执行：8-10 分强参考，6-7 分适度参考，5 分及以下禁止参考。",
     "视觉模式必须返回 colorMode=\"auto\"，除非管理员只要求白天或只要求暗夜；minimalWhite、blueFinance、lightGold 的白天模式不得使用大面积黑色/终端色块，暗色只在 darkTech 或 colorMode=dark 时出现。",
     `空间利用是硬约束：桌面 12 栅格紧凑填充，${COMPONENT_SIZE_GUIDE} 优先宽幅积木独占、2x+1x、2x+2x；移动端自然单列。`,
@@ -8785,6 +9513,13 @@ function buildLowLatencyHomepagePrompt(payload, config = {}) {
     "",
     "紧凑输出契约:",
     compactJson(compactHomepageContract(intentProfile, prompt, modulePolicy)),
+    "",
+    "本地 prompt 加工与积木命中结果:",
+    compactJson({
+      promptUnderstanding: localBrickContext.promptUnderstanding,
+      matchedBricks: localBrickContext.matchedBricks?.slice(0, 5),
+      modelHardRules: localBrickContext.modelHardRules,
+    }),
     "",
     "design.md 设计治理摘要:",
     compactJson({
@@ -9161,6 +9896,16 @@ function buildProviderRequest(config, apiKey, promptParts, schema, schemaName) {
 
 function responseContentText(value) {
   if (typeof value === "string") return value;
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    if (typeof value.text === "string") return value.text;
+    if (typeof value.content === "string") return value.content;
+    if (typeof value.output_text === "string") return value.output_text;
+    try {
+      return JSON.stringify(value);
+    } catch (error) {
+      return "";
+    }
+  }
   if (!Array.isArray(value)) return "";
   return value
     .map((item) => (typeof item === "string" ? item : item?.text || item?.content || ""))
@@ -14329,6 +15074,31 @@ async function callProvider(payload) {
     }
   }
 
+  if (
+    renderModeWantsAiHtml(renderMode) &&
+    htmlScheme?.enabled &&
+    htmlScheme.sourceType !== "brick-library-backed" &&
+    aiHtmlNeedsBrickBackedFallback(htmlScheme)
+  ) {
+    const brickBacked = brickBackedAiHtmlScheme(policyPayload, homepageConfig, resultProviderConfig, {
+      modelAttempted: true,
+      fallbackReason: `AI HTML 质量门禁 ${htmlScheme.qualityScore ?? "unknown"}/100 未达标，已启用高分积木同款保底。`,
+      correctionNotes: [
+        `上一版 AI HTML 质量状态：${htmlScheme.qualityStatus || "unknown"}。`,
+        ...(Array.isArray(htmlScheme.qualityIssues) ? htmlScheme.qualityIssues.slice(0, 3) : []),
+      ],
+    });
+    if (brickBacked) {
+      htmlScheme = {
+        ...brickBacked,
+        correctionNotes: [
+          ...(Array.isArray(brickBacked.correctionNotes) ? brickBacked.correctionNotes : []),
+          "已用高分积木同款保底替换低质量 AI HTML，避免发布普通白卡片或空壳 HTML。",
+        ].slice(0, 8),
+      };
+    }
+  }
+
   const finalQuality = finalizeHomepageQuality(policyPayload, homepageConfig, htmlScheme);
   const finalConfig = {
     ...homepageConfig,
@@ -15195,6 +15965,7 @@ const server = http.createServer(async (req, res) => {
               name: provider.name,
               apiMode: config.apiMode,
               model: config.model,
+              models: provider.models || [config.model],
               baseUrl: config.baseUrl,
               endpoint: config.endpoint,
               ...providerKeyStatus(provider),
@@ -15294,6 +16065,7 @@ const server = http.createServer(async (req, res) => {
               name: provider.name,
               apiMode: config.apiMode,
               model: config.model,
+              models: provider.models || [config.model],
               baseUrl: config.baseUrl,
               endpoint: config.endpoint,
               ...providerKeyStatus(provider),

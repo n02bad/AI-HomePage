@@ -15,6 +15,16 @@
   const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
   const GEMINI_OPENAI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai";
   const GEMINI_DEFAULT_MODEL = "gemini-2.5-flash";
+  const GEMINI_TEXT_MODELS = [
+    GEMINI_DEFAULT_MODEL,
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-pro",
+    "gemini-3-flash-preview",
+    "gemini-3.1-flash-lite",
+    "gemini-3.1-flash-lite-preview",
+    "gemini-3.1-pro-preview",
+    "gemini-3.1-pro-preview-customtools",
+  ];
   const BACKGROUND_JOB_POLL_MS = 1100;
   const BACKGROUND_JOB_MAX_WAIT_MS = 20 * 60 * 1000;
 
@@ -73,7 +83,7 @@
       provider: "gemini",
       name: "Gemini",
       model: GEMINI_DEFAULT_MODEL,
-      models: [GEMINI_DEFAULT_MODEL, "gemini-3-flash-preview", "gemini-2.5-flash-lite", "gemini-2.5-pro"],
+      models: GEMINI_TEXT_MODELS,
       baseUrl: GEMINI_OPENAI_BASE_URL,
       endpoint: "/chat/completions",
       apiMode: "openai-chat",
