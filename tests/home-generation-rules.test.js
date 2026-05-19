@@ -270,6 +270,45 @@ function postJson(port, payload) {
   });
 }
 
+function requestJson(port, requestPath, payload = null, method = payload ? "POST" : "GET") {
+  return new Promise((resolve, reject) => {
+    const body = payload ? JSON.stringify(payload) : "";
+    const req = http.request(
+      {
+        hostname: "127.0.0.1",
+        port,
+        path: requestPath,
+        method,
+        headers: {
+          accept: "application/json",
+          ...(payload ? { "content-type": "application/json", "content-length": Buffer.byteLength(body) } : {}),
+        },
+      },
+      (res) => {
+        let data = "";
+        res.on("data", (chunk) => {
+          data += chunk;
+        });
+        res.on("end", () => {
+          try {
+            const json = JSON.parse(data);
+            if (res.statusCode < 200 || res.statusCode >= 300 || json.ok === false) {
+              reject(new Error(json.error || `${res.statusCode} ${res.statusMessage}`));
+              return;
+            }
+            resolve(json);
+          } catch (error) {
+            reject(error);
+          }
+        });
+      },
+    );
+    req.on("error", reject);
+    if (body) req.write(body);
+    req.end();
+  });
+}
+
 async function assertServerVariantDiversity(port, prompt, expectedMin = 2) {
   const responses = [];
   for (const variant of [0, 1, 2]) {
@@ -897,6 +936,10 @@ async function run() {
 	  assert(serverSource.includes("按钮仍像原生控件"), "AI HTML quality gate must penalize native-looking browser controls");
 	  assert(serverSource.includes("组件库参考是硬约束"), "AI HTML prompts must treat component-library references as a hard constraint");
 	  assert(serverSource.includes("componentReferences 至少覆盖 3 个 requiredModules"), "AI HTML prompts must require broad component-library reference coverage");
+	  assert(serverSource.includes("goldenSamplePages 是整页黄金样本 primary reference"), "AI generation must treat whole-page golden samples as primary references");
+	  assert(serverSource.includes("lowScoreAntiExamples"), "AI generation must retrieve low-score anti examples");
+	  assert(serverSource.includes("HOME_GOLDEN_SAMPLE_DIMENSIONS"), "golden samples must persist the expanded aesthetic scoring dimensions");
+	  assert(serverSource.includes("saveGoldenSampleScreenshotAsset"), "golden sample saves must support persisted screenshot evidence");
 		  assert(serverSource.includes("componentReferenceHints"), "AI HTML generation must use component-library reference hints");
 		  assert(serverSource.includes("applyComponentReferencesToHomepageConfig"), "homepage config generation must apply component-library references to modules and morphs");
 		  assert(serverSource.includes("referenceComponentId"), "homepage config must persist applied component-library reference ids");
@@ -985,6 +1028,62 @@ async function run() {
 
   try {
     await waitForServer(child, port);
+    const designSamplesPath = path.join(ROOT, "home-design-samples.json");
+    const originalDesignSamples = fs.readFileSync(designSamplesPath, "utf8");
+    try {
+      const savedGolden = await requestJson(port, "/api/home-ai/design-samples", {
+        sample: {
+          id: "test-blackgold-vip-golden-page",
+          sampleKind: "golden-page",
+          name: "测试黑金 VIP 黄金首页",
+          prompt: "黑金 VIP 首页，首屏突出资产、入金和专属服务。",
+          scenarioTags: ["黑金 VIP", "白标资金安全"],
+          pageIntent: "vip",
+          visualStyle: "blackGold premium wealth desk",
+          homepageConfig: {
+            name: "VIP Golden",
+            themePreset: "blackGold",
+            layoutPreset: "privateWealthDesk",
+            heroFocus: "asset_overview",
+            sections: [{ id: "hero", type: "hero", slots: ["asset_overview", "quick_actions"] }],
+            brickPlan: [{ brickId: "asset-overview-vip-hero", component: "asset_overview", family: "AssetOverview", size: "2x1", zone: "main" }],
+          },
+          renderEvidence: {
+            domSnapshot: '<main class="client-home-page"><section data-home-component="asset_overview">VIP</section></main>',
+            cssSummary: { themePreset: "blackGold", density: "balanced" },
+            themeTokens: { "--home-primary": "#d6b56d" },
+            screenshotPath: "artifacts/home-golden-samples/test-blackgold.png",
+          },
+          humanScore: 96,
+          scoreDimensions: {
+            firstScreenFocus: 9,
+            informationHierarchy: 9,
+            moduleBalance: 8,
+            componentCraft: 9,
+            financialTone: 10,
+            businessTruth: 9,
+            responsive: 8,
+            visualConsistency: 9,
+            publishability: 9,
+          },
+          whyGood: "首屏资产和入金层级明确，黑金质感克制。",
+          applicableScenarios: ["黑金 VIP"],
+          forbiddenReuse: "不要照搬演示金额或临时文案。",
+        },
+      });
+      assert.strictEqual(savedGolden.sample.isGolden, true);
+      assert.strictEqual(savedGolden.sample.sampleKind, "golden-page");
+      assert.strictEqual(savedGolden.sample.renderEvidence.screenshotPath, "artifacts/home-golden-samples/test-blackgold.png");
+      const rankedGolden = await requestJson(port, `/api/home-ai/design-samples?prompt=${encodeURIComponent("黑金 VIP 首页")}`);
+      assert(
+        rankedGolden.goldenSamples.some((sample) => sample.id === "test-blackgold-vip-golden-page"),
+        "similar prompt must retrieve the saved whole-page golden sample",
+      );
+      assert(rankedGolden.learningSchema.scoringDimensions.includes("publishability"));
+    } finally {
+      fs.writeFileSync(designSamplesPath, originalDesignSamples, "utf8");
+    }
+
     const response = await postJson(port, {
       prompt:
         "生成首页，资产概览只展示钱包余额和交易账号余额，快捷入口展示 5 个，需要 PAMM 产品推荐和 CopyTrading 信号源推荐，也要公告通知和市场资讯。不要 KYC 风控、代理数据、客服帮助。",

@@ -5,12 +5,15 @@
   const RENDER_MODE_KEY = "forexcrm.home.ai.render.mode";
 
   const DIMENSIONS = [
-    { key: "visualFocus", label: "首屏" },
-    { key: "hierarchy", label: "层级" },
-    { key: "brand", label: "品牌感" },
-    { key: "craft", label: "组件美感" },
-    { key: "business", label: "业务清晰" },
-    { key: "mobile", label: "移动端" },
+    { key: "firstScreenFocus", label: "首屏焦点" },
+    { key: "informationHierarchy", label: "信息层级" },
+    { key: "moduleBalance", label: "模块比例" },
+    { key: "componentCraft", label: "组件工艺" },
+    { key: "financialTone", label: "金融质感" },
+    { key: "businessTruth", label: "业务真实" },
+    { key: "responsive", label: "响应式" },
+    { key: "visualConsistency", label: "视觉一致" },
+    { key: "publishability", label: "可发布性" },
   ];
 
   const els = {
@@ -28,6 +31,7 @@
     candidateStatus: document.querySelector("[data-candidate-status]"),
     candidateResults: document.querySelector("[data-candidate-results]"),
     scoreCurrent: document.querySelector("[data-score-current]"),
+    saveCurrentGolden: document.querySelector("[data-save-current-golden]"),
     referenceFile: document.querySelector("[data-reference-file]"),
     referenceTags: document.querySelector("[data-reference-tags]"),
     referenceNote: document.querySelector("[data-reference-note]"),
@@ -53,7 +57,9 @@
 
   const state = {
     samples: [],
+    goldenSamples: [],
     rankedSamples: [],
+    lowScoreAntiExamples: [],
     components: [],
     scores: [],
     feedback: [],
@@ -197,6 +203,12 @@
         text: item.note || "用户上传的视觉参考稿。",
         tags: item.tags || [],
       })),
+      ...state.goldenSamples.slice(0, 3).map((item) => ({
+        type: "黄金整页",
+        title: item.name,
+        text: item.whyGood || item.scenario || item.page?.layout || "",
+        tags: [item.pageIntent, item.visualStyle, ...(item.scenarioTags || [])].filter(Boolean),
+      })),
       ...state.rankedSamples.slice(0, 3).map((item) => ({
         type: "样本页",
         title: item.name,
@@ -208,6 +220,12 @@
         title: item.name,
         text: item.reuseAdvice || item.description || "",
         tags: [item.family, item.size].filter(Boolean),
+      })),
+      ...state.lowScoreAntiExamples.slice(0, 2).map((item) => ({
+        type: "低分反例",
+        title: item.name,
+        text: item.forbiddenReuse || item.whyBad || item.avoidPatterns?.[0] || "",
+        tags: [item.pageIntent, item.visualStyle].filter(Boolean),
       })),
     ];
     els.contextList.innerHTML = ranked.length
@@ -334,12 +352,15 @@
   function categoryDefault(candidate, key, fallback) {
     const categories = candidate?.aesthetic?.categories || candidate?.scoreRecord?.categories || [];
     const map = {
-      visualFocus: "visualFocus",
-      hierarchy: "layoutHierarchy",
-      brand: "brandHarmony",
-      craft: "componentCraft",
-      business: "businessFunction",
-      mobile: "responsiveSafety",
+      firstScreenFocus: "visualFocus",
+      informationHierarchy: "layoutHierarchy",
+      moduleBalance: "layoutHierarchy",
+      componentCraft: "componentCraft",
+      financialTone: "brandHarmony",
+      businessTruth: "businessFunction",
+      responsive: "responsiveSafety",
+      visualConsistency: "componentCraft",
+      publishability: "responsiveSafety",
     };
     const category = categories.find((item) => item.key === map[key]);
     return Math.round((Number(category?.score) || fallback * 10) / 10);
@@ -417,7 +438,9 @@
       requestJson("/api/home-ai/reference-assets"),
     ]);
     state.samples = samples.samples || [];
+    state.goldenSamples = samples.goldenSamples || [];
     state.rankedSamples = samples.rankedSamples || [];
+    state.lowScoreAntiExamples = samples.lowScoreAntiExamples || [];
     state.components = samples.beautifulComponents || [];
     state.scores = scores.records || [];
     state.feedback = feedback.records || [];
@@ -503,17 +526,84 @@
     }
   }
 
-  function sampleFromConfig(config, prompt, sourceLabel = "当前草稿") {
+  function selectedPreviewFrame(candidate) {
+    if (!candidate?.id || !els.candidateResults) return null;
+    const escapedId = window.CSS?.escape ? window.CSS.escape(candidate.id) : String(candidate.id).replace(/["\\]/g, "\\$&");
+    return els.candidateResults.querySelector(`[data-candidate-preview="${escapedId}"]`);
+  }
+
+  function readThemeTokens(doc, config) {
+    const root = doc?.documentElement ? getComputedStyle(doc.documentElement) : null;
+    const tokenNames = ["--home-bg", "--home-card-bg", "--home-primary", "--home-text", "--home-border", "--home-radius-sm"];
+    return {
+      themePreset: config?.themePreset || config?.theme || "",
+      colorMode: config?.colorMode || "auto",
+      density: config?.density || "",
+      tokens: root
+        ? Object.fromEntries(tokenNames.map((name) => [name, root.getPropertyValue(name).trim()]).filter(([, value]) => value))
+        : {},
+    };
+  }
+
+  function captureRenderEvidence(candidate, config) {
+    const frame = selectedPreviewFrame(candidate);
+    const doc = frame?.contentDocument || null;
+    const root = doc?.querySelector(".client-home-page, [data-client-home-root], body");
+    const htmlScheme = config?.htmlScheme || {};
+    const skeleton = config?.skeletonHtmlScheme || {};
+    return {
+      capturedAt: new Date().toISOString(),
+      sourceUrl: frame?.src || window.location.href,
+      domSnapshot: root?.outerHTML ? root.outerHTML.slice(0, 50000) : "",
+      aiHtml: htmlScheme.enabled ? String(htmlScheme.html || "").slice(0, 30000) : "",
+      aiCss: htmlScheme.enabled ? String(htmlScheme.css || "").slice(0, 30000) : "",
+      skeletonHtml: skeleton.enabled ? String(skeleton.skeletonHtml || "").slice(0, 24000) : "",
+      cssSummary: {
+        renderMode: config?.activeRenderMode || config?.renderMode || "",
+        moduleStyles: config?.moduleStyles || {},
+        componentMorphs: config?.componentMorphs || {},
+      },
+      themeTokens: readThemeTokens(doc, config),
+    };
+  }
+
+  function scenarioTagsFromConfig(config, prompt) {
+    const source = `${prompt || ""} ${config?.pageIntent?.primaryIntent || ""} ${config?.themePreset || config?.theme || ""} ${config?.layoutPreset || ""}`;
+    return [
+      /开户|onboarding|kyc/i.test(source) ? "新客开户" : "",
+      /专业交易|trader|mt5|持仓|订单/i.test(source) ? "专业交易" : "",
+      /copytrading|跟单|信号源/i.test(source) ? "CopyTrading" : "",
+      /ib|代理|推广|邀请码|referral/i.test(source) ? "IB 推广" : "",
+      /黑金|vip|高净值|blackgold/i.test(source) ? "黑金 VIP" : "",
+      /活动|增长|大赛|campaign|promo/i.test(source) ? "活动增长" : "",
+      /极简|白|minimalWhite/i.test(source) ? "极简白" : "",
+      /移动端|手机|mobile/i.test(source) ? "移动端优先" : "",
+      /白标|资金安全|安全/i.test(source) ? "白标资金安全" : "",
+      /asset|资产|默认/i.test(source) ? "默认资产首页" : "",
+    ].filter(Boolean);
+  }
+
+  function sampleFromConfig(config, prompt, sourceLabel = "当前草稿", options = {}) {
     const normalized = home?.normalizeConfig ? home.normalizeConfig(config) : config || {};
     const blocks = (normalized.brickPlan || []).slice(0, 8);
+    const manualScore = Number(options.humanScore ?? options.manualScore ?? options.score ?? 92);
+    const whyGood = options.whyGood || options.note || "从审美评审台人工保存为整页黄金样本。";
+    const scoreDimensions = options.scoreDimensions || options.manualDimensions || readManualDimensions();
+    const renderEvidence = options.renderEvidence || captureRenderEvidence(options.candidate || null, normalized);
     return {
       id: `training-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 7)}`,
+      sampleKind: options.sampleKind || "golden-page",
+      isGolden: options.isGolden !== false,
       name: `${normalized.name || sourceLabel} 样本`,
       scenario: prompt || normalized.aiSummary || "从审美评审台沉淀的首页样本。",
       pageIntent: normalized.pageIntent?.primaryIntent || normalized.brickTrace?.intent || "custom",
       visualStyle: `${home?.themeLabel?.(normalized.themePreset || normalized.theme) || normalized.themePreset || "default"} · ${home?.layoutLabel?.(normalized.layoutPreset) || normalized.layoutPreset || ""}`,
-      aestheticScore: 88,
-      tags: [normalized.themePreset || normalized.theme, normalized.layoutPreset, normalized.heroFocus].filter(Boolean),
+      prompt,
+      aestheticScore: manualScore,
+      humanScore: manualScore,
+      scoreDimensions,
+      tags: [normalized.themePreset || normalized.theme, normalized.layoutPreset, normalized.heroFocus, ...(options.tags || [])].filter(Boolean),
+      scenarioTags: scenarioTagsFromConfig(normalized, prompt),
       page: {
         name: normalized.name,
         layout: (normalized.sections || []).map((section) => `${section.type}:${(section.slots || []).join("+")}`).join(" / "),
@@ -537,8 +627,14 @@
         dataFields: [],
       })),
       componentRefs: blocks.map((brick) => brick.brickId).filter(Boolean),
-      goodPatterns: ["来自审美评审台人工挑选，可作为后续生成参考。"],
-      avoidPatterns: [],
+      goodPatterns: ["来自审美评审台人工挑选，可作为后续生成前的整页主参考。", whyGood].filter(Boolean),
+      avoidPatterns: options.avoidPatterns || [],
+      whyGood,
+      whyBad: options.whyBad || "",
+      applicableScenarios: scenarioTagsFromConfig(normalized, prompt),
+      forbiddenReuse: options.forbiddenReuse || "只学习整页结构、模块比例、层级、token 气质和业务边界；不要照搬临时文案、假数据或截图中的具体品牌资产。",
+      homepageConfig: normalized,
+      renderEvidence,
       promptSeeds: [prompt].filter(Boolean),
     };
   }
@@ -546,11 +642,43 @@
   async function saveCandidateSample(candidate) {
     const data = await requestJson("/api/home-ai/design-samples", {
       method: "POST",
-      body: JSON.stringify({ sample: sampleFromConfig(candidate.config, savedPrompt(), candidate.label) }),
+      body: JSON.stringify({
+        sample: sampleFromConfig(candidate.config, savedPrompt(), candidate.label, {
+          candidate,
+          humanScore: candidate.manualScore ?? candidate.score ?? Number(els.manualScore?.value || 92),
+          note: els.feedbackNote?.value || candidate.message || "",
+          scoreDimensions: readManualDimensions(),
+        }),
+      }),
     });
     state.samples = data.library?.samples || state.samples;
+    state.goldenSamples = [data.sample, ...state.goldenSamples.filter((sample) => sample.id !== data.sample.id)];
     renderAll();
-    showToast("已存为审美样本");
+    showToast("已存为整页黄金样本");
+  }
+
+  async function saveCurrentGoldenSample() {
+    const config = currentConfig();
+    if (!config || !Object.keys(config).length) {
+      showToast("当前没有可保存的首页草稿");
+      return;
+    }
+    const manualScore = Number(els.manualScore?.value || 92);
+    const data = await requestJson("/api/home-ai/design-samples", {
+      method: "POST",
+      body: JSON.stringify({
+        sample: sampleFromConfig(config, savedPrompt(), "当前首页", {
+          humanScore: manualScore,
+          note: els.feedbackNote?.value || "",
+          scoreDimensions: readManualDimensions(),
+          renderEvidence: captureRenderEvidence(null, config),
+        }),
+      }),
+    });
+    state.samples = data.library?.samples || state.samples;
+    state.goldenSamples = [data.sample, ...state.goldenSamples.filter((sample) => sample.id !== data.sample.id)];
+    renderAll();
+    showToast("当前首页已保存为黄金样本");
   }
 
   function ratingFromScore(score) {
@@ -587,6 +715,7 @@
         machineScore: candidate.score,
         manualDimensions: dimensions,
         referenceAssets: state.references.slice(0, 6).map((asset) => ({ id: asset.id, name: asset.name, tags: asset.tags || [] })),
+        evidence: captureRenderEvidence(candidate, config),
         config,
       }),
     });
@@ -692,6 +821,7 @@
 
   els.refresh?.addEventListener("click", () => loadTrainingData().then(() => showToast("训练数据已刷新")).catch((error) => showToast(error.message)));
   els.scoreCurrent?.addEventListener("click", () => scoreCurrentDraft().catch((error) => showToast(error.message)));
+  els.saveCurrentGolden?.addEventListener("click", () => saveCurrentGoldenSample().catch((error) => showToast(error.message)));
   els.generateCandidates?.addEventListener("click", () => generateCandidates().catch((error) => {
     if (els.candidateStatus) els.candidateStatus.textContent = error.message;
     showToast(error.message);

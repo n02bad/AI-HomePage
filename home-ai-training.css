@@ -67,6 +67,14 @@
   justify-content: flex-end;
 }
 
+.panel-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .training-actions a,
 .training-actions button,
 .review-panel button,

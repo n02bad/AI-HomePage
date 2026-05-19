@@ -51,11 +51,13 @@ const AESTHETIC_SCORE_FILE = path.join(ROOT_DIR, "home-ai-score-records.json");
 const FEEDBACK_MEMORY_FILE = path.join(ROOT_DIR, "home-ai-feedback-memory.json");
 const REFERENCE_ASSET_FILE = path.join(ROOT_DIR, "home-ai-reference-assets.json");
 const REFERENCE_ASSET_DIR = path.join(ROOT_DIR, "artifacts", "home-ai-reference-assets");
+const GOLDEN_SAMPLE_ASSET_DIR = path.join(ROOT_DIR, "artifacts", "home-golden-samples");
 const AUTH_REFERENCE_ASSET_DIR = path.join(ROOT_DIR, "artifacts", "auth-ai-reference-assets");
 const MAX_CALL_HISTORY = 200;
 const MAX_AUTH_CALL_HISTORY = 160;
 const MAX_AESTHETIC_SCORE_RECORDS = 300;
 const MAX_FEEDBACK_MEMORY_RECORDS = 300;
+const MAX_DESIGN_SAMPLES = 240;
 const MAX_REFERENCE_ASSETS = 120;
 const MAX_AUTH_REFERENCE_ASSETS = 120;
 const MINIMAX_CN_BASE_URL = "https://api.minimaxi.com/v1";
@@ -4023,16 +4025,122 @@ function normalizeSampleBlock(item = {}) {
   };
 }
 
+const HOME_GOLDEN_SAMPLE_DIMENSIONS = [
+  "firstScreenFocus",
+  "informationHierarchy",
+  "moduleBalance",
+  "componentCraft",
+  "financialTone",
+  "businessTruth",
+  "responsive",
+  "visualConsistency",
+  "publishability",
+];
+
+const HOME_SCENARIO_TAGS = [
+  "新客开户",
+  "专业交易",
+  "CopyTrading",
+  "IB 推广",
+  "黑金 VIP",
+  "活动增长",
+  "极简白",
+  "移动端优先",
+  "白标资金安全",
+  "默认资产首页",
+];
+
+function jsonCloneWithinLimit(value, fallback, limit = 120_000) {
+  if (!value || typeof value !== "object") return fallback;
+  try {
+    const text = JSON.stringify(value);
+    if (text.length <= limit) return JSON.parse(text);
+    return {
+      truncated: true,
+      excerpt: text.slice(0, limit),
+      snapshot: value.brickPlan || value.sections ? homepageRecordSnapshot(value) : null,
+    };
+  } catch (error) {
+    return fallback;
+  }
+}
+
+function normalizeScoreDimensions(value = {}) {
+  const source = value && typeof value === "object" ? value : {};
+  const aliases = {
+    visualFocus: "firstScreenFocus",
+    hierarchy: "informationHierarchy",
+    brand: "financialTone",
+    craft: "componentCraft",
+    business: "businessTruth",
+    mobile: "responsive",
+    layoutHierarchy: "informationHierarchy",
+    brandHarmony: "financialTone",
+    businessFunction: "businessTruth",
+    responsiveSafety: "responsive",
+  };
+  const normalized = {};
+  Object.entries(source).forEach(([key, rawValue]) => {
+    const normalizedKey = aliases[key] || key;
+    if (!HOME_GOLDEN_SAMPLE_DIMENSIONS.includes(normalizedKey)) return;
+    const score = Number(rawValue);
+    if (Number.isFinite(score)) normalized[normalizedKey] = Math.max(0, Math.min(10, Math.round(score)));
+  });
+  return normalized;
+}
+
+function normalizeGoldenSampleEvidence(sample = {}) {
+  const evidence = sample.renderEvidence && typeof sample.renderEvidence === "object" ? sample.renderEvidence : sample.evidence && typeof sample.evidence === "object" ? sample.evidence : {};
+  const cssSummary = evidence.cssSummary && typeof evidence.cssSummary === "object" ? evidence.cssSummary : sample.cssTokenSummary && typeof sample.cssTokenSummary === "object" ? sample.cssTokenSummary : {};
+  const themeTokens = evidence.themeTokens && typeof evidence.themeTokens === "object" ? evidence.themeTokens : sample.themeTokens && typeof sample.themeTokens === "object" ? sample.themeTokens : {};
+  return {
+    screenshotPath: cleanText(evidence.screenshotPath || sample.screenshotPath, "", 280),
+    screenshotUrl: cleanText(evidence.screenshotUrl || sample.screenshotUrl, "", 280),
+    domSnapshot: safeEvidenceText(evidence.domSnapshot || evidence.renderedDom || sample.domSnapshot, 50_000),
+    aiHtml: safeEvidenceText(evidence.aiHtml || sample.aiHtml, 30_000),
+    aiCss: safeEvidenceText(evidence.aiCss || sample.aiCss, 30_000),
+    cssSummary: jsonCloneWithinLimit(cssSummary, {}, 8_000),
+    themeTokens: jsonCloneWithinLimit(themeTokens, {}, 8_000),
+    capturedAt: cleanText(evidence.capturedAt || sample.capturedAt, "", 40),
+    sourceUrl: cleanText(evidence.sourceUrl || sample.sourceUrl, "", 260),
+  };
+}
+
 function normalizeDesignSample(sample = {}) {
   const page = sample.page && typeof sample.page === "object" ? sample.page : {};
+  const prompt = cleanText(sample.prompt || sample.sourcePrompt || (Array.isArray(sample.promptSeeds) ? sample.promptSeeds[0] : ""), "", 1600);
+  const rawKind = cleanText(sample.sampleKind || sample.kind || sample.type, "", 40);
+  const isAntiExample = Boolean(sample.isAntiExample || sample.antiExample || rawKind === "anti-example" || rawKind === "low-score");
+  const humanScore = Number.isFinite(Number(sample.humanScore ?? sample.manualScore))
+    ? Math.max(0, Math.min(100, Math.round(Number(sample.humanScore ?? sample.manualScore))))
+    : null;
+  const aestheticScore = Number.isFinite(Number(sample.aestheticScore)) ? Math.max(0, Math.min(100, Math.round(Number(sample.aestheticScore)))) : humanScore ?? 88;
+  const explicitGolden = Boolean(sample.isGolden || sample.golden || sample.primaryReference || rawKind === "golden-page");
+  const isGolden = !isAntiExample && (explicitGolden || (rawKind !== "page" && rawKind !== "component" && humanScore !== null && humanScore >= 92));
+  const sampleKind = isAntiExample ? "anti-example" : isGolden ? "golden-page" : rawKind === "component" ? "component" : "page";
+  const scenarioTags = [
+    ...(Array.isArray(sample.scenarioTags) ? sample.scenarioTags : []),
+    ...(Array.isArray(sample.tags) ? sample.tags : []).filter((tag) => HOME_SCENARIO_TAGS.includes(tag)),
+  ]
+    .map((tag) => cleanText(tag, "", 36))
+    .filter(Boolean);
+  const homepageConfig = jsonCloneWithinLimit(sample.homepageConfig || sample.config || sample.homepageConfigJson, null, 160_000);
+  const renderEvidence = normalizeGoldenSampleEvidence(sample);
   return {
     id: safeId(sample.id || sample.name, "design-sample"),
+    sampleKind,
+    isGolden,
+    isAntiExample,
     name: cleanText(sample.name, "首页审美样本", 80),
     scenario: cleanText(sample.scenario || sample.intent || sample.pageIntent, "", 120),
     pageIntent: cleanText(sample.pageIntent || sample.intent, "", 60),
     visualStyle: cleanText(sample.visualStyle || sample.style, "", 80),
-    aestheticScore: Number.isFinite(Number(sample.aestheticScore)) ? Math.max(0, Math.min(100, Math.round(Number(sample.aestheticScore)))) : 88,
+    prompt,
+    aestheticScore,
+    humanScore,
+    scoreDimensions: normalizeScoreDimensions(sample.scoreDimensions || sample.manualDimensions || sample.dimensions),
     tags: (Array.isArray(sample.tags) ? sample.tags : []).map((tag) => cleanText(tag, "", 36)).filter(Boolean).slice(0, 12),
+    scenarioTags: [...new Set(scenarioTags)].slice(0, 12),
     page: {
       name: cleanText(page.name || sample.name, "首页页面", 80),
       layout: cleanText(page.layout, "", 180),
@@ -4045,7 +4153,14 @@ function normalizeDesignSample(sample = {}) {
     componentRefs: (Array.isArray(sample.componentRefs) ? sample.componentRefs : []).map((id) => cleanText(id, "", 80)).filter(Boolean).slice(0, 12),
     goodPatterns: (Array.isArray(sample.goodPatterns) ? sample.goodPatterns : []).map((item) => cleanText(item, "", 140)).filter(Boolean).slice(0, 10),
     avoidPatterns: (Array.isArray(sample.avoidPatterns) ? sample.avoidPatterns : []).map((item) => cleanText(item, "", 140)).filter(Boolean).slice(0, 10),
-    promptSeeds: (Array.isArray(sample.promptSeeds) ? sample.promptSeeds : []).map((item) => cleanText(item, "", 260)).filter(Boolean).slice(0, 8),
+    whyGood: cleanText(sample.whyGood || sample.goodReason, "", 900),
+    whyBad: cleanText(sample.whyBad || sample.badReason, "", 900),
+    applicableScenarios: (Array.isArray(sample.applicableScenarios) ? sample.applicableScenarios : []).map((item) => cleanText(item, "", 80)).filter(Boolean).slice(0, 10),
+    forbiddenReuse: cleanText(sample.forbiddenReuse || sample.forbiddenReuseNotes || sample.antiPatternNotes, "", 900),
+    homepageConfig,
+    configSnapshot: sample.configSnapshot && typeof sample.configSnapshot === "object" ? jsonCloneWithinLimit(sample.configSnapshot, null, 20_000) : homepageConfig ? homepageRecordSnapshot(homepageConfig) : null,
+    renderEvidence,
+    promptSeeds: [...new Set([prompt, ...(Array.isArray(sample.promptSeeds) ? sample.promptSeeds : [])].map((item) => cleanText(item, "", 260)).filter(Boolean))].slice(0, 8),
     createdAt: sample.createdAt || new Date().toISOString(),
     updatedAt: sample.updatedAt || sample.createdAt || new Date().toISOString(),
   };
@@ -4056,20 +4171,58 @@ function readDesignSamples() {
   return {
     version: Number.isFinite(Number(data.version)) ? Number(data.version) : 1,
     updatedAt: cleanText(data.updatedAt, "", 40) || new Date().toISOString(),
-    samples: (Array.isArray(data.samples) ? data.samples : []).map(normalizeDesignSample),
+    samples: (Array.isArray(data.samples) ? data.samples : []).map(normalizeDesignSample).slice(0, MAX_DESIGN_SAMPLES),
   };
 }
 
 function writeDesignSamples(samples) {
-  const normalized = (Array.isArray(samples) ? samples : []).map(normalizeDesignSample);
+  const normalized = (Array.isArray(samples) ? samples : []).map(normalizeDesignSample).slice(0, MAX_DESIGN_SAMPLES);
   const payload = { version: 1, updatedAt: new Date().toISOString(), samples: normalized };
   writeJsonFile(DESIGN_SAMPLE_FILE, payload);
   return payload;
 }
 
+function ensureGoldenSampleAssetDir() {
+  fs.mkdirSync(GOLDEN_SAMPLE_ASSET_DIR, { recursive: true });
+}
+
+function saveGoldenSampleScreenshotAsset(sample = {}) {
+  const draft = sample && typeof sample === "object" ? { ...sample } : {};
+  const evidence = draft.renderEvidence && typeof draft.renderEvidence === "object" ? { ...draft.renderEvidence } : draft.evidence && typeof draft.evidence === "object" ? { ...draft.evidence } : {};
+  const screenshotDataUrl = evidence.screenshotDataUrl || evidence.screenshot || draft.screenshotDataUrl;
+  if (!screenshotDataUrl || evidence.screenshotPath) {
+    if (draft.renderEvidence) draft.renderEvidence = evidence;
+    return draft;
+  }
+
+  const decoded = decodeReferenceDataUrl(screenshotDataUrl);
+  if (!decoded || !/^image\//i.test(decoded.mime)) {
+    delete evidence.screenshotDataUrl;
+    delete evidence.screenshot;
+    draft.renderEvidence = evidence;
+    return draft;
+  }
+  if (decoded.buffer.length > 6_000_000) {
+    throw Object.assign(new Error("黄金样本截图不能超过 6MB"), { statusCode: 413 });
+  }
+
+  ensureGoldenSampleAssetDir();
+  const ext = referenceAssetExtension(decoded.mime, "golden-sample.png");
+  const id = safeId(draft.id || draft.name, "golden-sample");
+  const fileName = `${id}-${Date.now().toString(36)}.${ext}`;
+  const filePath = path.join(GOLDEN_SAMPLE_ASSET_DIR, fileName);
+  fs.writeFileSync(filePath, decoded.buffer);
+  delete evidence.screenshotDataUrl;
+  delete evidence.screenshot;
+  evidence.screenshotPath = path.relative(ROOT_DIR, filePath);
+  evidence.screenshotUrl = `/artifacts/home-golden-samples/${fileName}`;
+  draft.renderEvidence = evidence;
+  return draft;
+}
+
 function saveDesignSample(sample) {
   const library = readDesignSamples();
-  const normalized = normalizeDesignSample(sample);
+  const normalized = normalizeDesignSample(saveGoldenSampleScreenshotAsset(sample));
   return {
     sample: normalized,
     library: writeDesignSamples(library.samples.filter((item) => item.id !== normalized.id).concat(normalized)),
@@ -4084,27 +4237,49 @@ function designSampleSearchText(sample) {
       sample.scenario,
       sample.pageIntent,
       sample.visualStyle,
+      sample.prompt,
+      sample.whyGood,
+      sample.whyBad,
+      sample.forbiddenReuse,
       ...(Array.isArray(sample.tags) ? sample.tags : []),
+      ...(Array.isArray(sample.scenarioTags) ? sample.scenarioTags : []),
+      ...(Array.isArray(sample.applicableScenarios) ? sample.applicableScenarios : []),
       sample.page?.layout,
       sample.page?.hero,
+      sample.configSnapshot?.layoutPreset,
+      sample.configSnapshot?.themePreset,
+      sample.configSnapshot?.mainVisual,
+      ...(Array.isArray(sample.configSnapshot?.brickIds) ? sample.configSnapshot.brickIds : []),
       ...(Array.isArray(sample.functions) ? sample.functions.flatMap((item) => [item.name, item.objective, ...(item.modules || []), ...(item.actions || [])]) : []),
       ...(Array.isArray(sample.sampleBlocks) ? sample.sampleBlocks.flatMap((item) => [item.name, item.page, item.function, ...(item.visualNotes || [])]) : []),
       ...(Array.isArray(sample.goodPatterns) ? sample.goodPatterns : []),
+      ...(Array.isArray(sample.avoidPatterns) ? sample.avoidPatterns : []),
     ].join(" "),
   );
 }
 
-function rankDesignSamplesForPrompt(prompt, limit = 4) {
+function designSampleRankScore(sample, prompt, index = 0, options = {}) {
   const text = normalizeKeywordText(prompt);
   const words = text.split(/\s+|[，,。；;、]/).filter((word) => word.length >= 2);
+  const haystack = designSampleSearchText(sample);
+  const promptHits = words.filter((word) => haystack.includes(word)).length;
+  const tagHits = [...(sample.tags || []), ...(sample.scenarioTags || []), ...(sample.applicableScenarios || [])].filter((tag) => text.includes(String(tag).toLowerCase()) || text.includes(String(tag))).length;
+  const score = Number.isFinite(Number(sample.humanScore)) ? sample.humanScore : sample.aestheticScore || 0;
+  const goldenBoost = sample.isGolden ? 90 : 0;
+  const antiBoost = options.antiExamples ? 30 : sample.isAntiExample ? -200 : 0;
+  const evidenceBoost = sample.renderEvidence?.domSnapshot || sample.renderEvidence?.screenshotPath || sample.homepageConfig ? 12 : 0;
+  const dimensionBoost = Object.keys(sample.scoreDimensions || {}).length >= 4 ? 8 : 0;
+  return promptHits * 8 + tagHits * 16 + Math.round(score / 8) + goldenBoost + antiBoost + evidenceBoost + dimensionBoost - index * 0.01;
+}
+
+function rankDesignSamplesForPrompt(prompt, limit = 4, options = {}) {
+  const includeAntiExamples = Boolean(options.includeAntiExamples);
   return readDesignSamples().samples
+    .filter((sample) => includeAntiExamples || !sample.isAntiExample)
     .map((sample, index) => {
-      const haystack = designSampleSearchText(sample);
-      const promptHits = words.filter((word) => haystack.includes(word)).length;
-      const tagHits = (sample.tags || []).filter((tag) => text.includes(String(tag).toLowerCase()) || text.includes(String(tag))).length;
       return {
         sample,
-        score: promptHits * 8 + tagHits * 14 + Math.round((sample.aestheticScore || 0) / 10) - index * 0.01,
+        score: designSampleRankScore(sample, prompt, index, options),
       };
     })
     .sort((a, b) => b.score - a.score)
@@ -4112,20 +4287,57 @@ function rankDesignSamplesForPrompt(prompt, limit = 4) {
     .slice(0, Math.max(1, Math.min(Number(limit) || 4, 8)));
 }
 
+function rankGoldenDesignSamplesForPrompt(prompt, limit = 3) {
+  const samples = readDesignSamples().samples.filter((sample) => sample.isGolden && !sample.isAntiExample);
+  return samples
+    .map((sample, index) => ({ sample, score: designSampleRankScore(sample, prompt, index) }))
+    .sort((a, b) => b.score - a.score)
+    .map((item) => item.sample)
+    .slice(0, Math.max(1, Math.min(Number(limit) || 3, 5)));
+}
+
+function rankLowScoreAntiExamplesForPrompt(prompt, limit = 3) {
+  const samples = readDesignSamples().samples.filter((sample) => sample.isAntiExample || Number(sample.humanScore ?? sample.aestheticScore) <= 68);
+  return samples
+    .map((sample, index) => ({ sample, score: designSampleRankScore(sample, prompt, index, { antiExamples: true }) }))
+    .sort((a, b) => b.score - a.score)
+    .map((item) => item.sample)
+    .slice(0, Math.max(1, Math.min(Number(limit) || 3, 5)));
+}
+
 function summarizeDesignSampleForPrompt(sample) {
   return {
     id: sample.id,
+    sampleKind: sample.sampleKind,
+    isGolden: Boolean(sample.isGolden),
+    isAntiExample: Boolean(sample.isAntiExample),
     name: sample.name,
     scenario: sample.scenario,
     pageIntent: sample.pageIntent,
     visualStyle: sample.visualStyle,
+    prompt: cleanText(sample.prompt, "", 320),
     aestheticScore: sample.aestheticScore,
+    humanScore: sample.humanScore,
+    scenarioTags: sample.scenarioTags,
+    scoreDimensions: sample.scoreDimensions,
     page: sample.page,
     functions: sample.functions.slice(0, 5),
     sampleBlocks: sample.sampleBlocks.slice(0, 6),
     componentRefs: sample.componentRefs.slice(0, 8),
     goodPatterns: sample.goodPatterns.slice(0, 8),
     avoidPatterns: sample.avoidPatterns.slice(0, 6),
+    whyGood: cleanText(sample.whyGood, "", 320),
+    whyBad: cleanText(sample.whyBad, "", 320),
+    applicableScenarios: sample.applicableScenarios.slice(0, 6),
+    forbiddenReuse: cleanText(sample.forbiddenReuse, "", 260),
+    evidence: {
+      screenshotPath: sample.renderEvidence?.screenshotPath || "",
+      hasDomSnapshot: Boolean(sample.renderEvidence?.domSnapshot),
+      hasAiHtml: Boolean(sample.renderEvidence?.aiHtml),
+      cssSummary: sample.renderEvidence?.cssSummary || {},
+      themeTokens: sample.renderEvidence?.themeTokens || {},
+      configSnapshot: sample.configSnapshot || null,
+    },
   };
 }
 
@@ -4851,23 +5063,55 @@ function feedbackMemoryPromptReference(prompt, limit = 5) {
     .slice(0, Math.max(1, Math.min(Number(limit) || 5, 10)));
 }
 
+function aestheticMustAvoidIssues(antiExamples = [], feedback = []) {
+  return [
+    ...antiExamples.flatMap((sample) => [
+      sample.forbiddenReuse,
+      sample.whyBad,
+      ...(Array.isArray(sample.avoidPatterns) ? sample.avoidPatterns : []),
+    ]),
+    ...feedback
+      .filter((record) => ["reject", "dislike", "bad"].includes(record.decision) || Number(record.rating) <= 2)
+      .flatMap((record) => [record.note, ...(Array.isArray(record.preferenceSignals) ? record.preferenceSignals : [])]),
+  ]
+    .map((item) => cleanText(item, "", 140))
+    .filter(Boolean)
+    .slice(0, 10);
+}
+
 function aestheticTrainingContext(payloadOrPrompt = {}, options = {}) {
   const prompt = typeof payloadOrPrompt === "string" ? payloadOrPrompt : cleanText(payloadOrPrompt.prompt, "", 1200);
   const referenceAssetIds = typeof payloadOrPrompt === "object" && Array.isArray(payloadOrPrompt.referenceAssetIds) ? payloadOrPrompt.referenceAssetIds : [];
-  const samples = rankDesignSamplesForPrompt(prompt, options.sampleLimit || 4).map(summarizeDesignSampleForPrompt);
+  const goldenSamplePages = rankGoldenDesignSamplesForPrompt(prompt, options.goldenSampleLimit || 3).map(summarizeDesignSampleForPrompt);
+  const goldenIds = new Set(goldenSamplePages.map((sample) => sample.id));
+  const samples = rankDesignSamplesForPrompt(prompt, options.sampleLimit || 4)
+    .filter((sample) => !goldenIds.has(sample.id))
+    .map(summarizeDesignSampleForPrompt);
+  const lowScoreAntiExamples = rankLowScoreAntiExamplesForPrompt(prompt, options.antiExampleLimit || 3).map(summarizeDesignSampleForPrompt);
+  const feedbackMemory = feedbackMemoryPromptReference(prompt, options.feedbackLimit || 5);
   return {
-    purpose: "用于提升首页美感的训练上下文：用户上传参考稿决定审美方向，样本页面告诉模型怎么组织页面和功能，组件库积木告诉模型可借鉴的视觉细节，反馈记忆告诉模型用户偏好。",
+    purpose: "用于提升首页美感的训练上下文：goldenSamplePages 是整页黄金样本 primary reference，用户上传参考稿决定审美方向，普通样本页面补充功能流，组件库积木告诉模型可借鉴的视觉细节，feedbackMemory 和 lowScoreAntiExamples 告诉模型用户偏好和必须避开的反例。",
+    goldenSamplePolicy: "生成前必须优先阅读最相似的 2-3 个 goldenSamplePages：学习整页构图、首屏焦点、模块比例、token 气质、响应式和业务真实边界；禁止照搬文案、假数据或 forbiddenReuse 中标记的点。",
+    scoringDimensions: HOME_GOLDEN_SAMPLE_DIMENSIONS,
+    scenarioTagVocabulary: HOME_SCENARIO_TAGS,
     componentReferencePolicy: componentReferencePolicyPrompt(readComponentLibrary().components, { prompt }),
     referenceAssets: referenceAssetsForPrompt(prompt, { limit: options.referenceLimit || 4, referenceAssetIds }),
+    goldenSamplePages,
     samplePages: samples,
     beautifulComponents: beautifulComponentReferences({ prompt, limit: options.componentLimit || 8 }),
-    feedbackMemory: feedbackMemoryPromptReference(prompt, options.feedbackLimit || 5),
+    lowScoreAntiExamples,
+    feedbackMemory,
+    mustAvoidIssues: aestheticMustAvoidIssues(lowScoreAntiExamples, feedbackMemory),
     scoringRubric: {
-      visualFocus: "首屏必须有明确视觉焦点、主标题、主操作和品牌氛围。",
-      hierarchy: "模块要有大小、密度和层级差异，不能全部是同一种白卡。",
+      firstScreenFocus: "首屏必须一眼知道主目标、主标题、主操作和最高视觉权重。",
+      informationHierarchy: "主次清楚，模块大小、密度和层级有差异，不能全部是同一种白卡。",
+      moduleBalance: "避免空洞、头重脚轻、孤立小模块独占大行或每个 slot 都抢焦点。",
       componentCraft: "8-10 分漂亮积木块是强参考，6-7 分只适度参考，5 分及以下必须杜绝。",
-      businessFunction: "每个样本块都必须绑定页面位置、功能目标、数据字段和系统动作。",
+      financialTone: "金融质感可信、克制、专业，不用随机营销装饰制造高级感。",
+      businessTruth: "不编造监管承诺、收益、下载链接或后台没有的数据；每个模块绑定真实数据字段和系统动作。",
       responsive: "桌面 12 栅格有节奏，移动端自然单列，不靠空白撑高级感。",
+      visualConsistency: "slot/模块之间要像同一套设计语言，按钮、字体、卡片密度和 token 协调。",
+      publishability: "最终结果应接近可直接交给租户发布的质量线。",
     },
   };
 }
@@ -4876,11 +5120,13 @@ function componentAestheticPromptReference(options = {}) {
   const prompt = cleanText(options.prompt, "", 1200);
   const family = cleanText(options.family, "", 60);
   const size = cleanText(options.size, "", 12);
+  const goldenSamplePages = rankGoldenDesignSamplesForPrompt(prompt, options.goldenSampleLimit || 2).map(summarizeDesignSampleForPrompt);
   return {
     purpose: "用于让单个积木组件参考已保存漂亮积木后再生成：先吸收字段密度、按钮层级、状态标签、卡片比例、图表/步骤表达，再根据本次 slot 和尺寸做新的组件形态。",
     referenceRule: "组件库评分是硬约束：8-10 分强参考，6-7 分适度参考，5 分及以下禁止借鉴；漂亮积木不是复制源，必须改变布局、密度、层级或组合方式。",
     componentReferencePolicy: componentReferencePolicyPrompt(readComponentLibrary().components, { prompt, family, size }),
     selectedBeautifulBricks: beautifulComponentReferences({ family, size, prompt, limit: options.limit || 6 }),
+    goldenSamplePages,
     samplePages: rankDesignSamplesForPrompt(prompt, options.sampleLimit || 2).map(summarizeDesignSampleForPrompt),
     feedbackMemory: feedbackMemoryPromptReference(prompt, options.feedbackLimit || 3),
     polishRubric: {
@@ -7005,7 +7251,7 @@ function buildFreeAiHtmlPrompt(payload) {
     "本地 prompt 加工结果是硬约束：localBrickContext.matchedBricks 已经完成意图到积木的命中；对应 HTML 区域必须带 data-component-reference，并继承命中积木的 mustInherit 结构，不得只写普通白卡。",
     "组件库评分是硬约束：8-10 分积木必须优先参考；6-7 分只适度参考；5 分及以下禁止参考、禁止出现在 componentReferences 或自由发挥来源。",
     "积木约束生成策略：最差结果必须接近命中的高分积木同款，只能微调文案、主题 token、响应式和动作绑定；推荐结果是在高分积木上提升首屏规划、排版层级、字段密度和模块组合，而不是从零发明 HTML。",
-    "必须参考 designTrainingContext：样本页面用于判断整体页面骨架和功能流，beautifulComponents 用于吸收漂亮积木块的视觉细节，feedbackMemory 用于避开用户否定过的审美方向。",
+    "必须参考 designTrainingContext：goldenSamplePages 是整页 primary reference，用于判断页面级构图、首屏焦点和 token 气质；samplePages 补充功能流，beautifulComponents 补充积木细节，feedbackMemory 和 lowScoreAntiExamples 用于避开用户否定过的审美方向。",
     "moduleMapping 必须说明每个 requiredModules 如何映射到 HTML 中的区域、参考的组件家族，以及自由变形点。",
     "implementationContract 必须是数组，每个 requiredModules 至少一项，字段包括 module、label、family、dataFields、states、actions、interactions、renderEvidence；它用来证明该模块不是静态外观空壳。",
     "如果某模块只有标题、普通卡片或没有数据字段/状态/动作，请在 emptyShellRisk 标记 true；服务端会因此返修。",
@@ -7104,7 +7350,7 @@ function buildAiHtmlPrompt(payload, configScheme = {}, options = {}) {
     "本地 prompt 加工结果是硬约束：localBrickContext 已把管理员需求映射成 matchedBricks；每个命中模块的 HTML 区域必须带 data-component-reference，并继承 mustInherit 中至少两个结构维度。",
     "组件库评分是硬约束：8-10 分积木强参考；6-7 分积木适度参考；5 分及以下积木禁止借鉴，不能作为兜底或 componentReferences。",
     "积木约束生成策略：保底同款微调，推荐在高分积木基础上升级排版规划；如果你无法证明比积木更好，就回到积木结构，不要自由发挥成普通白卡片。",
-    "必须同时参考 designTrainingContext：样本页面决定页面级构图和功能流，beautifulComponents 决定积木级细节，feedbackMemory 决定用户长期偏好。",
+    "必须同时参考 designTrainingContext：goldenSamplePages 决定页面级构图、首屏焦点、模块比例和 token 气质，samplePages 补充功能流，beautifulComponents 决定积木级细节，feedbackMemory 决定用户长期偏好，lowScoreAntiExamples 决定必须避开的反例。",
     "如果上一版问题指出模块缺失、token 不足、结构太平或占位符太多，这一版必须通过不同布局和更具体业务表达修复。",
     "implementationContract 必须逐模块写明 dataFields、states、actions、interactions、renderEvidence；修正版必须补齐上一版缺失的模块实现协议。",
     "客户侧字段要 value-first：交易账号卡片里不要露出“平台/服务器”这类后台字段名，平台和服务器合并直接显示为 MT5 · HCHoldings-Live2；表格需要列名时用“交易环境”。",
@@ -7194,6 +7440,7 @@ function buildMiniMaxAiHtmlPrompt(payload, configScheme = {}, options = {}) {
   const referenceHints = aiHtmlComponentReferenceHints(requiredModules, prompt, { payload, config: seedConfig, localPromptBrickContext: localBrickContext }).slice(0, 5);
 	  const qualityReport = options.qualityReport || null;
 	  const designGovernance = designRulesPromptReference();
+  const trainingContext = aestheticTrainingContext({ prompt }, { goldenSampleLimit: 2, sampleLimit: 1, componentLimit: 3, feedbackLimit: 3, antiExampleLimit: 2 });
 
   const system = [
     "你是 ForexCRM 的 MiniMax 紧凑 AI HTML 设计师。",
@@ -7208,6 +7455,7 @@ function buildMiniMaxAiHtmlPrompt(payload, configScheme = {}, options = {}) {
 	    "如果 repairedConfig.pagePlan 存在，pagePlan.mainVisual 是唯一最高视觉权重模块，其它模块只能做解释、证明或收口。",
 	    "每个 requiredModules 至少在 html 中有 data-ai-html-module 可见区域；模块内容必须短，可用 Sample 或 --。",
 	    "必须参考 referenceHints 的 componentId、name、visibleText 和 styleSignals；即使不返回完整 componentReferences，HTML 也要体现对应积木的字段密度、状态标签和布局语言。",
+	    "必须优先参考 aestheticTraining.goldenSamplePages 的整页构图和 mustAvoidIssues，避免 lowScoreAntiExamples 中的低分问题。",
 	    "本地 prompt 加工已在 localBrickContext 命中积木；对应模块区域必须带 data-component-reference，并尽量同款微调高分积木结构。",
 	    "保底同款微调：如果篇幅不够或无法稳定发挥，就按 referenceHints 的高分积木结构输出最接近的 HTML，只微调排版、token、文案和 data-home-action。",
 	    "禁止 JS、script、iframe、form、input、事件属性、远程图片、真实下载链接或稳赚/监管承诺。",
@@ -7259,6 +7507,14 @@ function buildMiniMaxAiHtmlPrompt(payload, configScheme = {}, options = {}) {
 	      modelHardRules: localBrickContext.modelHardRules,
 	    }),
 	    "",
+	    "aestheticTraining:",
+	    compactJson({
+	      goldenSamplePages: trainingContext.goldenSamplePages,
+	      lowScoreAntiExamples: trainingContext.lowScoreAntiExamples,
+	      feedbackMemory: trainingContext.feedbackMemory,
+	      mustAvoidIssues: trainingContext.mustAvoidIssues,
+	    }),
+	    "",
 	    "design.md 摘要:",
     compactJson({
       rules: designGovernance.rules?.slice(0, 4) || [],
@@ -7299,6 +7555,7 @@ function buildCompactAiHtmlPrompt(payload, configScheme = {}, options = {}) {
   const qualityReport = options.qualityReport || null;
   const previousScheme = options.previousScheme || null;
   const designGovernance = designRulesPromptReference();
+  const trainingContext = aestheticTrainingContext({ prompt }, { goldenSampleLimit: 2, sampleLimit: 1, componentLimit: 3, feedbackLimit: 3, antiExampleLimit: 2 });
 	  const system = [
 	    "你是 ForexCRM 的 AI HTML 页面设计师。",
 	    "只输出一个能被 JSON.parse 解析的 JSON object，不要 markdown、代码块、解释或 <think>。",
@@ -7312,6 +7569,7 @@ function buildCompactAiHtmlPrompt(payload, configScheme = {}, options = {}) {
 	    "如果 repairedConfig.pagePlan 存在，pagePlan.mainVisual 是唯一最高视觉权重模块，其它模块不能用更强背景、标题或 CTA 抢戏。",
 	    "每个 repairedConfig.sections[].slots 都必须按原顺序生成 data-ai-html-module 可见区域；服务端会根据配置补齐 implementationContract。",
 	    "组件库参考是硬约束：必须参考 referenceHints 的 componentId、name、visibleText 和 styleSignals，把积木字段密度、状态标签、按钮层级和图表/列表表达转成 HTML 结构。",
+	    "审美训练是硬约束：必须先参考 aestheticTraining.goldenSamplePages 的整页构图、首屏焦点和 token 气质，并避开 mustAvoidIssues / lowScoreAntiExamples。",
 	    "本地 prompt 加工已在 localBrickContext 命中积木；对应模块区域必须带 data-component-reference，并继承 mustInherit 中至少两个结构维度。",
 	    "保底同款微调：如果无法做出明确提升，就按高分积木的结构近似复刻；推荐再优化首屏规划、模块比例和信息层级。",
 	    "至少包含三种结构：首屏/指标/步骤或列表/风险提示中的三类；所有 a/button 必须显式样式化，不能保留浏览器默认按钮。",
@@ -7362,6 +7620,14 @@ function buildCompactAiHtmlPrompt(payload, configScheme = {}, options = {}) {
       promptUnderstanding: localBrickContext.promptUnderstanding,
       matchedBricks: localBrickContext.matchedBricks?.slice(0, 5),
       modelHardRules: localBrickContext.modelHardRules,
+    }),
+    "",
+    "审美训练上下文:",
+    compactJson({
+      goldenSamplePages: trainingContext.goldenSamplePages,
+      lowScoreAntiExamples: trainingContext.lowScoreAntiExamples,
+      feedbackMemory: trainingContext.feedbackMemory,
+      mustAvoidIssues: trainingContext.mustAvoidIssues,
     }),
     "",
     "design.md 设计治理摘要:",
@@ -7718,6 +7984,16 @@ function compactMiniMaxComponentContext(payload, family, size, prompt) {
     componentLibrary: (componentReference.selectedComponents || []).slice(0, 3).map(compactMiniMaxComponentReference),
     scoreReference: scoreReference.map(compactMiniMaxComponentReference),
     beautifulBricks: (aestheticReference.selectedBeautifulBricks || []).slice(0, 3).map(compactMiniMaxComponentReference),
+    goldenSamplePages: (aestheticReference.goldenSamplePages || []).slice(0, 2).map((sample) => ({
+      id: sample.id,
+      name: sample.name,
+      pageIntent: sample.pageIntent,
+      visualStyle: sample.visualStyle,
+      whyGood: sample.whyGood,
+      goodPatterns: sample.goodPatterns?.slice(0, 3) || [],
+      forbiddenReuse: sample.forbiddenReuse,
+    })),
+    feedbackMemory: (aestheticReference.feedbackMemory || []).slice(0, 2),
     designRules: (designGovernance.rules || []).slice(0, 3),
     forbidden: (designGovernance.forbidden || []).slice(0, 3),
   };
@@ -9017,7 +9293,7 @@ function buildMiniMaxPrompt(payload) {
     "生成模块表达时必须参考 componentLibraryReference：先吸收已保存积木的字段、尺寸、按钮、标签和卡片密度，再结合 pageIntent 发挥；不要脱离组件库语言空想新模块。",
     "用户原始 prompt 在发送前已经由服务端加工为 localPromptBrickContext：先识别意图和模块，再命中高分积木。brickPlan、sections、componentMorphs 必须优先服从 matchedBricks，不能只写积木名字却换成普通白卡结构。",
     "组件库评分分档是硬约束：8-10 分必须优先参考，6-7 分适度参考，5 分及以下禁止借鉴、禁止兜底、禁止进入 componentReferences 或 brickPlan 的 referenceComponentId。",
-    "生成页面审美时必须参考 aestheticTraining：samplePages 决定页面级构图和功能流，beautifulComponents 决定漂亮积木块细节，feedbackMemory 决定用户长期偏好；不要输出平均白卡表单页。",
+    "生成页面审美时必须参考 aestheticTraining：goldenSamplePages 是整页黄金样本 primary reference，决定页面级构图、首屏焦点、模块比例和 token 气质；samplePages 补充功能流，beautifulComponents 决定漂亮积木块细节，feedbackMemory 和 lowScoreAntiExamples 决定用户长期偏好和必须避开的问题；不要输出平均白卡表单页。",
     "componentLibraryReference 只能作为形态和灵感参考，不能授权新增 allowedBlocks 以外的业务模块，也不能把组件 HTML/CSS 直接塞进首页配置。",
     "组件形态不能都用普通卡片；componentMorphs 是渲染契约，不是展示说明。",
     "核心可见模块必须选择 componentMorphs：AssetOverview、WalletList、QuickActions、TradingAccounts、OnboardingProgress、AccountPerformance、PromotionBanner、ReferralLinkCard、RiskDisclosure 只要出现在 sections/brickPlan/layout 中，就必须从 componentMorphPool 对应 10 种 DOM morph 池里选择 morph/morphId。",
@@ -16099,7 +16375,14 @@ const server = http.createServer(async (req, res) => {
     sendJson(res, 200, {
       ok: true,
       ...readDesignSamples(),
+      learningSchema: {
+        sampleKinds: ["golden-page", "page", "component", "anti-example"],
+        scoringDimensions: HOME_GOLDEN_SAMPLE_DIMENSIONS,
+        scenarioTags: HOME_SCENARIO_TAGS,
+      },
+      goldenSamples: rankGoldenDesignSamplesForPrompt(prompt, 3).map(summarizeDesignSampleForPrompt),
       rankedSamples: rankDesignSamplesForPrompt(prompt, 6).map(summarizeDesignSampleForPrompt),
+      lowScoreAntiExamples: rankLowScoreAntiExamplesForPrompt(prompt, 3).map(summarizeDesignSampleForPrompt),
       beautifulComponents: beautifulComponentReferences({ prompt, limit: 10 }),
       feedbackMemory: feedbackMemoryPromptReference(prompt, 8),
       referenceAssets: referenceAssetsForPrompt(prompt, { limit: 6 }),

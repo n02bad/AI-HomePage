@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="./theme.css?v=tenant-home-4" />
     <link rel="stylesheet" href="./client-home.css?v=tenant-home-4" />
     <link rel="stylesheet" href="./home-personalization.css?v=tenant-home-4" />
-    <link rel="stylesheet" href="./home-ai-training.css?v=training-review-2" />
+    <link rel="stylesheet" href="./home-ai-training.css?v=training-review-3" />
   </head>
   <body data-layout-page="home-ai-training">
     <main class="app" data-layout-main>
@@ -60,7 +60,10 @@
                     <span class="section-kicker">PROMPT</span>
                     <h2>生成需求</h2>
                   </div>
-                  <button type="button" data-score-current>评分当前草稿</button>
+                  <div class="panel-actions">
+                    <button type="button" data-score-current>评分当前草稿</button>
+                    <button type="button" data-save-current-golden>存为黄金样本</button>
+                  </div>
                 </div>
                 <label class="field-stack">
                   <span>候选生成需求</span>
@@ -199,6 +202,6 @@
 
     <script src="./common-layout.js"></script>
     <script src="./home-personalization.js"></script>
-    <script src="./home-ai-training.js?v=training-review-2"></script>
+    <script src="./home-ai-training.js?v=training-review-3"></script>
   </body>
 </html>
