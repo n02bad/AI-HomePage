@@ -16,6 +16,8 @@
     { key: "publishability", label: "可发布性" },
   ];
 
+  const SCENARIO_TAGS = ["新客开户", "专业交易", "CopyTrading", "IB 推广", "黑金 VIP", "活动增长", "极简白", "移动端优先", "白标资金安全"];
+
   const els = {
     page: document.querySelector("[data-training-page]"),
     refresh: document.querySelector("[data-training-refresh]"),
@@ -50,6 +52,56 @@
     feedbackNote: document.querySelector("[data-feedback-note]"),
     clearFeedback: document.querySelector("[data-clear-feedback]"),
     feedbackList: document.querySelector("[data-feedback-list]"),
+    goldenLibrary: document.querySelector("[data-golden-library]"),
+    goldenLibraryReset: document.querySelector("[data-golden-library-reset]"),
+    sampleFilterScenario: document.querySelector("[data-sample-filter-scenario]"),
+    sampleFilterType: document.querySelector("[data-sample-filter-type]"),
+    sampleFilterMinScore: document.querySelector("[data-sample-filter-min-score]"),
+    sampleFilterMaxScore: document.querySelector("[data-sample-filter-max-score]"),
+    sampleFilterIntent: document.querySelector("[data-sample-filter-intent]"),
+    sampleFilterTheme: document.querySelector("[data-sample-filter-theme]"),
+    sampleLibraryList: document.querySelector("[data-sample-library-list]"),
+    goldenFile: document.querySelector("[data-golden-file]"),
+    goldenName: document.querySelector("[data-golden-name]"),
+    referenceUpgradeSelect: document.querySelector("[data-reference-upgrade-select]"),
+    goldenPrompt: document.querySelector("[data-golden-prompt]"),
+    goldenPageIntent: document.querySelector("[data-golden-page-intent]"),
+    goldenThemePreset: document.querySelector("[data-golden-theme-preset]"),
+    goldenVisualStyle: document.querySelector("[data-golden-visual-style]"),
+    goldenScenarioTags: document.querySelector("[data-golden-scenario-tags]"),
+    goldenApplicable: document.querySelector("[data-golden-applicable]"),
+    goldenHumanScore: document.querySelector("[data-golden-human-score]"),
+    goldenHumanScoreOutput: document.querySelector("[data-golden-human-score-output]"),
+    goldenDimensions: document.querySelector("[data-golden-dimensions]"),
+    goldenWhyGood: document.querySelector("[data-golden-why-good]"),
+    goldenWhyBad: document.querySelector("[data-golden-why-bad]"),
+    goldenForbiddenReuse: document.querySelector("[data-golden-forbidden-reuse]"),
+    saveVisualGolden: document.querySelector("[data-save-visual-golden]"),
+    upgradeReferenceGolden: document.querySelector("[data-upgrade-reference-golden]"),
+    currentGoldenName: document.querySelector("[data-current-golden-name]"),
+    currentGoldenScreenshot: document.querySelector("[data-current-golden-screenshot]"),
+    saveCurrentGoldenSecondary: document.querySelector("[data-save-current-golden-secondary]"),
+    sampleEditor: document.querySelector("[data-sample-editor]"),
+    sampleEditorId: document.querySelector("[data-sample-editor-id]"),
+    editSampleName: document.querySelector("[data-edit-sample-name]"),
+    editSampleType: document.querySelector("[data-edit-sample-type]"),
+    editPageIntent: document.querySelector("[data-edit-page-intent]"),
+    editThemePreset: document.querySelector("[data-edit-theme-preset]"),
+    editVisualStyle: document.querySelector("[data-edit-visual-style]"),
+    editTags: document.querySelector("[data-edit-tags]"),
+    editScenarioTags: document.querySelector("[data-edit-scenario-tags]"),
+    editApplicable: document.querySelector("[data-edit-applicable]"),
+    editPrompt: document.querySelector("[data-edit-prompt]"),
+    editHumanScore: document.querySelector("[data-edit-human-score]"),
+    editHumanScoreOutput: document.querySelector("[data-edit-human-score-output]"),
+    editDimensions: document.querySelector("[data-edit-dimensions]"),
+    editWhyGood: document.querySelector("[data-edit-why-good]"),
+    editWhyBad: document.querySelector("[data-edit-why-bad]"),
+    editForbiddenReuse: document.querySelector("[data-edit-forbidden-reuse]"),
+    editCleanupAssets: document.querySelector("[data-edit-cleanup-assets]"),
+    updateSample: document.querySelector("[data-update-sample]"),
+    cancelEditSample: document.querySelector("[data-cancel-edit-sample]"),
+    deleteSample: document.querySelector("[data-delete-sample]"),
     toast: document.querySelector("[data-training-toast]"),
   };
 
@@ -66,6 +118,16 @@
     candidates: [],
     references: [],
     pendingFiles: [],
+    goldenPendingFile: null,
+    editingSampleId: "",
+    sampleFilters: {
+      scenario: "",
+      type: "",
+      minScore: "",
+      maxScore: "",
+      pageIntent: "",
+      themePreset: "",
+    },
     selectedCandidateId: "",
     decision: "approve",
     previewSize: "desktop",
@@ -162,6 +224,112 @@
     return `<div class="${className}">${items.map((item) => `<b>${escapeHtml(item)}</b>`).join("")}</div>`;
   }
 
+  function parseDelimited(value, limit = 12) {
+    return String(value || "")
+      .split(/[,，、\n]+/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, limit);
+  }
+
+  function formatDate(value) {
+    const date = new Date(value || Date.now());
+    if (Number.isNaN(date.getTime())) return "--";
+    return date.toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+  }
+
+  function scoreForSample(sample) {
+    const score = Number(sample?.humanScore ?? sample?.aestheticScore);
+    return Number.isFinite(score) ? score : null;
+  }
+
+  function sampleTypeKey(sample) {
+    if (sample?.isAntiExample || sample?.sampleKind === "anti-example" || Number(sample?.humanScore ?? sample?.aestheticScore) <= 68) return "anti";
+    if (sample?.isGolden || sample?.sampleKind === "golden-page") return "golden";
+    return "page";
+  }
+
+  function sampleTypeLabel(sample) {
+    return {
+      golden: sample?.visualOnly ? "黄金样本 · visual-only" : "黄金样本 · golden-page",
+      page: "普通样本",
+      anti: "低分反例",
+    }[sampleTypeKey(sample)];
+  }
+
+  function themePresetForSample(sample) {
+    return sample?.themePreset || sample?.configSnapshot?.themePreset || sample?.renderEvidence?.themeTokens?.themePreset || "";
+  }
+
+  function sampleThumbUrl(sample) {
+    const evidence = sample?.renderEvidence || {};
+    const raw = evidence.screenshotUrl || evidence.sourceUrl || (evidence.screenshotPath ? `/${String(evidence.screenshotPath).replace(/^\/+/, "")}` : "");
+    return raw || "";
+  }
+
+  function renderSampleThumb(sample) {
+    const url = sampleThumbUrl(sample);
+    if (!url) return `<div class="sample-thumb">暂无缩略图</div>`;
+    const label = escapeHtml(sample.name || "样本缩略图");
+    if (/\.(png|jpe?g|webp|gif)(\?|$)/i.test(url)) {
+      return `<div class="sample-thumb"><img src="${escapeHtml(url)}" alt="${label}" /></div>`;
+    }
+    if (/\.html?(\?|$)/i.test(url) || sample?.sourceAssetType === "html") {
+      return `<div class="sample-thumb"><iframe src="${escapeHtml(url)}" title="${label}"></iframe></div>`;
+    }
+    return `<a class="sample-thumb" href="${escapeHtml(url)}" target="_blank" rel="noreferrer">${escapeHtml(sample.sourceAssetType || "参考稿")}</a>`;
+  }
+
+  function dimensionInputsHtml(values = {}, attrName = "data-form-dimension") {
+    return DIMENSIONS.map((dimension) => {
+      const value = Math.max(0, Math.min(10, Number(values?.[dimension.key] ?? 8)));
+      return `
+        <label class="dimension-row">
+          <span>${escapeHtml(dimension.label)}</span>
+          <input ${attrName}="${escapeHtml(dimension.key)}" type="range" min="0" max="10" step="1" value="${value}" />
+          <output>${value}</output>
+        </label>
+      `;
+    }).join("");
+  }
+
+  function bindRangeOutputs(root) {
+    root?.querySelectorAll('input[type="range"]').forEach((input) => {
+      const sync = () => {
+        const output = input.closest("label")?.querySelector("output") || input.parentElement?.querySelector("output");
+        if (output) output.textContent = input.value;
+      };
+      input.addEventListener("input", sync);
+      sync();
+    });
+  }
+
+  function renderScenarioCheckboxes(container, selected = []) {
+    if (!container) return;
+    const selectedSet = new Set(selected);
+    container.innerHTML = SCENARIO_TAGS.map(
+      (tag) => `
+        <label>
+          <input type="checkbox" value="${escapeHtml(tag)}" ${selectedSet.has(tag) ? "checked" : ""} />
+          ${escapeHtml(tag)}
+        </label>
+      `,
+    ).join("");
+  }
+
+  function readScenarioCheckboxes(container) {
+    return [...(container?.querySelectorAll('input[type="checkbox"]:checked') || [])].map((input) => input.value).filter(Boolean);
+  }
+
+  function readDimensionsFrom(container, attrName) {
+    return Object.fromEntries(
+      DIMENSIONS.map((dimension) => {
+        const input = container?.querySelector(`[${attrName}="${dimension.key}"]`);
+        return [dimension.key, Number(input?.value || 8)];
+      }),
+    );
+  }
+
   function renderStats() {
     if (els.referenceCount) els.referenceCount.textContent = state.references.length;
     if (els.sampleCount) els.sampleCount.textContent = state.samples.length;
@@ -187,11 +355,30 @@
                 <h3>${escapeHtml(asset.name)}</h3>
                 <p>${escapeHtml(asset.note || "已保存为审美参考。")}</p>
                 ${chipRow(asset.tags || [], "reference-tags")}
+                <button type="button" data-upgrade-reference-id="${escapeHtml(asset.id)}">升级为黄金样本</button>
               </article>
             `;
           })
           .join("")
       : `<p class="empty-training">还没有参考稿。可以上传截图、HTML 稿或 PDF，给 AI 一个更明确的审美方向。</p>`;
+    els.referenceList.querySelectorAll("[data-upgrade-reference-id]").forEach((button) => {
+      button.addEventListener("click", () => {
+        if (els.referenceUpgradeSelect) els.referenceUpgradeSelect.value = button.dataset.upgradeReferenceId || "";
+        const asset = state.references.find((item) => item.id === button.dataset.upgradeReferenceId);
+        if (asset && els.goldenName && !els.goldenName.value) els.goldenName.value = asset.name;
+        showToast("已选中参考稿，补充分数和标签后升级");
+      });
+    });
+    renderReferenceUpgradeOptions();
+  }
+
+  function renderReferenceUpgradeOptions() {
+    if (!els.referenceUpgradeSelect) return;
+    const selected = els.referenceUpgradeSelect.value;
+    els.referenceUpgradeSelect.innerHTML = `<option value="">选择已上传参考稿</option>${state.references
+      .map((asset) => `<option value="${escapeHtml(asset.id)}">${escapeHtml(asset.name)} · ${escapeHtml(asset.type || "file")}</option>`)
+      .join("")}`;
+    if (selected && state.references.some((asset) => asset.id === selected)) els.referenceUpgradeSelect.value = selected;
   }
 
   function renderContext() {
@@ -261,6 +448,93 @@
           )
           .join("")
       : `<p class="empty-training">暂无反馈记忆。人工评分保存后会出现在这里。</p>`;
+  }
+
+  function syncFilterSelect(select, values, placeholder) {
+    if (!select) return;
+    const current = select.value;
+    select.innerHTML = `<option value="">${escapeHtml(placeholder)}</option>${values
+      .filter(Boolean)
+      .map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`)
+      .join("")}`;
+    if (current && values.includes(current)) select.value = current;
+  }
+
+  function refreshSampleFilterOptions() {
+    syncFilterSelect(els.sampleFilterScenario, SCENARIO_TAGS, "全部场景");
+    const intents = [...new Set(state.samples.map((sample) => sample.pageIntent).filter(Boolean))].sort();
+    const themes = [...new Set(state.samples.map(themePresetForSample).filter(Boolean))].sort();
+    syncFilterSelect(els.sampleFilterIntent, intents, "全部 Intent");
+    syncFilterSelect(els.sampleFilterTheme, themes, "全部主题");
+  }
+
+  function sampleMatchesFilters(sample) {
+    const filters = state.sampleFilters;
+    const score = scoreForSample(sample);
+    if (filters.scenario && !(sample.scenarioTags || []).includes(filters.scenario)) return false;
+    if (filters.type && sampleTypeKey(sample) !== filters.type) return false;
+    if (filters.minScore !== "" && score !== null && score < Number(filters.minScore)) return false;
+    if (filters.maxScore !== "" && score !== null && score > Number(filters.maxScore)) return false;
+    if (filters.pageIntent && sample.pageIntent !== filters.pageIntent) return false;
+    if (filters.themePreset && themePresetForSample(sample) !== filters.themePreset) return false;
+    return true;
+  }
+
+  function renderGoldenLibrary() {
+    if (!els.sampleLibraryList) return;
+    refreshSampleFilterOptions();
+    const filtered = state.samples
+      .filter(sampleMatchesFilters)
+      .slice()
+      .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
+
+    els.sampleLibraryList.innerHTML = filtered.length
+      ? filtered
+          .map((sample) => {
+            const score = scoreForSample(sample);
+            const typeKey = sampleTypeKey(sample);
+            const summary = sample.whyGood || sample.whyBad || sample.scenario || sample.page?.layout || "暂无说明。";
+            return `
+              <article class="sample-card" data-sample-id="${escapeHtml(sample.id)}">
+                ${renderSampleThumb(sample)}
+                <div class="sample-card-body">
+                  <div class="sample-card-head">
+                    <div>
+                      <h3>${escapeHtml(sample.name)}</h3>
+                      <p>${escapeHtml(summary)}</p>
+                    </div>
+                    <span class="sample-kind-pill" data-kind="${escapeHtml(typeKey)}">${escapeHtml(sampleTypeLabel(sample))}</span>
+                  </div>
+                  <div class="sample-meta-grid">
+                    <span>pageIntent: ${escapeHtml(sample.pageIntent || "--")}</span>
+                    <span>themePreset: ${escapeHtml(themePresetForSample(sample) || "--")}</span>
+                    <span>visualStyle: ${escapeHtml(sample.visualStyle || "--")}</span>
+                    <span>更新: ${escapeHtml(formatDate(sample.updatedAt || sample.createdAt))}</span>
+                  </div>
+                  <div class="candidate-meta">
+                    <b>human ${escapeHtml(sample.humanScore ?? "--")}</b>
+                    <b>aesthetic ${escapeHtml(sample.aestheticScore ?? "--")}</b>
+                    <b class="sample-score-pill">${escapeHtml(score ?? "--")} / 100</b>
+                  </div>
+                  ${chipRow([...(sample.scenarioTags || []), ...(sample.tags || [])], "context-tags")}
+                  <p>${escapeHtml(sample.whyBad ? `避开：${sample.whyBad}` : sample.forbiddenReuse || "")}</p>
+                  <div class="sample-card-actions">
+                    <button type="button" data-edit-sample="${escapeHtml(sample.id)}">编辑</button>
+                    <button class="danger-button" type="button" data-delete-sample-id="${escapeHtml(sample.id)}">删除</button>
+                  </div>
+                </div>
+              </article>
+            `;
+          })
+          .join("")
+      : `<p class="empty-training">没有符合筛选条件的样本。调整筛选，或先上传一份 visual-only 黄金样本。</p>`;
+
+    els.sampleLibraryList.querySelectorAll("[data-edit-sample]").forEach((button) => {
+      button.addEventListener("click", () => openSampleEditor(button.dataset.editSample));
+    });
+    els.sampleLibraryList.querySelectorAll("[data-delete-sample-id]").forEach((button) => {
+      button.addEventListener("click", () => deleteSampleById(button.dataset.deleteSampleId, false).catch((error) => showToast(error.message)));
+    });
   }
 
   function applyCandidatePreview(frame, candidate) {
@@ -375,6 +649,13 @@
     );
   }
 
+  function syncSamplesFromLibrary(librarySamples) {
+    state.samples = Array.isArray(librarySamples) ? librarySamples : state.samples;
+    state.goldenSamples = state.samples.filter((sample) => sample.isGolden && !sample.isAntiExample);
+    state.rankedSamples = state.samples.filter((sample) => !sample.isGolden && !sample.isAntiExample).slice(0, 6);
+    state.lowScoreAntiExamples = state.samples.filter((sample) => sample.isAntiExample || Number(sample.humanScore ?? sample.aestheticScore) <= 68).slice(0, 6);
+  }
+
   function renderDimensionSliders(candidate) {
     if (!els.dimensionSliders) return;
     els.dimensionSliders.innerHTML = DIMENSIONS.map((dimension) => {
@@ -427,6 +708,7 @@
     renderCandidates();
     syncSelectedCandidateForm(false);
     renderFeedback();
+    renderGoldenLibrary();
   }
 
   async function loadTrainingData() {
@@ -541,19 +823,17 @@
       density: config?.density || "",
       tokens: root
         ? Object.fromEntries(tokenNames.map((name) => [name, root.getPropertyValue(name).trim()]).filter(([, value]) => value))
-        : {},
+      : {},
     };
   }
 
-  function captureRenderEvidence(candidate, config) {
-    const frame = selectedPreviewFrame(candidate);
-    const doc = frame?.contentDocument || null;
+  function renderEvidenceFromDocument(doc, sourceUrl, config) {
     const root = doc?.querySelector(".client-home-page, [data-client-home-root], body");
     const htmlScheme = config?.htmlScheme || {};
     const skeleton = config?.skeletonHtmlScheme || {};
     return {
       capturedAt: new Date().toISOString(),
-      sourceUrl: frame?.src || window.location.href,
+      sourceUrl: sourceUrl || window.location.href,
       domSnapshot: root?.outerHTML ? root.outerHTML.slice(0, 50000) : "",
       aiHtml: htmlScheme.enabled ? String(htmlScheme.html || "").slice(0, 30000) : "",
       aiCss: htmlScheme.enabled ? String(htmlScheme.css || "").slice(0, 30000) : "",
@@ -565,6 +845,39 @@
       },
       themeTokens: readThemeTokens(doc, config),
     };
+  }
+
+  function captureRenderEvidence(candidate, config) {
+    const frame = selectedPreviewFrame(candidate);
+    return renderEvidenceFromDocument(frame?.contentDocument || null, frame?.src || window.location.href, config);
+  }
+
+  function captureConfigEvidence(config) {
+    if (!home?.applyConfig) return Promise.resolve(captureRenderEvidence(null, config));
+    return new Promise((resolve) => {
+      const frame = document.createElement("iframe");
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        const evidence = renderEvidenceFromDocument(frame.contentDocument || null, frame.src, config);
+        frame.remove();
+        resolve(evidence);
+      };
+      frame.setAttribute("aria-hidden", "true");
+      frame.style.cssText = "position:fixed;left:-10000px;top:0;width:1440px;height:900px;opacity:0;pointer-events:none;";
+      frame.src = "./client-home.html?preview=1&trainingSnapshot=1";
+      frame.addEventListener("load", () => {
+        try {
+          frame.contentWindow?.HomePersonalization?.applyConfig(config, frame.contentDocument);
+        } catch (error) {
+          // The fallback evidence still records config tokens even if the preview iframe cannot render.
+        }
+        window.setTimeout(finish, 180);
+      });
+      document.body.appendChild(frame);
+      window.setTimeout(finish, 1600);
+    });
   }
 
   function scenarioTagsFromConfig(config, prompt) {
@@ -593,10 +906,13 @@
     return {
       id: `training-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 7)}`,
       sampleKind: options.sampleKind || "golden-page",
+      sourceType: "homepage-config",
+      visualOnly: false,
       isGolden: options.isGolden !== false,
-      name: `${normalized.name || sourceLabel} 样本`,
+      name: options.name || `${normalized.name || sourceLabel} 样本`,
       scenario: prompt || normalized.aiSummary || "从审美评审台沉淀的首页样本。",
       pageIntent: normalized.pageIntent?.primaryIntent || normalized.brickTrace?.intent || "custom",
+      themePreset: normalized.themePreset || normalized.theme || "",
       visualStyle: `${home?.themeLabel?.(normalized.themePreset || normalized.theme) || normalized.themePreset || "default"} · ${home?.layoutLabel?.(normalized.layoutPreset) || normalized.layoutPreset || ""}`,
       prompt,
       aestheticScore: manualScore,
@@ -651,10 +967,16 @@
         }),
       }),
     });
-    state.samples = data.library?.samples || state.samples;
-    state.goldenSamples = [data.sample, ...state.goldenSamples.filter((sample) => sample.id !== data.sample.id)];
+    syncSamplesFromLibrary(data.library?.samples);
     renderAll();
     showToast("已存为整页黄金样本");
+  }
+
+  async function evidenceWithOptionalScreenshot(baseEvidence) {
+    const file = els.currentGoldenScreenshot?.files?.[0];
+    if (!file) return baseEvidence;
+    const payload = await readFilePayload(file);
+    return { ...baseEvidence, screenshotDataUrl: payload.dataUrl };
   }
 
   async function saveCurrentGoldenSample() {
@@ -664,19 +986,21 @@
       return;
     }
     const manualScore = Number(els.manualScore?.value || 92);
+    const evidence = await evidenceWithOptionalScreenshot(await captureConfigEvidence(config));
     const data = await requestJson("/api/home-ai/design-samples", {
       method: "POST",
       body: JSON.stringify({
         sample: sampleFromConfig(config, savedPrompt(), "当前首页", {
+          name: String(els.currentGoldenName?.value || "").trim() || undefined,
           humanScore: manualScore,
           note: els.feedbackNote?.value || "",
           scoreDimensions: readManualDimensions(),
-          renderEvidence: captureRenderEvidence(null, config),
+          renderEvidence: evidence,
         }),
       }),
     });
-    state.samples = data.library?.samples || state.samples;
-    state.goldenSamples = [data.sample, ...state.goldenSamples.filter((sample) => sample.id !== data.sample.id)];
+    syncSamplesFromLibrary(data.library?.samples);
+    if (els.currentGoldenScreenshot) els.currentGoldenScreenshot.value = "";
     renderAll();
     showToast("当前首页已保存为黄金样本");
   }
@@ -779,6 +1103,236 @@
     }
   }
 
+  function visualSampleMetadata() {
+    const scenarioTags = readScenarioCheckboxes(els.goldenScenarioTags);
+    const pageIntent = String(els.goldenPageIntent?.value || "").trim();
+    const themePreset = String(els.goldenThemePreset?.value || "").trim();
+    const visualStyle = String(els.goldenVisualStyle?.value || "").trim();
+    const whyGood = String(els.goldenWhyGood?.value || "").trim();
+    const whyBad = String(els.goldenWhyBad?.value || "").trim();
+    const forbiddenReuse =
+      String(els.goldenForbiddenReuse?.value || "").trim() ||
+      "只学习视觉层级、构图、信息密度、色彩和模块比例；不要照搬品牌素材、文案、金额或受保护内容。";
+    return {
+      name: String(els.goldenName?.value || "").trim(),
+      prompt: String(els.goldenPrompt?.value || savedPrompt()).trim(),
+      pageIntent,
+      themePreset,
+      visualStyle,
+      scenarioTags,
+      applicableScenarios: parseDelimited(els.goldenApplicable?.value, 10),
+      humanScore: Number(els.goldenHumanScore?.value || 92),
+      scoreDimensions: readDimensionsFrom(els.goldenDimensions, "data-golden-dimension"),
+      whyGood,
+      whyBad,
+      forbiddenReuse,
+      tags: [themePreset, pageIntent, visualStyle, ...scenarioTags].filter(Boolean).slice(0, 12),
+    };
+  }
+
+  async function saveReferenceAssetFromFile(file, metadata) {
+    const payload = await readFilePayload(file);
+    const latest = await requestJson("/api/home-ai/reference-assets", {
+      method: "POST",
+      body: JSON.stringify({
+        asset: {
+          ...payload,
+          tags: metadata.tags,
+          note: metadata.whyGood || metadata.prompt || "外部设计稿 visual-only 黄金样本来源。",
+        },
+      }),
+    });
+    state.references = latest.records || state.references;
+    return state.references[0] || null;
+  }
+
+  function visualOnlySampleFromAsset(asset, metadata) {
+    const name = metadata.name || `${asset.name || "外部设计稿"} visual-only 黄金样本`;
+    const isImage = asset.type === "image" || /^image\//i.test(asset.mime || "");
+    return {
+      id: `visual-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 7)}`,
+      sampleKind: "golden-page",
+      sourceType: "visual-only",
+      visualOnly: true,
+      isGolden: true,
+      isAntiExample: false,
+      name,
+      scenario: metadata.prompt || metadata.applicableScenarios.join("、") || "外部设计稿视觉黄金样本。",
+      pageIntent: metadata.pageIntent,
+      themePreset: metadata.themePreset,
+      visualStyle: metadata.visualStyle,
+      prompt: metadata.prompt,
+      aestheticScore: metadata.humanScore,
+      humanScore: metadata.humanScore,
+      scoreDimensions: metadata.scoreDimensions,
+      tags: metadata.tags,
+      scenarioTags: metadata.scenarioTags,
+      page: {
+        name,
+        layout: "visual-only：仅学习外部设计稿的构图、层级、密度和 token 气质。",
+        hero: metadata.whyGood,
+        navigation: "",
+        mobile: metadata.scenarioTags.includes("移动端优先") ? "移动端优先参考。" : "",
+      },
+      functions: [],
+      sampleBlocks: [],
+      componentRefs: [],
+      goodPatterns: [metadata.whyGood].filter(Boolean),
+      avoidPatterns: [metadata.whyBad].filter(Boolean),
+      whyGood: metadata.whyGood,
+      whyBad: metadata.whyBad,
+      applicableScenarios: metadata.applicableScenarios.length ? metadata.applicableScenarios : metadata.scenarioTags,
+      forbiddenReuse: metadata.forbiddenReuse,
+      homepageConfig: null,
+      configSnapshot: null,
+      referenceAssetId: asset.id,
+      sourceAssetType: asset.type,
+      renderEvidence: {
+        capturedAt: new Date().toISOString(),
+        screenshotPath: isImage ? asset.storagePath || "" : "",
+        screenshotUrl: isImage ? asset.url || "" : "",
+        sourceUrl: asset.url || "",
+        cssSummary: {
+          referenceAssetId: asset.id,
+          referenceType: asset.type,
+          textExcerpt: asset.textExcerpt || "",
+        },
+        themeTokens: {
+          themePreset: metadata.themePreset,
+          visualStyle: metadata.visualStyle,
+        },
+      },
+      promptSeeds: [metadata.prompt].filter(Boolean),
+    };
+  }
+
+  async function saveVisualOnlyGoldenFromAsset(asset) {
+    if (!asset) {
+      showToast("请先选择或上传一个设计稿");
+      return;
+    }
+    const metadata = visualSampleMetadata();
+    const data = await requestJson("/api/home-ai/design-samples", {
+      method: "POST",
+      body: JSON.stringify({ sample: visualOnlySampleFromAsset(asset, metadata) }),
+    });
+    syncSamplesFromLibrary(data.library?.samples);
+    renderAll();
+    showToast("visual-only 黄金样本已保存，会参与生成前检索");
+  }
+
+  async function saveUploadedVisualGolden() {
+    const file = state.goldenPendingFile || els.goldenFile?.files?.[0];
+    const metadata = visualSampleMetadata();
+    const selectedReference = state.references.find((asset) => asset.id === els.referenceUpgradeSelect?.value);
+    const asset = file ? await saveReferenceAssetFromFile(file, metadata) : selectedReference;
+    await saveVisualOnlyGoldenFromAsset(asset);
+    state.goldenPendingFile = null;
+    if (els.goldenFile) els.goldenFile.value = "";
+  }
+
+  async function upgradeSelectedReferenceGolden() {
+    const asset = state.references.find((item) => item.id === els.referenceUpgradeSelect?.value);
+    if (!asset) {
+      showToast("请先选择一个已上传参考稿");
+      return;
+    }
+    await saveVisualOnlyGoldenFromAsset(asset);
+  }
+
+  function openSampleEditor(sampleId) {
+    const sample = state.samples.find((item) => item.id === sampleId);
+    if (!sample || !els.sampleEditor) return;
+    state.editingSampleId = sample.id;
+    els.sampleEditor.hidden = false;
+    if (els.sampleEditorId) els.sampleEditorId.textContent = sample.id;
+    if (els.editSampleName) els.editSampleName.value = sample.name || "";
+    if (els.editSampleType) els.editSampleType.value = sampleTypeKey(sample);
+    if (els.editPageIntent) els.editPageIntent.value = sample.pageIntent || "";
+    if (els.editThemePreset) els.editThemePreset.value = themePresetForSample(sample);
+    if (els.editVisualStyle) els.editVisualStyle.value = sample.visualStyle || "";
+    if (els.editTags) els.editTags.value = (sample.tags || []).join(", ");
+    if (els.editApplicable) els.editApplicable.value = (sample.applicableScenarios || []).join(", ");
+    if (els.editPrompt) els.editPrompt.value = sample.prompt || "";
+    if (els.editHumanScore) els.editHumanScore.value = String(scoreForSample(sample) ?? 92);
+    if (els.editHumanScoreOutput) els.editHumanScoreOutput.textContent = els.editHumanScore?.value || "92";
+    if (els.editWhyGood) els.editWhyGood.value = sample.whyGood || "";
+    if (els.editWhyBad) els.editWhyBad.value = sample.whyBad || "";
+    if (els.editForbiddenReuse) els.editForbiddenReuse.value = sample.forbiddenReuse || "";
+    if (els.editCleanupAssets) els.editCleanupAssets.checked = false;
+    renderScenarioCheckboxes(els.editScenarioTags, sample.scenarioTags || []);
+    if (els.editDimensions) {
+      els.editDimensions.innerHTML = dimensionInputsHtml(sample.scoreDimensions || {}, "data-edit-dimension");
+      bindRangeOutputs(els.editDimensions);
+    }
+    els.sampleEditor.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function closeSampleEditor() {
+    state.editingSampleId = "";
+    if (els.sampleEditor) els.sampleEditor.hidden = true;
+  }
+
+  function samplePatchFromEditor() {
+    const type = els.editSampleType?.value || "golden";
+    const humanScore = Number(els.editHumanScore?.value || 92);
+    const existing = state.samples.find((sample) => sample.id === state.editingSampleId) || {};
+    return {
+      name: String(els.editSampleName?.value || "").trim(),
+      sampleKind: type === "anti" ? "anti-example" : type === "page" ? "page" : "golden-page",
+      isGolden: type === "golden",
+      isAntiExample: type === "anti",
+      visualOnly: type === "golden" ? existing.visualOnly || false : false,
+      sourceType: type === "golden" && existing.visualOnly ? "visual-only" : type === "golden" ? existing.sourceType || "homepage-config" : "sample-notes",
+      pageIntent: String(els.editPageIntent?.value || "").trim(),
+      themePreset: String(els.editThemePreset?.value || "").trim(),
+      visualStyle: String(els.editVisualStyle?.value || "").trim(),
+      prompt: String(els.editPrompt?.value || "").trim(),
+      humanScore,
+      aestheticScore: humanScore,
+      scoreDimensions: readDimensionsFrom(els.editDimensions, "data-edit-dimension"),
+      tags: parseDelimited(els.editTags?.value, 12),
+      scenarioTags: readScenarioCheckboxes(els.editScenarioTags),
+      applicableScenarios: parseDelimited(els.editApplicable?.value, 10),
+      whyGood: String(els.editWhyGood?.value || "").trim(),
+      whyBad: String(els.editWhyBad?.value || "").trim(),
+      forbiddenReuse: String(els.editForbiddenReuse?.value || "").trim(),
+    };
+  }
+
+  async function updateEditingSample() {
+    if (!state.editingSampleId) {
+      showToast("请先选择一个样本");
+      return;
+    }
+    const data = await requestJson(`/api/home-ai/design-samples/${encodeURIComponent(state.editingSampleId)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ sample: samplePatchFromEditor() }),
+    });
+    syncSamplesFromLibrary(data.library?.samples);
+    renderAll();
+    openSampleEditor(data.sample.id);
+    showToast("样本已更新");
+  }
+
+  async function deleteSampleById(sampleId, cleanupAssets = false) {
+    const sample = state.samples.find((item) => item.id === sampleId);
+    if (!sample) return;
+    const confirmed = window.confirm(`确定删除样本「${sample.name}」吗？默认不会删除 referenceAssets。`);
+    if (!confirmed) return;
+    const suffix = cleanupAssets ? "?cleanupAssets=1" : "";
+    const data = await requestJson(`/api/home-ai/design-samples/${encodeURIComponent(sampleId)}${suffix}`, { method: "DELETE" });
+    syncSamplesFromLibrary(data.library?.samples);
+    if (state.editingSampleId === sampleId) closeSampleEditor();
+    renderAll();
+    showToast("样本已删除");
+  }
+
+  async function deleteEditingSample() {
+    if (!state.editingSampleId) return;
+    await deleteSampleById(state.editingSampleId, Boolean(els.editCleanupAssets?.checked));
+  }
+
   async function clearReferences() {
     const confirmed = window.confirm("确定清空所有上传参考稿吗？");
     if (!confirmed) return;
@@ -819,6 +1373,68 @@
     });
   }
 
+  function syncSampleFiltersFromControls() {
+    state.sampleFilters = {
+      scenario: els.sampleFilterScenario?.value || "",
+      type: els.sampleFilterType?.value || "",
+      minScore: els.sampleFilterMinScore?.value || "",
+      maxScore: els.sampleFilterMaxScore?.value || "",
+      pageIntent: els.sampleFilterIntent?.value || "",
+      themePreset: els.sampleFilterTheme?.value || "",
+    };
+    renderGoldenLibrary();
+  }
+
+  function resetSampleFilters() {
+    [
+      els.sampleFilterScenario,
+      els.sampleFilterType,
+      els.sampleFilterMinScore,
+      els.sampleFilterMaxScore,
+      els.sampleFilterIntent,
+      els.sampleFilterTheme,
+    ].forEach((control) => {
+      if (control) control.value = "";
+    });
+    syncSampleFiltersFromControls();
+  }
+
+  function bindGoldenLibraryControls() {
+    renderScenarioCheckboxes(els.goldenScenarioTags, []);
+    if (els.goldenDimensions) {
+      els.goldenDimensions.innerHTML = dimensionInputsHtml({}, "data-golden-dimension");
+      bindRangeOutputs(els.goldenDimensions);
+    }
+    els.goldenHumanScore?.addEventListener("input", () => {
+      if (els.goldenHumanScoreOutput) els.goldenHumanScoreOutput.textContent = els.goldenHumanScore.value;
+    });
+    els.editHumanScore?.addEventListener("input", () => {
+      if (els.editHumanScoreOutput) els.editHumanScoreOutput.textContent = els.editHumanScore.value;
+    });
+    els.goldenFile?.addEventListener("change", () => {
+      state.goldenPendingFile = els.goldenFile.files?.[0] || null;
+      if (state.goldenPendingFile && els.goldenName && !els.goldenName.value) els.goldenName.value = state.goldenPendingFile.name.replace(/\.[^.]+$/, "");
+    });
+    [
+      els.sampleFilterScenario,
+      els.sampleFilterType,
+      els.sampleFilterMinScore,
+      els.sampleFilterMaxScore,
+      els.sampleFilterIntent,
+      els.sampleFilterTheme,
+    ].forEach((control) => {
+      control?.addEventListener("input", syncSampleFiltersFromControls);
+      control?.addEventListener("change", syncSampleFiltersFromControls);
+    });
+    els.goldenLibraryReset?.addEventListener("click", resetSampleFilters);
+    els.saveVisualGolden?.addEventListener("click", () => saveUploadedVisualGolden().catch((error) => showToast(error.message)));
+    els.upgradeReferenceGolden?.addEventListener("click", () => upgradeSelectedReferenceGolden().catch((error) => showToast(error.message)));
+    els.saveCurrentGoldenSecondary?.addEventListener("click", () => saveCurrentGoldenSample().catch((error) => showToast(error.message)));
+    els.updateSample?.addEventListener("click", () => updateEditingSample().catch((error) => showToast(error.message)));
+    els.cancelEditSample?.addEventListener("click", closeSampleEditor);
+    els.deleteSample?.addEventListener("click", () => deleteEditingSample().catch((error) => showToast(error.message)));
+  }
+
   els.refresh?.addEventListener("click", () => loadTrainingData().then(() => showToast("训练数据已刷新")).catch((error) => showToast(error.message)));
   els.scoreCurrent?.addEventListener("click", () => scoreCurrentDraft().catch((error) => showToast(error.message)));
   els.saveCurrentGolden?.addEventListener("click", () => saveCurrentGoldenSample().catch((error) => showToast(error.message)));
@@ -839,6 +1455,7 @@
   });
 
   bindDimensionAndDecisionControls();
+  bindGoldenLibraryControls();
   renderDimensionSliders(null);
   setPreviewSize("desktop");
 

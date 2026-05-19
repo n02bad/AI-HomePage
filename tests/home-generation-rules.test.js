@@ -1080,6 +1080,87 @@ async function run() {
         "similar prompt must retrieve the saved whole-page golden sample",
       );
       assert(rankedGolden.learningSchema.scoringDimensions.includes("publishability"));
+
+      const visualOnlyId = "test-visual-only-golden-sample";
+      const savedVisualOnly = await requestJson(port, "/api/home-ai/design-samples", {
+        sample: {
+          id: visualOnlyId,
+          sampleKind: "golden-page",
+          sourceType: "visual-only",
+          visualOnly: true,
+          isGolden: true,
+          name: "测试外部视觉黄金样本",
+          prompt: "极简白开户注册首页，移动端优先。",
+          scenarioTags: ["极简白", "移动端优先"],
+          applicableScenarios: ["新客开户"],
+          pageIntent: "onboarding",
+          themePreset: "minimalWhite",
+          visualStyle: "minimal white mobile onboarding",
+          renderEvidence: {
+            screenshotUrl: "/artifacts/home-ai-reference-assets/test-visual-only.png",
+            sourceUrl: "/artifacts/home-ai-reference-assets/test-visual-only.png",
+            cssSummary: { referenceAssetId: "test-reference-asset", referenceType: "image" },
+          },
+          humanScore: 95,
+          scoreDimensions: {
+            firstScreenFocus: 9,
+            informationHierarchy: 9,
+            moduleBalance: 8,
+            componentCraft: 9,
+            financialTone: 8,
+            businessTruth: 9,
+            responsive: 10,
+            visualConsistency: 9,
+            publishability: 9,
+          },
+          whyGood: "移动端首屏焦点清楚，信息密度克制。",
+          forbiddenReuse: "不要照搬截图里的品牌素材。",
+        },
+      });
+      assert.strictEqual(savedVisualOnly.sample.visualOnly, true);
+      assert.strictEqual(savedVisualOnly.sample.configSnapshot, null);
+
+      const retrievedVisualOnly = await requestJson(port, `/api/home-ai/design-samples?prompt=${encodeURIComponent("极简白 移动端 开户")}`);
+      const visualGolden = retrievedVisualOnly.goldenSamples.find((sample) => sample.id === visualOnlyId);
+      assert(visualGolden, "visual-only golden sample must be retrievable in goldenSamplePages");
+      assert.strictEqual(visualGolden.visualOnly, true);
+      assert.strictEqual(visualGolden.evidence.configSnapshot, null);
+      assert.strictEqual(visualGolden.evidence.configSnapshotStatus, "empty-visual-reference-only");
+
+      const patchedVisualOnly = await requestJson(
+        port,
+        `/api/home-ai/design-samples/${encodeURIComponent(visualOnlyId)}`,
+        {
+          sample: {
+            sampleKind: "anti-example",
+            sourceType: "sample-notes",
+            visualOnly: false,
+            isGolden: false,
+            isAntiExample: true,
+            humanScore: 64,
+            aestheticScore: 64,
+            scenarioTags: ["活动增长"],
+            whyBad: "活动首屏焦点分散，CTA 和资产信息抢权重。",
+          },
+        },
+        "PATCH",
+      );
+      const patchedSample = patchedVisualOnly.library.samples.find((sample) => sample.id === visualOnlyId);
+      assert.strictEqual(patchedSample.humanScore, 64);
+      assert.deepStrictEqual(patchedSample.scenarioTags, ["活动增长"]);
+      assert.strictEqual(patchedSample.isAntiExample, true);
+
+      const retrievedAnti = await requestJson(port, `/api/home-ai/design-samples?prompt=${encodeURIComponent("活动增长 首页")}`);
+      assert(
+        retrievedAnti.lowScoreAntiExamples.some((sample) => sample.id === visualOnlyId && sample.humanScore === 64 && sample.scenarioTags.includes("活动增长")),
+        "updated low-score anti example must be reflected in retrieval results",
+      );
+
+      await requestJson(port, `/api/home-ai/design-samples/${encodeURIComponent(visualOnlyId)}`, null, "DELETE");
+      const afterDelete = await requestJson(port, `/api/home-ai/design-samples?prompt=${encodeURIComponent("活动增长 极简白")}`);
+      assert(!afterDelete.samples.some((sample) => sample.id === visualOnlyId), "deleted sample must not remain in full sample list");
+      assert(!afterDelete.goldenSamples.some((sample) => sample.id === visualOnlyId), "deleted sample must not remain in golden retrieval");
+      assert(!afterDelete.lowScoreAntiExamples.some((sample) => sample.id === visualOnlyId), "deleted sample must not remain in anti-example retrieval");
     } finally {
       fs.writeFileSync(designSamplesPath, originalDesignSamples, "utf8");
     }

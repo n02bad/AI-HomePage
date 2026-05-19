@@ -5,7 +5,8 @@
 
 .training-hero,
 .review-panel,
-.candidate-stage {
+.candidate-stage,
+.golden-library-panel {
   border: 1px solid #e3ebf6;
   border-radius: 8px;
   background: #fff;
@@ -21,7 +22,8 @@
 
 .training-hero h1,
 .panel-head h2,
-.candidate-stage-head h2 {
+.candidate-stage-head h2,
+.golden-library-panel h2 {
   margin: 0;
   color: #111827;
   font-weight: 950;
@@ -39,6 +41,7 @@
 
 .training-hero p,
 .candidate-stage-head p,
+.golden-library-panel .panel-head p,
 .training-status,
 .empty-training,
 .upload-dropzone span {
@@ -78,6 +81,7 @@
 .training-actions a,
 .training-actions button,
 .review-panel button,
+.golden-library-panel button,
 .candidate-toolbar button,
 .preview-size-switch button,
 .decision-segment button {
@@ -188,7 +192,9 @@
 
 .field-stack input,
 .field-stack textarea,
-.candidate-controls select {
+.candidate-controls select,
+.sample-library-filters input,
+.sample-library-filters select {
   width: 100%;
   border: 1px solid #d9e4f2;
   border-radius: 8px;
@@ -200,7 +206,9 @@
 }
 
 .field-stack input,
-.candidate-controls select {
+.candidate-controls select,
+.sample-library-filters input,
+.sample-library-filters select {
   min-height: 38px;
   padding: 0 11px;
 }
@@ -253,6 +261,267 @@
   color: #111827;
   font-size: 14px;
   font-weight: 950;
+}
+
+.golden-library-panel {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+}
+
+.sample-library-filters {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(120px, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+
+.sample-library-filters label,
+.field-label {
+  display: grid;
+  gap: 6px;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.golden-library-workbench {
+  display: grid;
+  grid-template-columns: minmax(320px, 1.45fr) minmax(260px, 0.75fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.golden-sample-form,
+.golden-current-form,
+.sample-editor {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #e6edf7;
+  border-radius: 8px;
+  background: #f9fbff;
+}
+
+.form-section-head {
+  display: grid;
+  gap: 5px;
+}
+
+.form-section-head h3 {
+  margin: 0;
+  color: #111827;
+  font-size: 15px;
+  font-weight: 950;
+  line-height: 1.25;
+}
+
+.form-section-head span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 780;
+  line-height: 1.45;
+}
+
+.upload-dropzone.compact {
+  min-height: 98px;
+}
+
+.two-column-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.scenario-checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 7px;
+}
+
+.scenario-checkbox-grid label,
+.cleanup-option {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 9px;
+  border: 1px solid #e1e9f5;
+  border-radius: 8px;
+  background: #fff;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.25;
+}
+
+.scenario-checkbox-grid input,
+.cleanup-option input {
+  flex: 0 0 auto;
+  accent-color: #1d4ed8;
+}
+
+.compact-score {
+  grid-template-columns: 132px minmax(0, 1fr);
+  align-items: center;
+}
+
+.compact-score label {
+  min-height: 54px;
+}
+
+.compact-score input {
+  width: 100%;
+  accent-color: #1d4ed8;
+}
+
+.compact-dimensions {
+  padding: 10px;
+  border: 1px solid #e6edf7;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.form-actions .primary-action {
+  width: auto;
+}
+
+.danger-button {
+  border-color: #fecaca !important;
+  background: #fff1f2 !important;
+  color: #be123c !important;
+}
+
+.sample-editor[hidden] {
+  display: none;
+}
+
+.sample-library-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.sample-card {
+  display: grid;
+  grid-template-columns: 168px minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #e3ebf6;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.sample-thumb {
+  min-height: 128px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #111827;
+  color: #e5e7eb;
+  font-size: 12px;
+  font-weight: 950;
+  text-align: center;
+}
+
+.sample-thumb img,
+.sample-thumb iframe {
+  width: 100%;
+  height: 100%;
+  min-height: 128px;
+  border: 0;
+  object-fit: cover;
+  background: #fff;
+}
+
+.sample-card-body {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sample-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sample-card h3 {
+  margin: 0;
+  color: #111827;
+  font-size: 15px;
+  font-weight: 950;
+  line-height: 1.25;
+}
+
+.sample-card p {
+  margin: 0;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 760;
+  line-height: 1.5;
+}
+
+.sample-kind-pill,
+.sample-score-pill {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: #eef6ff;
+  color: #1d4ed8;
+  font-size: 11px;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.sample-kind-pill[data-kind="anti"] {
+  background: #fff1f2;
+  color: #be123c;
+}
+
+.sample-kind-pill[data-kind="page"] {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.sample-score-pill {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.sample-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.sample-meta-grid span {
+  min-width: 0;
+  padding: 7px 8px;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 850;
+  overflow-wrap: anywhere;
+}
+
+.sample-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .reference-grid,
@@ -515,6 +784,15 @@
     grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
   }
 
+  .sample-library-filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .golden-library-workbench,
+  .sample-library-list {
+    grid-template-columns: 1fr;
+  }
+
   .review-column-right {
     position: static;
     grid-column: 1 / -1;
@@ -556,10 +834,27 @@
     grid-template-columns: 1fr;
   }
 
+  .sample-library-filters,
+  .two-column-fields,
+  .scenario-checkbox-grid,
+  .compact-score,
+  .sample-meta-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sample-card {
+    grid-template-columns: 1fr;
+  }
+
   .training-actions a,
   .training-actions button,
   .review-panel button,
+  .golden-library-panel button,
   .candidate-toolbar button {
+    width: 100%;
+  }
+
+  .form-actions .primary-action {
     width: 100%;
   }
 

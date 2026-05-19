@@ -4115,7 +4115,7 @@ function normalizeDesignSample(sample = {}) {
     ? Math.max(0, Math.min(100, Math.round(Number(sample.humanScore ?? sample.manualScore))))
     : null;
   const aestheticScore = Number.isFinite(Number(sample.aestheticScore)) ? Math.max(0, Math.min(100, Math.round(Number(sample.aestheticScore)))) : humanScore ?? 88;
-  const explicitGolden = Boolean(sample.isGolden || sample.golden || sample.primaryReference || rawKind === "golden-page");
+  const explicitGolden = Boolean(sample.isGolden || sample.golden || sample.primaryReference || sample.visualOnly || sample.isVisualOnly || rawKind === "golden-page" || rawKind === "visual-only");
   const isGolden = !isAntiExample && (explicitGolden || (rawKind !== "page" && rawKind !== "component" && humanScore !== null && humanScore >= 92));
   const sampleKind = isAntiExample ? "anti-example" : isGolden ? "golden-page" : rawKind === "component" ? "component" : "page";
   const scenarioTags = [
@@ -4126,14 +4126,27 @@ function normalizeDesignSample(sample = {}) {
     .filter(Boolean);
   const homepageConfig = jsonCloneWithinLimit(sample.homepageConfig || sample.config || sample.homepageConfigJson, null, 160_000);
   const renderEvidence = normalizeGoldenSampleEvidence(sample);
+  const initialSourceType = cleanText(sample.sourceType || sample.sampleSourceType, "", 40);
+  const visualOnly = Boolean(
+    sample.visualOnly ||
+      sample.isVisualOnly ||
+      rawKind === "visual-only" ||
+      initialSourceType === "visual-only" ||
+      (!homepageConfig && sampleKind === "golden-page" && (renderEvidence.screenshotPath || renderEvidence.screenshotUrl || renderEvidence.sourceUrl || sample.referenceAssetId)),
+  );
+  const sourceType = visualOnly ? "visual-only" : initialSourceType || (homepageConfig ? "homepage-config" : "sample-notes");
+  const themePreset = cleanText(sample.themePreset || sample.configSnapshot?.themePreset || homepageConfig?.themePreset || homepageConfig?.theme || renderEvidence.themeTokens?.themePreset, "", 60);
   return {
     id: safeId(sample.id || sample.name, "design-sample"),
     sampleKind,
+    sourceType,
+    visualOnly,
     isGolden,
     isAntiExample,
     name: cleanText(sample.name, "首页审美样本", 80),
     scenario: cleanText(sample.scenario || sample.intent || sample.pageIntent, "", 120),
     pageIntent: cleanText(sample.pageIntent || sample.intent, "", 60),
+    themePreset,
     visualStyle: cleanText(sample.visualStyle || sample.style, "", 80),
     prompt,
     aestheticScore,
@@ -4158,7 +4171,9 @@ function normalizeDesignSample(sample = {}) {
     applicableScenarios: (Array.isArray(sample.applicableScenarios) ? sample.applicableScenarios : []).map((item) => cleanText(item, "", 80)).filter(Boolean).slice(0, 10),
     forbiddenReuse: cleanText(sample.forbiddenReuse || sample.forbiddenReuseNotes || sample.antiPatternNotes, "", 900),
     homepageConfig,
-    configSnapshot: sample.configSnapshot && typeof sample.configSnapshot === "object" ? jsonCloneWithinLimit(sample.configSnapshot, null, 20_000) : homepageConfig ? homepageRecordSnapshot(homepageConfig) : null,
+    configSnapshot: visualOnly ? null : sample.configSnapshot && typeof sample.configSnapshot === "object" ? jsonCloneWithinLimit(sample.configSnapshot, null, 20_000) : homepageConfig ? homepageRecordSnapshot(homepageConfig) : null,
+    referenceAssetId: cleanText(sample.referenceAssetId || sample.sourceReferenceAssetId || renderEvidence.cssSummary?.referenceAssetId, "", 100),
+    sourceAssetType: cleanText(sample.sourceAssetType || renderEvidence.cssSummary?.referenceType, "", 40),
     renderEvidence,
     promptSeeds: [...new Set([prompt, ...(Array.isArray(sample.promptSeeds) ? sample.promptSeeds : [])].map((item) => cleanText(item, "", 260)).filter(Boolean))].slice(0, 8),
     createdAt: sample.createdAt || new Date().toISOString(),
@@ -4229,6 +4244,58 @@ function saveDesignSample(sample) {
   };
 }
 
+function updateDesignSample(id, updates = {}) {
+  const library = readDesignSamples();
+  const normalizedId = safeId(id, "design-sample");
+  const index = library.samples.findIndex((sample) => sample.id === normalizedId);
+  if (index < 0) {
+    throw Object.assign(new Error("Design sample not found"), { statusCode: 404 });
+  }
+  const existing = library.samples[index];
+  const merged = {
+    ...existing,
+    ...(updates && typeof updates === "object" ? updates : {}),
+    id: existing.id,
+    createdAt: existing.createdAt,
+    updatedAt: new Date().toISOString(),
+  };
+  const normalized = normalizeDesignSample(saveGoldenSampleScreenshotAsset(merged));
+  const nextSamples = library.samples.slice();
+  nextSamples[index] = normalized;
+  return {
+    sample: normalized,
+    library: writeDesignSamples(nextSamples),
+  };
+}
+
+function cleanupGoldenSampleFiles(sample = {}) {
+  const screenshotPath = sample.renderEvidence?.screenshotPath || "";
+  if (!screenshotPath) return;
+  const absolutePath = path.resolve(ROOT_DIR, screenshotPath);
+  const goldenDir = path.resolve(GOLDEN_SAMPLE_ASSET_DIR);
+  if (!absolutePath.startsWith(goldenDir) || !fs.existsSync(absolutePath)) return;
+  try {
+    fs.unlinkSync(absolutePath);
+  } catch (error) {
+    // Best-effort cleanup: deleting metadata is more important than blocking on a stale file.
+  }
+}
+
+function deleteDesignSample(id, options = {}) {
+  const library = readDesignSamples();
+  const normalizedId = safeId(id, "design-sample");
+  const existing = library.samples.find((sample) => sample.id === normalizedId);
+  if (!existing) {
+    throw Object.assign(new Error("Design sample not found"), { statusCode: 404 });
+  }
+  if (options.cleanupAssets) cleanupGoldenSampleFiles(existing);
+  const libraryAfterDelete = writeDesignSamples(library.samples.filter((sample) => sample.id !== normalizedId));
+  return {
+    deleted: existing,
+    library: libraryAfterDelete,
+  };
+}
+
 function designSampleSearchText(sample) {
   return normalizeKeywordText(
     [
@@ -4267,7 +4334,7 @@ function designSampleRankScore(sample, prompt, index = 0, options = {}) {
   const score = Number.isFinite(Number(sample.humanScore)) ? sample.humanScore : sample.aestheticScore || 0;
   const goldenBoost = sample.isGolden ? 90 : 0;
   const antiBoost = options.antiExamples ? 30 : sample.isAntiExample ? -200 : 0;
-  const evidenceBoost = sample.renderEvidence?.domSnapshot || sample.renderEvidence?.screenshotPath || sample.homepageConfig ? 12 : 0;
+  const evidenceBoost = sample.renderEvidence?.domSnapshot || sample.renderEvidence?.screenshotPath || sample.renderEvidence?.screenshotUrl || sample.renderEvidence?.sourceUrl || sample.referenceAssetId || sample.homepageConfig ? 12 : 0;
   const dimensionBoost = Object.keys(sample.scoreDimensions || {}).length >= 4 ? 8 : 0;
   return promptHits * 8 + tagHits * 16 + Math.round(score / 8) + goldenBoost + antiBoost + evidenceBoost + dimensionBoost - index * 0.01;
 }
@@ -4309,11 +4376,14 @@ function summarizeDesignSampleForPrompt(sample) {
   return {
     id: sample.id,
     sampleKind: sample.sampleKind,
+    sourceType: sample.sourceType,
+    visualOnly: Boolean(sample.visualOnly),
     isGolden: Boolean(sample.isGolden),
     isAntiExample: Boolean(sample.isAntiExample),
     name: sample.name,
     scenario: sample.scenario,
     pageIntent: sample.pageIntent,
+    themePreset: sample.themePreset,
     visualStyle: sample.visualStyle,
     prompt: cleanText(sample.prompt, "", 320),
     aestheticScore: sample.aestheticScore,
@@ -4332,11 +4402,14 @@ function summarizeDesignSampleForPrompt(sample) {
     forbiddenReuse: cleanText(sample.forbiddenReuse, "", 260),
     evidence: {
       screenshotPath: sample.renderEvidence?.screenshotPath || "",
+      screenshotUrl: sample.renderEvidence?.screenshotUrl || "",
+      sourceUrl: sample.renderEvidence?.sourceUrl || "",
       hasDomSnapshot: Boolean(sample.renderEvidence?.domSnapshot),
       hasAiHtml: Boolean(sample.renderEvidence?.aiHtml),
       cssSummary: sample.renderEvidence?.cssSummary || {},
       themeTokens: sample.renderEvidence?.themeTokens || {},
       configSnapshot: sample.configSnapshot || null,
+      configSnapshotStatus: sample.configSnapshot ? "available" : sample.visualOnly ? "empty-visual-reference-only" : "empty",
     },
   };
 }
@@ -16398,6 +16471,32 @@ const server = http.createServer(async (req, res) => {
     } catch (error) {
       const status = error.statusCode && error.statusCode >= 400 && error.statusCode < 600 ? error.statusCode : 500;
       sendJson(res, status, { ok: false, error: error.message || "Design sample save failed" });
+    }
+    return;
+  }
+
+  const designSampleRoute = requestUrl.pathname.match(/^\/api\/home-ai\/design-samples\/([^/]+)$/);
+  if (designSampleRoute && req.method === "PATCH") {
+    try {
+      const payload = await readJsonBody(req);
+      const result = updateDesignSample(decodeURIComponent(designSampleRoute[1]), payload.sample || payload);
+      sendJson(res, 200, { ok: true, ...result });
+    } catch (error) {
+      const status = error.statusCode && error.statusCode >= 400 && error.statusCode < 600 ? error.statusCode : 500;
+      sendJson(res, status, { ok: false, error: error.message || "Design sample update failed" });
+    }
+    return;
+  }
+
+  if (designSampleRoute && req.method === "DELETE") {
+    try {
+      const result = deleteDesignSample(decodeURIComponent(designSampleRoute[1]), {
+        cleanupAssets: ["1", "true", "yes"].includes(String(requestUrl.searchParams.get("cleanupAssets") || "").toLowerCase()),
+      });
+      sendJson(res, 200, { ok: true, ...result });
+    } catch (error) {
+      const status = error.statusCode && error.statusCode >= 400 && error.statusCode < 600 ? error.statusCode : 500;
+      sendJson(res, status, { ok: false, error: error.message || "Design sample delete failed" });
     }
     return;
   }

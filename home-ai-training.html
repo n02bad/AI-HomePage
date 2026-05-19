@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="./theme.css?v=tenant-home-4" />
     <link rel="stylesheet" href="./client-home.css?v=tenant-home-4" />
     <link rel="stylesheet" href="./home-personalization.css?v=tenant-home-4" />
-    <link rel="stylesheet" href="./home-ai-training.css?v=training-review-3" />
+    <link rel="stylesheet" href="./home-ai-training.css?v=training-review-4" />
   </head>
   <body data-layout-page="home-ai-training">
     <main class="app" data-layout-main>
@@ -50,6 +50,242 @@
               <span>反馈记忆</span>
               <strong data-training-feedback-count>0</strong>
             </article>
+          </section>
+
+          <section class="golden-library-panel" data-golden-library aria-label="黄金样本库">
+            <div class="panel-head">
+              <div>
+                <span class="section-kicker">GOLDEN LIBRARY</span>
+                <h2>黄金样本库</h2>
+                <p>上传设计稿、升级参考稿、维护低分反例，生成首页前会自动优先检索这些样本。</p>
+              </div>
+              <div class="panel-actions">
+                <button type="button" data-golden-library-reset>重置筛选</button>
+              </div>
+            </div>
+
+            <div class="sample-library-filters" aria-label="样本筛选">
+              <label>
+                场景标签
+                <select data-sample-filter-scenario>
+                  <option value="">全部场景</option>
+                </select>
+              </label>
+              <label>
+                样本类型
+                <select data-sample-filter-type>
+                  <option value="">全部类型</option>
+                  <option value="golden">黄金样本</option>
+                  <option value="page">普通样本</option>
+                  <option value="anti">低分反例</option>
+                </select>
+              </label>
+              <label>
+                最低分
+                <input data-sample-filter-min-score type="number" min="0" max="100" step="1" placeholder="0" />
+              </label>
+              <label>
+                最高分
+                <input data-sample-filter-max-score type="number" min="0" max="100" step="1" placeholder="100" />
+              </label>
+              <label>
+                pageIntent
+                <select data-sample-filter-intent>
+                  <option value="">全部 Intent</option>
+                </select>
+              </label>
+              <label>
+                themePreset
+                <select data-sample-filter-theme>
+                  <option value="">全部主题</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="golden-library-workbench">
+              <form class="golden-sample-form" data-golden-sample-form>
+                <div class="form-section-head">
+                  <h3>保存外部设计稿为 visual-only 黄金样本</h3>
+                  <span>图片 / HTML / PDF 均可，保存后会进入 goldenSamplePages 作为视觉参考。</span>
+                </div>
+
+                <label class="upload-dropzone compact" data-golden-upload-dropzone>
+                  <input data-golden-file type="file" accept="image/png,image/jpeg,image/webp,image/gif,text/html,.html,application/pdf" />
+                  <strong>选择外部设计稿</strong>
+                  <span>也可以从右侧选择已上传参考稿升级。</span>
+                </label>
+
+                <div class="two-column-fields">
+                  <label class="field-stack">
+                    <span>样本名称</span>
+                    <input data-golden-name type="text" placeholder="例如：黑金 VIP 首屏资产样本" />
+                  </label>
+                  <label class="field-stack">
+                    <span>从参考稿升级</span>
+                    <select data-reference-upgrade-select>
+                      <option value="">选择已上传参考稿</option>
+                    </select>
+                  </label>
+                </div>
+
+                <label class="field-stack">
+                  <span>Prompt / 来源需求</span>
+                  <textarea data-golden-prompt rows="3" placeholder="这张稿子适合什么首页生成需求？"></textarea>
+                </label>
+
+                <div class="two-column-fields">
+                  <label class="field-stack">
+                    <span>pageIntent</span>
+                    <input data-golden-page-intent type="text" placeholder="vip / onboarding / trader" />
+                  </label>
+                  <label class="field-stack">
+                    <span>themePreset</span>
+                    <input data-golden-theme-preset type="text" placeholder="blackGold / minimalWhite" />
+                  </label>
+                </div>
+
+                <label class="field-stack">
+                  <span>visualStyle</span>
+                  <input data-golden-visual-style type="text" placeholder="例如：blackGold premium wealth desk" />
+                </label>
+
+                <div>
+                  <span class="field-label">场景标签</span>
+                  <div class="scenario-checkbox-grid" data-golden-scenario-tags></div>
+                </div>
+
+                <label class="field-stack">
+                  <span>适用场景</span>
+                  <input data-golden-applicable type="text" placeholder="用逗号分隔，例如：黑金 VIP, 白标资金安全" />
+                </label>
+
+                <div class="score-comparison compact-score">
+                  <label>
+                    人工评分
+                    <output data-golden-human-score-output>92</output>
+                  </label>
+                  <input data-golden-human-score type="range" min="0" max="100" step="1" value="92" />
+                </div>
+                <div class="dimension-sliders compact-dimensions" data-golden-dimensions></div>
+
+                <label class="field-stack">
+                  <span>为什么好</span>
+                  <textarea data-golden-why-good rows="3" placeholder="说明它值得学习的构图、层级、模块比例、token 气质。"></textarea>
+                </label>
+                <label class="field-stack">
+                  <span>为什么差 / 可避开问题</span>
+                  <textarea data-golden-why-bad rows="3" placeholder="可留空；如果作为反例，请写清楚问题。"></textarea>
+                </label>
+                <label class="field-stack">
+                  <span>forbiddenReuse</span>
+                  <textarea data-golden-forbidden-reuse rows="3" placeholder="例如：不要照搬品牌图、文案、金额和具体素材。"></textarea>
+                </label>
+
+                <div class="form-actions">
+                  <button class="primary-action" type="button" data-save-visual-golden>保存为 visual-only 黄金样本</button>
+                  <button type="button" data-upgrade-reference-golden>升级选中参考稿</button>
+                </div>
+              </form>
+
+              <form class="golden-current-form" data-current-golden-form>
+                <div class="form-section-head">
+                  <h3>保存当前首页为完整 golden-page</h3>
+                  <span>会保存 homepageConfig、DOM snapshot、CSS/theme token 摘要，可选附加截图。</span>
+                </div>
+                <label class="field-stack">
+                  <span>样本名称</span>
+                  <input data-current-golden-name type="text" placeholder="默认：当前首页样本" />
+                </label>
+                <label class="field-stack">
+                  <span>可选截图</span>
+                  <input data-current-golden-screenshot type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+                </label>
+                <p class="empty-training">使用右侧“人工评分修正”的分数和 9 个维度；按钮也保留在生成需求区，方便从当前草稿快速沉淀。</p>
+                <button class="primary-action" type="button" data-save-current-golden-secondary>保存当前首页</button>
+              </form>
+            </div>
+
+            <section class="sample-editor" data-sample-editor hidden>
+              <div class="form-section-head">
+                <h3>编辑样本</h3>
+                <span data-sample-editor-id></span>
+              </div>
+              <div class="two-column-fields">
+                <label class="field-stack">
+                  <span>名称</span>
+                  <input data-edit-sample-name type="text" />
+                </label>
+                <label class="field-stack">
+                  <span>样本类型</span>
+                  <select data-edit-sample-type>
+                    <option value="golden">黄金样本</option>
+                    <option value="page">普通样本</option>
+                    <option value="anti">低分反例</option>
+                  </select>
+                </label>
+              </div>
+              <div class="two-column-fields">
+                <label class="field-stack">
+                  <span>pageIntent</span>
+                  <input data-edit-page-intent type="text" />
+                </label>
+                <label class="field-stack">
+                  <span>themePreset</span>
+                  <input data-edit-theme-preset type="text" />
+                </label>
+              </div>
+              <label class="field-stack">
+                <span>visualStyle</span>
+                <input data-edit-visual-style type="text" />
+              </label>
+              <label class="field-stack">
+                <span>普通标签</span>
+                <input data-edit-tags type="text" placeholder="用逗号分隔" />
+              </label>
+              <div>
+                <span class="field-label">场景标签</span>
+                <div class="scenario-checkbox-grid" data-edit-scenario-tags></div>
+              </div>
+              <label class="field-stack">
+                <span>适用场景</span>
+                <input data-edit-applicable type="text" placeholder="用逗号分隔" />
+              </label>
+              <label class="field-stack">
+                <span>Prompt</span>
+                <textarea data-edit-prompt rows="3"></textarea>
+              </label>
+              <div class="score-comparison compact-score">
+                <label>
+                  人工评分
+                  <output data-edit-human-score-output>92</output>
+                </label>
+                <input data-edit-human-score type="range" min="0" max="100" step="1" value="92" />
+              </div>
+              <div class="dimension-sliders compact-dimensions" data-edit-dimensions></div>
+              <label class="field-stack">
+                <span>为什么好</span>
+                <textarea data-edit-why-good rows="3"></textarea>
+              </label>
+              <label class="field-stack">
+                <span>为什么差</span>
+                <textarea data-edit-why-bad rows="3"></textarea>
+              </label>
+              <label class="field-stack">
+                <span>forbiddenReuse</span>
+                <textarea data-edit-forbidden-reuse rows="3"></textarea>
+              </label>
+              <label class="cleanup-option">
+                <input data-edit-cleanup-assets type="checkbox" />
+                删除时同时清理黄金样本截图文件，不删除 referenceAssets
+              </label>
+              <div class="form-actions">
+                <button class="primary-action" type="button" data-update-sample>保存编辑</button>
+                <button type="button" data-cancel-edit-sample>取消</button>
+                <button class="danger-button" type="button" data-delete-sample>删除样本</button>
+              </div>
+            </section>
+
+            <div class="sample-library-list" data-sample-library-list></div>
           </section>
 
           <section class="training-review-layout">
@@ -202,6 +438,6 @@
 
     <script src="./common-layout.js"></script>
     <script src="./home-personalization.js"></script>
-    <script src="./home-ai-training.js?v=training-review-3"></script>
+    <script src="./home-ai-training.js?v=training-review-4"></script>
   </body>
 </html>
