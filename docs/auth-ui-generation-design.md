@@ -67,6 +67,51 @@ Allowed values:
 - `formPosition=left` must reorder the DOM so the form is actually first.
 - Mobile always collapses to one column; `mobileStrategy` decides whether brand/logo or form content gets first priority.
 
+## Register Module Freedom
+
+The register form fields and auth flow are a business contract. The model must not turn KYC, risk survey, captcha, MFA, or verification code into always-visible first-screen inputs. Those stay in `screens.register.sections`, `screens.register.verification`, and the post-register account-opening explanation.
+
+Everything around those fields is allowed to vary through executable visual fields:
+
+```json
+{
+  "visual": {
+    "registerPresentation": {
+      "layout": "sideRail",
+      "formPosition": "right",
+      "visualPlacement": "left",
+      "cardChrome": "elevated",
+      "sectionFlow": "groupedCards",
+      "offerPlacement": "side",
+      "termsPlacement": "insideForm",
+      "socialLogin": {
+        "position": "sideRail",
+        "style": "brandTiles",
+        "divider": "none"
+      }
+    },
+    "socialLogin": {
+      "position": "top",
+      "style": "iconGrid",
+      "divider": "line"
+    }
+  }
+}
+```
+
+Allowed values:
+
+- `registerPresentation.layout`: `centerCard`, `splitForm`, `sideRail`, `timeline`, `floatingPanel`, `cardless`
+- `registerPresentation.cardChrome`: `bordered`, `borderless`, `elevated`, `glass`, `flat`
+- `registerPresentation.sectionFlow`: `singleColumn`, `twoColumn`, `groupedCards`, `stepper`
+- `registerPresentation.offerPlacement`: `top`, `side`, `inline`, `hidden`
+- `registerPresentation.termsPlacement`: `insideForm`, `footer`
+- `socialLogin.position`: `top`, `bottom`, `sideRail`, `inlineHeader`
+- `socialLogin.style`: `fullButtons`, `iconGrid`, `brandTiles`, `pills`, `minimalText`
+- `socialLogin.divider`: `line`, `copy`, `none`
+
+This makes the AI responsible for the register module's placement, layout, border treatment, side content, and third-party login presentation while the field contract remains stable.
+
 ## Prompt Rules
 
 When references are present, the prompt must tell the model to read `visualStructure` first. The model should not rely on admin-entered tags and must not copy the source design.

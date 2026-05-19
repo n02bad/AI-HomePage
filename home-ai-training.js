@@ -26,6 +26,8 @@
     candidateCountStat: document.querySelector("[data-training-candidate-count]"),
     scoreCount: document.querySelector("[data-training-score-count]"),
     feedbackCount: document.querySelector("[data-training-feedback-count]"),
+    tabButtons: [...document.querySelectorAll("[data-training-tab]")],
+    tabPanels: [...document.querySelectorAll("[data-training-tab-panel]")],
     candidatePrompt: document.querySelector("[data-candidate-prompt]"),
     candidateCount: document.querySelector("[data-candidate-count]"),
     candidateRenderMode: document.querySelector("[data-candidate-render-mode]"),
@@ -53,6 +55,13 @@
     clearFeedback: document.querySelector("[data-clear-feedback]"),
     feedbackList: document.querySelector("[data-feedback-list]"),
     goldenLibrary: document.querySelector("[data-golden-library]"),
+    openVisualGoldenModal: document.querySelector("[data-open-visual-golden-modal]"),
+    openCurrentGoldenModal: document.querySelector("[data-open-current-golden-modal]"),
+    trainingModal: document.querySelector("[data-training-modal]"),
+    modalTitle: document.querySelector("[data-training-modal-title]"),
+    modalSubtitle: document.querySelector("[data-training-modal-subtitle]"),
+    modalCloseButtons: [...document.querySelectorAll("[data-close-training-modal]")],
+    modalViews: [...document.querySelectorAll("[data-modal-view]")],
     goldenLibraryReset: document.querySelector("[data-golden-library-reset]"),
     sampleFilterScenario: document.querySelector("[data-sample-filter-scenario]"),
     sampleFilterType: document.querySelector("[data-sample-filter-type]"),
@@ -128,6 +137,7 @@
       pageIntent: "",
       themePreset: "",
     },
+    activeTab: "library",
     selectedCandidateId: "",
     decision: "approve",
     previewSize: "desktop",
@@ -150,6 +160,68 @@
     showToast.timer = window.setTimeout(() => {
       els.toast.hidden = true;
     }, 2200);
+  }
+
+  const MODAL_VIEW_COPY = {
+    visual: {
+      title: "新增视觉黄金样本",
+      subtitle: "上传外部设计稿，或从已保存参考稿升级为 visual-only 黄金样本。",
+    },
+    current: {
+      title: "保存当前首页",
+      subtitle: "把当前首页草稿连同配置、DOM 证据和可选截图保存为完整 golden-page。",
+    },
+    edit: {
+      title: "编辑样本",
+      subtitle: "调整样本类型、标签、评分和审美说明，保存后立即回到样本库列表。",
+    },
+  };
+
+  function setActiveTab(tab) {
+    const next = tab === "review" ? "review" : "library";
+    state.activeTab = next;
+    els.page.dataset.activeTab = next;
+    els.tabButtons.forEach((button) => {
+      const active = button.dataset.trainingTab === next;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-selected", active ? "true" : "false");
+    });
+    els.tabPanels.forEach((panel) => {
+      panel.hidden = panel.dataset.trainingTabPanel !== next;
+    });
+  }
+
+  function setModalView(view) {
+    const next = MODAL_VIEW_COPY[view] ? view : "visual";
+    const copy = MODAL_VIEW_COPY[next];
+    if (els.modalTitle) els.modalTitle.textContent = copy.title;
+    if (els.modalSubtitle) els.modalSubtitle.textContent = copy.subtitle;
+    els.modalViews.forEach((panel) => {
+      panel.hidden = panel.dataset.modalView !== next;
+    });
+    const body = els.trainingModal?.querySelector(".training-modal-body");
+    if (body) body.scrollTop = 0;
+  }
+
+  function openTrainingModal(view = "visual") {
+    if (!els.trainingModal) return;
+    setModalView(view);
+    els.trainingModal.hidden = false;
+    els.trainingModal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("training-modal-open");
+    window.setTimeout(() => {
+      const firstField = els.trainingModal?.querySelector('[data-modal-view]:not([hidden]) input, [data-modal-view]:not([hidden]) textarea, [data-modal-view]:not([hidden]) select, [data-modal-view]:not([hidden]) button');
+      firstField?.focus?.();
+    }, 0);
+  }
+
+  function closeTrainingModal() {
+    if (!els.trainingModal) return;
+    els.trainingModal.hidden = true;
+    els.trainingModal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("training-modal-open");
+    state.editingSampleId = "";
+    if (els.sampleEditor) els.sampleEditor.hidden = true;
   }
 
   function readJsonStorage(key, fallback = {}) {
@@ -366,6 +438,7 @@
         if (els.referenceUpgradeSelect) els.referenceUpgradeSelect.value = button.dataset.upgradeReferenceId || "";
         const asset = state.references.find((item) => item.id === button.dataset.upgradeReferenceId);
         if (asset && els.goldenName && !els.goldenName.value) els.goldenName.value = asset.name;
+        openTrainingModal("visual");
         showToast("已选中参考稿，补充分数和标签后升级");
       });
     });
@@ -1002,6 +1075,8 @@
     syncSamplesFromLibrary(data.library?.samples);
     if (els.currentGoldenScreenshot) els.currentGoldenScreenshot.value = "";
     renderAll();
+    setActiveTab("library");
+    closeTrainingModal();
     showToast("当前首页已保存为黄金样本");
   }
 
@@ -1218,6 +1293,8 @@
     });
     syncSamplesFromLibrary(data.library?.samples);
     renderAll();
+    setActiveTab("library");
+    closeTrainingModal();
     showToast("visual-only 黄金样本已保存，会参与生成前检索");
   }
 
@@ -1244,6 +1321,7 @@
     const sample = state.samples.find((item) => item.id === sampleId);
     if (!sample || !els.sampleEditor) return;
     state.editingSampleId = sample.id;
+    openTrainingModal("edit");
     els.sampleEditor.hidden = false;
     if (els.sampleEditorId) els.sampleEditorId.textContent = sample.id;
     if (els.editSampleName) els.editSampleName.value = sample.name || "";
@@ -1265,7 +1343,8 @@
       els.editDimensions.innerHTML = dimensionInputsHtml(sample.scoreDimensions || {}, "data-edit-dimension");
       bindRangeOutputs(els.editDimensions);
     }
-    els.sampleEditor.scrollIntoView({ behavior: "smooth", block: "start" });
+    const body = els.trainingModal?.querySelector(".training-modal-body");
+    if (body) body.scrollTop = 0;
   }
 
   function closeSampleEditor() {
@@ -1311,7 +1390,8 @@
     });
     syncSamplesFromLibrary(data.library?.samples);
     renderAll();
-    openSampleEditor(data.sample.id);
+    setActiveTab("library");
+    closeTrainingModal();
     showToast("样本已更新");
   }
 
@@ -1323,7 +1403,7 @@
     const suffix = cleanupAssets ? "?cleanupAssets=1" : "";
     const data = await requestJson(`/api/home-ai/design-samples/${encodeURIComponent(sampleId)}${suffix}`, { method: "DELETE" });
     syncSamplesFromLibrary(data.library?.samples);
-    if (state.editingSampleId === sampleId) closeSampleEditor();
+    if (state.editingSampleId === sampleId) closeTrainingModal();
     renderAll();
     showToast("样本已删除");
   }
@@ -1431,13 +1511,24 @@
     els.upgradeReferenceGolden?.addEventListener("click", () => upgradeSelectedReferenceGolden().catch((error) => showToast(error.message)));
     els.saveCurrentGoldenSecondary?.addEventListener("click", () => saveCurrentGoldenSample().catch((error) => showToast(error.message)));
     els.updateSample?.addEventListener("click", () => updateEditingSample().catch((error) => showToast(error.message)));
-    els.cancelEditSample?.addEventListener("click", closeSampleEditor);
+    els.cancelEditSample?.addEventListener("click", closeTrainingModal);
     els.deleteSample?.addEventListener("click", () => deleteEditingSample().catch((error) => showToast(error.message)));
   }
 
   els.refresh?.addEventListener("click", () => loadTrainingData().then(() => showToast("训练数据已刷新")).catch((error) => showToast(error.message)));
   els.scoreCurrent?.addEventListener("click", () => scoreCurrentDraft().catch((error) => showToast(error.message)));
-  els.saveCurrentGolden?.addEventListener("click", () => saveCurrentGoldenSample().catch((error) => showToast(error.message)));
+  els.saveCurrentGolden?.addEventListener("click", () => openTrainingModal("current"));
+  els.openVisualGoldenModal?.addEventListener("click", () => openTrainingModal("visual"));
+  els.openCurrentGoldenModal?.addEventListener("click", () => openTrainingModal("current"));
+  els.modalCloseButtons.forEach((button) => {
+    button.addEventListener("click", closeTrainingModal);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !els.trainingModal?.hidden) closeTrainingModal();
+  });
+  els.tabButtons.forEach((button) => {
+    button.addEventListener("click", () => setActiveTab(button.dataset.trainingTab));
+  });
   els.generateCandidates?.addEventListener("click", () => generateCandidates().catch((error) => {
     if (els.candidateStatus) els.candidateStatus.textContent = error.message;
     showToast(error.message);
@@ -1457,6 +1548,7 @@
   bindDimensionAndDecisionControls();
   bindGoldenLibraryControls();
   renderDimensionSliders(null);
+  setActiveTab("library");
   setPreviewSize("desktop");
 
   const initialPrompt = savedPrompt();

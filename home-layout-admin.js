@@ -37,6 +37,13 @@
     "gemini-3.1-pro-preview",
     "gemini-3.1-pro-preview-customtools",
   ];
+  const GEMINI_MODEL_ALIASES = {
+    "gemini 3 flash": "gemini-3-flash-preview",
+    "gemini 3 pro preview": "gemini-3.1-pro-preview",
+    "gemini 3 pro preview customtools": "gemini-3.1-pro-preview-customtools",
+    "gemini 3 pro preview custom tools": "gemini-3.1-pro-preview-customtools",
+    "gemini 3 1 pro preview custom tools": "gemini-3.1-pro-preview-customtools",
+  };
   const PREVIEW_SIZE_PRESETS = {
     mobile: { label: "手机", meta: "390x844" },
     tablet: { label: "平板", meta: "768x1024" },
@@ -323,6 +330,7 @@
 	    const reason = scheme.fallbackReason || scheme.correctionNotes?.[0] || "";
 	    if (scheme.mock) return { label: "Mock 预览", tone: "mock", detail: reason || "HOME_AI_MOCK=true 或 mock 预览，未调用真实模型。", reason };
 	    if (scheme.sourceType === "local-fallback") return { label: "本地规则生成", tone: "fallback", detail: reason || "本地规则兜底生成，不是模型真实生成结果。", reason };
+	    if (scheme.sourceType === "brick-library-backed") return { label: "积木保底", tone: "fallback", detail: reason || "模型 HTML 失败或质量门禁未通过，已用高分积木装配预览。", reason };
 	    if (scheme.isFallback) return { label: "Fallback 预览", tone: "fallback", detail: reason || "模型失败或质量门禁未通过后降级。", reason };
 	    if (scheme.sourceType === "model-repair") return { label: "模型生成", tone: "model", detail: "模型修正版 HTML，已通过安全清洗和质量门禁。", reason };
 	    if (scheme.sourceType === "model/free-html") return { label: "模型生成", tone: "model", detail: "模型自由 HTML，已通过安全清洗和质量门禁。", reason };
@@ -2980,6 +2988,30 @@
     return AI_MODEL_PRESETS[provider] || AI_MODEL_PRESETS.openai;
   }
 
+  function canonicalModelKey(value) {
+    return String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  }
+
+  function modelIdFromValue(provider, value) {
+    const preset = providerPreset(provider);
+    const raw = String(value || "").trim();
+    if (!raw) return preset.model;
+    const knownModels = preset.models || [preset.model];
+    if (knownModels.includes(raw)) return raw;
+
+    const key = canonicalModelKey(raw);
+    const inferredProvider = providerIdFromValue(raw);
+    if (inferredProvider && inferredProvider !== preset.provider) return preset.model;
+    const known = knownModels.find((model) => canonicalModelKey(model) === key);
+    if (known) return known;
+    if (preset.provider === "gemini" && GEMINI_MODEL_ALIASES[key]) return GEMINI_MODEL_ALIASES[key];
+    return raw;
+  }
+
   function providerIdFromValue(value) {
     const source = String(value || "").trim().toLowerCase();
     if (!source) return "";
@@ -3054,7 +3086,7 @@
       ...source,
     };
 
-    const model = String(merged.model || preset.model || DEFAULT_MODEL_CONFIG.model).trim();
+    const model = modelIdFromValue(preset.provider, merged.model || preset.model || DEFAULT_MODEL_CONFIG.model);
     const baseUrl = normalizeModelBaseUrl(preset.provider, merged.baseUrl || preset.baseUrl);
     const endpoint = String(merged.endpoint || preset.endpoint).trim();
     const proxyEndpoint = String(merged.proxyEndpoint || DEFAULT_MODEL_CONFIG.proxyEndpoint).trim();
@@ -3275,7 +3307,7 @@
 		    const modelGenerated = serverHtmlLooksModelGenerated({ sourceType, pipeline, qualityStatus: quality });
 		    const isFallback = !modelGenerated && Boolean(record.status === "fallback" || snapshot.htmlIsFallback || record.htmlIsFallback);
 		    if (!sourceType && !pipeline && !isMock && !isFallback) return "";
-		    const label = isMock ? "Mock 预览" : sourceType === "local-fallback" ? "本地规则生成" : isFallback ? "Fallback 预览" : "模型生成";
+		    const label = isMock ? "Mock 预览" : sourceType === "brick-library-backed" ? "积木保底" : sourceType === "local-fallback" ? "本地规则生成" : isFallback ? "Fallback 预览" : "模型生成";
 		    return [label, sourceType, pipeline, quality, reason].filter(Boolean).join(" · ");
 		  }
 
@@ -3426,8 +3458,7 @@
         <form class="ai-model-form" data-model-config-form>
           <label>
             <span>模型 ID</span>
-            <input data-model-config-field="model" list="ai-model-options" autocomplete="off" />
-            <datalist id="ai-model-options" data-model-option-list></datalist>
+            <select data-model-config-field="model" data-model-option-list></select>
           </label>
           <label>
             <span>API Base URL</span>
@@ -3611,7 +3642,9 @@
       });
     });
 
-    optionList.innerHTML = preset.models.map((model) => `<option value="${escapeHtml(model)}"></option>`).join("");
+    optionList.innerHTML = [...new Set([config.model, ...(preset.models || [])])]
+      .map((model) => `<option value="${escapeHtml(model)}">${escapeHtml(model)}</option>`)
+      .join("");
     const temperatureField = modal.querySelector('[data-model-config-field="temperature"]');
     if (temperatureField) {
       const kimiTemperature = config.provider === "kimi" ? kimiTemperatureForModel(config.model) : null;
@@ -3919,12 +3952,18 @@
       return `处理建议：Kimi K2.6/K2.5 关闭 thinking 时只能使用 temperature=0.6；当前版本会自动修正，并使用国内入口 ${KIMI_CN_BASE_URL}。`;
     }
 
-    if (/valid homepage JSON|AI response did not contain valid homepage JSON/i.test(source)) {
+    if (/valid homepage JSON|AI response did not contain (?:a )?valid (?:homepage )?JSON(?: object)?/i.test(source)) {
       if (details.likelyTruncated || /length|max_tokens/i.test(String(details.finishReason || ""))) {
         if (details.provider === "minimax") {
           return "处理建议：MiniMax 输出达到 2048 上限导致截断；代理已改用首页短 patch JSON，并在 AI HTML 模式下跳过长自由 HTML，改为按 MiniMax 配置蓝图装配安全预览。仍失败时请降低 Temperature 或切到 Kimi/DeepSeek/Gemini 这类更高输出上限模型。";
         }
+        if (details.provider === "gemini") {
+          return "处理建议：Gemini 已连通，但当前模型输出过长被截断；代理会改用短 patch JSON，并在 Pro 返回不可解析 JSON 时自动降级到 gemini-2.5-flash 重试。仍失败时请把 Temperature 保持在 0.4 左右。";
+        }
         return "处理建议：模型返回了 JSON 开头，但输出可能被截断；已自动回退本地方案。Kimi 会使用 max_completion_tokens；仍失败时请把 Max output tokens 保持在 6000 以上并降低 Temperature。";
+      }
+      if (details.provider === "gemini") {
+        return "处理建议：Gemini 有响应但没有形成完整 JSON；代理会使用更短的首页 patch/组件 JSON prompt，并在 Pro 失败时自动切到 gemini-2.5-flash 重试。";
       }
       return "处理建议：模型有响应，但没有按首页配置 JSON 返回；已自动回退本地方案。可以重试一次、降低 Temperature，或切到更稳定的结构化输出模型。";
     }
@@ -4082,9 +4121,10 @@
           saveActiveGenerationJob({
             jobId: data.jobId,
             statusUrl,
-            prompt: payload.prompt || "",
-            variant: payload.variant || 0,
-            renderMode: payload.renderMode || "config",
+	            prompt: payload.prompt || "",
+	            variant: payload.variant || 0,
+	            pageRunId: payload.pageRunId || "",
+	            renderMode: payload.renderMode || "config",
             inputMode: payload.inputMode || "quick",
             modelConfig: payload.modelConfig || null,
             startedAt: Date.now(),
@@ -4147,22 +4187,33 @@
     throw new Error(lastMessage || fetchFailureMessage("Failed to fetch", endpoints));
   }
 
-  async function requestAiProxy(config, action, payload) {
-    if (action === "complete") {
-      try {
-        return await requestBackgroundGeneration(config, payload);
+	  async function requestAiProxy(config, action, payload) {
+	    if (action === "complete") {
+	      try {
+	        return await requestBackgroundGeneration(config, payload);
       } catch (error) {
         if (error?.backgroundJobStarted) throw error;
         return await requestDirectAiProxy(config, action, payload);
       }
     }
+	    return await requestDirectAiProxy(config, action, payload);
+	  }
 
-    return await requestDirectAiProxy(config, action, payload);
-  }
+	  function pageRunHash(value) {
+	    return String(value || "")
+	      .split("")
+	      .reduce((hash, char) => (hash * 31 + char.charCodeAt(0)) >>> 0, 2166136261)
+	      .toString(16);
+	  }
 
-	  async function generateConfigFromModel(prompt, options = {}) {
-	    const config = sanitizeModelConfig(aiModelConfig);
-      const renderMode = normalizeRenderMode(options.renderMode || currentGenerationRenderMode());
+	  function createPageRunId(prompt, options = {}) {
+	    const seed = [prompt, options.inputMode || "quick", options.renderMode || currentGenerationRenderMode(), options.variant || 0, Date.now()].join("|");
+	    return `page-${Date.now().toString(36)}-${pageRunHash(seed).slice(0, 8)}`;
+	  }
+
+		  async function generateConfigFromModel(prompt, options = {}) {
+		    const config = sanitizeModelConfig(aiModelConfig);
+	      const renderMode = normalizeRenderMode(options.renderMode || currentGenerationRenderMode());
 	    if (config.callMode !== "serverProxy") {
 	      return {
         config: attachRenderModeToConfig(home.promptToConfig(prompt, options.variant || 0), prompt, { renderMode, reason: "本地规则生成" }),
@@ -4171,10 +4222,11 @@
 	      };
 	    }
 
-	    const payload = await requestAiProxy(config, "complete", {
-	      prompt,
-	      variant: options.variant || 0,
-        renderMode,
+		    const payload = await requestAiProxy(config, "complete", {
+		      pageRunId: options.pageRunId || createPageRunId(prompt, { ...options, renderMode }),
+		      prompt,
+		      variant: options.variant || 0,
+	        renderMode,
 	      inputMode: options.inputMode || "quick",
 	      modelConfig: aiRequestModelConfig(),
 	      context: aiRequestContext({
@@ -4212,9 +4264,9 @@
 		    };
 	  }
 
-	  function summarizeHomepageConfig(config) {
-	    const normalized = home.normalizeConfig(config || {});
-	    return {
+		  function summarizeHomepageConfig(config) {
+		    const normalized = home.normalizeConfig(config || {});
+		    return {
 	      name: normalized.name,
 	      layoutPreset: normalized.layoutPreset,
 	      themePreset: normalized.themePreset || normalized.theme,
@@ -4230,11 +4282,24 @@
 	      strategy: normalized.brickTrace?.strategy || normalized.compositionStrategy || "",
 	      brickIds: normalized.brickPlan.map((item) => item.brickId || item.feature).filter(Boolean),
 	      sections: normalized.sections.map((section) => `${section.type}:${section.slots.join("+")}`),
-	          htmlPipeline: normalized.htmlScheme?.enabled ? normalized.htmlScheme.generationPipeline || normalized.htmlScheme.sourceType || "" : "",
-	    };
-	  }
+		          htmlPipeline: normalized.htmlScheme?.enabled ? normalized.htmlScheme.generationPipeline || normalized.htmlScheme.sourceType || "" : "",
+		    };
+		  }
 
-	  function homepageConfigLooksSame(firstConfig, secondConfig) {
+		  function homepageHistoryFinalPage(config) {
+		    const normalized = home.normalizeConfig(config || {});
+		    const htmlScheme = normalized.htmlScheme?.enabled ? normalized.htmlScheme : null;
+		    const skeletonScheme = normalized.skeletonHtmlScheme?.enabled ? normalized.skeletonHtmlScheme : null;
+		    return {
+		      configJson: normalized,
+		      aiHtml: htmlScheme?.html || "",
+		      aiCss: htmlScheme?.css || "",
+		      htmlScheme,
+		      skeletonHtmlScheme: skeletonScheme,
+		    };
+		  }
+
+		  function homepageConfigLooksSame(firstConfig, secondConfig) {
 	    if (!firstConfig || !secondConfig) return false;
 	    const first = summarizeHomepageConfig(firstConfig);
 	    const second = summarizeHomepageConfig(secondConfig);
@@ -4261,6 +4326,7 @@
 		    const sourceType = String(value.sourceType || value.htmlSourceType || "").toLowerCase();
 		    const pipeline = String(value.pipeline || value.htmlPipeline || value.generationPipeline || "").toLowerCase();
 		    const quality = String(value.qualityStatus || value.htmlQualityStatus || "").toLowerCase();
+		    if (sourceType === "brick-library-backed" || pipeline.includes("brick-backed") || pipeline.includes("config-backed")) return false;
 		    if (sourceType.startsWith("model/") || sourceType === "model-repair") return true;
 		    if (pipeline.includes("free-html") && !pipeline.includes("fallback")) return true;
 		    return ["passed", "publishable"].includes(quality) && !sourceType.includes("fallback") && !pipeline.includes("fallback");
@@ -4284,15 +4350,16 @@
 	  }
 
 	  async function generateConfigWithFallback(prompt, options = {}) {
-	    const startedAt = Date.now();
-    const requestConfig = sanitizeModelConfig(aiModelConfig);
-    const provider = providerPreset(requestConfig.provider);
-    const inputMode = options.inputMode === "guided" ? "guided" : "quick";
-    const renderMode = normalizeRenderMode(options.renderMode || currentGenerationRenderMode());
+		    const startedAt = Date.now();
+	    const requestConfig = sanitizeModelConfig(aiModelConfig);
+	    const provider = providerPreset(requestConfig.provider);
+	    const inputMode = options.inputMode === "guided" ? "guided" : "quick";
+	    const renderMode = normalizeRenderMode(options.renderMode || currentGenerationRenderMode());
+	    const pageRunId = options.pageRunId || createPageRunId(prompt, { ...options, inputMode, renderMode });
 
-		    try {
-		      const result = await generateConfigFromModel(prompt, { ...options, renderMode });
-		      const finalConfig = attachRenderModeToConfig(ensureDistinctHomepageConfig(prompt, result.config, options), prompt, { renderMode, reason: result.label });
+			    try {
+			      const result = await generateConfigFromModel(prompt, { ...options, renderMode, pageRunId });
+			      const finalConfig = attachRenderModeToConfig(ensureDistinctHomepageConfig(prompt, result.config, options), prompt, { renderMode, reason: result.label });
 		      const htmlInfo = aiHtmlSourceInfo(finalConfig);
 		      const serverRecord = result.callRecord || {};
 		      const htmlIsFallback =
@@ -4300,10 +4367,11 @@
 		      const historyMock = typeof serverRecord.mock === "boolean" ? serverRecord.mock : Boolean(result.mock);
 		      const historyStatus =
 		        serverRecord.status || (historyMock ? "mock" : htmlIsFallback ? "fallback" : result.usedModel ? "success" : "local");
-		      addModelHistoryRecord({
-	        id: result.callRecord?.id,
-        action: "homepage-generate",
-        serverCallId: result.callRecord?.id,
+	      addModelHistoryRecord({
+		        id: result.callRecord?.id,
+	        action: "homepage-generate",
+	        pageRunId: serverRecord.pageRunId || pageRunId,
+	        serverCallId: result.callRecord?.id,
         providerId: result.callRecord?.providerId || requestConfig.provider,
         provider: result.usedModel ? result.callRecord?.provider || provider.name : "本地规则",
         model: result.usedModel ? result.callRecord?.model || requestConfig.model : "promptToConfig",
@@ -4322,12 +4390,14 @@
 	        htmlPipeline: serverRecord.htmlPipeline || finalConfig.htmlScheme?.generationPipeline || "",
 	        htmlIsFallback,
 	        htmlFallbackReason: serverRecord.htmlFallbackReason || finalConfig.htmlScheme?.fallbackReason || "",
-	        htmlQualityStatus: serverRecord.htmlQualityStatus || finalConfig.htmlScheme?.qualityStatus || "",
-		        durationMs: Date.now() - startedAt,
-		        prompt: String(prompt || "").slice(0, 1200),
-		        message: htmlIsFallback || historyMock ? `${finalConfig?.name || result.label} · ${htmlInfo.label}：${htmlInfo.detail}` : finalConfig?.name || result.label,
-			        configSnapshot: { ...summarizeHomepageConfig(finalConfig), renderMode: finalConfig.activeRenderMode, htmlScheme: finalConfig.htmlScheme?.enabled ? finalConfig.htmlScheme.name : "" },
-			      });
+		        htmlQualityStatus: serverRecord.htmlQualityStatus || finalConfig.htmlScheme?.qualityStatus || "",
+			        durationMs: Date.now() - startedAt,
+			        prompt: String(prompt || "").slice(0, 1200),
+			        businessProfile: serverRecord.businessProfile || null,
+			        message: htmlIsFallback || historyMock ? `${finalConfig?.name || result.label} · ${htmlInfo.label}：${htmlInfo.detail}` : finalConfig?.name || result.label,
+				        configSnapshot: { ...summarizeHomepageConfig(finalConfig), renderMode: finalConfig.activeRenderMode, htmlScheme: finalConfig.htmlScheme?.enabled ? finalConfig.htmlScheme.name : "" },
+				        finalPage: homepageHistoryFinalPage(finalConfig),
+				      });
 
       if (result.usedModel) {
         showToast(result.mock ? "已通过代理 mock 生成首页方案" : `已通过 ${result.label} 生成首页方案`);
@@ -4340,8 +4410,9 @@
 		      fallback.aiSummary = `大模型调用失败，已使用本地安全方案回退：${errorMessage(error, 220)}`;
 	      const fallbackInfo = aiHtmlSourceInfo(fallback);
 	      addModelHistoryRecord({
-        action: "homepage-generate",
-        serverCallId: error.proxyPayload?.callRecord?.id,
+	        action: "homepage-generate",
+	        pageRunId: error.proxyPayload?.callRecord?.pageRunId || pageRunId,
+	        serverCallId: error.proxyPayload?.callRecord?.id,
         providerId: requestConfig.provider,
         provider: provider.name,
         model: error.proxyPayload?.callRecord?.model || requestConfig.model,
@@ -4360,11 +4431,13 @@
 	        htmlIsFallback: Boolean(fallback.htmlScheme?.isFallback),
 	        htmlFallbackReason: fallback.htmlScheme?.fallbackReason || fallbackInfo.detail || "",
 	        htmlQualityStatus: fallback.htmlScheme?.qualityStatus || "",
-		        durationMs: Date.now() - startedAt,
-	        prompt: String(prompt || "").slice(0, 1200),
-	        message: errorMessage(error, 700),
-		        configSnapshot: { ...summarizeHomepageConfig(fallback), renderMode: fallback.activeRenderMode, htmlScheme: fallback.htmlScheme?.enabled ? fallback.htmlScheme.name : "" },
-		      });
+			        durationMs: Date.now() - startedAt,
+		        prompt: String(prompt || "").slice(0, 1200),
+		        businessProfile: error.proxyPayload?.callRecord?.businessProfile || null,
+		        message: errorMessage(error, 700),
+			        configSnapshot: { ...summarizeHomepageConfig(fallback), renderMode: fallback.activeRenderMode, htmlScheme: fallback.htmlScheme?.enabled ? fallback.htmlScheme.name : "" },
+			        finalPage: homepageHistoryFinalPage(fallback),
+			      });
       showToast(`大模型调用失败，已回退本地方案`);
       return fallback;
     }

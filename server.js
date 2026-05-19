@@ -39,6 +39,7 @@ loadLocalEnvFile(".env.local");
 const PORT = Number(process.env.PORT || 5174);
 const MAX_BODY_BYTES = 8_000_000;
 const COMPONENT_LIBRARY_FILE = path.join(ROOT_DIR, "home-component-library.json");
+const COMPONENT_SCORE_FILE = path.join(ROOT_DIR, "home-component-scores.json");
 const COMPOSITION_LIBRARY_FILE = path.join(ROOT_DIR, "home-component-compositions.json");
 const CALL_HISTORY_FILE = path.join(ROOT_DIR, "home-ai-call-history.json");
 const AUTH_CALL_HISTORY_FILE = path.join(ROOT_DIR, "auth-ai-call-history.json");
@@ -93,6 +94,13 @@ const GEMINI_TEXT_MODELS = [
   "gemini-3.1-pro-preview",
   "gemini-3.1-pro-preview-customtools",
 ];
+const GEMINI_MODEL_ALIASES = {
+  "gemini 3 flash": "gemini-3-flash-preview",
+  "gemini 3 pro preview": "gemini-3.1-pro-preview",
+  "gemini 3 pro preview customtools": "gemini-3.1-pro-preview-customtools",
+  "gemini 3 pro preview custom tools": "gemini-3.1-pro-preview-customtools",
+  "gemini 3 1 pro preview custom tools": "gemini-3.1-pro-preview-customtools",
+};
 const KIMI_TIMEOUT_MS = 120_000;
 
 const PROVIDERS = {
@@ -380,8 +388,36 @@ function normalizeProviderBaseUrl(providerId, value) {
   return baseUrl === KIMI_GLOBAL_BASE_URL ? KIMI_CN_BASE_URL : baseUrl;
 }
 
+function canonicalModelKey(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function normalizeProviderModel(providerId, value) {
+  const preset = PROVIDERS[providerId] || PROVIDERS.openai;
+  const raw = String(value || "").trim();
+  if (!raw) return preset.model;
+  const knownModels = preset.models || [preset.model];
+  if (knownModels.includes(raw)) return raw;
+
+  const key = canonicalModelKey(raw);
+  const inferredProvider = providerIdFromSignature(raw);
+  if (inferredProvider && inferredProvider !== providerId) return preset.model;
+  const known = knownModels.find((model) => canonicalModelKey(model) === key);
+  if (known) return known;
+  if (providerId === "gemini" && GEMINI_MODEL_ALIASES[key]) return GEMINI_MODEL_ALIASES[key];
+  return raw;
+}
+
 function isGeminiFlashThinkingModel(model) {
-  return /^gemini-2\.5-flash(?:-|$)/i.test(String(model || ""));
+  return /^gemini-(?:2\.5|3(?:\.\d+)?)-flash(?:-|$)/i.test(String(model || ""));
+}
+
+function canFallbackGeminiModel(config = {}) {
+  return config.provider === "gemini" && config.model && config.model !== GEMINI_DEFAULT_MODEL && !/^https?:\/\//i.test(config.endpoint || "");
 }
 
 function isKimiFixedTemperatureModel(model) {
@@ -2090,6 +2126,37 @@ const AUTH_UI_JSON_SCHEMA = {
         mediaPosition: { enum: ["left", "right", "background", "none"] },
         heroVisibility: { enum: ["full", "compact", "hidden"] },
         mobileStrategy: { enum: ["logoFirst", "formFirst", "mediaMuted", "singleColumn"] },
+        registerPresentation: {
+          type: "object",
+          additionalProperties: true,
+          properties: {
+            layout: { enum: ["centerCard", "splitForm", "sideRail", "timeline", "floatingPanel", "cardless"] },
+            formPosition: { enum: ["left", "right", "center"] },
+            visualPlacement: { enum: ["left", "right", "background", "none"] },
+            cardChrome: { enum: ["bordered", "borderless", "elevated", "glass", "flat"] },
+            sectionFlow: { enum: ["singleColumn", "twoColumn", "groupedCards", "stepper"] },
+            offerPlacement: { enum: ["top", "side", "inline", "hidden"] },
+            termsPlacement: { enum: ["insideForm", "footer"] },
+            socialLogin: {
+              type: "object",
+              additionalProperties: true,
+              properties: {
+                position: { enum: ["top", "bottom", "sideRail", "inlineHeader"] },
+                style: { enum: ["fullButtons", "iconGrid", "brandTiles", "pills", "minimalText"] },
+                divider: { enum: ["line", "copy", "none"] },
+              },
+            },
+          },
+        },
+        socialLogin: {
+          type: "object",
+          additionalProperties: true,
+          properties: {
+            position: { enum: ["top", "bottom", "sideRail", "inlineHeader"] },
+            style: { enum: ["fullButtons", "iconGrid", "brandTiles", "pills", "minimalText"] },
+            divider: { enum: ["line", "copy", "none"] },
+          },
+        },
         referenceStructure: { type: "string" },
       },
     },
@@ -2191,7 +2258,7 @@ function readJsonBody(req) {
 function normalizeProviderConfig(modelConfig = {}) {
   const providerId = inferProviderId(modelConfig);
   const preset = PROVIDERS[providerId];
-  const model = String(modelConfig.model || envValue(preset.modelEnv) || preset.model).trim().slice(0, 100);
+  const model = normalizeProviderModel(providerId, modelConfig.model || envValue(preset.modelEnv) || preset.model).slice(0, 100);
   const baseUrl = normalizeProviderBaseUrl(providerId, modelConfig.baseUrl || envValue(preset.baseUrlEnv) || preset.baseUrl);
   const endpoint = String(modelConfig.endpoint || envValue(preset.endpointEnv) || preset.endpoint).trim();
   const temperature = Number(modelConfig.temperature);
@@ -2249,9 +2316,14 @@ function providerBaseUrlCandidates(config) {
 }
 
 function providerModelCandidates(config) {
-  if (config.provider !== "kimi") return [config];
-  if (!KIMI_LEGACY_MODELS.has(config.model) || /^https?:\/\//i.test(config.endpoint || "")) return [config];
-  return [config, { ...config, model: KIMI_DEFAULT_MODEL, fallbackFromModel: config.model }];
+  if (/^https?:\/\//i.test(config.endpoint || "")) return [config];
+  if (config.provider === "kimi" && KIMI_LEGACY_MODELS.has(config.model)) {
+    return [config, { ...config, model: KIMI_DEFAULT_MODEL, fallbackFromModel: config.model }];
+  }
+  if (canFallbackGeminiModel(config)) {
+    return [config, { ...config, model: GEMINI_DEFAULT_MODEL, fallbackFromModel: config.model }];
+  }
+  return [config];
 }
 
 function providerRequestCandidates(config) {
@@ -2376,6 +2448,12 @@ function shouldRetryProviderRequest(config, error, attemptNumber, totalAttempts)
     return isTransientProviderError(error);
   }
 
+  if (config.provider === "gemini") {
+    const status = Number(error.providerStatus);
+    if ([400, 404].includes(status) && /model|endpoint|not found|invalid|unsupported|not support/i.test(error.message || "")) return true;
+    return isTransientProviderError(error);
+  }
+
   return false;
 }
 
@@ -2449,6 +2527,107 @@ function writeCallHistory(records) {
 
 function safeRecordText(value, limit = 1200) {
   return String(value || "").replace(/\s+/g, " ").trim().slice(0, limit);
+}
+
+function safeRecordLongText(value, limit = 100000) {
+  return String(value || "").slice(0, limit);
+}
+
+function safeRecordJsonValue(value, options = {}, depth = 0, seen = new WeakSet()) {
+  const stringLimit = Number.isFinite(Number(options.stringLimit)) ? Number(options.stringLimit) : 60000;
+  const arrayLimit = Number.isFinite(Number(options.arrayLimit)) ? Number(options.arrayLimit) : 80;
+  const maxDepth = Number.isFinite(Number(options.maxDepth)) ? Number(options.maxDepth) : 8;
+
+  if (value == null) return value;
+  if (typeof value === "string") return safeRecordLongText(value, stringLimit);
+  if (typeof value === "number" || typeof value === "boolean") return value;
+  if (depth >= maxDepth) return "[Max depth reached]";
+  if (Array.isArray(value)) {
+    return value.slice(0, arrayLimit).map((item) => safeRecordJsonValue(item, options, depth + 1, seen));
+  }
+  if (typeof value !== "object") return safeRecordText(value, stringLimit);
+  if (seen.has(value)) return "[Circular]";
+  seen.add(value);
+
+  const blockedKeys = new Set(["apiKey", "apiKeys", "authorization", "Authorization", "headers"]);
+  const output = {};
+  Object.entries(value).forEach(([key, item]) => {
+    if (blockedKeys.has(key)) return;
+    output[key] = safeRecordJsonValue(item, options, depth + 1, seen);
+  });
+  seen.delete(value);
+  return output;
+}
+
+function homepageRenderModeLabel(mode, configSnapshot = {}) {
+  const value = String(mode || configSnapshot.renderMode || "").trim();
+  if (value === "skeletonHtml" || configSnapshot.skeletonScheme) return "骨架 HTML";
+  if (value === "aiHtml" || value === "compare" || configSnapshot.htmlScheme) return "AI HTML";
+  return "组件化";
+}
+
+function homepageBusinessProfile(payload = {}, config = {}) {
+  const snapshot = homepageRecordSnapshot(config);
+  const sourceText = [
+    payload.prompt,
+    payload.inputMode,
+    payload.renderMode,
+    snapshot.intent,
+    snapshot.pageGoal,
+    snapshot.mainVisual,
+    snapshot.primaryCta,
+    snapshot.layoutPreset,
+    snapshot.strategy,
+    ...(Array.isArray(snapshot.brickIds) ? snapshot.brickIds : []),
+    ...(Array.isArray(snapshot.sections) ? snapshot.sections : []),
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const rules = [
+    ["onboarding", "开户引导", /开户|开户注册|开通账户|真实账户|模拟账户|kyc|实名|认证|onboard|opening|openaccount|account_activation|accountActivation|onboarding/i],
+    ["deposit", "入金转化", /入金|充值|存款|首存|deposit|funding|bonus|返现|赠金|活动|优惠|reward/i],
+    ["trader", "交易工作台", /交易|持仓|订单|mt5|行情|杠杆|保证金|pnl|成本|professional|trader|positions|orders/i],
+    ["asset", "资产总览", /资产|余额|钱包|净值|账户概览|asset|balance|wallet|equity/i],
+    ["growth", "IB/邀请增长", /ib|代理|邀请|返佣|渠道|裂变|partner|referral|commission|growth/i],
+    ["download", "APP/MT5 下载", /app|下载|移动端|手机端|mt5|download/i],
+    ["risk", "合规风控", /风险|合规|披露|风控|risk|compliance|disclosure/i],
+    ["support", "客服 FAQ", /客服|帮助|faq|工单|联系|support|help|service/i],
+    ["brand", "品牌信任", /品牌|白标|监管|可信|安全|brand|trust|regulation/i],
+  ];
+  const matched = rules.find(([, , regex]) => regex.test(sourceText)) || ["standard", "通用首页"];
+  const renderMode = config.activeRenderMode || config.renderMode || homepageRenderMode(payload);
+  return {
+    businessId: matched[0],
+    businessLabel: matched[1],
+    renderMode: safeRecordText(renderMode, 24),
+    renderModeLabel: homepageRenderModeLabel(renderMode, snapshot),
+    inputMode: homepageInputMode(payload),
+    inputModeLabel: homepageInputMode(payload) === "guided" ? "引导式" : "快捷输入",
+    pageGoal: snapshot.pageGoal || "",
+    pageIntent: snapshot.intent || "",
+    tags: [matched[1], homepageRenderModeLabel(renderMode, snapshot), snapshot.themePreset, snapshot.layoutPreset].filter(Boolean).slice(0, 8),
+  };
+}
+
+function homepagePageRunId(payload = {}, config = {}) {
+  const explicit = safeRecordText(payload.pageRunId || payload.context?.pageRunId, 90);
+  if (explicit) return explicit;
+  const snapshot = homepageRecordSnapshot(config);
+  const seed = [payload.prompt, homepageInputMode(payload), homepageRenderMode(payload), snapshot.name, snapshot.intent, snapshot.layoutPreset].join("|");
+  return `page-${hashServerText(seed).toString(16)}`;
+}
+
+function homepageFinalPageArtifacts(result = {}) {
+  const config = result.config && typeof result.config === "object" ? result.config : {};
+  const htmlScheme = config.htmlScheme?.enabled ? config.htmlScheme : result.htmlScheme?.enabled ? result.htmlScheme : null;
+  const skeletonScheme = config.skeletonHtmlScheme?.enabled ? config.skeletonHtmlScheme : null;
+  return {
+    configJson: safeRecordJsonValue(config, { stringLimit: 80000, arrayLimit: 120, maxDepth: 10 }),
+    aiHtml: safeRecordLongText(htmlScheme?.html || "", 80000),
+    aiCss: safeRecordLongText(htmlScheme?.css || "", 60000),
+    htmlScheme: htmlScheme ? safeRecordJsonValue(htmlScheme, { stringLimit: 80000, arrayLimit: 120, maxDepth: 9 }) : null,
+    skeletonHtmlScheme: skeletonScheme ? safeRecordJsonValue(skeletonScheme, { stringLimit: 80000, arrayLimit: 120, maxDepth: 9 }) : null,
+  };
 }
 
 function homepageRecordSnapshot(config) {
@@ -3116,6 +3295,90 @@ function stripEditorArtifactsFromText(value) {
     .trim();
 }
 
+function normalizeComponentVisualReferenceRecord(reference = {}) {
+  if (!reference || typeof reference !== "object") return null;
+  const name = cleanText(reference.name || reference.fileName, "", 120);
+  const url = cleanText(reference.url, "", 260);
+  const assetId = cleanText(reference.assetId || reference.id, "", 100);
+  const dataUrl = cleanText(reference.dataUrl, "", 80);
+  const hasImage = /^data:image\//i.test(dataUrl) || url || assetId;
+  if (!name && !hasImage) return null;
+  const width = Number(reference.width);
+  const height = Number(reference.height);
+  return {
+    name: name || "组件视觉参考图",
+    type: cleanText(reference.type || referenceAssetType(reference.mime, name), "image", 24),
+    mime: cleanText(reference.mime, "", 80),
+    assetId,
+    url,
+    storagePath: cleanText(reference.storagePath, "", 260),
+    width: Number.isFinite(width) ? Math.max(0, Math.round(width)) : 0,
+    height: Number.isFinite(height) ? Math.max(0, Math.round(height)) : 0,
+    aspectRatio: cleanText(reference.aspectRatio, "", 24),
+    layoutHint: cleanText(reference.layoutHint, "", 120),
+    dominantColors: (Array.isArray(reference.dominantColors) ? reference.dominantColors : [])
+      .map((color) => cleanText(color, "", 24))
+      .filter(Boolean)
+      .slice(0, 6),
+    brightness: cleanText(reference.brightness, "", 24),
+    note: cleanText(reference.note, "", 600),
+  };
+}
+
+function componentVisualReferenceImages(payload = {}) {
+  const reference = payload.visualReference && typeof payload.visualReference === "object" ? payload.visualReference : null;
+  const dataUrl = cleanText(reference?.dataUrl, "", 6_500_000);
+  if (!/^data:image\//i.test(dataUrl)) return [];
+  return [
+    {
+      dataUrl,
+      mime: cleanText(reference.mime, "image/png", 80),
+      name: cleanText(reference.name, "组件视觉参考图", 120),
+    },
+  ];
+}
+
+function componentVisualReferencePromptReference(payload = {}) {
+  const reference = normalizeComponentVisualReferenceRecord(payload.visualReference);
+  if (!reference) return null;
+  return {
+    ...reference,
+    guidance: "这是用户上传的组件/截图视觉参考。先学习构图、密度、色块、控件层级、按钮位置和信息组织，再生成 ForexCRM 首页积木；不要复制受保护素材、Logo 或不可确认文本。",
+  };
+}
+
+function prepareComponentVisualReference(payload = {}) {
+  const reference = payload.visualReference && typeof payload.visualReference === "object" ? payload.visualReference : null;
+  if (!reference) return null;
+  const normalized = normalizeComponentVisualReferenceRecord(reference);
+  const dataUrl = cleanText(reference.dataUrl, "", 6_500_000);
+  if (!/^data:image\//i.test(dataUrl)) return normalized;
+
+  const savedRecords = saveReferenceAsset({
+    name: reference.name || "组件视觉参考图",
+    mime: reference.mime || "image/png",
+    size: reference.size,
+    dataUrl,
+    note: [
+      "AI 组件生成上传的图片/截图参考。",
+      reference.note,
+      normalized?.layoutHint ? `布局线索：${normalized.layoutHint}` : "",
+      normalized?.dominantColors?.length ? `主色：${normalized.dominantColors.join(", ")}` : "",
+    ]
+      .filter(Boolean)
+      .join(" "),
+    tags: ["component-brick", "visual-reference", cleanText(payload.family, "", 40)].filter(Boolean),
+  });
+  const saved = Array.isArray(savedRecords) ? savedRecords[0] : null;
+  return {
+    ...(normalized || {}),
+    dataUrl,
+    assetId: saved?.id || normalized?.assetId || "",
+    url: saved?.url || normalized?.url || "",
+    storagePath: saved?.storagePath || normalized?.storagePath || "",
+  };
+}
+
 function normalizeGeneratedComponent(component, payload = {}, options = {}) {
   const source = component && typeof component === "object" ? component : {};
   const family = oneOfList(source.family || payload.family, COMPONENT_FAMILIES, "ClientHomeAtoms");
@@ -3124,6 +3387,7 @@ function normalizeGeneratedComponent(component, payload = {}, options = {}) {
   const id = safeId(source.id || `${family}-${name}-${Date.now().toString(36)}`, "component");
   const now = new Date().toISOString();
   const preserveUpdatedAt = Boolean(options.preserveUpdatedAt);
+  const visualReference = normalizeComponentVisualReferenceRecord(source.visualReference || payload.visualReference);
 
   return {
     id,
@@ -3139,6 +3403,7 @@ function normalizeGeneratedComponent(component, payload = {}, options = {}) {
     layoutHints: (Array.isArray(source.layoutHints) ? source.layoutHints : []).map((item) => cleanText(item, "", 120)).filter(Boolean).slice(0, 6),
     dataRequirements: (Array.isArray(source.dataRequirements) ? source.dataRequirements : []).map((item) => cleanText(item, "", 120)).filter(Boolean).slice(0, 6),
     sourcePrompt: cleanText(payload.prompt || source.sourcePrompt, "", 500),
+    ...(visualReference ? { visualReference } : {}),
     createdAt: source.createdAt || now,
     updatedAt: preserveUpdatedAt && source.updatedAt ? source.updatedAt : now,
   };
@@ -3212,11 +3477,77 @@ function generatedComponentViolatesFamily(component, payload = {}) {
   return false;
 }
 
+function componentScoreKeyForId(componentId) {
+  const id = cleanText(componentId, "", 90);
+  return id ? `component:${id}` : "";
+}
+
+function componentIdFromScoreKey(scoreKey) {
+  const key = cleanText(scoreKey, "", 240);
+  return key.startsWith("component:") ? cleanText(key.slice("component:".length), "", 90) : "";
+}
+
+function normalizeComponentScoreKey(value) {
+  return cleanText(value, "", 240);
+}
+
+function readComponentScoreStore() {
+  const data = readJsonFile(COMPONENT_SCORE_FILE, { scores: {} });
+  const rawScores = data && typeof data.scores === "object" && !Array.isArray(data.scores) ? data.scores : {};
+  const scores = {};
+  Object.entries(rawScores).forEach(([key, value]) => {
+    const scoreKey = normalizeComponentScoreKey(key);
+    if (!scoreKey) return;
+    scores[scoreKey] = normalizeComponentScore(value, 5);
+  });
+  return {
+    version: 1,
+    updatedAt: cleanText(data.updatedAt, "", 40),
+    scores,
+  };
+}
+
+function writeComponentScoreStore(scores = {}) {
+  const normalizedScores = {};
+  Object.entries(scores).forEach(([key, value]) => {
+    const scoreKey = normalizeComponentScoreKey(key);
+    if (!scoreKey) return;
+    normalizedScores[scoreKey] = normalizeComponentScore(value, 5);
+  });
+  writeJsonFile(COMPONENT_SCORE_FILE, {
+    version: 1,
+    updatedAt: new Date().toISOString(),
+    scores: Object.fromEntries(Object.entries(normalizedScores).sort(([a], [b]) => a.localeCompare(b))),
+  });
+  return normalizedScores;
+}
+
+function saveComponentScoreEntry(scoreKey, score) {
+  const key = normalizeComponentScoreKey(scoreKey);
+  if (!key) return readComponentScoreStore().scores;
+  const store = readComponentScoreStore();
+  store.scores[key] = normalizeComponentScore(score, 5);
+  return writeComponentScoreStore(store.scores);
+}
+
+function deleteComponentScoreEntries(scoreKeys = []) {
+  const keys = new Set((Array.isArray(scoreKeys) ? scoreKeys : [scoreKeys]).map(normalizeComponentScoreKey).filter(Boolean));
+  if (!keys.size) return readComponentScoreStore().scores;
+  const store = readComponentScoreStore();
+  keys.forEach((key) => delete store.scores[key]);
+  return writeComponentScoreStore(store.scores);
+}
+
 function readComponentLibrary() {
   const data = readJsonFile(COMPONENT_LIBRARY_FILE, { components: [] });
+  const scoreStore = readComponentScoreStore().scores;
   const components = Array.isArray(data.components)
     ? data.components
-        .map((item) => normalizeGeneratedComponent(item, {}, { preserveUpdatedAt: true }))
+        .map((item) => {
+          const normalized = normalizeGeneratedComponent(item, {}, { preserveUpdatedAt: true });
+          const storedScore = scoreStore[componentScoreKeyForId(normalized.id)] ?? scoreStore[normalized.id];
+          return storedScore == null ? normalized : { ...normalized, score: normalizeComponentScore(storedScore, normalized.score) };
+        })
         .filter((item) => item.html && item.css && !generatedComponentTooGeneric(item) && !generatedComponentViolatesFamily(item, { family: item.family }))
     : [];
   return { components };
@@ -4115,7 +4446,72 @@ function normalizeDesignSample(sample = {}) {
     ? Math.max(0, Math.min(100, Math.round(Number(sample.humanScore ?? sample.manualScore))))
     : null;
   const aestheticScore = Number.isFinite(Number(sample.aestheticScore)) ? Math.max(0, Math.min(100, Math.round(Number(sample.aestheticScore)))) : humanScore ?? 88;
-  const explicitGolden = Boolean(sample.isGolden || sample.golden || sample.primaryReference || sample.visualOnly || sample.isVisualOnly || rawKind === "golden-page" || rawKind === "visual-only");
+  const idHint = cleanText(sample.id || sample.name, "", 100);
+  const homepageConfig = jsonCloneWithinLimit(sample.homepageConfig || sample.config || sample.homepageConfigJson, null, 160_000);
+  let renderEvidence = normalizeGoldenSampleEvidence(sample);
+  const initialSourceType = cleanText(sample.sourceType || sample.sampleSourceType, "", 40);
+  const visualOnlyHint = Boolean(
+    sample.visualOnly ||
+      sample.isVisualOnly ||
+      rawKind === "visual-only" ||
+      initialSourceType === "visual-only" ||
+      /^visual[-_]/i.test(idHint) ||
+      /visual-only|仅学习外部设计稿/i.test(page.layout || "") ||
+      (!homepageConfig && (renderEvidence.screenshotPath || renderEvidence.screenshotUrl || renderEvidence.sourceUrl || sample.referenceAssetId || sample.sourceReferenceAssetId)),
+  );
+  const compactAssetName = (value = "") =>
+    cleanText(value, "", 120)
+      .toLowerCase()
+      .replace(/\.[a-z0-9]+$/i, "")
+      .replace(/[\s@_\-]+/g, "");
+  const sampleCreatedMs = new Date(sample.createdAt || sample.updatedAt || 0).getTime();
+  const referenceAssetScore = (asset) => {
+    let score = 0;
+    if (expectedAssetName && compactAssetName(asset.name) === expectedAssetName) score += 100;
+    const assetCreatedMs = new Date(asset.createdAt || asset.at || 0).getTime();
+    if (Number.isFinite(sampleCreatedMs) && Number.isFinite(assetCreatedMs)) {
+      const deltaMs = Math.abs(sampleCreatedMs - assetCreatedMs);
+      if (deltaMs <= 10_000) score += 40;
+      else if (deltaMs <= 120_000) score += 16;
+    }
+    const sampleTags = new Set((Array.isArray(sample.tags) ? sample.tags : []).map((tag) => cleanText(tag, "", 36)).filter(Boolean));
+    const overlap = (Array.isArray(asset.tags) ? asset.tags : []).filter((tag) => sampleTags.has(tag)).length;
+    score += overlap * 8;
+    const hero = cleanText(page.hero || sample.whyGood || "", "", 180);
+    if (hero && cleanText(asset.note, "", 180) === hero) score += 30;
+    return score;
+  };
+  const expectedAssetName = compactAssetName(sample.name || page.name);
+  const inferredReferenceAsset = visualOnlyHint && !sample.referenceAssetId && !sample.sourceReferenceAssetId
+    ? readReferenceAssets()
+        .map((asset) => ({ asset, score: referenceAssetScore(asset) }))
+        .filter((item) => item.score >= 40)
+        .sort((a, b) => b.score - a.score)[0]?.asset || null
+    : null;
+  if (inferredReferenceAsset && !renderEvidence.screenshotUrl && !renderEvidence.sourceUrl) {
+    renderEvidence = {
+      ...renderEvidence,
+      screenshotPath: inferredReferenceAsset.type === "image" ? inferredReferenceAsset.storagePath || "" : renderEvidence.screenshotPath,
+      screenshotUrl: inferredReferenceAsset.type === "image" ? inferredReferenceAsset.url || "" : renderEvidence.screenshotUrl,
+      sourceUrl: inferredReferenceAsset.url || renderEvidence.sourceUrl,
+      cssSummary: {
+        ...(renderEvidence.cssSummary || {}),
+        referenceAssetId: inferredReferenceAsset.id,
+        referenceType: inferredReferenceAsset.type,
+        textExcerpt: inferredReferenceAsset.textExcerpt || "",
+      },
+    };
+  }
+  const explicitGolden = Boolean(
+    sample.isGolden ||
+      sample.golden ||
+      sample.primaryReference ||
+      sample.visualOnly ||
+      sample.isVisualOnly ||
+      rawKind === "golden-page" ||
+      rawKind === "visual-only" ||
+      visualOnlyHint,
+  );
   const isGolden = !isAntiExample && (explicitGolden || (rawKind !== "page" && rawKind !== "component" && humanScore !== null && humanScore >= 92));
   const sampleKind = isAntiExample ? "anti-example" : isGolden ? "golden-page" : rawKind === "component" ? "component" : "page";
   const scenarioTags = [
@@ -4124,18 +4520,17 @@ function normalizeDesignSample(sample = {}) {
   ]
     .map((tag) => cleanText(tag, "", 36))
     .filter(Boolean);
-  const homepageConfig = jsonCloneWithinLimit(sample.homepageConfig || sample.config || sample.homepageConfigJson, null, 160_000);
-  const renderEvidence = normalizeGoldenSampleEvidence(sample);
-  const initialSourceType = cleanText(sample.sourceType || sample.sampleSourceType, "", 40);
   const visualOnly = Boolean(
     sample.visualOnly ||
       sample.isVisualOnly ||
       rawKind === "visual-only" ||
       initialSourceType === "visual-only" ||
+      visualOnlyHint ||
       (!homepageConfig && sampleKind === "golden-page" && (renderEvidence.screenshotPath || renderEvidence.screenshotUrl || renderEvidence.sourceUrl || sample.referenceAssetId)),
   );
   const sourceType = visualOnly ? "visual-only" : initialSourceType || (homepageConfig ? "homepage-config" : "sample-notes");
   const themePreset = cleanText(sample.themePreset || sample.configSnapshot?.themePreset || homepageConfig?.themePreset || homepageConfig?.theme || renderEvidence.themeTokens?.themePreset, "", 60);
+  const normalizedHumanScore = humanScore ?? (isGolden ? aestheticScore : null);
   return {
     id: safeId(sample.id || sample.name, "design-sample"),
     sampleKind,
@@ -4150,7 +4545,7 @@ function normalizeDesignSample(sample = {}) {
     visualStyle: cleanText(sample.visualStyle || sample.style, "", 80),
     prompt,
     aestheticScore,
-    humanScore,
+    humanScore: normalizedHumanScore,
     scoreDimensions: normalizeScoreDimensions(sample.scoreDimensions || sample.manualDimensions || sample.dimensions),
     tags: (Array.isArray(sample.tags) ? sample.tags : []).map((tag) => cleanText(tag, "", 36)).filter(Boolean).slice(0, 12),
     scenarioTags: [...new Set(scenarioTags)].slice(0, 12),
@@ -4172,8 +4567,8 @@ function normalizeDesignSample(sample = {}) {
     forbiddenReuse: cleanText(sample.forbiddenReuse || sample.forbiddenReuseNotes || sample.antiPatternNotes, "", 900),
     homepageConfig,
     configSnapshot: visualOnly ? null : sample.configSnapshot && typeof sample.configSnapshot === "object" ? jsonCloneWithinLimit(sample.configSnapshot, null, 20_000) : homepageConfig ? homepageRecordSnapshot(homepageConfig) : null,
-    referenceAssetId: cleanText(sample.referenceAssetId || sample.sourceReferenceAssetId || renderEvidence.cssSummary?.referenceAssetId, "", 100),
-    sourceAssetType: cleanText(sample.sourceAssetType || renderEvidence.cssSummary?.referenceType, "", 40),
+    referenceAssetId: cleanText(sample.referenceAssetId || sample.sourceReferenceAssetId || renderEvidence.cssSummary?.referenceAssetId || inferredReferenceAsset?.id, "", 100),
+    sourceAssetType: cleanText(sample.sourceAssetType || renderEvidence.cssSummary?.referenceType || inferredReferenceAsset?.type, "", 40),
     renderEvidence,
     promptSeeds: [...new Set([prompt, ...(Array.isArray(sample.promptSeeds) ? sample.promptSeeds : [])].map((item) => cleanText(item, "", 260)).filter(Boolean))].slice(0, 8),
     createdAt: sample.createdAt || new Date().toISOString(),
@@ -4632,6 +5027,28 @@ function writeReferenceAssets(records) {
   const normalized = (Array.isArray(records) ? records : []).map(normalizeReferenceAsset).slice(0, MAX_REFERENCE_ASSETS);
   writeJsonFile(REFERENCE_ASSET_FILE, { version: 1, updatedAt: new Date().toISOString(), records: normalized });
   return normalized;
+}
+
+function deleteComponentReferenceAsset(assetId) {
+  const id = cleanText(assetId, "", 100);
+  if (!id) return null;
+  const records = readReferenceAssets();
+  const asset = records.find((item) => item.id === id);
+  if (!asset || !(asset.tags || []).includes("component-brick")) return null;
+
+  if (asset.storagePath) {
+    const filePath = path.join(ROOT_DIR, asset.storagePath);
+    if (filePath.startsWith(ROOT_DIR) && fs.existsSync(filePath)) {
+      try {
+        fs.unlinkSync(filePath);
+      } catch (error) {
+        // Best effort cleanup; metadata removal below is still authoritative.
+      }
+    }
+  }
+
+  writeReferenceAssets(records.filter((item) => item.id !== id));
+  return id;
 }
 
 function decodeReferenceDataUrl(dataUrl = "") {
@@ -7158,7 +7575,7 @@ function brickBackedAiHtmlScheme(payload = {}, config = {}, providerConfig = {},
       generationPipeline: "high-score-brick-backed-html",
       correctionStatus: "brick-backed",
       sourceType: "brick-library-backed",
-      isFallback: false,
+      isFallback: options.isFallback !== false,
       fallbackReason: cleanText(options.fallbackReason, "", 220),
       modelAttempted: typeof options.modelAttempted === "boolean" ? options.modelAttempted : true,
       mock: false,
@@ -7169,6 +7586,7 @@ function brickBackedAiHtmlScheme(payload = {}, config = {}, providerConfig = {},
     {
       sourceType: "brick-library-backed",
       generationPipeline: "high-score-brick-backed-html",
+      isFallback: options.isFallback !== false,
       modelAttempted: typeof options.modelAttempted === "boolean" ? options.modelAttempted : true,
       mock: false,
       fallbackReason: options.fallbackReason || "",
@@ -7225,8 +7643,8 @@ function configBackedAiHtmlScheme(payload = {}, config = {}, providerConfig = {}
       generationPipeline: pipeline,
       correctionStatus: "config-backed",
       sourceType,
-      isFallback: false,
-      fallbackReason: "",
+      isFallback: true,
+      fallbackReason: failureSummary || "AI HTML 模型未返回可用 HTML，已使用配置蓝图安全预览。",
       modelAttempted: true,
       mock: false,
       qualityScore: Number.isFinite(Number(localScheme.qualityScore)) ? localScheme.qualityScore : 72,
@@ -7244,7 +7662,6 @@ function aiHtmlNeedsBrickBackedFallback(scheme = {}) {
   const score = Number(scheme.qualityScore);
   const issues = Array.isArray(scheme.qualityIssues) ? scheme.qualityIssues.join(" ") : "";
   if (scheme.qualityStatus === "needs-repair") return true;
-  if (scheme.qualityStatus !== "passed" && Number.isFinite(score) && score < 82) return true;
   if (Number.isFinite(score) && score < 68) return true;
   if (/命中积木没有落实到 HTML|命中积木结构继承不足|普通白卡|弱占位/.test(issues)) return true;
   return false;
@@ -7763,7 +8180,52 @@ function saveComponent(component) {
   const normalized = normalizeGeneratedComponent(component);
   const nextComponents = library.components.filter((item) => item.id !== normalized.id).concat(normalized);
   writeJsonFile(COMPONENT_LIBRARY_FILE, { components: nextComponents });
+  saveComponentScoreEntry(componentScoreKeyForId(normalized.id), normalized.score);
   return normalized;
+}
+
+function saveComponentScore(payload = {}) {
+  const explicitKey = normalizeComponentScoreKey(payload.scoreKey);
+  const componentId = cleanText(payload.componentId || payload.id || componentIdFromScoreKey(explicitKey), "", 90);
+  const scoreKey = explicitKey || componentScoreKeyForId(componentId);
+  if (!scoreKey) {
+    throw Object.assign(new Error("Missing scoreKey"), { statusCode: 400 });
+  }
+  const score = normalizeComponentScore(payload.score ?? payload.value, 5);
+  const scores = saveComponentScoreEntry(scoreKey, score);
+  let component = null;
+
+  if (componentId) {
+    const library = readRawComponentLibrary();
+    const nextComponents = library.components.map((item) =>
+      item.id === componentId ? { ...item, score, updatedAt: new Date().toISOString() } : item,
+    );
+    if (nextComponents.some((item) => item.id === componentId)) {
+      writeJsonFile(COMPONENT_LIBRARY_FILE, { components: nextComponents });
+      component = readComponentLibrary().components.find((item) => item.id === componentId) || null;
+    }
+  }
+
+  return { scoreKey, score, scores, component, library: readComponentLibrary() };
+}
+
+function saveComponentScoresBulk(scoresPayload = {}) {
+  const updates = Object.entries(scoresPayload)
+    .map(([scoreKey, score]) => ({
+      scoreKey: normalizeComponentScoreKey(scoreKey),
+      score: normalizeComponentScore(score, 5),
+      componentId: componentIdFromScoreKey(scoreKey),
+    }))
+    .filter((item) => item.scoreKey);
+  if (!updates.length) return { scores: readComponentScoreStore().scores, library: readComponentLibrary() };
+
+  const store = readComponentScoreStore();
+  updates.forEach((item) => {
+    store.scores[item.scoreKey] = item.score;
+  });
+  const scores = writeComponentScoreStore(store.scores);
+
+  return { scores, library: readComponentLibrary() };
 }
 
 function resolveComponentForEdit(payload = {}) {
@@ -7787,28 +8249,33 @@ function deleteComponentById(componentId) {
   }
 
   const library = readRawComponentLibrary();
-  const exists = library.components.some((component) => component.id === id);
-  if (!exists) {
-    return { componentId: id, deleted: false, library: readComponentLibrary() };
+  const deletedComponent = library.components.find((component) => component.id === id);
+  if (!deletedComponent) {
+    deleteComponentScoreEntries([componentScoreKeyForId(id), id]);
+    return { componentId: id, deleted: false, scores: readComponentScoreStore().scores, library: readComponentLibrary() };
   }
 
   writeJsonFile(COMPONENT_LIBRARY_FILE, {
     components: library.components.filter((component) => component.id !== id),
   });
+  const scores = deleteComponentScoreEntries([componentScoreKeyForId(id), id]);
+  const deletedVisualReferenceAsset = deleteComponentReferenceAsset(deletedComponent.visualReference?.assetId);
 
   const compositions = readJsonFile(COMPOSITION_LIBRARY_FILE, { compositions: [] });
   if (Array.isArray(compositions.compositions)) {
-    const nextCompositions = compositions.compositions.map((composition) => ({
-      ...composition,
-      layout: Array.isArray(composition.layout)
-        ? composition.layout.filter((item) => item.componentId !== id)
-        : composition.layout,
-      updatedAt: new Date().toISOString(),
-    }));
+    const nextCompositions = compositions.compositions
+      .map((composition) => ({
+        ...composition,
+        layout: Array.isArray(composition.layout)
+          ? composition.layout.filter((item) => item.componentId !== id)
+          : composition.layout,
+        updatedAt: new Date().toISOString(),
+      }))
+      .filter((composition) => !Array.isArray(composition.layout) || composition.layout.length);
     writeJsonFile(COMPOSITION_LIBRARY_FILE, { compositions: nextCompositions });
   }
 
-  return { componentId: id, deleted: true, library: readComponentLibrary() };
+  return { componentId: id, deleted: true, scores, deletedVisualReferenceAsset, library: readComponentLibrary() };
 }
 
 function payloadComponentScore(component, payload = {}) {
@@ -7968,6 +8435,7 @@ function buildComponentPrompt(payload) {
   const scoreReference = scoreContextPromptReference(payload.scoreContext);
   const aestheticReference = componentAestheticPromptReference({ family, size: referenceSize, prompt, limit: 6, sampleLimit: 2, feedbackLimit: 3 });
   const designGovernance = designRulesPromptReference();
+  const visualReference = componentVisualReferencePromptReference(payload);
 
   const system = [
     "你是 ForexCRM 首页积木组件设计器。",
@@ -7990,6 +8458,7 @@ function buildComponentPrompt(payload) {
     "组件内部只保留一个可见主标题：如果使用 strong/h1-h4 做主标题，就不要再放 span/small/label 作为上方 eyebrow、分类名或第二标题；span/small 只用于数据行字段标签。",
     "禁止返回通用占位组件；不要使用 Primary Action、AI 样式、Sample、Lorem ipsum 这类无业务含义文案。",
     "按钮、字段和值必须是 ForexCRM 用户端真实业务：入金、出金、真实账号、模拟账号、绑定账号、钱包、KYC、邀请链接、交易账号、余额、权益、信用、杠杆等。",
+    "如果提供图片/截图视觉参考，必须先抽象它的版式、密度、主视觉位置、色块关系、按钮层级和字段组织，再转成 ForexCRM 组件；不要复制图片里的品牌、受保护素材或无法确认的文字。",
     "name 必须是面向业务的中文组件名，不要叫 WalletList AI 样式、ReferralLink AI 样式。",
   ].join("\n");
 
@@ -8009,6 +8478,9 @@ function buildComponentPrompt(payload) {
     "漂亮积木审美参考:",
     compactJson(aestheticReference),
     "",
+    "图片/截图视觉参考:",
+    compactJson(visualReference || { available: false }),
+    "",
     "design.md 设计治理摘要:",
     compactJson({
       rules: designGovernance.rules?.slice(0, 6) || [],
@@ -8022,7 +8494,7 @@ function buildComponentPrompt(payload) {
     "请返回字段: name, family, size, description, tags, html, css, layoutHints, dataRequirements。",
   ].join("\n");
 
-  return { system, user };
+  return { system, user, images: componentVisualReferenceImages(payload) };
 }
 
 function compactMiniMaxComponentReference(item = {}) {
@@ -8054,6 +8526,7 @@ function compactMiniMaxComponentContext(payload, family, size, prompt) {
   const designGovernance = designRulesPromptReference();
 
   return {
+    visualReference: componentVisualReferencePromptReference(payload),
     componentLibrary: (componentReference.selectedComponents || []).slice(0, 3).map(compactMiniMaxComponentReference),
     scoreReference: scoreReference.map(compactMiniMaxComponentReference),
     beautifulBricks: (aestheticReference.selectedBeautifulBricks || []).slice(0, 3).map(compactMiniMaxComponentReference),
@@ -8078,17 +8551,19 @@ function buildMiniMaxComponentPrompt(payload, config = {}) {
   const size = componentSizePromptLabel(payload.size, "2x1");
   const familySpec = componentFamilySpec(family);
   const providerName = config.name || "MiniMax";
+  const compactModeLabel = config.provider === "minimax" ? "MiniMax 2048 completion token" : `${providerName} 稳定 JSON`;
 
   const system = [
     "你是 ForexCRM 首页积木组件设计器。",
     "只输出一个严格 JSON object；第一个字符必须是 {，最后一个字符必须是 }。",
     "不要 markdown、代码块、解释、注释、<think> 或多余文本。",
-    "这是 MiniMax 2048 completion token 短输出模式：必须输出短 JSON，避免截断。",
+    `这是 ${compactModeLabel} 短输出模式：必须输出短 JSON，避免截断。`,
     "必须返回字段: name, family, size, description, tags, html, css, layoutHints, dataRequirements。",
     "html 和 css 必须是 JSON 字符串；请压缩为单行并正确转义双引号，禁止字符串内裸换行。",
     "html <= 1800 字符，css <= 2400 字符，description <= 80 字符，layoutHints/dataRequirements 各最多 4 项。",
     "HTML 根元素必须有稳定 class；CSS 只能写根 class 作用域；禁止 script、外链、iframe、图片 URL、表单提交和不安全属性。",
     "组件必须体现一种真实工艺：指标带、状态条、步骤连接、趋势图容器、操作坞、表格/列表、左右分栏或紧凑信息流。",
+    "若紧凑参考里有 visualReference，按它的构图、密度、主色和控件层级做 ForexCRM 积木变体，不要复制图片原文和品牌。",
     "金融客户端要克制专业，圆角 8px 或以下，不要厚重阴影、随机渐变、通用占位或只换颜色。",
     `${providerName} 如果不确定，宁可少写字段内容，也必须保证 JSON.parse 可解析。`,
   ].join("\n");
@@ -8119,7 +8594,7 @@ function buildMiniMaxComponentPrompt(payload, config = {}) {
     "现在只返回最终 JSON object。",
   ].join("\n");
 
-  return { system, user, promptMode: "minimax-component-compact" };
+  return { system, user, images: componentVisualReferenceImages(payload), promptMode: "minimax-component-compact" };
 }
 
 function normalizeEditMessages(messages) {
@@ -9918,13 +10393,14 @@ function buildMiniMaxHomepagePatchPrompt(payload, config = {}) {
   const compactIntent = compactHomepageIntentProfile(intentProfile);
   const design = homepageDesignForIntent(intentProfile.primaryIntent);
   const providerName = config.name || "MiniMax";
+  const compactModeLabel = config.provider === "minimax" ? "MiniMax 2048 completion token" : `${providerName} 稳定 JSON`;
   const designGovernance = designRulesPromptReference();
 
   const system = [
     "你是 ForexCRM 首页蓝图 patch 生成器。",
     "只输出一个 JSON object；第一个字符必须是 {，最后一个字符必须是 }。",
     "不要 markdown、代码块、解释、注释、HTML、CSS、JS 或 <think>。",
-    "这是 MiniMax 2048 completion token 短输出模式：返回 patch，不返回完整默认配置；服务端会补齐 schema、默认 moduleSettings、dataContract、autoLayout 和安全纠偏。",
+    `这是 ${compactModeLabel} 短输出模式：返回 patch，不返回完整默认配置；服务端会补齐 schema、默认 moduleSettings、dataContract、autoLayout 和安全纠偏。`,
     "输出控制在 1200 个中文字符内；sections 最多 4 个，brickPlan 最多 6 个；brickPlan 只写 component、size、zone，省略 reason、brickName、family。",
     "必须返回 schemaVersion=4、blueprintVersion=5、generationMode=\"brick-v2\"、name、layoutPreset、themePreset、colorMode、density、heroFocus、sections、brickPlan、modules、moduleStyles、moduleSettings、aiSummary。",
     "所有 sections[].slots 和 brickPlan[].component 只能使用 allowedBlocks；quickActions.actions 必须是空数组。",
@@ -9976,9 +10452,17 @@ function buildMiniMaxHomepagePatchPrompt(payload, config = {}) {
   return { system, user, promptMode: "minimax-homepage-patch" };
 }
 
+function providerUsesCompactHomepagePatch(config = {}) {
+  return config.provider === "minimax" || config.provider === "gemini";
+}
+
+function providerUsesCompactComponentPrompt(config = {}) {
+  return config.provider === "minimax" || config.provider === "gemini";
+}
+
 function buildPrompt(payload, config = {}) {
-  if (config.provider === "minimax") return buildMiniMaxHomepagePatchPrompt(payload, config);
-  if (config.provider === "kimi" || config.provider === "deepseek" || config.provider === "gemini") return buildLowLatencyHomepagePrompt(payload, config);
+  if (providerUsesCompactHomepagePatch(config)) return buildMiniMaxHomepagePatchPrompt(payload, config);
+  if (config.provider === "kimi" || config.provider === "deepseek") return buildLowLatencyHomepagePrompt(payload, config);
   if (config.apiMode === "openai-chat") return buildMiniMaxPrompt(payload);
 
   const context = payload.context || {};
@@ -10137,10 +10621,23 @@ function buildPrompt(payload, config = {}) {
 }
 
 function buildOpenAiResponsesBody(config, promptParts, schema, schemaName = "ai_output") {
+  const images = Array.isArray(promptParts.images)
+    ? promptParts.images.filter((image) => /^data:image\//i.test(String(image?.dataUrl || ""))).slice(0, 1)
+    : [];
   const body = {
     model: config.model,
     instructions: promptParts.system,
-    input: promptParts.user,
+    input: images.length
+      ? [
+          {
+            role: "user",
+            content: [
+              { type: "input_text", text: promptParts.user },
+              ...images.map((image) => ({ type: "input_image", image_url: image.dataUrl })),
+            ],
+          },
+        ]
+      : promptParts.user,
     temperature: config.temperature,
     max_output_tokens: config.maxOutputTokens,
   };
@@ -10182,6 +10679,8 @@ function buildOpenAiChatBody(config, promptParts) {
       ? kimiTemperatureForModel(config.model)
       : structuredJsonRequest && config.provider === "minimax"
         ? Math.min(config.temperature, 0.6)
+        : structuredJsonRequest && config.provider === "gemini"
+          ? Math.min(config.temperature, 0.4)
         : config.temperature,
     max_tokens: config.maxOutputTokens,
     messages: [
@@ -14000,6 +14499,14 @@ function minimaxJsonModeUnsupported(error) {
   return /response_format|json_object|json mode|unsupported|not support|not supported|invalid parameter|invalid param|不支持|无效|非法/i.test(String(error?.message || ""));
 }
 
+function geminiJsonFailureShouldFallback(config = {}, error = {}) {
+  if (!canFallbackGeminiModel(config)) return false;
+  const details = error.details || {};
+  const finishReason = String(details.finishReason || "");
+  const message = `${error.message || ""} ${finishReason} ${details.rawTextSnippet || ""}`;
+  return Boolean(details.likelyTruncated) || /valid JSON object|Provider returned an empty|length|max_tokens|content_filter/i.test(message);
+}
+
 async function requestProviderJsonWithJsonModeFallback(config, headers, body) {
   try {
     return await requestProviderJson(config, headers, body);
@@ -14055,6 +14562,10 @@ async function requestAndParseProviderJson(config, apiKey, promptParts, schema, 
     });
     if (usedConfig.provider === "deepseek" && usedConfig.model === DEEPSEEK_PRO_MODEL) {
       const retryConfig = { ...usedConfig, model: DEEPSEEK_FLASH_MODEL, fallbackFromModel: DEEPSEEK_PRO_MODEL };
+      return requestAndParseProviderJson(retryConfig, apiKey, promptParts, schema, schemaName, enriched);
+    }
+    if (geminiJsonFailureShouldFallback(usedConfig, enriched)) {
+      const retryConfig = { ...usedConfig, model: GEMINI_DEFAULT_MODEL, fallbackFromModel: usedConfig.model };
       return requestAndParseProviderJson(retryConfig, apiKey, promptParts, schema, schemaName, enriched);
     }
     throw enriched;
@@ -14114,6 +14625,15 @@ const AUTH_STYLE_PRESETS = ["blueSplit", "clientOnboarding", "securityReset", "s
 const AUTH_SCREEN_KEYS = ["login", "register", "forgot"];
 const AUTH_COMPOSITION_PRESETS = ["splitTrust", "floatingConsole", "stepperRail", "identityLedger", "campaignPassport", "vaultMinimal"];
 const AUTH_LOGO_PLACEMENTS = ["heroTopLeft", "topCenter", "formTop", "mobileTop"];
+const AUTH_REGISTER_LAYOUTS = ["centerCard", "splitForm", "sideRail", "timeline", "floatingPanel", "cardless"];
+const AUTH_REGISTER_VISUAL_PLACEMENTS = ["left", "right", "background", "none"];
+const AUTH_REGISTER_CARD_CHROMES = ["bordered", "borderless", "elevated", "glass", "flat"];
+const AUTH_REGISTER_SECTION_FLOWS = ["singleColumn", "twoColumn", "groupedCards", "stepper"];
+const AUTH_REGISTER_OFFER_PLACEMENTS = ["top", "side", "inline", "hidden"];
+const AUTH_REGISTER_TERMS_PLACEMENTS = ["insideForm", "footer"];
+const AUTH_SOCIAL_LOGIN_POSITIONS = ["top", "bottom", "sideRail", "inlineHeader"];
+const AUTH_SOCIAL_LOGIN_STYLES = ["fullButtons", "iconGrid", "brandTiles", "pills", "minimalText"];
+const AUTH_SOCIAL_LOGIN_DIVIDERS = ["line", "copy", "none"];
 
 function isObjectRecord(value) {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
@@ -14314,6 +14834,81 @@ function inferAuthLayoutFields(payload = {}, composition = "splitTrust", stylePr
   };
 }
 
+function inferAuthRegisterPresentation(payload = {}, composition = "splitTrust", stylePreset = "blueSplit", intent = "openAccount", registerDepth = "standard", layoutFields = {}) {
+  const explicitVisual = payload.visual && typeof payload.visual === "object" ? payload.visual : {};
+  const explicitOptions = payload.options && typeof payload.options === "object" ? payload.options : {};
+  const explicit = isObjectRecord(explicitVisual.registerPresentation)
+    ? explicitVisual.registerPresentation
+    : isObjectRecord(explicitOptions.visual?.registerPresentation)
+      ? explicitOptions.visual.registerPresentation
+      : {};
+  const text = authPromptText(payload).toLowerCase();
+  const wantsNoBorder = /无边框|不要边框|去掉边框|borderless|cardless|无卡片/.test(text);
+  const wantsSteps = /步骤|stepper|timeline|开户流程|开户注册|kyc|合规/.test(text) || registerDepth === "compliance";
+  const wantsSide = /侧栏|side|左右|分栏|rail/.test(text);
+  const wantsBackground = /背景|浮层|沉浸|overlay|floating|glass/.test(text);
+  const layout = firstAllowed(
+    explicit.layout,
+    AUTH_REGISTER_LAYOUTS,
+    wantsNoBorder
+      ? "cardless"
+      : wantsSteps
+        ? "timeline"
+        : intent === "campaignSignup"
+          ? "sideRail"
+          : wantsBackground || stylePreset === "photoDark"
+            ? "floatingPanel"
+            : wantsSide || composition === "identityLedger"
+              ? "splitForm"
+              : "centerCard",
+  );
+  const fallbackSocialPosition = intent === "campaignSignup" || layout === "sideRail" ? "sideRail" : "top";
+  const social = isObjectRecord(explicit.socialLogin) ? explicit.socialLogin : {};
+  return {
+    layout,
+    formPosition: firstAllowed(explicit.formPosition, AUTH_REFERENCE_FORM_POSITIONS, layoutFields.formPosition === "left" ? "left" : layoutFields.formPosition === "center" ? "center" : "right"),
+    visualPlacement: firstAllowed(
+      explicit.visualPlacement,
+      AUTH_REGISTER_VISUAL_PLACEMENTS,
+      layout === "centerCard" || layout === "cardless" ? "none" : layoutFields.mediaPosition === "right" ? "right" : layoutFields.mediaPosition === "background" || layout === "floatingPanel" ? "background" : "left",
+    ),
+    cardChrome: firstAllowed(explicit.cardChrome, AUTH_REGISTER_CARD_CHROMES, wantsNoBorder ? "borderless" : layout === "floatingPanel" ? "glass" : stylePreset === "clientOnboarding" ? "bordered" : "elevated"),
+    sectionFlow: firstAllowed(explicit.sectionFlow, AUTH_REGISTER_SECTION_FLOWS, wantsSteps ? "stepper" : registerDepth === "light" ? "singleColumn" : intent === "campaignSignup" ? "groupedCards" : "twoColumn"),
+    offerPlacement: firstAllowed(explicit.offerPlacement, AUTH_REGISTER_OFFER_PLACEMENTS, intent === "campaignSignup" ? "side" : "top"),
+    termsPlacement: firstAllowed(explicit.termsPlacement, AUTH_REGISTER_TERMS_PLACEMENTS, layout === "cardless" ? "footer" : "insideForm"),
+    socialLogin: {
+      position: firstAllowed(social.position, AUTH_SOCIAL_LOGIN_POSITIONS, fallbackSocialPosition),
+      style: firstAllowed(social.style, AUTH_SOCIAL_LOGIN_STYLES, fallbackSocialPosition === "sideRail" ? "brandTiles" : layout === "cardless" ? "minimalText" : "fullButtons"),
+      divider: firstAllowed(social.divider, AUTH_SOCIAL_LOGIN_DIVIDERS, fallbackSocialPosition === "sideRail" ? "none" : "line"),
+    },
+  };
+}
+
+function normalizeAuthSocialLoginPresentation(source = {}, fallback = {}) {
+  const safeSource = isObjectRecord(source) ? source : {};
+  return {
+    position: firstAllowed(safeSource.position, AUTH_SOCIAL_LOGIN_POSITIONS, fallback.position || "top"),
+    style: firstAllowed(safeSource.style, AUTH_SOCIAL_LOGIN_STYLES, fallback.style || "fullButtons"),
+    divider: firstAllowed(safeSource.divider, AUTH_SOCIAL_LOGIN_DIVIDERS, fallback.divider || "line"),
+  };
+}
+
+function normalizeAuthRegisterPresentation(source = {}, fallback = {}) {
+  const safeSource = isObjectRecord(source) ? source : {};
+  const safeSocial = isObjectRecord(safeSource.socialLogin) ? safeSource.socialLogin : {};
+  const fallbackSocial = isObjectRecord(fallback.socialLogin) ? fallback.socialLogin : {};
+  return {
+    layout: firstAllowed(safeSource.layout, AUTH_REGISTER_LAYOUTS, fallback.layout || "centerCard"),
+    formPosition: firstAllowed(safeSource.formPosition, AUTH_REFERENCE_FORM_POSITIONS, fallback.formPosition || "right"),
+    visualPlacement: firstAllowed(safeSource.visualPlacement, AUTH_REGISTER_VISUAL_PLACEMENTS, fallback.visualPlacement || "none"),
+    cardChrome: firstAllowed(safeSource.cardChrome, AUTH_REGISTER_CARD_CHROMES, fallback.cardChrome || "elevated"),
+    sectionFlow: firstAllowed(safeSource.sectionFlow, AUTH_REGISTER_SECTION_FLOWS, fallback.sectionFlow || "twoColumn"),
+    offerPlacement: firstAllowed(safeSource.offerPlacement, AUTH_REGISTER_OFFER_PLACEMENTS, fallback.offerPlacement || "top"),
+    termsPlacement: firstAllowed(safeSource.termsPlacement, AUTH_REGISTER_TERMS_PLACEMENTS, fallback.termsPlacement || "insideForm"),
+    socialLogin: normalizeAuthSocialLoginPresentation(safeSocial, fallbackSocial),
+  };
+}
+
 function authSplitReferenceStructure(layoutFields = {}) {
   if (layoutFields.layoutType === "centeredCard") return "居中表单，弱化或隐藏侧边品牌视觉。";
   if (layoutFields.mediaPosition === "right") return "左右分栏：表单在左，媒体/插画/品牌视觉在右。";
@@ -14472,6 +15067,8 @@ function defaultAuthScheme(payload = {}, providerConfig = {}, meta = {}) {
 
   const hasPromo = authHasFeature(features, promptText, "promoReward", /活动|奖励|权益|注册送|礼遇|转化/i);
   const needsKyc = registerDepth === "compliance" || authHasFeature(features, promptText, "kycPrelude", /kyc|实名|身份|前置说明/i);
+  const registerPresentation = inferAuthRegisterPresentation(payload, composition, stylePreset, intent, registerDepth, layoutFields);
+  const socialLogin = normalizeAuthSocialLoginPresentation(payload.visual?.socialLogin || payload.options?.visual?.socialLogin, registerPresentation.socialLogin);
   const registerTitle = intent === "campaignSignup" ? "注册并锁定开户礼遇" : registerDepth === "light" ? "快速创建账户" : stylePreset === "clientOnboarding" ? "客户注册流程" : stylePreset === "photoDark" ? "账号注册" : "创建您的交易账户";
   const registerSubtitle = intent === "campaignSignup" ? "先完成身份与安全信息，系统会在 KYC 前说明奖励条件、风险披露和后续审核节点。" : registerDepth === "light" ? "先完成必要信息，后续再补充开户地址和 KYC。" : stylePreset === "clientOnboarding" ? "标准客户注册，收集基本信息并自动进入后续审核。" : "填写注册信息，系统将自动创建客户资料并进入后续账户流程。";
   const [heroTitle, heroSubtitle] = authAudienceCopy(audience, defaultScreen);
@@ -14508,6 +15105,8 @@ function defaultAuthScheme(payload = {}, providerConfig = {}, meta = {}) {
       cardShadow: stylePreset === "clientOnboarding" ? "soft" : "elevated",
       composition,
       ...layoutFields,
+      registerPresentation,
+      socialLogin,
       referenceStructure: layoutFields.layoutType === "centeredCard"
         ? "居中表单，弱化或隐藏侧边品牌视觉。"
         : layoutFields.mediaPosition === "right"
@@ -14572,6 +15171,7 @@ function defaultAuthScheme(payload = {}, providerConfig = {}, meta = {}) {
         title: intent === "campaignSignup" ? "注册并锁定开户礼遇" : registerDepth === "light" ? "快速创建账户" : stylePreset === "photoDark" ? "账号注册" : "创建您的账户",
         subtitle: intent === "campaignSignup" ? "先创建账号并验证手机号或邮箱，KYC、奖励条件和风险披露会在注册后清晰继续。" : "填写账号与密码，提交前完成人机校验，下一步验证手机号或邮箱。",
         modeTabs: ["手机号", "邮箱"],
+        socialProviders: hasSocial ? ["Google", "Apple"] : [],
         sections: [
           {
             title: "账号信息",
@@ -14753,6 +15353,9 @@ function normalizeAuthScheme(source, payload = {}, providerConfig = {}, meta = {
     mobileStrategy: firstAllowed(merged.visual?.mobileStrategy, AUTH_REFERENCE_MOBILE_STRATEGIES, layoutFields.mobileStrategy),
     referenceStructure: enforceSplitLayout ? authSplitReferenceStructure(layoutFields) : cleanText(merged.visual?.referenceStructure, fallback.visual?.referenceStructure || "", 220),
   };
+  normalized.visual.registerPresentation = normalizeAuthRegisterPresentation(merged.visual?.registerPresentation || merged.registerPresentation, fallback.visual.registerPresentation);
+  normalized.visual.socialLogin = normalizeAuthSocialLoginPresentation(merged.visual?.socialLogin || normalized.visual.registerPresentation.socialLogin, fallback.visual.socialLogin);
+  normalized.visual.registerPresentation.socialLogin = normalizeAuthSocialLoginPresentation(normalized.visual.registerPresentation.socialLogin, normalized.visual.socialLogin);
   normalized.experience = {
     ...(isObjectRecord(fallback.experience) ? fallback.experience : {}),
     ...(isObjectRecord(merged.experience) ? merged.experience : {}),
@@ -14805,6 +15408,12 @@ function normalizeAuthScheme(source, payload = {}, providerConfig = {}, meta = {
   if (authHasFeature(normalized.experience.features, authPromptText(payload), "socialLogin", /google|apple|第三方|social/i) && !normalized.screens.login.socialProviders.length) {
     normalized.screens.login.socialProviders = ["Google", "Apple"];
   }
+  normalized.screens.register.socialProviders = (Array.isArray(normalized.screens.register.socialProviders) && normalized.screens.register.socialProviders.length
+    ? normalized.screens.register.socialProviders
+    : normalized.screens.login.socialProviders)
+    .map((item) => cleanText(item, "", 30))
+    .filter(Boolean)
+    .slice(0, 4);
   normalized.securityNotes = (Array.isArray(merged.securityNotes) ? merged.securityNotes : fallback.securityNotes).map((item) => cleanText(item, "", 100)).filter(Boolean).slice(0, 6);
   normalized.designNotes = (Array.isArray(merged.designNotes) ? merged.designNotes : fallback.designNotes).map((item) => cleanText(item, "", 140)).filter(Boolean).slice(0, 8);
   if (enforceSplitLayout) {
@@ -14870,10 +15479,12 @@ function buildAuthPrompt(payload = {}, config = {}) {
     const system = [
       "你是 ForexCRM 金融平台开户认证界面生成器。",
       "只返回一个 JSON 对象，不要 Markdown、代码围栏、HTML、CSS、解释、meta、schema、version 或示例数据。",
-      "返回精简 patch JSON；本地规范器会补全默认字段。重点改写品牌、构图、hero、三流程文案、注册 section、安全提示和移动端策略。",
+      "返回精简 patch JSON；本地规范器会补全默认字段。重点改写品牌、构图、hero、三流程文案、注册 section、注册模块表现、三方登录样式、安全提示和移动端策略。",
       "JSON 顶层只使用这些键：name, summary, stylePreset, defaultScreen, language, brand, visual, experience, hero, screens, securityNotes, designNotes。",
       "stylePreset 只能是 blueSplit/clientOnboarding/securityReset/softPlatform/photoDark；visual.composition 只能是 splitTrust/floatingConsole/stepperRail/identityLedger/campaignPassport/vaultMinimal；brand.logoPlacement 只能是 heroTopLeft/topCenter/formTop/mobileTop。",
       "visual 还应返回 layoutType、formPosition、mediaPosition、heroVisibility、mobileStrategy，用来表达居中、图左、图右、背景图和移动端策略；这些字段来自视觉素材的自动结构识别，不需要人工配置。",
+      "visual.registerPresentation 控制注册模块表现，不改变注册字段业务内容：layout=centerCard/splitForm/sideRail/timeline/floatingPanel/cardless；cardChrome=bordered/borderless/elevated/glass/flat；sectionFlow=singleColumn/twoColumn/groupedCards/stepper；offerPlacement=top/side/inline/hidden；termsPlacement=insideForm/footer。",
+      "visual.socialLogin 和 visual.registerPresentation.socialLogin 控制第三方登录表现：position=top/bottom/sideRail/inlineHeader；style=fullButtons/iconGrid/brandTiles/pills/minimalText；divider=line/copy/none。第三方入口可以出现在登录和注册，但不要改写账号密码注册主流程。",
       "如果用户明确写了“左右布局 / 左右分栏 / 双栏 / 两栏 / split layout”，visual.layoutType 必须是 split 或 mediaSplit，formPosition 不允许 center，heroVisibility 不允许 hidden，不能返回 centeredCard、mobileFirst 或 cardOverlay。",
       "screens 必须包含 login/register/forgot 三个对象，但每个对象保持短字段。register.sections 最多 3 组、每组 fields 最多 4 个；数组最多 5 项；每个中文字符串尽量 6-24 字。",
       "登录首屏只保留账号（手机号/邮箱）和密码；2FA 写入 login.securityFlow；Captcha 只写成风险触发或发送验证码前触发，不要作为常驻输入框。",
@@ -14930,7 +15541,7 @@ function buildAuthPrompt(payload = {}, config = {}) {
         model: config.model,
       }),
       "",
-      "输出要求：返回可解析 JSON，不要代码围栏。必须体现个性化构图差异和移动端首屏 Logo/主入口/主按钮策略。summary、securityNotes、designNotes 要短。",
+      "输出要求：返回可解析 JSON，不要代码围栏。必须体现个性化构图差异、注册模块内部布局差异、三方登录样式差异和移动端首屏 Logo/主入口/主按钮策略。summary、securityNotes、designNotes 要短。",
       "布局字段：visual.layoutType 在 split/mediaSplit/centeredCard/fullBleed/cardOverlay/mobileFirst 中选择；visual.formPosition 在 left/right/center 中选择；visual.mediaPosition 在 left/right/background/none 中选择。图在左=mediaPosition:left+formPosition:right；图在右=mediaPosition:right+formPosition:left；居中稿=centeredCard+formPosition:center。用户要求左右布局时，必须返回 split/mediaSplit，不能返回 centeredCard。",
     ].join("\n");
     return { system, user };
@@ -14946,6 +15557,7 @@ function buildAuthPrompt(payload = {}, config = {}) {
       "视觉借鉴不能依赖人工标注。若提供 referenceAssets 或 visualStructures，必须先自动理解它们的结构：居中/左右/背景视觉、表单位置、图在左或右、Logo 位置、移动端首屏策略，并写入 visual.layoutType、visual.formPosition、visual.mediaPosition、visual.heroVisibility、visual.mobileStrategy。",
       "如果用户明确写了“左右布局 / 左右分栏 / 双栏 / 两栏 / split layout”，visual.layoutType 必须是 split 或 mediaSplit，formPosition 不允许 center，heroVisibility 不允许 hidden，不能返回 centeredCard、mobileFirst 或 cardOverlay。",
       "字段只描述配置，不生成真实认证逻辑；第三方登录可以作为 UI 占位，验证码/Captcha 只允许出现在后续验证步骤或风险说明中。",
+      "注册模块的字段内容和认证流程是业务契约，不能乱改；除字段外，注册模块布局、表单位置、边框/无边框、视觉侧栏、活动权益位置、协议位置、三方登录入口样式都可以由 AI 自行生成，并写入 visual.registerPresentation 与 visual.socialLogin。",
     "为了避免同质化，必须显式返回 visual.composition，并从 splitTrust、floatingConsole、stepperRail、identityLedger、campaignPassport、vaultMinimal 中选择最贴合业务目标的一种。",
     "composition 不是主题色，而是首屏骨架：splitTrust=经典信任分栏；floatingConsole=深色/专属控制台感；stepperRail=开户注册步骤轨道；identityLedger=身份/邀请/协议台账；campaignPassport=活动通行证；vaultMinimal=极简安全金库。",
     "不要只替换颜色或标题。每次生成都要让 hero.proofPoints、注册 section 组织方式、登录辅助信息、安全提示和按钮语气与 composition 一起变化。",
@@ -15010,6 +15622,7 @@ function buildAuthPrompt(payload = {}, config = {}) {
     "",
     "请返回符合 schema 的 auth UI JSON。必须生成完整登录、注册、找回密码三套 screen。stylePreset 必须是 blueSplit、clientOnboarding、securityReset、softPlatform、photoDark 之一；visual.composition 必须是 splitTrust、floatingConsole、stepperRail、identityLedger、campaignPassport、vaultMinimal 之一；brand.logoPlacement 必须是 heroTopLeft、topCenter、formTop、mobileTop 之一。",
     "visual.layoutType 必须在 split/mediaSplit/centeredCard/fullBleed/cardOverlay/mobileFirst 中选择；visual.formPosition 必须在 left/right/center 中选择；visual.mediaPosition 必须在 left/right/background/none 中选择。素材显示图在左就让 mediaPosition=left、formPosition=right；图在右则反过来；居中稿用 centeredCard + formPosition=center。用户要求左右布局时，必须返回 split/mediaSplit，不能返回 centeredCard。",
+    "visual.registerPresentation 必须描述注册模块内部表现：layout、cardChrome、sectionFlow、offerPlacement、termsPlacement，可选 socialLogin；visual.socialLogin 描述全局三方入口样式。字段不变，表现要变。",
     "建议额外返回 experience: { audience, registerDepth, designStyle, theme, features }。login.extraFields 必须为空；如需 2FA 或人机校验，请写入 login.securityFlow、register.verification、forgot.verification。",
     "登录方式需覆盖账号密码（账号为手机号/邮箱）和可选第三方快捷登录；交易账号相关能力只能作为登录后的业务说明或可选身份绑定，不要变成登录首屏 tab。",
     "建议返回 hero.proofPoints 3-5 条，用短句表达这个构图下最关键的安全、身份、活动或开户注册证据。",
@@ -15260,17 +15873,35 @@ async function callProvider(payload) {
       productWarnings: finalQuality.productWarnings,
       renderMode,
       activeRenderMode: activeRenderModeForRequest(renderMode, htmlScheme),
-      provider: config.provider,
-      model: config.model,
-      rawText: "",
-      mock: true,
-    };
-  }
+	      provider: config.provider,
+	      model: config.model,
+	      rawText: "",
+	      responseJson: {
+	        homepageConfig: safeRecordJsonValue(rawMockConfig, { stringLimit: 60000, arrayLimit: 120, maxDepth: 9 }),
+	        normalizedConfig: safeRecordJsonValue(finalConfig, { stringLimit: 60000, arrayLimit: 120, maxDepth: 9 }),
+	        aiHtml: htmlScheme ? safeRecordJsonValue(htmlScheme, { stringLimit: 60000, arrayLimit: 120, maxDepth: 9 }) : null,
+	      },
+	      mock: true,
+	    };
+	  }
 
   let freeHtmlResult = null;
   let freeHtmlError = null;
-  if (renderModeWantsAiHtml(renderMode) && !compactAiHtmlProvider) {
-    freeHtmlError = new Error("AI HTML generation waits for repairedConfig; free raw-config HTML is disabled.");
+  if (renderModeWantsAiHtml(renderMode)) {
+    if (compactAiHtmlProvider) {
+      freeHtmlError = new Error(`${config.name} 使用短输出 AI HTML 通道，跳过长自由 HTML 首轮。`);
+    } else {
+      try {
+        freeHtmlResult = await callProviderWithPrompt(
+          policyPayload,
+          aiHtmlPromptForProvider(config, policyPayload, {}, { free: true }),
+          AI_HTML_SCHEME_JSON_SCHEMA,
+          "homepage_ai_html_free",
+        );
+      } catch (error) {
+        freeHtmlError = error;
+      }
+    }
   }
 
   const result = await callProviderWithPrompt(policyPayload, buildPrompt(policyPayload, config), policyPayload.context?.schema, "homepage_config");
@@ -15302,9 +15933,10 @@ async function callProvider(payload) {
       endpoint: resultProviderConfig.endpoint,
     },
   };
-  let htmlScheme = null;
-  let htmlUsage = null;
-  let htmlRawText = "";
+	  let htmlScheme = null;
+	  let htmlUsage = null;
+	  let htmlRawText = "";
+	  let htmlResponseJson = null;
 
 	  if (renderModeWantsAiHtml(renderMode)) {
 	    if (freeHtmlResult?.json) {
@@ -15314,9 +15946,10 @@ async function callProvider(payload) {
 	        modelAttempted: true,
 	        mock: false,
 	      });
-      htmlUsage = freeHtmlResult.usage || null;
-      htmlRawText = freeHtmlResult.rawText || "";
-      if (htmlScheme.qualityStatus !== "passed" && config.provider !== "minimax") {
+	      htmlUsage = freeHtmlResult.usage || null;
+	      htmlRawText = freeHtmlResult.rawText || "";
+	      htmlResponseJson = safeRecordJsonValue(freeHtmlResult.json, { stringLimit: 60000, arrayLimit: 120, maxDepth: 9 });
+	      if (htmlScheme.qualityStatus !== "passed" && resultProviderConfig.provider !== "minimax") {
         const qualityReport = evaluateAiHtmlQuality(htmlScheme, policyPayload, homepageConfig);
 	        try {
 	          const htmlResult = await callProviderWithPrompt(
@@ -15324,9 +15957,13 @@ async function callProvider(payload) {
 	            aiHtmlPromptForProvider(resultProviderConfig, policyPayload, homepageConfig, { qualityReport, previousScheme: htmlScheme }),
 	            AI_HTML_SCHEME_JSON_SCHEMA,
 	            "homepage_ai_html_quality_repair",
-	          );
-          const previousHtmlScheme = htmlScheme;
-          const repairedHtmlScheme = repairAiHtmlScheme(
+			          );
+	          const previousHtmlScheme = htmlScheme;
+	          htmlResponseJson = {
+	            free: safeRecordJsonValue(freeHtmlResult.json, { stringLimit: 60000, arrayLimit: 120, maxDepth: 9 }),
+	            repair: safeRecordJsonValue(htmlResult.json, { stringLimit: 60000, arrayLimit: 120, maxDepth: 9 }),
+	          };
+	          const repairedHtmlScheme = repairAiHtmlScheme(
             {
               ...htmlResult.json,
               correctionNotes: [
@@ -15356,8 +15993,9 @@ async function callProvider(payload) {
           }
           htmlUsage = { free: freeHtmlResult.usage || null, repair: htmlResult.usage || null };
           htmlRawText = [freeHtmlResult.rawText, htmlResult.rawText].filter(Boolean).join("\n\n--- ai html quality repair ---\n\n");
-        } catch (error) {
-          htmlScheme = repairAiHtmlScheme(
+	        } catch (error) {
+	          htmlResponseJson = safeRecordJsonValue(freeHtmlResult.json, { stringLimit: 60000, arrayLimit: 120, maxDepth: 9 });
+	          htmlScheme = repairAiHtmlScheme(
             {
               ...htmlScheme,
               correctionNotes: [
@@ -15400,10 +16038,83 @@ async function callProvider(payload) {
                   modelAttempted: true,
                   mock: false,
                 },
-			        );
-        htmlUsage = htmlResult.usage || null;
-        htmlRawText = htmlResult.rawText || "";
-	      } catch (error) {
+			          );
+	        htmlUsage = htmlResult.usage || null;
+	        htmlRawText = htmlResult.rawText || "";
+	        htmlResponseJson = safeRecordJsonValue(htmlResult.json, { stringLimit: 60000, arrayLimit: 120, maxDepth: 9 });
+	        if (compactHtmlGeneration && htmlScheme.qualityStatus === "needs-repair" && resultProviderConfig.provider !== "minimax") {
+	          const compactQualityReport = evaluateAiHtmlQuality(htmlScheme, policyPayload, homepageConfig);
+	          try {
+	            const repairResult = await callProviderWithPrompt(
+	              htmlPayload,
+	              aiHtmlPromptForProvider(resultProviderConfig, policyPayload, homepageConfig, {
+	                qualityReport: compactQualityReport,
+	                previousScheme: htmlScheme,
+	              }),
+	              AI_HTML_SCHEME_JSON_SCHEMA,
+	              `homepage_ai_html_${resultProviderConfig.provider}_quality_repair`,
+	            );
+	            const previousHtmlScheme = htmlScheme;
+	            const repairedHtmlScheme = repairAiHtmlScheme(
+	              {
+	                ...repairResult.json,
+	                correctionNotes: [
+	                  `短输出 AI HTML 质量门禁 ${compactQualityReport.score}/100，已追加一次模型返修。`,
+	                  ...(Array.isArray(compactQualityReport.issues) ? compactQualityReport.issues : []),
+	                  ...(Array.isArray(repairResult.json?.correctionNotes) ? repairResult.json.correctionNotes : []),
+	                ],
+	              },
+	              policyPayload,
+	              homepageConfig,
+	              resultProviderConfig,
+	              {
+	                sourceType: "model-repair",
+	                generationPipeline: `${resultProviderConfig.provider}-compact-quality-repair`,
+	                modelAttempted: true,
+	                mock: false,
+	              },
+	            );
+	            const previousScore = Number(previousHtmlScheme.qualityScore);
+	            const repairedScore = Number(repairedHtmlScheme.qualityScore);
+	            if (!Number.isFinite(previousScore) || !Number.isFinite(repairedScore) || repairedScore >= previousScore) {
+	              htmlScheme = repairedHtmlScheme;
+	            } else {
+	              htmlScheme = {
+	                ...previousHtmlScheme,
+	                correctionNotes: [
+	                  ...(Array.isArray(previousHtmlScheme.correctionNotes) ? previousHtmlScheme.correctionNotes : []),
+	                  `短输出返修得分 ${repairedScore}/100 低于原方案 ${previousScore}/100，已保留原模型 HTML。`,
+	                ].slice(0, 8),
+	              };
+	            }
+	            htmlUsage = { compact: htmlResult.usage || null, repair: repairResult.usage || null };
+	            htmlRawText = [htmlResult.rawText, repairResult.rawText].filter(Boolean).join("\n\n--- compact ai html quality repair ---\n\n");
+	            htmlResponseJson = {
+	              compact: safeRecordJsonValue(htmlResult.json, { stringLimit: 60000, arrayLimit: 120, maxDepth: 9 }),
+	              repair: safeRecordJsonValue(repairResult.json, { stringLimit: 60000, arrayLimit: 120, maxDepth: 9 }),
+	            };
+	          } catch (repairError) {
+	            htmlScheme = repairAiHtmlScheme(
+	              {
+	                ...htmlScheme,
+	                correctionNotes: [
+	                  ...(Array.isArray(htmlScheme.correctionNotes) ? htmlScheme.correctionNotes : []),
+	                  `短输出质量返修调用失败，保留原模型 HTML：${cleanText(providerFailureSummary(repairError), "", 140)}`,
+	                ],
+	              },
+	              policyPayload,
+	              homepageConfig,
+	              resultProviderConfig,
+	              {
+	                sourceType: htmlScheme.sourceType || `model/${resultProviderConfig.provider}-ai-html`,
+	                generationPipeline: htmlScheme.generationPipeline || `${resultProviderConfig.provider}-compact-ai-html`,
+	                modelAttempted: true,
+	                mock: false,
+	              },
+	            );
+	          }
+	        }
+		      } catch (error) {
         const failureSummary = providerFailureSummary(error || freeHtmlError);
         htmlScheme = configBackedAiHtmlScheme(policyPayload, homepageConfig, resultProviderConfig, {
           providerName: resultProviderConfig.name,
@@ -15483,15 +16194,20 @@ async function callProvider(payload) {
     productWarnings: finalQuality.productWarnings,
     renderMode,
     activeRenderMode: activeRenderModeForRequest(renderMode, htmlScheme),
-    provider: result.provider,
-    model: result.model,
-    rawText: [result.rawText, htmlRawText].filter(Boolean).join("\n\n--- ai html ---\n\n"),
-    usage: htmlUsage ? { config: result.usage || null, html: htmlUsage } : result.usage,
-  };
-}
+	    provider: result.provider,
+	    model: result.model,
+	    rawText: [result.rawText, htmlRawText].filter(Boolean).join("\n\n--- ai html ---\n\n"),
+	    responseJson: {
+	      homepageConfig: safeRecordJsonValue(result.json, { stringLimit: 60000, arrayLimit: 120, maxDepth: 9 }),
+	      aiHtml: htmlResponseJson,
+	      normalizedConfig: safeRecordJsonValue(finalConfig, { stringLimit: 60000, arrayLimit: 120, maxDepth: 9 }),
+	    },
+	    usage: htmlUsage ? { config: result.usage || null, html: htmlUsage } : result.usage,
+	  };
+	}
 
 function buildComponentPromptForProvider(payload, config = {}) {
-  if (config.provider === "minimax") return buildMiniMaxComponentPrompt(payload, config);
+  if (providerUsesCompactComponentPrompt(config)) return buildMiniMaxComponentPrompt(payload, config);
   return buildComponentPrompt(payload);
 }
 
@@ -15914,15 +16630,17 @@ async function runHomeAiComplete(payload, startedAt = Date.now()) {
   let historyConfig = null;
   let failedCallRecord = null;
 
-  try {
-	    historyConfig = callHistoryConfig(payload);
-	    const result = await callProvider(payload);
-	    const htmlScheme = result.config?.htmlScheme || result.htmlScheme || null;
-	    const recordStatus = result.mock ? "mock" : htmlScheme?.isFallback ? "fallback" : "success";
-	    const callRecord = addCallHistoryRecord({
-      action: "homepage-generate",
-      providerId: result.provider || historyConfig.provider,
-      provider: historyConfig.name,
+	  try {
+		    historyConfig = callHistoryConfig(payload);
+		    const result = await callProvider(payload);
+		    const htmlScheme = result.config?.htmlScheme || result.htmlScheme || null;
+		    const recordStatus = result.mock ? "mock" : htmlScheme?.isFallback ? "fallback" : "success";
+		    const pageRunId = homepagePageRunId(payload, result.config);
+		    const callRecord = addCallHistoryRecord({
+	      action: "homepage-generate",
+	      pageRunId,
+	      providerId: result.provider || historyConfig.provider,
+	      provider: historyConfig.name,
       model: result.model || historyConfig.model,
       apiMode: historyConfig.apiMode,
       callMode: "serverProxy",
@@ -15942,18 +16660,24 @@ async function runHomeAiComplete(payload, startedAt = Date.now()) {
 	      qualityScore: Number.isFinite(Number(result.qualityScore)) ? result.qualityScore : null,
 		      durationMs: Date.now() - startedAt,
 	      prompt: safeRecordText(payload.prompt),
+	      businessProfile: homepageBusinessProfile(payload, result.config),
 	      guidedSnapshot: guidedRecordSnapshot(payload),
 	      message: result.config?.name || "首页生成成功",
 	      configSnapshot: homepageRecordSnapshot(result.config),
+	      responseJson: safeRecordJsonValue(result.responseJson || result.config, { stringLimit: 70000, arrayLimit: 120, maxDepth: 10 }),
+	      rawText: safeRecordLongText(result.rawText || "", 120000),
+	      finalPage: homepageFinalPageArtifacts(result),
 	      usage: result.usage || null,
 	    });
     return { ok: true, ...result, callRecord };
   } catch (error) {
     if (payload) {
-      const config = historyConfig || callHistoryConfig(payload);
-      failedCallRecord = addCallHistoryRecord({
-        action: "homepage-generate",
-        providerId: config.provider,
+	      const config = historyConfig || callHistoryConfig(payload);
+	      const pageRunId = homepagePageRunId(payload);
+	      failedCallRecord = addCallHistoryRecord({
+	        action: "homepage-generate",
+	        pageRunId,
+	        providerId: config.provider,
         provider: config.name,
         model: config.model,
         apiMode: config.apiMode,
@@ -15965,11 +16689,14 @@ async function runHomeAiComplete(payload, startedAt = Date.now()) {
 	        inputMode: homepageInputMode(payload),
 	        variant: Number.isFinite(Number(payload.variant)) ? Number(payload.variant) : 0,
 	        status: "failed",
-        durationMs: Date.now() - startedAt,
-        prompt: safeRecordText(payload.prompt),
-        guidedSnapshot: guidedRecordSnapshot(payload),
-        message: safeRecordText(error.message || "AI generation failed", 900),
-      });
+	        durationMs: Date.now() - startedAt,
+	        prompt: safeRecordText(payload.prompt),
+	        businessProfile: homepageBusinessProfile(payload),
+	        guidedSnapshot: guidedRecordSnapshot(payload),
+	        message: safeRecordText(error.message || "AI generation failed", 900),
+	        responseJson: safeRecordJsonValue(error.details?.json || error.details?.responseJson || null, { stringLimit: 30000, arrayLimit: 80, maxDepth: 8 }),
+	        rawText: safeRecordLongText(error.details?.rawTextSnippet || error.message || "", 30000),
+	      });
     }
     const status = error.statusCode && error.statusCode >= 400 && error.statusCode < 600 ? error.statusCode : 500;
     const wrapped = new Error(error.message || "AI generation failed");
@@ -16061,6 +16788,8 @@ async function handleComponentGenerate(req, res) {
 
   try {
     payload = await readJsonBody(req);
+    const visualReference = prepareComponentVisualReference(payload);
+    if (visualReference) payload = { ...payload, visualReference };
     historyConfig = callHistoryConfig(payload);
     const result = await callComponentProvider(payload);
     const callRecord = addCallHistoryRecord({
@@ -16175,12 +16904,32 @@ async function handleComponentSave(req, res) {
   try {
     const payload = await readJsonBody(req);
     const component = saveComponent(normalizeGeneratedComponent(payload.component || payload, payload));
-    sendJson(res, 200, { ok: true, component, library: readComponentLibrary() });
+    sendJson(res, 200, { ok: true, component, library: readComponentLibrary(), scores: readComponentScoreStore().scores });
   } catch (error) {
     const status = error.statusCode && error.statusCode >= 400 && error.statusCode < 600 ? error.statusCode : 500;
     sendJson(res, status, {
       ok: false,
       error: error.message || "Component save failed",
+    });
+  }
+}
+
+async function handleComponentScore(req, res) {
+  try {
+    const payload = await readJsonBody(req);
+    const scoresPayload = payload.scores && typeof payload.scores === "object" && !Array.isArray(payload.scores) ? payload.scores : null;
+    let result = null;
+    if (scoresPayload) {
+      result = saveComponentScoresBulk(scoresPayload);
+    } else {
+      result = saveComponentScore(payload);
+    }
+    sendJson(res, 200, { ok: true, ...result, scores: readComponentScoreStore().scores });
+  } catch (error) {
+    const status = error.statusCode && error.statusCode >= 400 && error.statusCode < 600 ? error.statusCode : 500;
+    sendJson(res, status, {
+      ok: false,
+      error: error.message || "Component score save failed",
     });
   }
 }
@@ -16604,7 +17353,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === "GET" && requestUrl.pathname === "/api/home-components/library") {
-    sendJson(res, 200, { ok: true, ...readComponentLibrary() });
+    sendJson(res, 200, { ok: true, ...readComponentLibrary(), scores: readComponentScoreStore().scores });
     return;
   }
 
@@ -16620,6 +17369,11 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === "POST" && requestUrl.pathname === "/api/home-components/save") {
     await handleComponentSave(req, res);
+    return;
+  }
+
+  if (req.method === "POST" && requestUrl.pathname === "/api/home-components/score") {
+    await handleComponentScore(req, res);
     return;
   }
 

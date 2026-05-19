@@ -4,6 +4,7 @@
   const COMPONENT_SCORE_KEY = "forexcrm.home.ai.component.scores";
   const COMPONENT_DELETED_KEY = "forexcrm.home.ai.component.deleted";
   const COMPOSITION_CACHE_KEY = "forexcrm.home.ai.component.composition";
+  const MAX_COMPONENT_REFERENCE_BYTES = 4_500_000;
   const MINIMAX_CN_BASE_URL = "https://api.minimaxi.com/v1";
   const MINIMAX_CN_TYPED_ALIAS_BASE_URL = "https://api.minimaxi.cn/v1";
   const MINIMAX_GLOBAL_BASE_URL = "https://api.minimax.io/v1";
@@ -25,6 +26,13 @@
     "gemini-3.1-pro-preview",
     "gemini-3.1-pro-preview-customtools",
   ];
+  const GEMINI_MODEL_ALIASES = {
+    "gemini 3 flash": "gemini-3-flash-preview",
+    "gemini 3 pro preview": "gemini-3.1-pro-preview",
+    "gemini 3 pro preview customtools": "gemini-3.1-pro-preview-customtools",
+    "gemini 3 pro preview custom tools": "gemini-3.1-pro-preview-customtools",
+    "gemini 3 1 pro preview custom tools": "gemini-3.1-pro-preview-customtools",
+  };
   const AI_MODEL_PRESETS = {
     openai: {
       provider: "openai",
@@ -138,6 +146,10 @@
     family: document.querySelector("[data-ai-component-family]"),
     size: document.querySelector("[data-ai-component-size]"),
     generate: document.querySelector("[data-ai-generate-component]"),
+    referenceFile: document.querySelector("[data-ai-component-reference-file]"),
+    referenceDropzone: document.querySelector("[data-ai-reference-dropzone]"),
+    referencePreview: document.querySelector("[data-ai-reference-preview]"),
+    referenceClear: document.querySelector("[data-ai-reference-clear]"),
     compose: document.querySelector("[data-ai-compose-home]"),
     status: document.querySelector("[data-ai-component-status]"),
     aiComponentModal: document.querySelector("[data-ai-component-modal]"),
@@ -165,6 +177,7 @@
   let editingModelConfig = null;
   let modelTestState = { tone: "", message: "组件生成会复用这套模型配置" };
   let componentEditorState = { componentId: "", busy: false };
+  let componentVisualReference = null;
   const brickFilters = {
     group: "all",
     family: "all",
@@ -228,6 +241,33 @@
 
   function saveComponentScores() {
     window.localStorage.setItem(COMPONENT_SCORE_KEY, JSON.stringify(componentScores));
+  }
+
+  function mergeRemoteComponentScores(scores) {
+    if (!scores || typeof scores !== "object" || Array.isArray(scores)) return false;
+    let changed = false;
+    Object.entries(scores).forEach(([key, value]) => {
+      const scoreKey = String(key || "").trim();
+      if (!scoreKey) return;
+      const score = normalizeComponentScore(value, 5);
+      if (componentScores[scoreKey] !== score) {
+        componentScores[scoreKey] = score;
+        changed = true;
+      }
+    });
+    if (changed) saveComponentScores();
+    return changed;
+  }
+
+  async function syncLocalComponentScoresToServer() {
+    const scores = componentScores && typeof componentScores === "object" ? componentScores : {};
+    if (!Object.keys(scores).length) return;
+    try {
+      const data = await requestJson("/api/home-components/score", { scores });
+      mergeRemoteComponentScores(data.scores);
+    } catch (error) {
+      // File preview mode or a stopped backend can still use local scores.
+    }
   }
 
   function loadDeletedComponentIds() {
@@ -493,6 +533,30 @@
     return AI_MODEL_PRESETS[provider] || AI_MODEL_PRESETS.openai;
   }
 
+  function canonicalModelKey(value) {
+    return String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  }
+
+  function modelIdFromValue(provider, value) {
+    const preset = providerPreset(provider);
+    const raw = String(value || "").trim();
+    if (!raw) return preset.model;
+    const knownModels = preset.models || [preset.model];
+    if (knownModels.includes(raw)) return raw;
+
+    const key = canonicalModelKey(raw);
+    const inferredProvider = providerIdFromValue(raw);
+    if (inferredProvider && inferredProvider !== preset.provider) return preset.model;
+    const known = knownModels.find((model) => canonicalModelKey(model) === key);
+    if (known) return known;
+    if (preset.provider === "gemini" && GEMINI_MODEL_ALIASES[key]) return GEMINI_MODEL_ALIASES[key];
+    return raw;
+  }
+
   function providerIdFromValue(value) {
     const source = String(value || "").trim().toLowerCase();
     if (!source) return "";
@@ -566,7 +630,7 @@
       ...preset,
       ...source,
     };
-    const model = String(merged.model || preset.model || DEFAULT_MODEL_CONFIG.model).trim();
+    const model = modelIdFromValue(preset.provider, merged.model || preset.model || DEFAULT_MODEL_CONFIG.model);
     const baseUrl = normalizeModelBaseUrl(preset.provider, merged.baseUrl || preset.baseUrl);
     const endpoint = String(merged.endpoint || preset.endpoint).trim();
     const proxyEndpoint = String(merged.proxyEndpoint || DEFAULT_MODEL_CONFIG.proxyEndpoint).trim();
@@ -762,7 +826,9 @@
   }
 
   function syncComponentLibraryFromResponse(data) {
+    mergeRemoteComponentScores(data?.scores);
     if (Array.isArray(data?.library?.components)) {
+      mergeRemoteComponentScores(data.library.scores);
       cacheComponents(data.library.components, { replace: true });
       return true;
     }
@@ -796,6 +862,149 @@
       throw new Error(proxyErrorMessage(data, response));
     }
     return data;
+  }
+
+  function formatFileSize(bytes) {
+    const size = Number(bytes);
+    if (!Number.isFinite(size) || size <= 0) return "0 KB";
+    if (size >= 1024 * 1024) return `${(size / 1024 / 1024).toFixed(1)} MB`;
+    return `${Math.max(1, Math.round(size / 1024))} KB`;
+  }
+
+  function readFileAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.addEventListener("load", () => resolve(String(reader.result || "")));
+      reader.addEventListener("error", () => reject(new Error("图片读取失败")));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function imageElementFromDataUrl(dataUrl) {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.addEventListener("load", () => resolve(image));
+      image.addEventListener("error", () => reject(new Error("图片无法解析，请换一张截图。")));
+      image.src = dataUrl;
+    });
+  }
+
+  function rgbToHex(r, g, b) {
+    return `#${[r, g, b].map((value) => Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, "0")).join("")}`;
+  }
+
+  function analyzeImageColors(image) {
+    const canvas = document.createElement("canvas");
+    const maxSide = 72;
+    const scale = Math.min(1, maxSide / Math.max(image.naturalWidth || image.width, image.naturalHeight || image.height, 1));
+    canvas.width = Math.max(1, Math.round((image.naturalWidth || image.width || 1) * scale));
+    canvas.height = Math.max(1, Math.round((image.naturalHeight || image.height || 1) * scale));
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) return { dominantColors: [], brightness: "unknown" };
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    const buckets = new Map();
+    let lightness = 0;
+    let counted = 0;
+    for (let index = 0; index < pixels.length; index += 16) {
+      const alpha = pixels[index + 3];
+      if (alpha < 180) continue;
+      const r = pixels[index];
+      const g = pixels[index + 1];
+      const b = pixels[index + 2];
+      const key = [r, g, b].map((value) => Math.round(value / 32) * 32).join(",");
+      buckets.set(key, (buckets.get(key) || 0) + 1);
+      lightness += (r + g + b) / 3;
+      counted += 1;
+    }
+    const dominantColors = [...buckets.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([key]) => rgbToHex(...key.split(",").map(Number)));
+    const averageLightness = counted ? lightness / counted : 128;
+    return {
+      dominantColors,
+      brightness: averageLightness >= 190 ? "light" : averageLightness <= 80 ? "dark" : "balanced",
+    };
+  }
+
+  function layoutHintForImage(width, height) {
+    if (!width || !height) return "未知比例";
+    const ratio = width / height;
+    if (ratio >= 2.4) return "超宽横幅，适合 4x1/5x1 或首屏条幅积木";
+    if (ratio >= 1.35) return "横向截图，适合左右分栏、指标带或宽卡积木";
+    if (ratio <= 0.72) return "竖向截图，适合侧栏、表单或移动端卡片积木";
+    return "接近方形，适合 1x1/2x2 信息卡或状态面板";
+  }
+
+  function renderVisualReferencePreview() {
+    if (!els.referencePreview) return;
+    if (!componentVisualReference) {
+      els.referencePreview.hidden = true;
+      els.referencePreview.innerHTML = "";
+      if (els.referenceClear) els.referenceClear.hidden = true;
+      return;
+    }
+    els.referencePreview.hidden = false;
+    if (els.referenceClear) els.referenceClear.hidden = false;
+    els.referencePreview.innerHTML = `
+      <img src="${escapeHtml(componentVisualReference.dataUrl)}" alt="${escapeHtml(componentVisualReference.name)}" />
+      <div>
+        <strong>${escapeHtml(componentVisualReference.name)}</strong>
+        <span>${escapeHtml(`${componentVisualReference.width}x${componentVisualReference.height} · ${formatFileSize(componentVisualReference.size)}`)}</span>
+        <small>${escapeHtml(componentVisualReference.layoutHint)} · ${escapeHtml(componentVisualReference.dominantColors.join(" "))}</small>
+      </div>
+    `;
+  }
+
+  function clearVisualReference() {
+    componentVisualReference = null;
+    if (els.referenceFile) els.referenceFile.value = "";
+    renderVisualReferencePreview();
+    setStatus("已清除图片/截图参考。");
+  }
+
+  async function setVisualReferenceFromFile(file) {
+    if (!file) return;
+    if (!/^image\//i.test(file.type || "")) {
+      setStatus("只能上传图片或截图文件。", "error");
+      return;
+    }
+    if (file.size > MAX_COMPONENT_REFERENCE_BYTES) {
+      setStatus(`图片不能超过 ${formatFileSize(MAX_COMPONENT_REFERENCE_BYTES)}，请压缩后再上传。`, "error");
+      return;
+    }
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const image = await imageElementFromDataUrl(dataUrl);
+      const colors = analyzeImageColors(image);
+      const width = image.naturalWidth || image.width || 0;
+      const height = image.naturalHeight || image.height || 0;
+      componentVisualReference = {
+        name: file.name || "组件视觉参考图",
+        mime: file.type || "image/png",
+        size: file.size,
+        dataUrl,
+        width,
+        height,
+        aspectRatio: width && height ? `${(width / height).toFixed(2)}:1` : "",
+        layoutHint: layoutHintForImage(width, height),
+        dominantColors: colors.dominantColors,
+        brightness: colors.brightness,
+        note: "用于 AI 生成积木时仿照版式、密度、控件层级和主色关系。",
+      };
+      renderVisualReferencePreview();
+      setStatus(`已加入图片/截图参考：${componentVisualReference.name}`, "success");
+    } catch (error) {
+      componentVisualReference = null;
+      renderVisualReferencePreview();
+      setStatus(error.message || "图片参考读取失败。", "error");
+    }
+  }
+
+  function visualReferenceForRequest() {
+    if (!componentVisualReference) return null;
+    return { ...componentVisualReference };
   }
 
   function renderModelSummary() {
@@ -838,8 +1047,7 @@
         <form class="ai-model-form" data-model-config-form>
           <label>
             <span>模型 ID</span>
-            <input data-model-config-field="model" list="component-ai-model-options" autocomplete="off" />
-            <datalist id="component-ai-model-options" data-model-option-list></datalist>
+            <select data-model-config-field="model" data-model-option-list></select>
           </label>
           <label>
             <span>API Base URL</span>
@@ -1003,7 +1211,9 @@
       });
     });
 
-    optionList.innerHTML = preset.models.map((model) => `<option value="${escapeHtml(model)}"></option>`).join("");
+    optionList.innerHTML = [...new Set([config.model, ...(preset.models || [])])]
+      .map((model) => `<option value="${escapeHtml(model)}">${escapeHtml(model)}</option>`)
+      .join("");
     const temperatureField = modal.querySelector('[data-model-config-field="temperature"]');
     if (temperatureField) {
       const kimiTemperature = config.provider === "kimi" ? kimiTemperatureForModel(config.model) : null;
@@ -1069,7 +1279,9 @@
       const response = await fetch("/api/home-components/library", { headers: { accept: "application/json" } });
       const data = await response.json();
       if (data.ok && Array.isArray(data.components)) {
+        mergeRemoteComponentScores(data.scores);
         savedComponents = cacheComponents(data.components, { replace: true });
+        await syncLocalComponentScoresToServer();
       }
     } catch (error) {
       try {
@@ -1654,7 +1866,8 @@
       els.size.value = size;
     }
 
-    setStatus(`正在通过 ${modelLabel()} 生成组件...`);
+    const visualReference = visualReferenceForRequest();
+    setStatus(`正在通过 ${modelLabel()} 生成组件${visualReference ? "，并仿照图片/截图参考" : ""}...`);
     if (trigger) trigger.disabled = true;
     if (trigger !== els.generate && els.generate) els.generate.disabled = true;
 
@@ -1665,6 +1878,7 @@
         size,
         scoreContext: highScoreReferenceContext({ family, size, prompt }),
         componentScore: normalizeComponentScore(options.componentScore, 5),
+        visualReference,
         modelConfig: requestConfig,
       });
       cacheComponents([data.component], { restoreDeleted: true });
@@ -1801,7 +2015,8 @@
       renderSavedComponents();
       setStatus(`评分已保存到当前浏览器：${score}/10，正在同步组件库...`);
       try {
-        const data = await requestJson("/api/home-components/save", { component: updatedComponent });
+        const data = await requestJson("/api/home-components/score", { scoreKey, score, componentId });
+        mergeRemoteComponentScores(data.scores);
         if (data.component) cacheComponents([data.component], { restoreDeleted: true });
         else syncComponentLibraryFromResponse(data);
         renderSavedComponents();
@@ -1814,7 +2029,16 @@
 
     updateFilterOptions();
     applyBrickFilters();
-    setStatus(`已保存当前浏览器评分：${score}/10，静态组件评分会作为本机 AI 参考。`, "success");
+    setStatus(`评分已保存到当前浏览器：${score}/10，正在同步组件库...`);
+    try {
+      const data = await requestJson("/api/home-components/score", { scoreKey, score });
+      mergeRemoteComponentScores(data.scores);
+      updateFilterOptions();
+      applyBrickFilters();
+      setStatus(`评分已同步到组件库：${score}/10，重启后仍会保留。`, "success");
+    } catch (error) {
+      setStatus(`评分已保存到当前浏览器：${score}/10；后端同步失败：${error.message}`, "mock");
+    }
   }
 
   buttons.forEach((button) => {
@@ -1848,6 +2072,35 @@
     updateBrickScore(scoreSelect.dataset.brickScoreKey, scoreSelect.value, scoreSelect.closest(".brick-card"));
   });
 
+  els.referenceFile?.addEventListener("change", () => {
+    setVisualReferenceFromFile(els.referenceFile.files?.[0]);
+  });
+
+  els.referenceDropzone?.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    els.referenceDropzone.dataset.dragging = "true";
+  });
+
+  els.referenceDropzone?.addEventListener("dragleave", () => {
+    delete els.referenceDropzone.dataset.dragging;
+  });
+
+  els.referenceDropzone?.addEventListener("drop", (event) => {
+    event.preventDefault();
+    delete els.referenceDropzone.dataset.dragging;
+    setVisualReferenceFromFile(event.dataTransfer?.files?.[0]);
+  });
+
+  els.aiComponentModal?.addEventListener("paste", (event) => {
+    const imageItem = [...(event.clipboardData?.items || [])].find((item) => /^image\//i.test(item.type || ""));
+    if (!imageItem) return;
+    const file = imageItem.getAsFile();
+    if (file) {
+      event.preventDefault();
+      setVisualReferenceFromFile(file);
+    }
+  });
+
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !els.aiComponentModal?.hidden) closeAiComponentModal();
   });
@@ -1865,6 +2118,20 @@
     if (aiComponentOpen) {
       event.preventDefault();
       openAiComponentModal();
+      return;
+    }
+
+    const referencePick = target?.closest("[data-ai-reference-pick]");
+    if (referencePick) {
+      event.preventDefault();
+      els.referenceFile?.click();
+      return;
+    }
+
+    const referenceClear = target?.closest("[data-ai-reference-clear]");
+    if (referenceClear) {
+      event.preventDefault();
+      clearVisualReference();
       return;
     }
 
@@ -1931,6 +2198,7 @@
   enhanceStaticBrickCards();
   updateFilterOptions();
   applyBrickFilters();
+  renderVisualReferencePreview();
   renderModelSummary();
   refreshLibrary();
   refreshSavedComposition();

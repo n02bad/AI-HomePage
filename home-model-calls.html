@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="./styles.css" />
     <link rel="stylesheet" href="./theme.css?v=tenant-home-4" />
     <link rel="stylesheet" href="./client-home.css?v=tenant-home-4" />
-    <link rel="stylesheet" href="./home-personalization.css?v=tenant-home-4" />
+	    <link rel="stylesheet" href="./home-personalization.css?v=tenant-home-calls-5" />
   </head>
   <body data-layout-page="home-model-calls">
     <main class="app" data-layout-main>
@@ -17,8 +17,8 @@
           <header class="model-calls-hero">
             <div>
               <span class="section-kicker">MODEL CALLS</span>
-              <h1>大模型调用记录</h1>
-              <p>首页、组件、登录注册模块的模型、耗时、状态和返回片段集中查看。</p>
+	              <h1>大模型调用记录</h1>
+	              <p>按业务、页面和生成方式聚合首页、组件、登录注册的模型调用与页面产物。</p>
             </div>
             <div class="model-calls-actions">
               <a href="./ai-model-settings.html">模型配置</a>
@@ -32,8 +32,8 @@
 
           <section class="model-call-stats" aria-label="调用统计">
             <article>
-              <span>总调用</span>
-              <strong data-call-total>0</strong>
+	              <span>页面组</span>
+	              <strong data-call-total>0</strong>
             </article>
             <article>
               <span>成功</span>
@@ -60,26 +60,48 @@
                   <button type="button" data-call-filter="local">本地</button>
                   <button type="button" data-call-filter="mock">Mock</button>
                 </div>
-                <label>
-                  <span class="visually-hidden">搜索调用记录</span>
-                  <input data-call-search type="search" placeholder="搜索模块、模型、状态、提示词..." />
-                </label>
-              </div>
+	                <label>
+	                  <span class="visually-hidden">搜索调用记录</span>
+	                  <input data-call-search type="search" placeholder="搜索模块、模型、状态、提示词..." />
+	                </label>
+	                <label class="model-call-business-filter">
+	                  <span>业务筛选</span>
+	                  <select data-call-business-filter aria-label="按业务筛选调用记录"></select>
+	                </label>
+	              </div>
 
               <div class="model-call-table" data-call-records></div>
             </div>
 
-            <aside class="model-call-detail-panel" data-call-detail>
-              <p class="empty-history">暂无调用记录</p>
-            </aside>
-          </section>
-        </section>
-      </div>
+	            <aside class="model-call-detail-panel" data-call-detail>
+	              <p class="empty-history">选择一条页面记录后，在弹窗里查看同页调用链、Prompt、模型 JSON 和页面产物。</p>
+	            </aside>
+	          </section>
+	        </section>
+	      </div>
 
-      <div class="client-toast" data-call-toast hidden></div>
+	      <div class="model-call-modal" data-call-modal hidden>
+	        <div class="model-call-modal-backdrop" data-call-modal-close></div>
+	        <section class="model-call-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="model-call-modal-title">
+	          <header class="model-call-modal-header">
+	            <div>
+	              <span class="section-kicker">PAGE CALL GROUP</span>
+	              <h2 id="model-call-modal-title" data-call-modal-title>调用详情</h2>
+	              <p data-call-modal-subtitle></p>
+	            </div>
+	            <div class="model-call-modal-actions">
+	              <button type="button" data-call-modal-export>导出本页聚合 JSON</button>
+	              <button type="button" data-call-modal-close>关闭</button>
+	            </div>
+	          </header>
+	          <div class="model-call-modal-body" data-call-modal-body></div>
+	        </section>
+	      </div>
+
+	      <div class="client-toast" data-call-toast hidden></div>
     </main>
 
     <script src="./common-layout.js"></script>
-    <script src="./home-model-calls.js"></script>
+	    <script src="./home-model-calls.js?v=page-group-export-7"></script>
   </body>
 </html>

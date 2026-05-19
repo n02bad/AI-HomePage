@@ -25,6 +25,13 @@
     "gemini-3.1-pro-preview",
     "gemini-3.1-pro-preview-customtools",
   ];
+  const GEMINI_MODEL_ALIASES = {
+    "gemini 3 flash": "gemini-3-flash-preview",
+    "gemini 3 pro preview": "gemini-3.1-pro-preview",
+    "gemini 3 pro preview customtools": "gemini-3.1-pro-preview-customtools",
+    "gemini 3 pro preview custom tools": "gemini-3.1-pro-preview-customtools",
+    "gemini 3 1 pro preview custom tools": "gemini-3.1-pro-preview-customtools",
+  };
   const BACKGROUND_JOB_POLL_MS = 1100;
   const BACKGROUND_JOB_MAX_WAIT_MS = 20 * 60 * 1000;
 
@@ -295,9 +302,32 @@
     return AI_MODEL_PRESETS[provider] || AI_MODEL_PRESETS.openai;
   }
 
+  function canonicalModelKey(value) {
+    return String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  }
+
+  function modelIdFromValue(provider, value) {
+    const preset = providerPreset(provider);
+    const raw = String(value || "").trim();
+    if (!raw) return preset.model;
+    const knownModels = preset.models || [preset.model];
+    if (knownModels.includes(raw)) return raw;
+    if (PROVIDER_ORDER.some((provider) => provider !== preset.provider && (providerPreset(provider).models || []).includes(raw))) return preset.model;
+
+    const key = canonicalModelKey(raw);
+    const known = knownModels.find((model) => canonicalModelKey(model) === key);
+    if (known) return known;
+    if (preset.provider === "gemini" && GEMINI_MODEL_ALIASES[key]) return GEMINI_MODEL_ALIASES[key];
+    return raw;
+  }
+
   function sanitizeModelConfig(source = {}) {
     const preset = providerPreset(source.provider);
-    const model = String(source.model || preset.model).trim();
+    const model = modelIdFromValue(preset.provider, source.model || preset.model);
     const apiKeys = {
       ...(source.apiKeys && typeof source.apiKeys === "object" ? source.apiKeys : {}),
     };
@@ -488,6 +518,7 @@
       "如果选择了视觉素材，请先自动识别结构，不依赖人工标签：识别居中/左右/背景视觉、表单位置、图在左或右、Logo 位置和移动端首屏策略，并让这些结构真实影响预览布局。",
       "需要有让人耳目一新的构图差异，不能只改颜色、标题或按钮文案；请明确选择适合业务目标的首屏骨架和信息表达方式。",
       "移动端适配和移动端美观是硬要求：表单密度、按钮高度、入口位置、三方登录、协议文字、找回密码和注册入口都要适合手机单手操作。",
+      "注册模块除字段内容和认证流程外都可以自由生成：表单摆放、视觉侧栏、是否有边框、卡片/无卡片、活动权益位置、协议位置、第三方登录入口的位置与样式都要写成可执行布局策略。",
       "需要包含登录、注册、找回密码三条流程的字段、状态、按钮文案、安全提示、合规提示、账号密码/三方入口、注册验证和找回密码验证的响应式摆放策略。",
     ];
     if (guidedState.note.trim()) lines.push(`补充要求：${guidedState.note.trim()}`);
@@ -946,8 +977,7 @@
           </header>
           <form class="ai-model-form" data-auth-model-form>
             <label>厂商<select data-auth-model-field="provider">${Object.values(AI_MODEL_PRESETS).map((preset) => `<option value="${preset.provider}">${preset.name}</option>`).join("")}</select></label>
-            <label>模型<input data-auth-model-field="model" list="auth-ai-model-options" autocomplete="off" /></label>
-            <datalist id="auth-ai-model-options"></datalist>
+            <label>模型<select data-auth-model-field="model" id="auth-ai-model-options"></select></label>
             <label>Base URL<input data-auth-model-field="baseUrl" autocomplete="off" /></label>
             <label>Endpoint<input data-auth-model-field="endpoint" autocomplete="off" /></label>
             <label>API Mode<input data-auth-model-field="apiMode" autocomplete="off" /></label>
@@ -1003,6 +1033,10 @@
     const modal = document.querySelector("[data-auth-model-modal]");
     if (!modal) return;
     const normalized = sanitizeModelConfig(config);
+    const models = providerPreset(normalized.provider).models || [normalized.model];
+    modal.querySelector("#auth-ai-model-options").innerHTML = [...new Set([normalized.model, ...models])]
+      .map((model) => `<option value="${escapeHtml(model)}">${escapeHtml(model)}</option>`)
+      .join("");
     const set = (name, value) => {
       const field = modal.querySelector(`[data-auth-model-field="${name}"]`);
       if (field) field.value = value;
@@ -1015,8 +1049,6 @@
     set("apiKey", normalized.apiKey);
     set("temperature", normalized.temperature);
     set("maxOutputTokens", normalized.maxOutputTokens);
-    const models = providerPreset(normalized.provider).models || [normalized.model];
-    modal.querySelector("#auth-ai-model-options").innerHTML = models.map((model) => `<option value="${escapeHtml(model)}"></option>`).join("");
     const runtime = state.providerRuntimeStatus[normalized.provider] || {};
     modal.querySelector("[data-auth-model-note]").textContent = runtime.hasServerKey
       ? `服务端已配置 ${runtime.serverKeyEnv || providerPreset(normalized.provider).apiKeyLabel}；也可临时填写 API Key 覆盖。`

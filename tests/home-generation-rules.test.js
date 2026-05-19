@@ -343,6 +343,7 @@ async function run() {
   const home = loadHomeEngine();
   const modelSettings = loadModelSettingsEngine();
   const homeSource = fs.readFileSync(path.join(ROOT, "home-personalization.js"), "utf8");
+  const modelSettingsPageSource = fs.readFileSync(path.join(ROOT, "ai-model-settings.html"), "utf8");
   const clientSourceForTitles = fs.readFileSync(path.join(ROOT, "client-home.js"), "utf8");
 
   assertCoreMorphRegistry(home);
@@ -378,6 +379,23 @@ async function run() {
   ].forEach((model) => {
     assert(modelSettings.AI_MODEL_PRESETS.gemini.models.includes(model), `Gemini picker should include ${model}`);
   });
+  assert.strictEqual(
+    modelSettings.sanitizeModelConfig({ provider: "gemini", model: "Gemini 3 Flash Preview" }).model,
+    "gemini-3-flash-preview",
+    "Gemini display labels must be normalized to actual model ids before saving",
+  );
+  assert.strictEqual(
+    modelSettings.sanitizeModelConfig({ provider: "gemini", model: "gemini-3-pro-preview" }).model,
+    "gemini-3.1-pro-preview",
+    "shut down Gemini 3 Pro Preview ids must be migrated to Gemini 3.1 Pro Preview",
+  );
+  assert.strictEqual(
+    modelSettings.sanitizeModelConfig({ provider: "gemini", model: "deepseek-v4-flash" }).model,
+    "gemini-2.5-flash",
+    "Gemini configs must not retain another provider's model id when switching providers",
+  );
+  assert(modelSettingsPageSource.includes('<select data-model-settings-field="model"'), "model settings page must use a real model ID select");
+  assert(!modelSettingsPageSource.includes('list="ai-model-settings-options"'), "model settings page must not rely on free-text datalist for model IDs");
 
   const normalizedAiHtml = home.normalizeConfig({
     schemaVersion: 4,
@@ -893,11 +911,12 @@ async function run() {
   const personalizationCss = fs.readFileSync(path.join(ROOT, "home-personalization.css"), "utf8");
   const commonLayoutSource = fs.readFileSync(path.join(ROOT, "common-layout.js"), "utf8");
   assert(personalizationCss.includes(".ai-accounts-feature .accounts-list-view[hidden]"), "inactive account view must stay hidden in AI preview CSS");
-  const serverSource = fs.readFileSync(path.join(ROOT, "server.js"), "utf8");
-  const adminSource = fs.readFileSync(path.join(ROOT, "home-layout-admin.js"), "utf8");
-  const adminHtmlSource = fs.readFileSync(path.join(ROOT, "home-layout-admin.html"), "utf8");
-  const modelSettingsSource = fs.readFileSync(path.join(ROOT, "ai-model-settings.js"), "utf8");
-  const modulePreviewSource = fs.readFileSync(path.join(ROOT, "home-module-preview.js"), "utf8");
+	  const serverSource = fs.readFileSync(path.join(ROOT, "server.js"), "utf8");
+	  const adminSource = fs.readFileSync(path.join(ROOT, "home-layout-admin.js"), "utf8");
+	  const adminHtmlSource = fs.readFileSync(path.join(ROOT, "home-layout-admin.html"), "utf8");
+	  const modelSettingsSource = fs.readFileSync(path.join(ROOT, "ai-model-settings.js"), "utf8");
+	  const modulePreviewSource = fs.readFileSync(path.join(ROOT, "home-module-preview.js"), "utf8");
+	  const modulePreviewHtmlSource = fs.readFileSync(path.join(ROOT, "home-module-preview.html"), "utf8");
   assert(serverSource.includes("空间利用是硬约束"), "AI prompt must treat space utilization as a hard constraint");
   assert(serverSource.includes("同一组账号数据不得在同一个模块里同时渲染上方摘要卡/摘要行和下方列表/表格"), "AI prompt must forbid duplicate account card plus table views");
   assert(serverSource.includes("账号类型(accountKind=Live/Demo)和账户类型(accountType=ECN Standard/Demo ECN)"), "AI prompt must distinguish account kind and account type");
@@ -925,8 +944,16 @@ async function run() {
 	  assert(modelSettingsSource.includes("gemini-3.1-pro-preview-customtools"), "shared model settings must list current Gemini 3.1 Pro custom tools text model");
 	  assert(adminSource.includes("function inferProviderFromConfig"), "home admin must infer provider before sending model configs");
 	  assert(adminSource.includes("gemini-3.1-flash-lite"), "home admin must expose Gemini 3.1 Flash-Lite choices");
-	  assert(modulePreviewSource.includes("function inferProviderFromConfig"), "module preview must infer provider before sending model configs");
-	  assert(modulePreviewSource.includes("gemini-3.1-pro-preview"), "module preview must expose Gemini 3.1 Pro Preview choices");
+		  assert(modulePreviewSource.includes("function inferProviderFromConfig"), "module preview must infer provider before sending model configs");
+		  assert(modulePreviewSource.includes("gemini-3.1-pro-preview"), "module preview must expose Gemini 3.1 Pro Preview choices");
+		  assert(serverSource.includes("COMPONENT_SCORE_FILE"), "component brick scores must persist outside browser localStorage");
+		  assert(serverSource.includes("/api/home-components/score"), "component brick scores must have a backend sync endpoint");
+		  assert(serverSource.includes("deleteComponentScoreEntries"), "deleting a component must clean persisted score records");
+		  assert(serverSource.includes("deleteComponentReferenceAsset"), "deleting a component must clean uploaded component visual assets");
+		  assert(modulePreviewSource.includes("syncLocalComponentScoresToServer"), "module preview should sync existing local scores into the persisted score store");
+		  assert(modulePreviewHtmlSource.includes("data-ai-component-reference-file"), "AI component generation must support uploaded image/screenshot references");
+		  assert(serverSource.includes("componentVisualReferencePromptReference"), "component generation prompts must include image/screenshot visual references");
+		  assert(serverSource.includes("input_image"), "OpenAI Responses component generation should forward uploaded image references");
 	  assert(serverSource.includes("productWarnings"), "homepage responses should expose productWarnings separately from HTML quality");
 	  assert(serverSource.includes("质量门禁"), "AI HTML generation must include an aesthetic quality gate");
 	  assert(serverSource.includes("designRulesPromptReference"), "AI generation must load design.md as prompt governance");
@@ -968,7 +995,7 @@ async function run() {
 			  const compactAiHtmlProviderFunction = serverSource.match(/function providerUsesCompactAiHtml[\s\S]*?\n}/)?.[0] || "";
 			  assert(!compactAiHtmlProviderFunction.includes('"gemini"'), "Gemini should use the full repaired AI HTML prompt so it receives richer component-library context");
 			  assert(serverSource.includes("aiHtmlComponentReferenceRegion"), "AI HTML quality gate must inspect each referenced brick region, not just whole-page signals");
-			  assert(serverSource.includes("score < 82"), "AI HTML below the publishable quality line must fall back to high-score brick-backed HTML");
+			  assert(serverSource.includes("score < 68"), "AI HTML should only fall back to high-score bricks when it falls below the repair floor");
 			  assert(serverSource.includes("function validateHomepageConfig"), "server must validate homepage config before HTML generation");
 			  assert(serverSource.includes("function repairHomepageConfig"), "server must repair homepage config before HTML generation");
 			  assert(serverSource.includes("function buildHomepageModulePolicy"), "server must build modulePolicy before homepage generation");
@@ -984,7 +1011,9 @@ async function run() {
 			  assert(serverSource.includes("pagePlan.mainVisual"), "AI HTML prompts must preserve the single visual hero from pagePlan");
 			  assert(serverSource.includes("homepageRepairedConfigPromptContract"), "AI HTML prompts must receive repairedConfig sections");
 			  assert(serverSource.includes("必须严格按照 repairedConfig.sections 渲染"), "AI HTML prompt must forbid adding, deleting, or reordering modules");
-			  assert(serverSource.includes("AI HTML generation waits for repairedConfig"), "server must not generate free HTML from raw config before repair");
+			  assert(serverSource.includes("homepage_ai_html_free"), "server must attempt true free AI HTML before config-backed repair for non-compact providers");
+			  assert(!serverSource.includes("free raw-config HTML is disabled"), "server must not disable the free AI HTML path for full-output providers");
+			  assert(serverSource.includes("isFallback: options.isFallback !== false"), "brick-backed AI HTML must be marked as fallback when it replaces model HTML");
 			  assert(serverSource.includes("componentId: item.componentId"), "compact AI HTML prompts must pass real component ids from reference hints");
 		  assert(serverSource.includes("requiredFamily"), "AI HTML component references must preserve the required target family for alias coverage");
 		  assert(serverSource.includes("synthesizeAiHtmlImplementationContract"), "compact AI HTML repair must synthesize implementation contracts when short-output models omit them");
@@ -1003,6 +1032,7 @@ async function run() {
 		  assert(adminSource.includes("在线客服硬性要求"), "skeleton slot prompt must include SupportContact-specific constraints");
 		  assert(adminSource.includes("isRealModelAiHtmlScheme"), "admin distinct-generation guard must preserve real model AI HTML");
 	  assert(adminSource.includes("serverHtmlLooksModelGenerated"), "admin history must not mislabel model/free-html as fallback when server metadata is older");
+		  assert(adminSource.includes("积木保底"), "admin history must label brick-backed AI HTML as a fallback source");
 	  assert(adminSource.includes("prepareConfigForPublish"), "publishing must normalize skeleton drafts into a clean final customer config");
 	  assert(personalizationCss.includes(".home-skeleton-render-host.is-published-skeleton"), "published skeleton pages must hide editor shell markers");
 	  assert(personalizationCss.includes(".home-skeleton-section-split .home-skeleton-slot:only-child"), "single-slot split skeleton sections must span the full row");

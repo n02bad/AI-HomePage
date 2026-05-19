@@ -52,7 +52,12 @@
             </article>
           </section>
 
-          <section class="golden-library-panel" data-golden-library aria-label="黄金样本库">
+          <nav class="training-tabs" role="tablist" aria-label="审美训练工作区">
+            <button class="active" type="button" role="tab" aria-selected="true" data-training-tab="library">样本库</button>
+            <button type="button" role="tab" aria-selected="false" data-training-tab="review">生成评审</button>
+          </nav>
+
+          <section class="golden-library-panel" data-golden-library data-training-tab-panel="library" aria-label="黄金样本库">
             <div class="panel-head">
               <div>
                 <span class="section-kicker">GOLDEN LIBRARY</span>
@@ -60,6 +65,8 @@
                 <p>上传设计稿、升级参考稿、维护低分反例，生成首页前会自动优先检索这些样本。</p>
               </div>
               <div class="panel-actions">
+                <button class="training-primary-button" type="button" data-open-visual-golden-modal>新增视觉样本</button>
+                <button type="button" data-open-current-golden-modal>保存当前首页</button>
                 <button type="button" data-golden-library-reset>重置筛选</button>
               </div>
             </div>
@@ -102,8 +109,22 @@
               </label>
             </div>
 
-            <div class="golden-library-workbench">
-              <form class="golden-sample-form" data-golden-sample-form>
+            <div class="sample-library-list" data-sample-library-list></div>
+          </section>
+
+          <section class="training-modal" data-training-modal hidden aria-hidden="true">
+            <div class="training-modal-backdrop" data-close-training-modal></div>
+            <div class="training-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="trainingModalTitle">
+              <header class="training-modal-head">
+                <div>
+                  <span class="section-kicker">SAMPLE ACTION</span>
+                  <h2 id="trainingModalTitle" data-training-modal-title>新增视觉黄金样本</h2>
+                  <p data-training-modal-subtitle>上传外部设计稿或选择已保存参考稿，沉淀为生成前优先参考的 visual-only 样本。</p>
+                </div>
+                <button type="button" aria-label="关闭弹窗" data-close-training-modal>关闭</button>
+              </header>
+              <div class="training-modal-body">
+              <form class="golden-sample-form" data-golden-sample-form data-modal-view="visual">
                 <div class="form-section-head">
                   <h3>保存外部设计稿为 visual-only 黄金样本</h3>
                   <span>图片 / HTML / PDF 均可，保存后会进入 goldenSamplePages 作为视觉参考。</span>
@@ -187,7 +208,7 @@
                 </div>
               </form>
 
-              <form class="golden-current-form" data-current-golden-form>
+              <form class="golden-current-form" data-current-golden-form data-modal-view="current" hidden>
                 <div class="form-section-head">
                   <h3>保存当前首页为完整 golden-page</h3>
                   <span>会保存 homepageConfig、DOM snapshot、CSS/theme token 摘要，可选附加截图。</span>
@@ -203,9 +224,8 @@
                 <p class="empty-training">使用右侧“人工评分修正”的分数和 9 个维度；按钮也保留在生成需求区，方便从当前草稿快速沉淀。</p>
                 <button class="primary-action" type="button" data-save-current-golden-secondary>保存当前首页</button>
               </form>
-            </div>
 
-            <section class="sample-editor" data-sample-editor hidden>
+              <section class="sample-editor" data-sample-editor data-modal-view="edit" hidden>
               <div class="form-section-head">
                 <h3>编辑样本</h3>
                 <span data-sample-editor-id></span>
@@ -284,11 +304,11 @@
                 <button class="danger-button" type="button" data-delete-sample>删除样本</button>
               </div>
             </section>
-
-            <div class="sample-library-list" data-sample-library-list></div>
+              </div>
+            </div>
           </section>
 
-          <section class="training-review-layout">
+          <section class="training-review-layout" data-training-tab-panel="review" hidden>
             <aside class="review-column review-column-left" aria-label="生成输入与参考稿">
               <section class="review-panel">
                 <div class="panel-head">

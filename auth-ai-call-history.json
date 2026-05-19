@@ -1,6 +1,248 @@
 {
   "records": [
     {
+      "id": "auth-1779176328109-c665e1863b40c",
+      "at": "2026-05-19T07:38:48.109Z",
+      "source": "authServerProxy",
+      "action": "auth-generate",
+      "providerId": "gemini",
+      "provider": "Gemini",
+      "model": "gemini-3-flash-preview",
+      "apiMode": "openai-chat",
+      "callMode": "serverProxy",
+      "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai",
+      "endpoint": "/chat/completions",
+      "temperature": 0.6,
+      "maxOutputTokens": 6000,
+      "status": "success",
+      "mock": false,
+      "durationMs": 20760,
+      "prompt": "为 ForexCRM 生成一套完整的登录、注册、找回密码认证模块。",
+      "message": "ForexCRM 认证中心",
+      "schemeSnapshot": {
+        "name": "ForexCRM 认证中心",
+        "stylePreset": "securityReset",
+        "defaultScreen": "login",
+        "language": "zh-CN",
+        "brand": "ForexCRM",
+        "sourceType": "model",
+        "fallbackReason": "",
+        "audience": "Forex Traders / Institutional Clients",
+        "registerDepth": "compliance",
+        "screens": [
+          "login",
+          "register",
+          "forgot"
+        ]
+      },
+      "usage": {
+        "completion_tokens": 1684,
+        "prompt_tokens": 8198,
+        "total_tokens": 11328
+      }
+    },
+    {
+      "id": "auth-1779175673650-23030eb52c076",
+      "at": "2026-05-19T07:27:53.650Z",
+      "source": "authServerProxy",
+      "action": "auth-generate",
+      "providerId": "gemini",
+      "provider": "Gemini",
+      "model": "gemini-3-flash-preview",
+      "apiMode": "openai-chat",
+      "callMode": "serverProxy",
+      "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai",
+      "endpoint": "/chat/completions",
+      "temperature": 0.6,
+      "maxOutputTokens": 6000,
+      "status": "success",
+      "mock": false,
+      "durationMs": 15777,
+      "prompt": "为 ForexCRM 生成一套完整的登录、注册、找回密码认证模块。 模块主旨：活动转化。 客户对象：新手开户客户。 注册深度：专业版。 视觉气质：可信清爽，主题倾向：蓝色信任，主色 #2563eb。 平台 Logo 摆放：表单顶部；移动端首屏必须能自然露出 Logo、主登录入口和主按钮。 增强能力：手机号 / 邮箱登录、第三方登录、交易账号登录、KYC 前置说明、风险披露确认。 布局硬约束：如果补充要求或快速输入里出现“左右布局、左右分栏、双栏、两栏”，桌面端必须输出左右分栏；不能生成居中单卡。 登录首屏必须只保留账号（手机号/邮箱）和密码；双重验证进入下一步输入 6 位验证码，人机校验只在风险、注册提交、找回密码发送验证码前触发。 请生成的是一个个性化认证业务模块，不要套用固定模板；素材只作为抽象设计语言借鉴，不能把素材名、素材来源或原版式当作可见内容输出。 如果选择了视觉素材，请先自动识别结构，不依赖人工标签：识别居中/左右/背景视觉、表单位置、图在左或右、Logo 位置和移动端首屏策略，并让这些结构真实影响预览布局。 需要有让人耳目一新的构图差异，不能只改颜色、标题或按钮文案；请明确选择适合业务目标的首屏骨架和信息表达方式。 移动端适配和移动端美观是硬要求：表单密度、按钮高度、入口位置、三方登录、协议文字、找回密码和注册入口都要适合手机单手操作。 需要包含登录、注册、找回密码三条流程的字段、状态、按钮文案、安全提示、合规提示、账号密码/三方入口、注册验证和找回密码验证的响应式摆放策略。",
+      "message": "ForexCRM 认证中心",
+      "schemeSnapshot": {
+        "name": "ForexCRM 认证中心",
+        "stylePreset": "photoDark",
+        "defaultScreen": "login",
+        "language": "zh-CN",
+        "brand": "ForexCRM",
+        "sourceType": "model",
+        "fallbackReason": "",
+        "audience": "新手客户与高净值专业交易者",
+        "registerDepth": "compliance",
+        "screens": [
+          "login",
+          "register",
+          "forgot"
+        ]
+      },
+      "usage": {
+        "completion_tokens": 1567,
+        "prompt_tokens": 8614,
+        "total_tokens": 10692
+      }
+    },
+    {
+      "id": "auth-1779175243571-fb51a70c53d65",
+      "at": "2026-05-19T07:20:43.571Z",
+      "source": "authServerProxy",
+      "action": "auth-generate",
+      "providerId": "openai",
+      "provider": "OpenAI",
+      "model": "gpt-5.2",
+      "apiMode": "responses",
+      "callMode": "serverProxy",
+      "baseUrl": "https://api.openai.com/v1",
+      "endpoint": "/responses",
+      "temperature": 0.4,
+      "maxOutputTokens": 6000,
+      "status": "fallback",
+      "mock": true,
+      "durationMs": 5,
+      "prompt": "生成一个活动注册页，注册模块侧栏承接权益，第三方登录用品牌块，表单右侧。",
+      "message": "ForexCRM 认证中心",
+      "schemeSnapshot": {
+        "name": "ForexCRM 认证中心",
+        "stylePreset": "photoDark",
+        "defaultScreen": "register",
+        "language": "zh-CN",
+        "brand": "ForexCRM",
+        "sourceType": "local-fallback",
+        "fallbackReason": "Missing API key. Set OPENAI_API_KEY or enter a temporary key in the UI.",
+        "audience": "newTrader",
+        "registerDepth": "standard",
+        "screens": [
+          "login",
+          "register",
+          "forgot"
+        ]
+      },
+      "usage": null
+    },
+    {
+      "id": "auth-1779173107787-695070fbd273c",
+      "at": "2026-05-19T06:45:07.787Z",
+      "source": "authServerProxy",
+      "action": "auth-generate",
+      "providerId": "gemini",
+      "provider": "Gemini",
+      "model": "gemini-3-flash-preview",
+      "apiMode": "openai-chat",
+      "callMode": "serverProxy",
+      "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai",
+      "endpoint": "/chat/completions",
+      "temperature": 0.6,
+      "maxOutputTokens": 6000,
+      "status": "success",
+      "mock": false,
+      "durationMs": 14965,
+      "prompt": "为 ForexCRM 生成一套完整的登录、注册、找回密码认证模块。 模块主旨：活动转化。 客户对象：新手开户客户。 注册深度：专业版。 视觉气质：可信清爽，主题倾向：蓝色信任，主色 #2563eb。 平台 Logo 摆放：表单顶部；移动端首屏必须能自然露出 Logo、主登录入口和主按钮。 增强能力：手机号 / 邮箱登录、第三方登录、交易账号登录、KYC 前置说明、风险披露确认。 布局硬约束：如果补充要求或快速输入里出现“左右布局、左右分栏、双栏、两栏”，桌面端必须输出左右分栏；不能生成居中单卡。 登录首屏必须只保留账号（手机号/邮箱）和密码；双重验证进入下一步输入 6 位验证码，人机校验只在风险、注册提交、找回密码发送验证码前触发。 请生成的是一个个性化认证业务模块，不要套用固定模板；素材只作为抽象设计语言借鉴，不能把素材名、素材来源或原版式当作可见内容输出。 如果选择了视觉素材，请先自动识别结构，不依赖人工标签：识别居中/左右/背景视觉、表单位置、图在左或右、Logo 位置和移动端首屏策略，并让这些结构真实影响预览布局。 需要有让人耳目一新的构图差异，不能只改颜色、标题或按钮文案；请明确选择适合业务目标的首屏骨架和信息表达方式。 移动端适配和移动端美观是硬要求：表单密度、按钮高度、入口位置、三方登录、协议文字、找回密码和注册入口都要适合手机单手操作。 需要包含登录、注册、找回密码三条流程的字段、状态、按钮文案、安全提示、合规提示、账号密码/三方入口、注册验证和找回密码验证的响应式摆放策略。",
+      "message": "ForexCRM 认证中心",
+      "schemeSnapshot": {
+        "name": "ForexCRM 认证中心",
+        "stylePreset": "softPlatform",
+        "defaultScreen": "login",
+        "language": "zh-CN",
+        "brand": "ForexCRM",
+        "sourceType": "model",
+        "fallbackReason": "",
+        "audience": "新手开户客户",
+        "registerDepth": "compliance",
+        "screens": [
+          "login",
+          "register",
+          "forgot"
+        ]
+      },
+      "usage": {
+        "completion_tokens": 1715,
+        "prompt_tokens": 8772,
+        "total_tokens": 10897
+      }
+    },
+    {
+      "id": "auth-1779172997565-a72843d3cd2f8",
+      "at": "2026-05-19T06:43:17.565Z",
+      "source": "authServerProxy",
+      "action": "auth-generate",
+      "providerId": "gemini",
+      "provider": "Gemini",
+      "model": "gemini-3-flash-preview",
+      "apiMode": "openai-chat",
+      "callMode": "serverProxy",
+      "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai",
+      "endpoint": "/chat/completions",
+      "temperature": 0.6,
+      "maxOutputTokens": 6000,
+      "status": "success",
+      "mock": false,
+      "durationMs": 15046,
+      "prompt": "生成一套活动落地页气质的视觉方案：首屏有权益感和转化焦点，但保持金融平台的可信边界；使用更鲜明的强调色、轻量动效感、奖励提示区和明确主按钮层级。功能按默认完整登录、注册、找回密码模块处理。",
+      "message": "ForexCRM 认证中心",
+      "schemeSnapshot": {
+        "name": "ForexCRM 认证中心",
+        "stylePreset": "photoDark",
+        "defaultScreen": "login",
+        "language": "zh-CN",
+        "brand": "ForexCRM",
+        "sourceType": "model",
+        "fallbackReason": "",
+        "audience": "活跃交易者与高净值投资者",
+        "registerDepth": "compliance",
+        "screens": [
+          "login",
+          "register",
+          "forgot"
+        ]
+      },
+      "usage": {
+        "completion_tokens": 1518,
+        "prompt_tokens": 8246,
+        "total_tokens": 10284
+      }
+    },
+    {
+      "id": "auth-1779172900497-040d0f3829dd3",
+      "at": "2026-05-19T06:41:40.497Z",
+      "source": "authServerProxy",
+      "action": "auth-generate",
+      "providerId": "gemini",
+      "provider": "Gemini",
+      "model": "gemini-3-flash-preview",
+      "apiMode": "openai-chat",
+      "callMode": "serverProxy",
+      "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai",
+      "endpoint": "/chat/completions",
+      "temperature": 0.6,
+      "maxOutputTokens": 6000,
+      "status": "success",
+      "mock": false,
+      "durationMs": 16761,
+      "prompt": "帮我生成一套适合外汇平台开户的登录注册模块：中文，移动端优先且必须美观，平台 Logo 摆放要有明确方案。登录首屏只保留账号（手机号/邮箱）和密码，可提供 Google / Apple 快捷登录；如账号开启双重验证，下一步输入 6 位验证码。注册和找回密码在提交、发送验证码等关键步骤触发人机校验，KYC 与风险确认放到注册后的开户流程说明里，整体可信但不要像通用模板。布局方案为左右布局。",
+      "message": "ForexCRM 认证中心",
+      "schemeSnapshot": {
+        "name": "ForexCRM 认证中心",
+        "stylePreset": "blueSplit",
+        "defaultScreen": "login",
+        "language": "zh-CN",
+        "brand": "ForexCRM",
+        "sourceType": "model",
+        "fallbackReason": "",
+        "audience": "全球投资者与高净值客户",
+        "registerDepth": "compliance",
+        "screens": [
+          "login",
+          "register",
+          "forgot"
+        ]
+      },
+      "usage": {
+        "completion_tokens": 1720,
+        "prompt_tokens": 8303,
+        "total_tokens": 10798
+      }
+    },
+    {
       "id": "auth-1779103012191-8c12c8543b541",
       "at": "2026-05-18T11:16:52.191Z",
       "source": "authServerProxy",

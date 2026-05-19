@@ -1,7 +1,68 @@
 {
   "version": 1,
-  "updatedAt": "2026-05-15T06:45:52.775Z",
+  "updatedAt": "2026-05-19T06:39:22.527Z",
   "records": [
+    {
+      "id": "reference-1779172762524-4ff90c1052a35",
+      "at": "2026-05-19T06:39:22.523Z",
+      "name": "client-home.html",
+      "type": "html",
+      "mime": "text/html",
+      "size": 12257,
+      "fileName": "reference-1779172762524-4ff90c1052a35-client-home.html",
+      "storagePath": "artifacts/home-ai-reference-assets/reference-1779172762524-4ff90c1052a35-client-home.html",
+      "url": "/artifacts/home-ai-reference-assets/reference-1779172762524-4ff90c1052a35-client-home.html",
+      "note": "构图完美，视觉有营销感，Onborading的内容很细又简约，邀请模块内容丰富，交易账号可以列表也可以卡片切换，这个组件完美。",
+      "tags": [
+        "trader/onboarding",
+        "新客开户",
+        "专业交易",
+        "IB 推广",
+        "活动增长",
+        "极简白"
+      ],
+      "textExcerpt": "ForexCRM - 用户端首页 欢迎回来, Huang! Track your trading performance and manage your account. Customize Dashboard Sunday, May 3, 2026 Overview 账户总览 账户余额 (USD) -- 交易账号余额 (USD) -- 钱包余额 (USD) -- 按钱包币种折算 入金 出金 账户开通进度 0/3 完成以下步骤即可开始真实账户交易 完善个人资料 身份认证 (KYC) 首次入金 去完成：完善个人资料 进行中 5月盈利王挑战赛 奖池 $9,600 · 剩余 28 days · 共 3 项活动 查看详情 快速操作 开新账户 入金 出金 转账 Transactions Order History Positions Referral 邀请链接 点击 123 CRM 123 TA 50 测试注册链接 http://user-1.hcs55.com:38080/regist-real?invitid=555555690-123 Refer Code 555555690-123 <button type=\"button\" aria-label=\"复制邀请码",
+      "createdAt": "2026-05-19T06:39:22.523Z"
+    },
+    {
+      "id": "reference-1779172129113-93c588856d031",
+      "at": "2026-05-19T06:28:49.113Z",
+      "name": "xbroker顶部布局 V 4.0@2x.jpg",
+      "type": "image",
+      "mime": "image/jpeg",
+      "size": 2027023,
+      "fileName": "reference-1779172129113-93c588856d031-xbroker-v-4-0-2x.jpg",
+      "storagePath": "artifacts/home-ai-reference-assets/reference-1779172129113-93c588856d031-xbroker-v-4-0-2x.jpg",
+      "url": "/artifacts/home-ai-reference-assets/reference-1779172129113-93c588856d031-xbroker-v-4-0-2x.jpg",
+      "note": "构图、层级比例、流弊都是值得参考的内容。",
+      "tags": [
+        "VIP /Trader",
+        "专业交易",
+        "极简白"
+      ],
+      "textExcerpt": "",
+      "createdAt": "2026-05-19T06:28:49.113Z"
+    },
+    {
+      "id": "reference-1779170674058-59c500277151d",
+      "at": "2026-05-19T06:04:34.057Z",
+      "name": "xbroker顶部布局 V 4.0@2x.jpg",
+      "type": "image",
+      "mime": "image/jpeg",
+      "size": 2027023,
+      "fileName": "reference-1779170674058-59c500277151d-xbroker-v-4-0-2x.jpg",
+      "storagePath": "artifacts/home-ai-reference-assets/reference-1779170674058-59c500277151d-xbroker-v-4-0-2x.jpg",
+      "url": "/artifacts/home-ai-reference-assets/reference-1779170674058-59c500277151d-xbroker-v-4-0-2x.jpg",
+      "note": "构图严谨；快捷入口简介，icon+图标是更好的方式。交易账号列表分为两个，真实交易账号列表，模拟账号列列表，并都有创建交易账号的按钮。钱包单独处理成了列表，是比较新颖的形式。",
+      "tags": [
+        "miniWhite",
+        "专业交易",
+        "IB 推广",
+        "极简白"
+      ],
+      "textExcerpt": "",
+      "createdAt": "2026-05-19T06:04:34.057Z"
+    },
     {
       "id": "reference-1778827552768-50441fb7e2547",
       "at": "2026-05-15T06:45:52.768Z",

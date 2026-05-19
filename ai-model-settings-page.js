@@ -59,7 +59,7 @@
     const apiKeyValue = field("apiKey")?.value?.trim() || "";
     const next = {
       ...current,
-      provider: field("provider")?.value || current.provider,
+      provider: options.providerOverride || field("provider")?.value || current.provider,
       model: field("model")?.value || current.model,
       baseUrl: field("baseUrl")?.value || current.baseUrl,
       endpoint: field("endpoint")?.value || current.endpoint,
@@ -157,12 +157,26 @@
     });
   }
 
+  function modelChoices(config, preset) {
+    const provider = preset.provider || config.provider;
+    const runtimeModels = state.providerStatus[provider]?.models || [];
+    const presetModels = preset.models || [preset.model || config.model];
+    const normalize = settings.modelIdFromValue || ((_, model) => String(model || "").trim());
+    return [
+      ...new Set([config.model, ...runtimeModels, ...presetModels].map((model) => normalize(provider, model)).filter(Boolean)),
+    ];
+  }
+
   function renderForm() {
     if (!els.form) return;
     const config = settings.sanitizeModelConfig(state.config);
     const preset = settings.providerPreset(config.provider);
+    const models = modelChoices(config, preset);
     setField("provider", config.provider);
-    setField("model", config.model);
+    if (els.modelList) {
+      els.modelList.innerHTML = models.map((model) => `<option value="${escapeHtml(model)}">${escapeHtml(model)}</option>`).join("");
+    }
+    setField("model", models.includes(config.model) ? config.model : models[0] || config.model);
     setField("baseUrl", config.baseUrl);
     setField("endpoint", config.endpoint);
     setField("apiMode", config.apiMode);
@@ -174,7 +188,6 @@
     if (apiKeyField) {
       apiKeyField.placeholder = config.apiKey || config.apiKeys?.[config.provider] ? "已保存，可留空不变" : preset.apiKeyLabel;
     }
-    if (els.modelList) els.modelList.innerHTML = (preset.models || [config.model]).map((model) => `<option value="${escapeHtml(model)}"></option>`).join("");
   }
 
   function renderNote() {
@@ -237,7 +250,8 @@
     els.form?.addEventListener("change", (event) => {
       if (!event.target?.matches("[data-model-settings-field]")) return;
       if (event.target.dataset.modelSettingsField === "provider") {
-        state.config = settings.configForProvider(event.target.value, readForm());
+        const previousProvider = settings.sanitizeModelConfig(state.config).provider;
+        state.config = settings.configForProvider(event.target.value, readForm({ providerOverride: previousProvider }));
       } else {
         state.config = readForm();
       }

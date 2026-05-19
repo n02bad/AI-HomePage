@@ -9,6 +9,15 @@
   const MEDIA_POSITIONS = ["left", "right", "background", "none"];
   const HERO_VISIBILITIES = ["full", "compact", "hidden"];
   const MOBILE_STRATEGIES = ["logoFirst", "formFirst", "mediaMuted", "singleColumn"];
+  const REGISTER_LAYOUTS = ["centerCard", "splitForm", "sideRail", "timeline", "floatingPanel", "cardless"];
+  const REGISTER_VISUAL_PLACEMENTS = ["left", "right", "background", "none"];
+  const REGISTER_CARD_CHROMES = ["bordered", "borderless", "elevated", "glass", "flat"];
+  const REGISTER_SECTION_FLOWS = ["singleColumn", "twoColumn", "groupedCards", "stepper"];
+  const REGISTER_OFFER_PLACEMENTS = ["top", "side", "inline", "hidden"];
+  const REGISTER_TERMS_PLACEMENTS = ["insideForm", "footer"];
+  const SOCIAL_LOGIN_POSITIONS = ["top", "bottom", "sideRail", "inlineHeader"];
+  const SOCIAL_LOGIN_STYLES = ["fullButtons", "iconGrid", "brandTiles", "pills", "minimalText"];
+  const SOCIAL_LOGIN_DIVIDERS = ["line", "copy", "none"];
 
   const icons = {
     arrowRight: '<path d="M5 12h14" /><path d="m13 6 6 6-6 6" />',
@@ -265,6 +274,109 @@
     };
   }
 
+  function inferRegisterPresentation(prompt = "", options = {}, composition = "splitTrust", stylePreset = "blueSplit", intent = "openAccount", registerDepth = "standard") {
+    const visual = isObject(options.visual) ? options.visual : {};
+    const explicit = isObject(visual.registerPresentation) ? visual.registerPresentation : {};
+    const text = [
+      prompt,
+      options.intent,
+      options.designStyle,
+      options.theme,
+      options.registerDepth,
+      options.layoutType,
+      visual.layoutType,
+      visual.formPosition,
+      visual.mediaPosition,
+    ].filter(Boolean).join(" ").toLowerCase();
+    const wantsNoBorder = /无边框|不要边框|去掉边框|borderless|cardless|无卡片/.test(text);
+    const wantsSteps = /步骤|stepper|timeline|开户流程|开户注册|kyc|合规/.test(text) || registerDepth === "compliance";
+    const wantsSide = /侧栏|side|左右|分栏|rail/.test(text);
+    const wantsBackground = /背景|浮层|沉浸|overlay|floating|glass/.test(text);
+    const layout = allowedValue(
+      explicit.layout,
+      REGISTER_LAYOUTS,
+      wantsNoBorder
+        ? "cardless"
+        : wantsSteps
+          ? "timeline"
+          : intent === "campaignSignup"
+            ? "sideRail"
+            : wantsBackground || stylePreset === "photoDark"
+              ? "floatingPanel"
+              : wantsSide || composition === "identityLedger"
+                ? "splitForm"
+                : "centerCard",
+    );
+    const socialPosition = allowedValue(explicit.socialLogin?.position, SOCIAL_LOGIN_POSITIONS, intent === "campaignSignup" || layout === "sideRail" ? "sideRail" : "top");
+    return {
+      layout,
+      formPosition: allowedValue(explicit.formPosition, FORM_POSITIONS, visual.formPosition === "left" ? "left" : visual.formPosition === "center" ? "center" : "right"),
+      visualPlacement: allowedValue(
+        explicit.visualPlacement,
+        REGISTER_VISUAL_PLACEMENTS,
+        layout === "centerCard" || layout === "cardless" ? "none" : visual.mediaPosition === "right" ? "right" : visual.mediaPosition === "background" || layout === "floatingPanel" ? "background" : "left",
+      ),
+      cardChrome: allowedValue(explicit.cardChrome, REGISTER_CARD_CHROMES, wantsNoBorder ? "borderless" : layout === "floatingPanel" ? "glass" : stylePreset === "clientOnboarding" ? "bordered" : "elevated"),
+      sectionFlow: allowedValue(explicit.sectionFlow, REGISTER_SECTION_FLOWS, wantsSteps ? "stepper" : registerDepth === "light" ? "singleColumn" : intent === "campaignSignup" ? "groupedCards" : "twoColumn"),
+      offerPlacement: allowedValue(explicit.offerPlacement, REGISTER_OFFER_PLACEMENTS, intent === "campaignSignup" ? "side" : "top"),
+      termsPlacement: allowedValue(explicit.termsPlacement, REGISTER_TERMS_PLACEMENTS, layout === "cardless" ? "footer" : "insideForm"),
+      socialLogin: {
+        position: socialPosition,
+        style: allowedValue(explicit.socialLogin?.style, SOCIAL_LOGIN_STYLES, socialPosition === "sideRail" ? "brandTiles" : layout === "cardless" ? "minimalText" : "fullButtons"),
+        divider: allowedValue(explicit.socialLogin?.divider, SOCIAL_LOGIN_DIVIDERS, socialPosition === "sideRail" ? "none" : "line"),
+      },
+    };
+  }
+
+  function normalizeRegisterPresentation(source = {}, fallback = {}) {
+    const safeSource = isObject(source) ? source : {};
+    const safeSocial = isObject(safeSource.socialLogin) ? safeSource.socialLogin : {};
+    const fallbackSocial = isObject(fallback.socialLogin) ? fallback.socialLogin : {};
+    return {
+      layout: allowedValue(safeSource.layout, REGISTER_LAYOUTS, fallback.layout || "centerCard"),
+      formPosition: allowedValue(safeSource.formPosition, FORM_POSITIONS, fallback.formPosition || "right"),
+      visualPlacement: allowedValue(safeSource.visualPlacement, REGISTER_VISUAL_PLACEMENTS, fallback.visualPlacement || "none"),
+      cardChrome: allowedValue(safeSource.cardChrome, REGISTER_CARD_CHROMES, fallback.cardChrome || "elevated"),
+      sectionFlow: allowedValue(safeSource.sectionFlow, REGISTER_SECTION_FLOWS, fallback.sectionFlow || "twoColumn"),
+      offerPlacement: allowedValue(safeSource.offerPlacement, REGISTER_OFFER_PLACEMENTS, fallback.offerPlacement || "top"),
+      termsPlacement: allowedValue(safeSource.termsPlacement, REGISTER_TERMS_PLACEMENTS, fallback.termsPlacement || "insideForm"),
+      socialLogin: {
+        position: allowedValue(safeSocial.position, SOCIAL_LOGIN_POSITIONS, fallbackSocial.position || "top"),
+        style: allowedValue(safeSocial.style, SOCIAL_LOGIN_STYLES, fallbackSocial.style || "fullButtons"),
+        divider: allowedValue(safeSocial.divider, SOCIAL_LOGIN_DIVIDERS, fallbackSocial.divider || "line"),
+      },
+    };
+  }
+
+  function inferSocialLoginPresentation(prompt = "", options = {}, registerPresentation = {}) {
+    const visual = isObject(options.visual) ? options.visual : {};
+    const explicit = isObject(visual.socialLogin) ? visual.socialLogin : {};
+    const text = [
+      prompt,
+      options.intent,
+      options.designStyle,
+      options.theme,
+      ...(Array.isArray(options.features) ? options.features : []),
+    ].filter(Boolean).join(" ").toLowerCase();
+    const wantsIcons = /图标|icon|宫格|grid/.test(text);
+    const wantsPills = /胶囊|pill|轻量/.test(text);
+    const wantsMinimal = /极简|minimal|文字链接/.test(text);
+    return {
+      position: allowedValue(explicit.position, SOCIAL_LOGIN_POSITIONS, registerPresentation.socialLogin?.position || "top"),
+      style: allowedValue(explicit.style, SOCIAL_LOGIN_STYLES, wantsMinimal ? "minimalText" : wantsIcons ? "iconGrid" : wantsPills ? "pills" : registerPresentation.socialLogin?.style || "fullButtons"),
+      divider: allowedValue(explicit.divider, SOCIAL_LOGIN_DIVIDERS, registerPresentation.socialLogin?.divider || "line"),
+    };
+  }
+
+  function normalizeSocialLoginPresentation(source = {}, fallback = {}) {
+    const safeSource = isObject(source) ? source : {};
+    return {
+      position: allowedValue(safeSource.position, SOCIAL_LOGIN_POSITIONS, fallback.position || "top"),
+      style: allowedValue(safeSource.style, SOCIAL_LOGIN_STYLES, fallback.style || "fullButtons"),
+      divider: allowedValue(safeSource.divider, SOCIAL_LOGIN_DIVIDERS, fallback.divider || "line"),
+    };
+  }
+
   function splitReferenceStructure(layoutFields = {}) {
     if (layoutFields.layoutType === "centeredCard") return "居中表单，弱化侧边品牌视觉。";
     if (layoutFields.mediaPosition === "right") return "左右分栏：表单在左，媒体/插画/品牌视觉在右。";
@@ -415,6 +527,8 @@
     const hasSocial = hasFeature(features, prompt, "socialLogin", /google|apple|第三方|social/i);
     const hasCaptcha = hasFeature(features, prompt, "captcha", /验证码|captcha|hcaptcha/i);
     const hasTwoFactor = hasFeature(features, prompt, "twoFactor", /双重|2fa|two-factor|two factor/i);
+    const registerPresentation = inferRegisterPresentation(prompt, { ...options, features, visual: { ...(options.visual || {}), ...layoutFields } }, composition, stylePreset, intent, registerDepth);
+    const socialLogin = inferSocialLoginPresentation(prompt, { ...options, features }, registerPresentation);
 
     return {
       id: `auth-local-${Date.now().toString(36)}`,
@@ -446,6 +560,8 @@
         radius: stylePreset === "photoDark" ? "10px" : "18px",
         composition,
         ...layoutFields,
+        registerPresentation,
+        socialLogin,
         referenceStructure: layoutFields.layoutType === "centeredCard"
           ? "居中表单，弱化侧边品牌视觉。"
           : layoutFields.mediaPosition === "right"
@@ -498,6 +614,7 @@
           title: intent === "campaignSignup" ? "注册并锁定开户礼遇" : registerDepth === "light" ? "快速创建账户" : stylePreset === "photoDark" ? "账号注册" : "创建您的账户",
           subtitle: intent === "campaignSignup" ? "先创建账号并验证手机号或邮箱，KYC、奖励条件和风险披露会在注册后清晰继续。" : "填写账号与密码，提交前完成人机校验，下一步验证手机号或邮箱。",
           modeTabs: ["手机号", "邮箱"],
+          socialProviders: hasSocial ? ["Google", "Apple"] : [],
           sections: registerSections,
           termsText: "我已阅读并同意 服务条款、隐私政策及风险披露，确认提交的信息真实有效。",
           primaryAction: isZh ? "继续验证" : "Continue",
@@ -602,6 +719,9 @@
       securityNotes: (Array.isArray(merged.securityNotes) ? merged.securityNotes : fallback.securityNotes).slice(0, 6),
       designNotes: (Array.isArray(merged.designNotes) ? merged.designNotes : fallback.designNotes).slice(0, 8),
     };
+    normalized.visual.registerPresentation = normalizeRegisterPresentation(merged.visual?.registerPresentation || merged.registerPresentation, fallback.visual.registerPresentation);
+    normalized.visual.socialLogin = normalizeSocialLoginPresentation(merged.visual?.socialLogin || normalized.visual.registerPresentation.socialLogin, fallback.visual.socialLogin);
+    normalized.visual.registerPresentation.socialLogin = normalizeSocialLoginPresentation(normalized.visual.registerPresentation.socialLogin, normalized.visual.socialLogin);
     normalized.brand.logoPlacement = requestedLogoPlacement !== "heroTopLeft" ? requestedLogoPlacement : normalizeLogoPlacement(merged.brand?.logoPlacement, fallback.brand.logoPlacement || "heroTopLeft");
     normalized.experience.intent = requestedIntent || normalized.experience.intent;
     normalized.experience.theme = requestedTheme || normalized.experience.theme;
@@ -614,6 +734,8 @@
     if (hasFeature(normalized.experience.features, prompt, "socialLogin", /google|apple|第三方|social/i) && (!Array.isArray(normalized.screens.login.socialProviders) || !normalized.screens.login.socialProviders.length)) {
       normalized.screens.login.socialProviders = ["Google", "Apple"];
     }
+    normalized.screens.login.socialProviders = sanitizeSocialProviders(normalized.screens.login.socialProviders, fallback.screens.login.socialProviders);
+    normalized.screens.register.socialProviders = sanitizeSocialProviders(normalized.screens.register.socialProviders, normalized.screens.login.socialProviders);
     normalized.screens.login.securityFlow = merge(fallback.screens.login.securityFlow, normalized.screens.login.securityFlow);
     normalized.screens.register.sections = sanitizeRegisterSections(normalized.screens.register.sections);
     normalized.screens.register.verification = merge(fallback.screens.register.verification, normalized.screens.register.verification);
@@ -652,6 +774,14 @@
       }))
       .filter((section) => !fieldLooksLikeInlineChallenge({ label: section.title, placeholder: section.description }))
       .filter((section) => section.title || section.description || section.fields.length);
+  }
+
+  function sanitizeSocialProviders(providers = [], fallback = []) {
+    const source = Array.isArray(providers) && providers.length ? providers : fallback;
+    return (Array.isArray(source) ? source : [])
+      .map((item) => cleanText(item, "", 30))
+      .filter(Boolean)
+      .slice(0, 4);
   }
 
   function featureEnabled(scheme = {}, feature) {
@@ -743,15 +873,32 @@
     `;
   }
 
-  function renderSocialButton(provider, language = "zh-CN") {
+  function renderSocialButton(provider, language = "zh-CN", screen = "login") {
     const isApple = /apple/i.test(provider);
     const isZh = String(language || "").startsWith("zh");
+    const action = screen === "register" ? (isZh ? "注册" : "Sign up") : (isZh ? "继续" : "Continue");
     const label = /google/i.test(provider)
-      ? (isZh ? "使用 Google 继续" : "Continue with Google")
+      ? (isZh ? `使用 Google ${action}` : `${action} with Google`)
       : /apple/i.test(provider)
-        ? (isZh ? "使用 Apple 继续" : "Continue with Apple")
-        : (isZh ? `使用 ${provider} 继续` : `Continue with ${provider}`);
+        ? (isZh ? `使用 Apple ${action}` : `${action} with Apple`)
+        : (isZh ? `使用 ${provider} ${action}` : `${action} with ${provider}`);
     return `<button class="auth-social-button${isApple ? " apple" : ""}" type="button"><span>${escapeHtml(provider.slice(0, 1))}</span>${escapeHtml(label)}</button>`;
+  }
+
+  function renderSocialBlock(scheme, screen = "login") {
+    const socialConfig = normalizeSocialLoginPresentation(scheme.visual?.socialLogin, scheme.visual?.registerPresentation?.socialLogin || {});
+    const screenConfig = scheme.screens?.[screen] || {};
+    const providers = sanitizeSocialProviders(screenConfig.socialProviders, screen === "register" ? scheme.screens?.login?.socialProviders : []);
+    if (!providers.length) return "";
+    const social = providers.map((provider) => renderSocialButton(provider, scheme.language, screen)).join("");
+    const dividerText = screen === "register" ? "或填写资料注册" : "或使用账号登录";
+    const divider = socialConfig.divider === "none" ? "" : `<div class="auth-divider auth-divider-${escapeHtml(socialConfig.divider)}"><span>${escapeHtml(dividerText)}</span></div>`;
+    return `
+      <div class="auth-social-block auth-social-block-${escapeHtml(socialConfig.position)}" data-auth-social-screen="${escapeHtml(screen)}">
+        <div class="auth-social-stack">${social}</div>
+        ${divider}
+      </div>
+    `;
   }
 
   function renderCampaignOffer(scheme, screen = "login") {
@@ -822,9 +969,7 @@
 
   function renderLogin(scheme) {
     const screen = scheme.screens.login || {};
-    const socialProviders = Array.isArray(screen.socialProviders) ? screen.socialProviders : [];
-    const social = socialProviders.map((provider) => renderSocialButton(provider, scheme.language)).join("");
-    const socialBlock = social ? `<div class="auth-social-stack">${social}</div><div class="auth-divider"><span>或使用账号登录</span></div>` : "";
+    const socialBlock = renderSocialBlock(scheme, "login");
     return `
       <article class="auth-form-card auth-login-card">
         ${renderFormLogo(scheme)}
@@ -911,36 +1056,16 @@
     `;
   }
 
-  function renderFullRegister(scheme) {
-    const screen = scheme.screens.register || {};
-    const sections = (screen.sections || []).map((section) => `
-      <section class="auth-register-section">
-        <h3>${escapeHtml(section.title)}</h3>
-        ${section.description ? `<p>${escapeHtml(section.description)}</p>` : ""}
-        <div class="auth-field-grid">${(section.fields || []).map(renderField).join("")}</div>
-      </section>
-    `).join("");
-    return `
-      <article class="auth-form-card auth-register-card wide">
-        ${renderFormLogo(scheme)}
-        <button class="auth-back-link" type="button" data-auth-screen-switch="login">${svg("arrowLeft")} ${escapeHtml(screen.backAction || "返回登录")}</button>
-        <header class="auth-form-head">
-          <h2>${escapeHtml(screen.title)}</h2>
-          <p>${escapeHtml(screen.subtitle)}</p>
-        </header>
-        ${renderCampaignOffer(scheme, "register")}
-        <form class="auth-form" data-auth-demo-form="register">
-          ${sections}
-          <label class="auth-terms-box"><input type="checkbox" /> <span>${escapeHtml(screen.termsText)}</span></label>
-          <button class="auth-primary-action" type="submit">${escapeHtml(screen.primaryAction)}</button>
-          <output data-auth-submit-status hidden></output>
-        </form>
-      </article>
-    `;
-  }
-
-  function renderCompactRegister(scheme) {
-    const screen = scheme.screens.register || {};
+  function renderRegisterSections(screen = {}, isFull = false) {
+    if (isFull) {
+      return (screen.sections || []).map((section) => `
+        <section class="auth-register-section">
+          <h3>${escapeHtml(section.title)}</h3>
+          ${section.description ? `<p>${escapeHtml(section.description)}</p>` : ""}
+          <div class="auth-field-grid">${(section.fields || []).map(renderField).join("")}</div>
+        </section>
+      `).join("");
+    }
     const flatFields = (screen.sections || []).flatMap((section) => section.fields || []);
     const preferredIds = ["identifier", "country", "password", "confirmPassword", "inviteCode"];
     const pickedFields = preferredIds
@@ -949,25 +1074,86 @@
       .slice(0, 4);
     const fields = pickedFields.length >= 2 ? pickedFields : flatFields.slice(0, 4);
     return `
-      <article class="auth-form-card auth-register-card">
+      <section class="auth-register-section auth-register-section-compact">
+        <div class="auth-field-grid single">${fields.map(renderField).join("")}</div>
+      </section>
+    `;
+  }
+
+  function renderRegisterAside(scheme, screen = {}, presentation = {}, sideContent = {}) {
+    const proofPoints = (scheme.hero?.proofPoints || scheme.hero?.bullets || []).slice(0, 3);
+    const steps = ["账号信息", "人机校验", "验证码", "开户流程"];
+    return `
+      <aside class="auth-register-aside" aria-label="注册辅助信息">
+        <div class="auth-register-aside-head">
+          <span>${svg(presentation.layout === "timeline" ? "check" : "shield")}</span>
+          <div>
+            <b>${escapeHtml(scheme.brand.serviceLine || "开户链接")}</b>
+            <small>${escapeHtml(screen.trustNotice || "提交前完成安全校验")}</small>
+          </div>
+        </div>
+        <ol class="auth-register-mini-steps">
+          ${steps.map((item, index) => `<li><span>${index + 1}</span>${escapeHtml(item)}</li>`).join("")}
+        </ol>
+        ${proofPoints.length ? `<div class="auth-register-proof">${proofPoints.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>` : ""}
+        ${sideContent.offer || ""}
+        ${sideContent.social || ""}
+      </aside>
+    `;
+  }
+
+  function renderRegisterShell(scheme, isFull = false) {
+    const screen = scheme.screens.register || {};
+    const presentation = normalizeRegisterPresentation(scheme.visual?.registerPresentation, {});
+    const socialPosition = presentation.socialLogin.position;
+    const socialBlock = renderSocialBlock(scheme, "register");
+    const offer = renderCampaignOffer(scheme, "register");
+    const sideSocial = socialPosition === "sideRail" ? socialBlock : "";
+    const topSocial = ["top", "inlineHeader"].includes(socialPosition) ? socialBlock : "";
+    const bottomSocial = socialPosition === "bottom" ? socialBlock : "";
+    const sideOffer = presentation.offerPlacement === "side" ? offer : "";
+    const topOffer = ["top", "inline"].includes(presentation.offerPlacement) ? offer : "";
+    const showAside = !["centerCard", "cardless"].includes(presentation.layout) || sideOffer || sideSocial;
+    const sections = renderRegisterSections(screen, isFull);
+    const modeTabs = renderModeTabs(screen.modeTabs);
+    const infoStrip = `<div class="auth-info-strip">${svg("shield")}<span>${escapeHtml(screen.trustNotice || "注册成功后将向邮箱发送验证码")}</span></div>`;
+    const termsClass = presentation.termsPlacement === "footer" ? " auth-terms-footer" : "";
+    return `
+      <article class="auth-form-card auth-register-card ${isFull ? "wide" : ""} auth-register-layout-${escapeHtml(presentation.layout)} auth-register-chrome-${escapeHtml(presentation.cardChrome)} auth-register-flow-${escapeHtml(presentation.sectionFlow)} auth-register-offer-${escapeHtml(presentation.offerPlacement)} auth-register-visual-${escapeHtml(presentation.visualPlacement)} auth-register-social-${escapeHtml(socialPosition)}">
         ${renderFormLogo(scheme)}
-        ${scheme.stylePreset === "softPlatform" ? renderScreenTabs("register") : ""}
-        <header class="auth-form-head">
-          <h2>${escapeHtml(screen.title)}</h2>
-          <p>${escapeHtml(screen.subtitle)}</p>
-        </header>
-        ${renderCampaignOffer(scheme, "register")}
-        ${renderModeTabs(screen.modeTabs)}
-        <div class="auth-info-strip">${svg("shield")}<span>${escapeHtml(screen.trustNotice || "注册成功后将向邮箱发送验证码")}</span></div>
-        <form class="auth-form" data-auth-demo-form="register">
-          <div class="auth-field-grid single">${fields.map(renderField).join("")}</div>
-          <label class="auth-checkbox auth-terms-inline"><input type="checkbox" /> <span>${escapeHtml(screen.termsText)}</span></label>
-          <button class="auth-primary-action" type="submit">${escapeHtml(screen.primaryAction)} ${svg("arrowRight")}</button>
-          <small class="auth-trust-line">${svg("shield")}您的信息受到严格保护，安全加密传输</small>
-          <output data-auth-submit-status hidden></output>
-        </form>
+        <button class="auth-back-link" type="button" data-auth-screen-switch="login">${svg("arrowLeft")} ${escapeHtml(screen.backAction || "返回登录")}</button>
+        <div class="auth-register-inner">
+          ${showAside ? renderRegisterAside(scheme, screen, presentation, { offer: sideOffer, social: sideSocial }) : ""}
+          <div class="auth-register-main">
+            ${scheme.stylePreset === "softPlatform" ? renderScreenTabs("register") : ""}
+            <header class="auth-form-head">
+              <h2>${escapeHtml(screen.title)}</h2>
+              <p>${escapeHtml(screen.subtitle)}</p>
+            </header>
+            ${topOffer}
+            ${modeTabs}
+            ${infoStrip}
+            ${topSocial}
+            <form class="auth-form" data-auth-demo-form="register">
+              <div class="auth-register-sections">${sections}</div>
+              <label class="auth-terms-box${termsClass}"><input type="checkbox" /> <span>${escapeHtml(screen.termsText)}</span></label>
+              <button class="auth-primary-action" type="submit">${escapeHtml(screen.primaryAction)} ${svg("arrowRight")}</button>
+              ${bottomSocial}
+              <small class="auth-trust-line">${svg("shield")}您的信息受到严格保护，安全加密传输</small>
+              <output data-auth-submit-status hidden></output>
+            </form>
+          </div>
+        </div>
       </article>
     `;
+  }
+
+  function renderFullRegister(scheme) {
+    return renderRegisterShell(scheme, true);
+  }
+
+  function renderCompactRegister(scheme) {
+    return renderRegisterShell(scheme, false);
   }
 
   function renderForgot(scheme) {
@@ -1108,6 +1294,7 @@
     const mediaPosition = allowedValue(scheme.visual?.mediaPosition, MEDIA_POSITIONS, formPosition === "left" ? "right" : "left");
     const heroVisibility = allowedValue(scheme.visual?.heroVisibility, HERO_VISIBILITIES, layoutType === "centeredCard" ? "hidden" : "full");
     const mobileStrategy = allowedValue(scheme.visual?.mobileStrategy, MOBILE_STRATEGIES, "singleColumn");
+    const socialLogin = normalizeSocialLoginPresentation(scheme.visual?.socialLogin, scheme.visual?.registerPresentation?.socialLogin || {});
     const formMarkup = `
       <main class="auth-form-side" aria-label="${escapeHtml(screen)} form">
         ${renderMobileFormBrand(scheme)}
@@ -1119,7 +1306,7 @@
     host.dataset.authPreviewMounted = "true";
     host.innerHTML = `
       <section
-        class="auth-preview-shell auth-style-${escapeHtml(style)} auth-composition-${escapeHtml(scheme.visual.composition || "splitTrust")} auth-layout-${escapeHtml(layoutType)} auth-form-${escapeHtml(formPosition)} auth-media-${escapeHtml(mediaPosition)} auth-hero-${escapeHtml(heroVisibility)} auth-mobile-${escapeHtml(mobileStrategy)} auth-logo-${escapeHtml(scheme.brand.logoPlacement || "heroTopLeft")} auth-screen-${escapeHtml(screen)}"
+        class="auth-preview-shell auth-style-${escapeHtml(style)} auth-composition-${escapeHtml(scheme.visual.composition || "splitTrust")} auth-layout-${escapeHtml(layoutType)} auth-form-${escapeHtml(formPosition)} auth-media-${escapeHtml(mediaPosition)} auth-hero-${escapeHtml(heroVisibility)} auth-mobile-${escapeHtml(mobileStrategy)} auth-logo-${escapeHtml(scheme.brand.logoPlacement || "heroTopLeft")} auth-social-style-${escapeHtml(socialLogin.style)} auth-social-position-${escapeHtml(socialLogin.position)} auth-social-divider-${escapeHtml(socialLogin.divider)} auth-screen-${escapeHtml(screen)}"
         style="--auth-accent:${escapeHtml(scheme.visual.accent)};--auth-accent-2:${escapeHtml(scheme.visual.accent2)}"
       >
         <div class="auth-preview-meta">

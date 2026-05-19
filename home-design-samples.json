@@ -1,284 +1,167 @@
 {
   "version": 1,
-  "updatedAt": "2026-05-15T00:00:00.000Z",
+  "updatedAt": "2026-05-19T07:19:39.173Z",
   "samples": [
     {
-      "id": "spacious-white-fintech-saas-baseline",
-      "name": "宽松白底金融 SaaS 基准",
-      "scenario": "用户端首页、成熟金融 SaaS、强调白底留白、浅边框卡片、蓝色克制强调和清晰信息层级",
-      "pageIntent": "default",
-      "visualStyle": "spacious white fintech SaaS dashboard",
-      "aestheticScore": 96,
-      "tags": ["白底", "留白", "金融SaaS", "清爽专业", "浅边框", "蓝色强调", "低密度", "用户首页"],
-      "page": {
-        "name": "宽松金融客户端首页",
-        "layout": "页面居中 1400-1500px，顶部欢迎区保留呼吸感；核心资产、下一步或关键任务形成首屏唯一主焦点；后续模块按 24-32px 纵向节奏展开。",
-        "hero": "不做营销大封面，用欢迎信息、主数据或主任务建立秩序；白色卡片承载内容，浅蓝灰边框和轻阴影只负责分层。",
-        "navigation": "主操作使用蓝色按钮，次操作用白底浅边框按钮；快捷入口和状态标签保持低装饰、易扫描。",
-        "mobile": "移动端保持 20-24px 边距，模块单列堆叠，主数字和主操作先出现，次要统计降低对比。"
-      },
-      "functions": [
-        {
-          "name": "页面空间秩序",
-          "objective": "让任意首页功能在宽松、可信赖的金融 SaaS 视觉语言下呈现，而不是变成密集后台。",
-          "modules": ["welcome_header", "asset_overview", "quick_actions"],
-          "data": ["totalAssets", "walletBalance", "quickActionList"],
-          "actions": ["deposit", "openAccount"]
-        },
-        {
-          "name": "信息层级",
-          "objective": "首屏只突出 1-2 个视觉重点，其他模块通过灰蓝说明、小标签和稳定网格向下展开。",
-          "modules": ["onboarding_guide", "trading_accounts_list", "referral_link_card"],
-          "data": ["accountOpeningSteps", "tradingAccounts", "promoLink"],
-          "actions": ["accounts", "copyLink"]
-        }
-      ],
-      "sampleBlocks": [
-        {
-          "id": "spacious-canvas-rhythm",
-          "name": "页面画布与留白节奏",
-          "page": "全局版式规范",
-          "function": "控制页面宽度、左右留白、区块间距和模块 padding，使页面更接近成熟客户端首页。",
-          "componentRefs": ["system.welcomeHeader", "assetOverview.flexible", "quickActions.configDriven"],
-          "visualNotes": ["1400-1500px 居中容器", "桌面 64-96px 页面留白", "模块之间 24-32px", "卡片内 24-32px"],
-          "dataFields": []
-        },
-        {
-          "id": "spacious-card-language",
-          "name": "浅边框白卡语言",
-          "page": "所有主要模块",
-          "function": "用纯白卡片、浅蓝灰边框、轻阴影和统一圆角建立高级感，不依赖装饰背景。",
-          "componentRefs": ["assetOverview.flexible", "onboardingProgress.guideCards", "tradingAccounts.list"],
-          "visualNotes": ["纯白卡片", "浅蓝灰细边框", "轻阴影", "蓝色只做强调"],
-          "dataFields": []
-        },
-        {
-          "id": "spacious-typography-hierarchy",
-          "name": "数字与文字层级",
-          "page": "资产、账号、任务和统计模块",
-          "function": "重要金额和状态用大号粗体成为视觉锚点，说明文案用灰蓝色弱化。",
-          "componentRefs": ["assetOverview.flexible", "accountPerformance.proChart", "referralLinkCard.compact"],
-          "visualNotes": ["大数字优先", "说明文字低对比", "只保留一到两个最高视觉重点"],
-          "dataFields": ["totalAssets", "equityCurve", "registrationCount"]
-        }
-      ],
-      "componentRefs": ["system.welcomeHeader", "assetOverview.flexible", "quickActions.configDriven", "onboardingProgress.guideCards", "tradingAccounts.list", "referralLinkCard.compact"],
-      "goodPatterns": ["白底或极浅蓝灰背景", "大留白和稳定网格", "主蓝色小面积强调", "重要数字成为视觉锚点", "模块之间有 24-32px 呼吸感", "浅边框和轻阴影建立层次"],
-      "avoidPatterns": ["整页浅青色背景", "所有模块等权", "卡片套卡片", "厚重阴影", "大面积渐变", "密集后台表盘感", "照搬某张参考图的具体内容"],
-      "promptSeeds": ["默认首页使用宽松白底金融 SaaS 风格，强调留白、浅边框卡片、蓝色克制强调和清晰信息层级。", "生成用户端首页时不要固定组件结构，只应用白底、低密度、强层级和统一排版节奏。"]
-    },
-    {
-      "id": "vip-capital-desk-sample",
-      "name": "高净值资产中枢",
-      "scenario": "高净值客户、黑金品牌、首屏强调资产安全感和资金动作",
-      "pageIntent": "vip",
-      "visualStyle": "blackGold premium wealth desk",
-      "aestheticScore": 94,
-      "tags": ["高净值", "黑金", "VIP", "资产", "入金", "轮播"],
-      "page": {
-        "name": "私行资产服务台",
-        "layout": "首屏 8+4：左侧资产 Hero，右侧资金 Dock 与开户状态；第二行广告轮播；交易账号下沉为 full section。",
-        "hero": "大数字资产、风险安全提示、一个主 CTA，右侧用小状态面板承接 KYC/开户。",
-        "navigation": "资金动作只保留一个主行动，其他入口弱化为 Dock。",
-        "mobile": "资产 Hero、资金动作、广告轮播、交易账号依次单列。"
-      },
-      "functions": [
-        {
-          "name": "资产概览",
-          "objective": "让高净值客户第一眼看到资产规模和资金安全感。",
-          "modules": ["asset_overview", "wallet_list"],
-          "data": ["totalAssets", "walletBalance", "tradingAccountBalance"],
-          "actions": ["deposit"]
-        },
-        {
-          "name": "资金动作",
-          "objective": "将入金作为主动作，出金和钱包作为辅助。",
-          "modules": ["quick_actions"],
-          "data": ["quickActionList"],
-          "actions": ["deposit", "wallet"]
-        },
-        {
-          "name": "权益曝光",
-          "objective": "以广告轮播承接 VIP 活动和服务权益。",
-          "modules": ["promo_banner"],
-          "data": ["campaignConfig"],
-          "actions": ["deposit"]
-        }
-      ],
-      "sampleBlocks": [
-        {
-          "id": "vip-asset-hero",
-          "name": "VIP 资产 Hero",
-          "page": "首屏左侧主视觉",
-          "function": "展示总资产、钱包、交易账号余额和一个主入金动作。",
-          "componentRefs": ["asset-overview-vip-hero", "fund-actions-priority-dock"],
-          "visualNotes": ["大数字优先", "黑金强调但不全黑", "指标层级不等权"],
-          "dataFields": ["totalAssets", "walletBalance", "tradingAccountBalance"]
-        },
-        {
-          "id": "vip-campaign-carousel",
-          "name": "黑金权益轮播",
-          "page": "首屏下方整横栏",
-          "function": "展示活动或 VIP 权益，并带分页、下一张和主 CTA。",
-          "componentRefs": ["ad-carousel-hero-campaign", "promo-banner-deposit-ladder"],
-          "visualNotes": ["整横栏", "图文分区", "轮播点位轻量"],
-          "dataFields": ["campaignConfig"]
-        }
-      ],
-      "componentRefs": ["asset-overview-vip-hero", "fund-actions-priority-dock", "ad-carousel-hero-campaign", "promo-banner-deposit-ladder"],
-      "goodPatterns": ["首屏有一个强视觉焦点", "资产、入金、广告不要全部等权", "黑金可以用局部高光，不要整页压黑"],
-      "avoidPatterns": ["所有模块都是白卡", "主 CTA 在多个模块重复放大", "为了高级感制造大面积空白"],
-      "promptSeeds": ["高净值黑金首页，首屏突出资产安全感、入金动作和广告轮播，交易账号下沉，整体像私行服务台。"]
-    },
-    {
-      "id": "pro-trader-console-sample",
-      "name": "专业交易指挥中心",
-      "scenario": "专业交易客户、账号表现图表、持仓/订单/MT5 操作入口",
-      "pageIntent": "trader",
-      "visualStyle": "professional trading console",
-      "aestheticScore": 93,
-      "tags": ["专业交易", "图表", "MT5", "账号表现", "持仓", "订单"],
-      "page": {
-        "name": "交易工作台首页",
-        "layout": "顶部命令条 + 账号状态；账号表现图表独占整横栏；交易账号列表独立 full section。",
-        "hero": "不是营销大横幅，而是交易命令中心：账号、持仓、订单、MT5 操作进入同一逻辑区。",
-        "navigation": "操作入口用 command/dock，而不是普通按钮网格。",
-        "mobile": "命令条横向滚动或两列，图表在账号上下文下方。"
-      },
-      "functions": [
-        {
-          "name": "交易命令入口",
-          "objective": "让交易型客户快速进入持仓、订单、资金和 MT5。",
-          "modules": ["quick_actions"],
-          "data": ["quickActionList"],
-          "actions": ["positions", "orders", "downloadMt5"]
-        },
-        {
-          "name": "账号表现",
-          "objective": "用折线或面积曲线展示净值、PnL 和保证金状态。",
-          "modules": ["trading_account_highlight"],
-          "data": ["equityCurve", "pnlTrend", "marginState"],
-          "actions": ["accounts"]
-        },
-        {
-          "name": "交易账号列表",
-          "objective": "用单一列表/表格/卡片视图展示 Live 和 Demo 账号，不重复堆叠。",
-          "modules": ["trading_accounts_list"],
-          "data": ["tradingAccounts"],
-          "actions": ["accounts"]
-        }
-      ],
-      "sampleBlocks": [
-        {
-          "id": "trader-command-dock",
-          "name": "交易操作 Dock",
-          "page": "首屏顶部命令区",
-          "function": "承接订单、持仓、资金、MT5 等高频动作。",
-          "componentRefs": ["quick-actions-action-dock"],
-          "visualNotes": ["横向操作坞", "按钮权重不同", "不要做成普通六宫格"],
-          "dataFields": ["quickActionList"]
-        },
-        {
-          "id": "trader-performance-chart",
-          "name": "账号表现图表",
-          "page": "主内容整横栏",
-          "function": "展示 Balance、Equity、Credit、PnL 趋势。",
-          "componentRefs": ["account-performance-pro-chart"],
-          "visualNotes": ["图表独占空间", "指标带低干扰", "日期轴补足下半区域"],
-          "dataFields": ["equityCurve", "pnlTrend", "marginState"]
-        }
-      ],
-      "componentRefs": ["quick-actions-action-dock", "account-performance-pro-chart", "user-kyc-rail-profile-wallet"],
-      "goodPatterns": ["交易页应像工作台，不像活动落地页", "图表用整横栏保证信息密度", "快捷入口用命令条或操作坞"],
-      "avoidPatterns": ["账号表现卡片里再套很多小卡", "折线需求被画成柱状装饰", "交易账号摘要和完整表格上下重复"],
-      "promptSeeds": ["专业交易客户首页，首屏突出交易账号状态、账户表现图表、持仓入口和 MT5 操作入口。"]
-    },
-    {
-      "id": "onboarding-journey-sample",
-      "name": "新客开户旅程",
-      "scenario": "新用户、KYC、创建真实账户、首次入金三步",
-      "pageIntent": "onboarding",
-      "visualStyle": "guided onboarding journey",
+      "id": "visual-mpc95cvc-2a726",
+      "sampleKind": "golden-page",
+      "sourceType": "visual-only",
+      "visualOnly": true,
+      "isGolden": true,
+      "isAntiExample": false,
+      "name": "简介列表布局(账号/钱包)",
+      "scenario": "简约扁平化的首页分格，如果交易账号是列表可以着重参照。如果钱包列表也是列表，也可以着重参考。",
+      "pageIntent": "VIP /Trader",
+      "themePreset": "",
+      "visualStyle": "",
+      "prompt": "简约扁平化的首页分格，如果交易账号是列表可以着重参照。如果钱包列表也是列表，也可以着重参考。",
       "aestheticScore": 92,
-      "tags": ["新客", "开户", "KYC", "首次入金", "旅程", "转化"],
+      "humanScore": 92,
+      "scoreDimensions": {},
+      "tags": [
+        "VIP /Trader",
+        "专业交易",
+        "极简白"
+      ],
+      "scenarioTags": [
+        "专业交易",
+        "极简白"
+      ],
       "page": {
-        "name": "三步开户注册页",
-        "layout": "首屏 journey hero + 下一步操作；右侧开户操作台；下方 FAQ 和风险提示。",
-        "hero": "用旅程、进度或任务板表达，不固定三等分方格。",
-        "navigation": "主 CTA 是开真实账户，入金和客服作为下一步辅助。",
-        "mobile": "任务步骤单列，当前步骤置顶，开户按钮固定在步骤后。"
+        "name": "简介列表布局(账号/钱包)",
+        "layout": "visual-only：仅学习外部设计稿的构图、层级、密度和 token 气质。",
+        "hero": "构图、层级比例、流弊都是值得参考的内容。",
+        "navigation": "",
+        "mobile": ""
       },
-      "functions": [
-        {
-          "name": "开户进度",
-          "objective": "让新客知道自己处于 KYC、开真实账户、首次入金哪一步。",
-          "modules": ["onboarding_guide"],
-          "data": ["kycStatus", "accountOpeningSteps"],
-          "actions": ["openAccount", "deposit"]
+      "functions": [],
+      "sampleBlocks": [],
+      "componentRefs": [],
+      "goodPatterns": [
+        "构图、层级比例、流弊都是值得参考的内容。"
+      ],
+      "avoidPatterns": [],
+      "whyGood": "",
+      "whyBad": "",
+      "applicableScenarios": [],
+      "forbiddenReuse": "",
+      "homepageConfig": null,
+      "configSnapshot": null,
+      "referenceAssetId": "reference-1779172129113-93c588856d031",
+      "sourceAssetType": "image",
+      "renderEvidence": {
+        "screenshotPath": "artifacts/home-ai-reference-assets/reference-1779172129113-93c588856d031-xbroker-v-4-0-2x.jpg",
+        "screenshotUrl": "/artifacts/home-ai-reference-assets/reference-1779172129113-93c588856d031-xbroker-v-4-0-2x.jpg",
+        "domSnapshot": "",
+        "aiHtml": "",
+        "aiCss": "",
+        "cssSummary": {
+          "referenceAssetId": "reference-1779172129113-93c588856d031",
+          "referenceType": "image",
+          "textExcerpt": ""
         },
-        {
-          "name": "创建账号",
-          "objective": "承接开真实账户、开模拟账户和绑定账号入口。",
-          "modules": ["trading_accounts_list", "quick_actions"],
-          "data": ["tradingAccounts", "quickActionList"],
-          "actions": ["openAccount", "accounts"]
-        }
+        "themeTokens": {},
+        "capturedAt": "",
+        "sourceUrl": "/artifacts/home-ai-reference-assets/reference-1779172129113-93c588856d031-xbroker-v-4-0-2x.jpg"
+      },
+      "promptSeeds": [
+        "简约扁平化的首页分格，如果交易账号是列表可以着重参照。如果钱包列表也是列表，也可以着重参考。"
       ],
-      "sampleBlocks": [
-        {
-          "id": "onboarding-master-path",
-          "name": "3 步成为交易大师",
-          "page": "首屏主任务",
-          "function": "用状态、图标和下一步 CTA 推动 KYC、开户、入金。",
-          "componentRefs": ["onboarding-progress-checklist", "open-account-side-panel"],
-          "visualNotes": ["旅程感", "当前任务突出", "步骤状态可见"],
-          "dataFields": ["kycStatus", "accountOpeningSteps"]
-        }
-      ],
-      "componentRefs": ["onboarding-progress-checklist", "open-account-side-panel", "create-account-real-form"],
-      "goodPatterns": ["把步骤包装成有目标感的旅程", "当前步骤必须更突出", "FAQ 和风险提示低干扰放后面"],
-      "avoidPatterns": ["固定三等分方格", "所有步骤一样重", "编造赠金或收益"],
-      "promptSeeds": ["新用户 Onboarding 首页，主线是 KYC 状态、创建真实账户、首次入金三步，要有完成下一步的欲望。"]
+      "createdAt": "2026-05-19T06:28:49.130Z",
+      "updatedAt": "2026-05-19T06:28:49.130Z"
     },
     {
-      "id": "ib-growth-console-sample",
-      "name": "代理推广增长控制台",
-      "scenario": "代理/IB 用户、开户链接、邀请码、基础转化统计",
-      "pageIntent": "ib",
-      "visualStyle": "partner growth console",
-      "aestheticScore": 90,
-      "tags": ["代理", "IB", "推广链接", "邀请码", "分享", "转化"],
-      "page": {
-        "name": "推广链接首页",
-        "layout": "推广链接卡作为首屏主功能，统计轻量跟随；不要扩展成完整代理后台。",
-        "hero": "链接优先或邀请码优先，两者不要都做巨大卡片。",
-        "navigation": "复制、分享、查看开户链接是主要动作。",
-        "mobile": "链接字段可折行，复制按钮不挤压内容。"
+      "id": "visual-mpc9ixlw-4b91e",
+      "sampleKind": "golden-page",
+      "sourceType": "visual-only",
+      "visualOnly": true,
+      "isGolden": true,
+      "isAntiExample": false,
+      "name": "NEW HOMEPAGE",
+      "scenario": "科技化，账户总览明细，新用户Onboardding，营销活动，快捷操作简约",
+      "pageIntent": "trader/onboarding",
+      "themePreset": "",
+      "visualStyle": "",
+      "prompt": "科技化，账户总览明细，新用户Onboardding，营销活动，快捷操作简约",
+      "aestheticScore": 100,
+      "humanScore": 100,
+      "scoreDimensions": {
+        "firstScreenFocus": 10,
+        "informationHierarchy": 10,
+        "moduleBalance": 10,
+        "componentCraft": 10,
+        "financialTone": 10,
+        "businessTruth": 10,
+        "responsive": 10,
+        "visualConsistency": 10,
+        "publishability": 10
       },
-      "functions": [
-        {
-          "name": "推广链接",
-          "objective": "展示开户链接、邀请码、复制/分享动作和基础统计。",
-          "modules": ["referral_link_card"],
-          "data": ["promoLink", "inviteCode", "registrationCount"],
-          "actions": ["copyLink", "share"]
-        }
+      "tags": [
+        "trader/onboarding",
+        "新客开户",
+        "专业交易",
+        "IB 推广",
+        "活动增长",
+        "极简白"
       ],
-      "sampleBlocks": [
-        {
-          "id": "referral-link-first",
-          "name": "链接优先推广卡",
-          "page": "首屏主功能",
-          "function": "长链接可读、可复制，邀请码和统计作为辅助。",
-          "componentRefs": ["referral-link-growth-console", "referral-link-card-compact"],
-          "visualNotes": ["输入框式链接区域", "复制按钮清晰", "统计低干扰"],
-          "dataFields": ["promoLink", "inviteCode"]
-        }
+      "scenarioTags": [
+        "新客开户",
+        "专业交易",
+        "IB 推广",
+        "活动增长",
+        "极简白"
       ],
-      "componentRefs": ["referral-link-growth-console", "referral-link-card-compact"],
-      "goodPatterns": ["推广链接模块轻量而聚焦", "统计只做辅助", "链接和邀请码不能被装饰遮挡"],
-      "avoidPatterns": ["生成返佣后台", "下级客户列表", "团队层级树"],
-      "promptSeeds": ["代理/IB 首页，重点是推广链接、邀请码、复制动作和基础统计，不要做完整代理中心。"]
+      "page": {
+        "name": "NEW HOMEPAGE",
+        "layout": "visual-only：仅学习外部设计稿的构图、层级、密度和 token 气质。",
+        "hero": "构图完美，视觉有营销感，Onborading的内容很细又简约，邀请模块内容丰富，交易账号可以列表也可以卡片切换，这个组件完美。",
+        "navigation": "",
+        "mobile": ""
+      },
+      "functions": [],
+      "sampleBlocks": [],
+      "componentRefs": [],
+      "goodPatterns": [
+        "构图完美，视觉有营销感，Onborading的内容很细又简约，邀请模块内容丰富，交易账号可以列表也可以卡片切换，这个组件完美。"
+      ],
+      "avoidPatterns": [],
+      "whyGood": "构图完美，视觉有营销感，Onborading的内容很细又简约，邀请模块内容丰富，交易账号可以列表也可以卡片切换，这个组件完美。",
+      "whyBad": "",
+      "applicableScenarios": [
+        "新客开户",
+        "专业交易",
+        "IB 推广",
+        "活动增长",
+        "极简白"
+      ],
+      "forbiddenReuse": "只学习视觉层级、构图、信息密度、色彩和模块比例；不要照搬品牌素材、文案、金额或受保护内容。",
+      "homepageConfig": null,
+      "configSnapshot": null,
+      "referenceAssetId": "reference-1779172762524-4ff90c1052a35",
+      "sourceAssetType": "html",
+      "renderEvidence": {
+        "screenshotPath": "",
+        "screenshotUrl": "",
+        "domSnapshot": "",
+        "aiHtml": "",
+        "aiCss": "",
+        "cssSummary": {
+          "referenceAssetId": "reference-1779172762524-4ff90c1052a35",
+          "referenceType": "html",
+          "textExcerpt": "ForexCRM - 用户端首页 欢迎回来, Huang! Track your trading performance and manage your account. Customize Dashboard Sunday, May 3, 2026 Overview 账户总览 账户余额 (USD) -- 交易账号余额 (USD) -- 钱包余额 (USD) -- 按钱包币种折算 入金 出金 账户开通进度 0/3 完成以下步骤即可开始真实账户交易 完善个人资料 身份认证 (KYC) 首次入金 去完成：完善个人资料 进行中 5月盈利王挑战赛 奖池 $9,600 · 剩余 28 days · 共 3 项活动 查看详情 快速操作 开新账户 入金 出金 转账 Transactions Order History Positions Referral 邀请链接 点击 123 CRM 123 TA 50 测试注册链接 http://user-1.hcs55.com:38080/regist-real?invitid=555555690-123 Refer Code 555555690-123 <button type=\"button\" aria-label=\"复制邀请码"
+        },
+        "themeTokens": {
+          "themePreset": "",
+          "visualStyle": ""
+        },
+        "capturedAt": "2026-05-19T06:39:22.532Z",
+        "sourceUrl": "/artifacts/home-ai-reference-assets/reference-1779172762524-4ff90c1052a35-client-home.html"
+      },
+      "promptSeeds": [
+        "科技化，账户总览明细，新用户Onboardding，营销活动，快捷操作简约"
+      ],
+      "createdAt": "2026-05-19T06:39:22.539Z",
+      "updatedAt": "2026-05-19T06:39:22.539Z"
     }
   ]
 }

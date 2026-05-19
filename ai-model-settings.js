@@ -23,6 +23,13 @@
     "gemini-3.1-pro-preview",
     "gemini-3.1-pro-preview-customtools",
   ];
+  const GEMINI_MODEL_ALIASES = {
+    "gemini 3 flash": "gemini-3-flash-preview",
+    "gemini 3 pro preview": "gemini-3.1-pro-preview",
+    "gemini 3 pro preview customtools": "gemini-3.1-pro-preview-customtools",
+    "gemini 3 pro preview custom tools": "gemini-3.1-pro-preview-customtools",
+    "gemini 3 1 pro preview custom tools": "gemini-3.1-pro-preview-customtools",
+  };
   const PROVIDER_ORDER = ["gemini", "deepseek", "kimi", "minimax", "openai", "claude"];
 
   const AI_MODEL_PRESETS = {
@@ -144,6 +151,30 @@
     return AI_MODEL_PRESETS[provider] || AI_MODEL_PRESETS.openai;
   }
 
+  function canonicalModelKey(value) {
+    return String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  }
+
+  function modelIdFromValue(provider, value) {
+    const preset = providerPreset(provider);
+    const raw = String(value || "").trim();
+    if (!raw) return preset.model;
+    const knownModels = preset.models || [preset.model];
+    if (knownModels.includes(raw)) return raw;
+
+    const key = canonicalModelKey(raw);
+    const inferredProvider = providerIdFromValue(raw);
+    if (inferredProvider && inferredProvider !== preset.provider) return preset.model;
+    const known = knownModels.find((model) => canonicalModelKey(model) === key);
+    if (known) return known;
+    if (preset.provider === "gemini" && GEMINI_MODEL_ALIASES[key]) return GEMINI_MODEL_ALIASES[key];
+    return raw;
+  }
+
   function providerIdFromValue(value) {
     const source = String(value || "").trim().toLowerCase();
     if (!source) return "";
@@ -237,7 +268,7 @@
       ...collectKeysFromProviderConfigs(sourceProviderConfigs),
       ...(raw.apiKeys && typeof raw.apiKeys === "object" ? raw.apiKeys : {}),
     };
-    const model = String(merged.model || preset.model).trim() || preset.model;
+    const model = modelIdFromValue(provider, merged.model || preset.model);
     const baseUrl = normalizeBaseUrl(provider, merged.baseUrl || preset.baseUrl);
     const endpoint = String(merged.endpoint || preset.endpoint).trim() || preset.endpoint;
     const temperature = normalizeTemperature(provider, merged.temperature, model);
@@ -403,7 +434,7 @@
 
   function modelIdentity(value) {
     const provider = providerPreset(value?.provider).provider;
-    return `${provider}:${String(value?.model || providerPreset(provider).model).trim()}`;
+    return `${provider}:${modelIdFromValue(provider, value?.model || providerPreset(provider).model)}`;
   }
 
   function loadRecentModels() {
@@ -475,6 +506,8 @@
             hasServerKey: Boolean(item?.hasServerKey),
             serverKeyEnv: String(item?.serverKeyEnv || ""),
             keyEnv: Array.isArray(item?.keyEnv) ? item.keyEnv : [],
+            model: modelIdFromValue(provider, item?.model || providerPreset(provider).model),
+            models: Array.isArray(item?.models) ? item.models.map((model) => modelIdFromValue(provider, model)).filter(Boolean) : [],
           },
         ]),
       );
@@ -506,7 +539,14 @@
 
     add(current, "当前模型");
     PROVIDER_ORDER.forEach((provider) => {
-      add(configForProvider(provider, current), current.providerConfigs?.[provider] ? "已配置" : "默认模型");
+      const configured = configForProvider(provider, current);
+      const runtimeModels = runtimeStatus[provider]?.models || [];
+      const presetModels = providerPreset(provider).models || [configured.model];
+      const models = [...new Set([configured.model, ...runtimeModels, ...presetModels].map((model) => modelIdFromValue(provider, model)).filter(Boolean))];
+      models.forEach((model) => {
+        const sourceLabel = model === configured.model ? (current.providerConfigs?.[provider] ? "已配置" : "默认模型") : "支持模型";
+        add({ ...configured, model }, sourceLabel);
+      });
     });
     loadRecentModels().forEach((item) => add(item, item.source || "已用模型"));
     return [...options.values()];
@@ -652,6 +692,7 @@
     clearProviderKey,
     configForProvider,
     configFromOption,
+    modelIdFromValue,
     modelIdentity,
     modelOptions,
     rememberModel,
