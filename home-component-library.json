@@ -9774,6 +9774,103 @@
       "sourcePrompt": "页面摘要：已按新客跟单驾驶舱重排：首屏跟单曲线推荐 + 开户旅程，资产降级。 页面框架：onboardingJourney / blueFinance / compact 首屏重心：CopyTrading 信号源推荐区 骨架模块：欢迎头部 / 新手引导区 / CopyTrading 信号源推荐区 / 快捷操作 / 资产概览区 / 交易账户列表区 / FAQ 常见问题 / 交易账户重点展示区 全局边界：不要编造收益、下载链接、联系方式、活动规则或后台未提供数据；整体保持克制、专业、可嵌入金融客户端。 骨架 HTML 生成总约束: 当前是整页骨架里的单 slot 生成：只填充当前 slot，但视觉必须融入整页的 layout、theme、density、首屏重心和相邻模块节奏。 AI 可以自行发挥新的组件形态，但必须先参考组件库里的高分积木；灵感来自字段密度、按钮层级、状态标签、图表/列表表达、卡片比例和响应式方式。 组件库评分规则：8-10 分强参考，6-7 分适度参考，5 分及以下禁止参考。若无法明显提升，就按最匹配高分积木同款微调，只调整文案、主题 token、动作绑定、响应式和 s",
       "createdAt": "2026-05-19T10:13:17.396Z",
       "updatedAt": "2026-05-19T10:13:17.427Z"
+    },
+    {
+      "id": "assetoverview-mpcha1sb",
+      "type": "ai-generated",
+      "name": "资产概览-轻量次席条",
+      "family": "AssetOverview",
+      "size": "3x1",
+      "score": 5,
+      "description": "专为新客跟单驾驶舱设计的轻量资产条。总资产作为主焦点居左，并附带低视觉权重的快捷出入金文字链接以满足基础业务闭环；右侧以紧凑微灰底色卡片并列展示钱包与交易账号余额及构成明细。整体降低视觉层级，避免抢夺首屏核心转化动作。",
+      "tags": [
+        "AssetOverview",
+        "3x1",
+        "blueFinance",
+        "lightweight",
+        "compact"
+      ],
+      "html": "<div class=\"fx-ao-lightbar\">\n  <div class=\"fx-ao-primary\">\n    <div class=\"fx-ao-label\">\n      <span class=\"fx-ao-pulse\"></span>\n      总资产 (USD)\n    </div>\n    <div class=\"fx-ao-total\">$152,306.00</div>\n    <div class=\"fx-ao-actions\">\n      <a href=\"#\" class=\"fx-ao-link\">入金</a>\n      <span class=\"fx-ao-dot\">·</span>\n      <a href=\"#\" class=\"fx-ao-link\">出金</a>\n    </div>\n  </div>\n  \n  <div class=\"fx-ao-secondary\">\n    <div class=\"fx-ao-metric\">\n      <div class=\"fx-ao-metric-head\">\n        <svg class=\"fx-ao-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"2\" y=\"5\" width=\"20\" height=\"14\" rx=\"2\"/><line x1=\"2\" y1=\"10\" x2=\"22\" y2=\"10\"/></svg>\n        <span>钱包余额</span>\n      </div>\n      <div class=\"fx-ao-val\">$52,306.00</div>\n      <div class=\"fx-ao-desc\">USD / EUR / USDT · 3 币种</div>\n    </div>\n    \n    <div class=\"fx-ao-divider\"></div>\n    \n    <div class=\"fx-ao-metric\">\n      <div class=\"fx-ao-metric-head\">\n        <svg class=\"fx-ao-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><polyline points=\"22 12 18 12 15 21 9 3 6 12 2 12\"/></svg>\n        <span>交易账号余额</span>\n      </div>\n      <div class=\"fx-ao-val\">$100,000.00</div>\n      <div class=\"fx-ao-desc\">MT5-Standard + ECN · 2 真实</div>\n    </div>\n  </div>\n</div>",
+      "css": ".fx-ao-lightbar {\n  font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  background: #ffffff;\n  border: 1px solid #e2e8f0;\n  border-radius: 8px;\n  padding: 24px;\n  box-sizing: border-box;\n  width: 100%;\n}\n\n.fx-ao-primary {\n  display: flex;\n  flex-direction: column;\n  flex-shrink: 0;\n  margin-right: 32px;\n}\n\n.fx-ao-label {\n  display: flex;\n  align-items: center;\n  color: #64748b;\n  font-size: 13px;\n  font-weight: 500;\n  margin-bottom: 6px;\n}\n\n.fx-ao-pulse {\n  width: 6px;\n  height: 6px;\n  background-color: #10b981;\n  border-radius: 50%;\n  margin-right: 8px;\n  box-shadow: 0 0 0 rgba(16, 185, 129, 0.4);\n  animation: fx-ao-pulse-anim 2s infinite;\n}\n\n@keyframes fx-ao-pulse-anim {\n  0% {\n    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);\n  }\n  70% {\n    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);\n  }\n  100% {\n    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);\n  }\n}\n\n.fx-ao-total {\n  color: #0f172a;\n  font-size: 28px;\n  font-weight: 700;\n  line-height: 1.2;\n  letter-spacing: -0.5px;\n}\n\n.fx-ao-actions {\n  display: flex;\n  align-items: center;\n  margin-top: 10px;\n  gap: 8px;\n}\n\n.fx-ao-link {\n  color: #2563eb;\n  font-size: 13px;\n  font-weight: 500;\n  text-decoration: none;\n  transition: color 0.2s ease;\n}\n\n.fx-ao-link:hover {\n  color: #1d4ed8;\n}\n\n.fx-ao-dot {\n  color: #cbd5e1;\n  font-size: 12px;\n}\n\n.fx-ao-secondary {\n  display: flex;\n  align-items: center;\n  background: #f8fafc;\n  border-radius: 6px;\n  padding: 16px 24px;\n  flex-grow: 1;\n  max-width: 600px;\n}\n\n.fx-ao-metric {\n  flex: 1;\n  display: flex;\n  flex-direction: column;\n}\n\n.fx-ao-metric-head {\n  display: flex;\n  align-items: center;\n  color: #64748b;\n  font-size: 13px;\n  margin-bottom: 6px;\n}\n\n.fx-ao-icon {\n  width: 14px;\n  height: 14px;\n  margin-right: 6px;\n  opacity: 0.7;\n}\n\n.fx-ao-val {\n  color: #0f172a;\n  font-size: 18px;\n  font-weight: 600;\n  line-height: 1.4;\n}\n\n.fx-ao-desc {\n  color: #94a3b8;\n  font-size: 12px;\n  margin-top: 2px;\n}\n\n.fx-ao-divider {\n  width: 1px;\n  height: 48px;\n  background-color: #e2e8f0;\n  margin: 0 24px;\n}\n\n@media (max-width: 860px) {\n  .fx-ao-lightbar {\n    flex-direction: column;\n    align-items: flex-start;\n    padding: 20px;\n  }\n  \n  .fx-ao-primary {\n    margin-right: 0;\n    margin-bottom: 20px;\n  }\n  \n  .fx-ao-secondary {\n    width: 100%;\n    max-width: 100%;\n    box-sizing: border-box;\n  }\n}\n\n@media (max-width: 480px) {\n  .fx-ao-secondary {\n    flex-direction: column;\n    align-items: flex-start;\n    padding: 16px;\n  }\n  \n  .fx-ao-metric {\n    width: 100%;\n  }\n  \n  .fx-ao-divider {\n    width: 100%;\n    height: 1px;\n    margin: 16px 0;\n  }\n}",
+      "layoutHints": [
+        "3x1",
+        "split区域次席资产锚点",
+        "适合首屏重心在其他业务（如跟单/开户）时的资产展示",
+        "响应式降级为纵向堆叠"
+      ],
+      "dataRequirements": [
+        "totalAssets",
+        "walletBalance",
+        "tradingAccountBalance",
+        "accountBreakdown",
+        "walletBreakdown"
+      ],
+      "sourcePrompt": "页面摘要：已按新客跟单驾驶舱重排：首屏跟单曲线推荐 + 开户旅程，资产降级。 页面框架：onboardingJourney / blueFinance / compact 首屏重心：CopyTrading 信号源推荐区 骨架模块：欢迎头部 / 新手引导区 / CopyTrading 信号源推荐区 / 快捷操作 / 资产概览区 / 交易账户列表区 / FAQ 常见问题 / 交易账户重点展示区 全局边界：不要编造收益、下载链接、联系方式、活动规则或后台未提供数据；整体保持克制、专业、可嵌入金融客户端。 骨架 HTML 生成总约束: 当前是整页骨架里的单 slot 生成：只填充当前 slot，但视觉必须融入整页的 layout、theme、density、首屏重心和相邻模块节奏。 AI 可以自行发挥新的组件形态，但必须先参考组件库里的高分积木；灵感来自字段密度、按钮层级、状态标签、图表/列表表达、卡片比例和响应式方式。 组件库评分规则：8-10 分强参考，6-7 分适度参考，5 分及以下禁止参考。若无法明显提升，就按最匹配高分积木同款微调，只调整文案、主题 token、动作绑定、响应式和 s",
+      "createdAt": "2026-05-19T10:16:24.971Z",
+      "updatedAt": "2026-05-19T10:16:25.001Z"
+    },
+    {
+      "id": "faqsection-faq-mpchc0mr",
+      "type": "ai-generated",
+      "name": "FAQ 常见问题-紧凑分栏版",
+      "family": "FaqSection",
+      "size": "3x1",
+      "score": 5,
+      "description": "专为 3x1 宽屏设计的紧凑型 FAQ 组件。左侧为标题、简要说明与帮助中心入口，右侧采用两列平铺展示核心常见问题。相比传统手风琴，该变体在宽屏下信息密度更高、扫描路径更短，适合作为新客引导或跟单驾驶舱的辅助信息模块，采用克制的蓝色金融质感。",
+      "tags": [
+        "faq",
+        "splitVisual",
+        "compactList",
+        "blueFinance",
+        "onboardingJourney"
+      ],
+      "html": "<div class=\"fx-faq-3x1-compact\">\n  <div class=\"faq-sidebar\">\n    <div class=\"faq-header\">\n      <h3 class=\"faq-title\">常见问题</h3>\n      <p class=\"faq-desc\">快速了解开户、入金与跟单规则</p>\n    </div>\n    <button class=\"faq-btn\">帮助中心</button>\n  </div>\n  <div class=\"faq-content\">\n    <div class=\"faq-item\">\n      <div class=\"faq-q\"><span class=\"faq-icon\">Q.</span>如何开立真实交易账号？</div>\n      <div class=\"faq-a\">完成 KYC 认证后，在「交易账号」页面点击「开立真实账号」，选择交易平台和杠杆即可。</div>\n    </div>\n    <div class=\"faq-item\">\n      <div class=\"faq-q\"><span class=\"faq-icon\">Q.</span>入金到账需要多久？</div>\n      <div class=\"faq-a\">银行转账通常 1-3 个工作日，电子钱包即时到账。</div>\n    </div>\n    <div class=\"faq-item\">\n      <div class=\"faq-q\"><span class=\"faq-icon\">Q.</span>跟单交易如何收费？</div>\n      <div class=\"faq-a\">信号源会收取一定比例的利润分成，具体比例在订阅时确认。</div>\n    </div>\n    <div class=\"faq-item\">\n      <div class=\"faq-q\"><span class=\"faq-icon\">Q.</span>模拟账号和真实账号的区别？</div>\n      <div class=\"faq-a\">模拟账号使用虚拟资金适合练习；真实账号使用真实资金，可盈利和出金。</div>\n    </div>\n  </div>\n</div>",
+      "css": ".fx-faq-3x1-compact {\n  display: flex;\n  flex-direction: row;\n  gap: 24px;\n  background-color: #ffffff;\n  border: 1px solid #e2e8f0;\n  border-radius: 8px;\n  padding: 24px;\n  box-sizing: border-box;\n  width: 100%;\n}\n\n.fx-faq-3x1-compact .faq-sidebar {\n  flex: 0 0 220px;\n  display: flex;\n  flex-direction: column;\n  justify-content: space-between;\n  padding-right: 24px;\n  border-right: 1px solid #f1f5f9;\n}\n\n.fx-faq-3x1-compact .faq-header {\n  margin-bottom: 16px;\n}\n\n.fx-faq-3x1-compact .faq-title {\n  font-size: 16px;\n  font-weight: 600;\n  color: #0f172a;\n  margin: 0 0 8px 0;\n}\n\n.fx-faq-3x1-compact .faq-desc {\n  font-size: 13px;\n  color: #64748b;\n  margin: 0;\n  line-height: 1.5;\n}\n\n.fx-faq-3x1-compact .faq-btn {\n  align-self: flex-start;\n  padding: 6px 16px;\n  font-size: 13px;\n  font-weight: 500;\n  color: #0284c7;\n  background-color: #f0f9ff;\n  border: 1px solid #bae6fd;\n  border-radius: 6px;\n  cursor: pointer;\n  transition: all 0.2s;\n}\n\n.fx-faq-3x1-compact .faq-btn:hover {\n  background-color: #e0f2fe;\n}\n\n.fx-faq-3x1-compact .faq-content {\n  flex: 1;\n  display: grid;\n  grid-template-columns: repeat(2, 1fr);\n  gap: 20px 32px;\n}\n\n.fx-faq-3x1-compact .faq-item {\n  display: flex;\n  flex-direction: column;\n  gap: 6px;\n}\n\n.fx-faq-3x1-compact .faq-q {\n  font-size: 14px;\n  font-weight: 500;\n  color: #1e293b;\n  display: flex;\n  align-items: flex-start;\n  gap: 6px;\n  line-height: 1.4;\n}\n\n.fx-faq-3x1-compact .faq-icon {\n  color: #0284c7;\n  font-weight: 600;\n  font-size: 14px;\n}\n\n.fx-faq-3x1-compact .faq-a {\n  font-size: 13px;\n  color: #475569;\n  line-height: 1.5;\n  padding-left: 21px;\n}\n\n@media (max-width: 992px) {\n  .fx-faq-3x1-compact {\n    flex-direction: column;\n    gap: 20px;\n  }\n  .fx-faq-3x1-compact .faq-sidebar {\n    flex: auto;\n    border-right: none;\n    border-bottom: 1px solid #f1f5f9;\n    padding-right: 0;\n    padding-bottom: 20px;\n    flex-direction: row;\n    align-items: center;\n  }\n  .fx-faq-3x1-compact .faq-header {\n    margin-bottom: 0;\n  }\n}\n\n@media (max-width: 640px) {\n  .fx-faq-3x1-compact .faq-sidebar {\n    flex-direction: column;\n    align-items: flex-start;\n    gap: 16px;\n  }\n  .fx-faq-3x1-compact .faq-content {\n    grid-template-columns: 1fr;\n    gap: 24px;\n  }\n}",
+      "layoutHints": [
+        "3x1",
+        "main",
+        "宽屏左右分栏",
+        "适合新客引导或跟单驾驶舱底部辅助区"
+      ],
+      "dataRequirements": [
+        "faqList",
+        "helpCenterUrl"
+      ],
+      "sourcePrompt": "页面摘要：已按新客跟单驾驶舱重排：首屏跟单曲线推荐 + 开户旅程，资产降级。 页面框架：onboardingJourney / blueFinance / compact 首屏重心：CopyTrading 信号源推荐区 骨架模块：欢迎头部 / 新手引导区 / CopyTrading 信号源推荐区 / 快捷操作 / 资产概览区 / 交易账户列表区 / FAQ 常见问题 / 交易账户重点展示区 全局边界：不要编造收益、下载链接、联系方式、活动规则或后台未提供数据；整体保持克制、专业、可嵌入金融客户端。 骨架 HTML 生成总约束: 当前是整页骨架里的单 slot 生成：只填充当前 slot，但视觉必须融入整页的 layout、theme、density、首屏重心和相邻模块节奏。 AI 可以自行发挥新的组件形态，但必须先参考组件库里的高分积木；灵感来自字段密度、按钮层级、状态标签、图表/列表表达、卡片比例和响应式方式。 组件库评分规则：8-10 分强参考，6-7 分适度参考，5 分及以下禁止参考。若无法明显提升，就按最匹配高分积木同款微调，只调整文案、主题 token、动作绑定、响应式和 s",
+      "createdAt": "2026-05-19T10:17:56.788Z",
+      "updatedAt": "2026-05-19T10:17:56.812Z"
+    },
+    {
+      "id": "riskdisclosure-mpchdths",
+      "type": "ai-generated",
+      "name": "合规风险披露条",
+      "family": "RiskDisclosure",
+      "size": "3x1",
+      "score": 5,
+      "description": "底部合规风险披露条，采用左右分栏布局工艺。左侧固定标题与警示图标锁定视觉锚点，右侧紧凑展示杠杆、保证金及亏损风险等多段合规文案。整体采用低饱和度灰蓝色调与轻量边框，视觉层级降级，保证合规信息清晰可读的同时不干扰主业务操作，完美适配页面底部或全宽容器。",
+      "tags": [
+        "risk",
+        "compliance",
+        "legalStrip",
+        "footer",
+        "compact"
+      ],
+      "html": "<div class=\"fx-risk-strip\">\n    <div class=\"fx-risk-header\">\n        <svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\">\n            <path d=\"M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z\"></path>\n            <line x1=\"12\" y1=\"9\" x2=\"12\" y2=\"13\"></line>\n            <line x1=\"12\" y1=\"17\" x2=\"12.01\" y2=\"17\"></line>\n        </svg>\n        <strong>风险披露</strong>\n    </div>\n    <div class=\"fx-risk-content\">\n        <p>外汇、贵金属、差价合约及其他保证金产品涉及杠杆，价格波动可能导致本金损失。</p>\n        <p>交易前请确认您理解保证金要求、强平机制、滑点、流动性、系统中断及汇率波动等风险。</p>\n        <p class=\"fx-risk-footer\">过往表现、收益展示或模拟交易结果不构成未来收益承诺。<a href=\"#\">查看完整合规文件 ›</a></p>\n    </div>\n</div>",
+      "css": ".fx-risk-strip {\n    display: flex;\n    gap: 24px;\n    padding: 20px 24px;\n    background-color: #f8fafc;\n    border: 1px solid #e2e8f0;\n    border-radius: 8px;\n    color: #475569;\n    font-family: system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif;\n    line-height: 1.6;\n    box-sizing: border-box;\n    width: 100%;\n}\n\n.fx-risk-header {\n    display: flex;\n    align-items: flex-start;\n    gap: 8px;\n    flex-shrink: 0;\n    width: 100px;\n    color: #64748b;\n    padding-top: 2px;\n}\n\n.fx-risk-header svg {\n    width: 16px;\n    height: 16px;\n    flex-shrink: 0;\n    margin-top: 3px;\n}\n\n.fx-risk-header strong {\n    font-size: 13px;\n    font-weight: 600;\n    letter-spacing: 0.5px;\n}\n\n.fx-risk-content {\n    display: flex;\n    flex-direction: column;\n    gap: 8px;\n    font-size: 12px;\n    flex-grow: 1;\n}\n\n.fx-risk-content p {\n    margin: 0;\n}\n\n.fx-risk-footer {\n    color: #94a3b8;\n    margin-top: 4px;\n}\n\n.fx-risk-footer a {\n    color: #64748b;\n    text-decoration: none;\n    margin-left: 8px;\n    transition: color 0.2s ease;\n}\n\n.fx-risk-footer a:hover {\n    color: #0f172a;\n}\n\n@media (max-width: 768px) {\n    .fx-risk-strip {\n        flex-direction: column;\n        gap: 12px;\n        padding: 16px;\n    }\n    .fx-risk-header {\n        width: auto;\n        align-items: center;\n        padding-top: 0;\n    }\n    .fx-risk-header svg {\n        margin-top: 0;\n    }\n}",
+      "layoutHints": [
+        "3x1",
+        "full",
+        "页面底部合规区",
+        "左右分栏紧凑排版"
+      ],
+      "dataRequirements": [
+        "riskDisclosure.enabled",
+        "riskDisclosure.paragraphs",
+        "complianceLink"
+      ],
+      "sourcePrompt": "页面摘要：已按新客跟单驾驶舱重排：首屏跟单曲线推荐 + 开户旅程，资产降级。 页面框架：onboardingJourney / blueFinance / compact 首屏重心：CopyTrading 信号源推荐区 骨架模块：欢迎头部 / 新手引导区 / CopyTrading 信号源推荐区 / 快捷操作 / 资产概览区 / 交易账户列表区 / FAQ 常见问题 / 交易账户重点展示区 全局边界：不要编造收益、下载链接、联系方式、活动规则或后台未提供数据；整体保持克制、专业、可嵌入金融客户端。 骨架 HTML 生成总约束: 当前是整页骨架里的单 slot 生成：只填充当前 slot，但视觉必须融入整页的 layout、theme、density、首屏重心和相邻模块节奏。 AI 可以自行发挥新的组件形态，但必须先参考组件库里的高分积木；灵感来自字段密度、按钮层级、状态标签、图表/列表表达、卡片比例和响应式方式。 组件库评分规则：8-10 分强参考，6-7 分适度参考，5 分及以下禁止参考。若无法明显提升，就按最匹配高分积木同款微调，只调整文案、主题 token、动作绑定、响应式和 s",
+      "createdAt": "2026-05-19T10:19:20.848Z",
+      "updatedAt": "2026-05-19T10:19:20.884Z"
     }
   ]
 }
