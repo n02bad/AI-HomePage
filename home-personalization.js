@@ -3999,6 +3999,7 @@
     const wantsProfessionalTraderWorkbench = wantsProfessionalTraderWorkbenchPrompt(source);
     const wantsTradingDataContract = wantsTradingDataContractPrompt(source);
     const wantsCombinedAccountCards = wantsCombinedTradingAccountCardsPrompt(source);
+    const wantsFourColumnAccountCards = wantsFourColumnTradingAccountCards(source);
     const wantsFaqSection = /faq|常见问题|问题解答|帮助中心/i.test(source);
 
     return {
@@ -4021,6 +4022,7 @@
       wantsProfessionalTraderWorkbench,
       wantsTradingDataContract,
       wantsCombinedAccountCards,
+      wantsFourColumnAccountCards,
       wantsFaqSection,
       recommendationId: recommendationMatch?.[1] || "",
     };
@@ -4490,6 +4492,53 @@
         config.brickTrace = { ...(config.brickTrace || {}), intent: "copytrading", pageIntent: "copytrading", strategy: "新客跟单驾驶舱契约", score: 97, selectedCount: config.brickPlan.length };
         config.aiSummary = "已按新客跟单驾驶舱重排：首屏开户旅程 + CopyTrading 曲线推荐，资产降级。";
       }
+    }
+
+    if (/banner|广告|轮播|活动|奖励|赠金|权益|promo/i.test(prompt) && !/(?:不要|不需要|去掉|移除|关闭|禁用|隐藏|别放).{0,24}(?:banner|广告|轮播|活动|奖励|权益|promo)/i.test(prompt)) {
+      mergeModuleVariants(config, { PromotionBanner: "splitVisual" });
+      mergeModuleStyles(config, { promo_banner: "clean", promoHighlight: "clean", adCarousel: "clean" });
+      mergeModuleSettings(config, { promoHighlight: { enabled: true }, adCarousel: { enabled: true } });
+      ensureSectionContains(config, { id: "promo-banner", type: "full", title: "首页 Banner" }, "promo_banner");
+    }
+
+    if (wantsReferralLinkCardPrompt(prompt)) {
+      const referralStatsRequested = wantsReferralStatsPrompt(prompt);
+      const referralCoreOnly = wantsReferralCoreOnlyPrompt(prompt);
+      const referralCardStyle = referralLinkCardStyleFromPrompt(prompt, referralStatsRequested, referralCoreOnly);
+      mergeModuleVariants(config, { ReferralLinkCard: referralCardStyle === "stats-card" ? "statsCard" : referralCardStyle === "link-first" ? "linkFirst" : "compactCard" });
+      mergeModuleStyles(config, { referral_link_card: referralCardStyle });
+      mergeModuleSettings(config, {
+        referralLinkCard: {
+          enabled: true,
+          showPromoLink: true,
+          showInviteCode: true,
+          showShare: includesAny(prompt, ["分享", "share"]),
+          showStats: referralStatsRequested && !referralCoreOnly,
+          showOpens: true,
+          showRegistrations: true,
+          showAccounts: true,
+          showRegistrationRate: true,
+          showAccountRate: true,
+        },
+      });
+      ensureSectionContains(config, { id: "referral-link", type: "rail", title: "推广链接" }, "referral_link_card");
+    }
+
+    if (understanding.wantsFourColumnAccountCards) {
+      mergeModuleVariants(config, { TradingAccounts: "denseCards" });
+      mergeModuleStyles(config, { tradingAccounts: "dense-cards", trading_accounts_list: "dense-cards" });
+      mergeModuleSettings(config, {
+        tradingAccounts: {
+          enabled: true,
+          realEnabled: true,
+          demoEnabled: true,
+          grouping: "combined",
+          viewMode: "card",
+          realViewMode: "card",
+          demoViewMode: "card",
+          preferredColumns: 4,
+        },
+      });
     }
 
     if (understanding.wantsPamm && !slotVisibleInConfig(config, "pamm_products")) {
@@ -6080,8 +6129,10 @@
     const source = String(prompt || "");
     const text = positiveIntentText(dominantPromptText(prompt));
     const hasIbIdentity = /(^|[^a-z])ib([^a-z]|$)/i.test(source);
+    const rawReferralRequest = /推广链接|推广功能|邀请链接|邀请码|开户链接|注册链接|referral|invite code|referral link/i.test(source);
     return (
       hasIbIdentity ||
+      rawReferralRequest ||
       includesAny(text, ["代理用户", "代理首页", "合作伙伴", "partner", "affiliate", "agent", "推广链接", "推广功能", "邀请链接", "邀请码", "开户链接", "注册链接", "referral", "invite code", "referral link"])
     );
   }
@@ -6468,6 +6519,8 @@
     const rejectsAnnouncements = /(?:不要|不需要|去掉|移除|关闭|禁用|隐藏|别放).{0,24}(?:公告|通知|维护|平台消息)/.test(promptText);
     const includeAnnouncements = !rejectsAnnouncements && includesAny(promptText, ["公告", "通知", "维护", "平台消息"]);
     const announcementStyle = includesAny(promptText, ["跑马灯", "滚动公告", "公告滚动", "首页第一栏", "顶部公告", "首栏公告"]) ? "ticker-strip" : "list";
+    const rejectsPromoBanner = /(?:不要|不需要|去掉|移除|关闭|禁用|隐藏|别放).{0,24}(?:banner|广告|轮播|活动|奖励|权益|promo)/i.test(prompt);
+    const includePromoBanner = !rejectsPromoBanner && /banner|广告|轮播|活动|奖励|赠金|权益|promo/i.test(prompt);
     const referralPlan = plan.filter((item) => item.component !== "referral_link_card" || includeReferralLinkCard);
     let activePlan =
       includeReferralLinkCard && !referralPlan.some((item) => item.component === "referral_link_card")
@@ -6484,6 +6537,20 @@
             },
           ])
         : referralPlan;
+    if (includePromoBanner && !activePlan.some((item) => item.component === "promo_banner")) {
+      activePlan = activePlan.concat([
+        {
+          brickId: "promoBanner.imageHero",
+          brickName: "首页 Banner / 广告轮播",
+          family: "PromotionBanner",
+          feature: "promo_banner",
+          component: "promo_banner",
+          size: "3x1",
+          zone: "full",
+          reason: "提示词明确要求首页 Banner / 广告轮播，作为独立推广横幅保留。",
+        },
+      ]);
+    }
     if (includeKycStatusCard && !activePlan.some((item) => item.component === "kyc_status_card")) {
       activePlan = activePlan.concat([
         {
@@ -6594,6 +6661,24 @@
           demoViewMode: "list",
         },
         openAccount: { enabled: true, real: true, demo: true, placement: "insideTradingAccounts" },
+      });
+    }
+
+    if (wantsFourColumnTradingAccountCards(prompt)) {
+      modules.TradingAccounts = { variant: "denseCards" };
+      moduleStyles.tradingAccounts = "dense-cards";
+      moduleStyles.trading_accounts_list = "dense-cards";
+      moduleSettings = mergeSettingsObject(moduleSettings, {
+        tradingAccounts: {
+          enabled: true,
+          realEnabled: true,
+          demoEnabled: true,
+          grouping: "combined",
+          viewMode: "card",
+          realViewMode: "card",
+          demoViewMode: "card",
+          preferredColumns: 4,
+        },
       });
     }
 
@@ -8813,6 +8898,17 @@
 	    );
 	  }
 
+	  function wantsFourColumnTradingAccountCards(text) {
+	    const source = String(text || "");
+	    if (/(?:不要|不能|不应|别|禁止)(?:用|使用|展示|做成)?\s*卡片|(?:不是|非)卡片/.test(source)) return false;
+	    const wantsCards = /卡片|card/i.test(source);
+	    const wantsFourAcross =
+	      /一行[\s\S]{0,16}(?:至少|最少|不少于|能|可|可以)?[\s\S]{0,10}(?:放|展示|容纳|排)[\s\S]{0,8}(?:4|四)\s*个?[\s\S]{0,8}卡片/i.test(source) ||
+	      /(?:4|四)\s*个?[\s\S]{0,8}卡片[\s\S]{0,16}(?:一行|同一行|每行)/i.test(source);
+	    const wantsModerateWidth = /卡片[\s\S]{0,18}(?:宽度适中|不要过大|不(?:要)?太大|适中)|(?:宽度适中|不要过大|不(?:要)?太大)[\s\S]{0,18}卡片/.test(source);
+	    return wantsCards && (wantsFourAcross || wantsModerateWidth);
+	  }
+
 	  function wantsDemoAccountList(text) {
 	    const source = String(text || "");
 	    return /模拟(?:交易)?账(?:号|户)(?:列表)?/.test(source) || /demo\s*(account\s*)?list/i.test(source);
@@ -8856,6 +8952,23 @@
 	    if (!settings.enabled) return;
 
 	    const source = String(prompt || "");
+	    if (wantsFourColumnTradingAccountCards(source)) {
+	      mergeModuleVariants(config, { TradingAccounts: "denseCards" });
+	      mergeModuleStyles(config, { tradingAccounts: "dense-cards", trading_accounts_list: "dense-cards" });
+	      mergeModuleSettings(config, {
+	        tradingAccounts: {
+	          enabled: true,
+	          realEnabled: true,
+	          demoEnabled: true,
+	          grouping: "combined",
+	          viewMode: "card",
+	          realViewMode: "card",
+	          demoViewMode: "card",
+	          preferredColumns: 4,
+	        },
+	      });
+	      return;
+	    }
 	    const explicitCards = wantsTradingAccountCards(source);
 		    const explicitList = wantsTradingAccountList(source);
 		    const wantsVariety = wantsTradingAccountStyleVariety(source);
@@ -9186,7 +9299,22 @@
       config.density = "spacious";
     }
 
-    if (wantsFlatAccountOptimization(text)) {
+    if (wantsFourColumnTradingAccountCards(text)) {
+      mergeModuleVariants(config, { TradingAccounts: "denseCards" });
+      mergeModuleStyles(config, { tradingAccounts: "dense-cards", trading_accounts_list: "dense-cards" });
+      mergeModuleSettings(config, {
+        tradingAccounts: {
+          enabled: true,
+          realEnabled: true,
+          demoEnabled: true,
+          grouping: "combined",
+          viewMode: "card",
+          realViewMode: "card",
+          demoViewMode: "card",
+          preferredColumns: 4,
+        },
+      });
+    } else if (wantsFlatAccountOptimization(text)) {
       const forceAccountList = wantsTradingAccountSingleViewCorrection(text);
       const refineCards = wantsAccountCardRefinement(text) && !wantsTradingAccountList(text) && !forceAccountList;
       const keepSeparatedCards = wantsRealAccountCards(text) || /模拟(?:交易)?账(?:号|户)(?:列表)?[\s\S]{0,32}卡片/.test(text);
@@ -10790,44 +10918,37 @@
 	    const demoViewMode = accountSettings.demoViewMode || (accountSettings.viewMode === "card" ? "card" : "list");
 	    const realOrder = accountSettings.demoFirst ? 2 : 1;
 	    const demoOrder = accountSettings.demoFirst ? 1 : 2;
-	    const previewAccountCards = `
-	      <article class="trade-account-card" data-kind="real">
-	        <div class="account-card-head">
-	          <span class="account-status">Live</span>
-	          <span class="account-number">80010</span>
-	          <span class="account-environment" title="MT5 · HCHoldings-Live2">MT5 · HCHoldings-Live2</span>
-	        </div>
-	        <div class="account-card-hero">
-	          <div><span>净值(USD)</span><strong>12,726.40</strong></div>
-	        </div>
-	        <div class="account-card-flat-meta" aria-label="账号概要">
-	          <span><small>余额</small><b>12,480.50</b></span>
-	          <span><small>信用金</small><b>500.00</b></span>
-	          <span><small>账户类型</small><b>ECN Standard</b></span>
-	          <span><small>杠杆</small><b>1:100</b></span>
-	          <span><small>保证金比例</small><b>528%</b></span>
-	        </div>
-	      </article>
-	      <article class="trade-account-card" data-kind="demo">
-	        <div class="account-card-head">
-	          <span class="account-status demo">Demo</span>
-	          <span class="account-number">90021</span>
-	          <span class="account-environment" title="MT5 · HCHoldings-Demo">MT5 · HCHoldings-Demo</span>
-	        </div>
-	        <div class="account-card-hero">
-	          <div><span>净值(USD)</span><strong>51,280.60</strong></div>
-	        </div>
-	        <div class="account-card-flat-meta" aria-label="账号概要">
-	          <span><small>余额</small><b>50,000.00</b></span>
-	          <span><small>信用金</small><b>0.00</b></span>
-	          <span><small>账户类型</small><b>Demo ECN</b></span>
-	          <span><small>杠杆</small><b>1:500</b></span>
-	          <span><small>保证金比例</small><b>4345%</b></span>
-	        </div>
-	      </article>
-	    `;
-    const previewRealCards = previewAccountCards.match(/<article class="trade-account-card" data-kind="real">[\s\S]*?<\/article>/)?.[0] || "";
-    const previewDemoCards = previewAccountCards.match(/<article class="trade-account-card" data-kind="demo">[\s\S]*?<\/article>/)?.[0] || "";
+	    const accountCardSamples = [
+	      { kind: "real", label: "Live", platform: "MT5", server: "HCHoldings-Live2", account: "2000281", balance: "99,999.99", equity: "101,280.60", credit: "500.00", accountType: "ECN Standard", leverage: "1:100", marginRatio: "528%" },
+	      { kind: "real", label: "Live", platform: "MT4", server: "HCHoldings-Live3", account: "400009", balance: "52,306.00", equity: "52,880.20", credit: "0.00", accountType: "Pro Raw", leverage: "1:200", marginRatio: "612%" },
+	      { kind: "demo", label: "Demo", platform: "MT5", server: "HCHoldings-Demo", account: "1000008", balance: "50,000.00", equity: "51,280.60", credit: "0.00", accountType: "Demo ECN", leverage: "1:500", marginRatio: "4345%" },
+	      { kind: "demo", label: "Demo", platform: "XOH", server: "XOH-Demo-02", account: "910025", balance: "20,000.00", equity: "20,240.15", credit: "0.00", accountType: "Demo Standard", leverage: "1:400", marginRatio: "1880%" },
+	    ];
+	    const accountCardMarkup = (account) => {
+	      const environment = `${account.platform} · ${account.server}`;
+	      return `
+	        <article class="trade-account-card" data-kind="${escapeHtml(account.kind)}">
+	          <div class="account-card-head">
+	            <span class="account-status${account.kind === "demo" ? " demo" : ""}">${escapeHtml(account.label)}</span>
+	            <span class="account-number">${escapeHtml(account.account)}</span>
+	            <span class="account-environment" title="${escapeHtml(environment)}">${escapeHtml(environment)}</span>
+	          </div>
+	          <div class="account-card-hero">
+	            <div><span>净值(USD)</span><strong>${escapeHtml(account.equity)}</strong></div>
+	          </div>
+	          <div class="account-card-flat-meta" aria-label="账号概要">
+	            <span><small>余额</small><b>${escapeHtml(account.balance)}</b></span>
+	            <span><small>信用金</small><b>${escapeHtml(account.credit)}</b></span>
+	            <span><small>账户类型</small><b>${escapeHtml(account.accountType)}</b></span>
+	            <span><small>杠杆</small><b>${escapeHtml(account.leverage)}</b></span>
+	            <span><small>保证金比例</small><b>${escapeHtml(account.marginRatio)}</b></span>
+	          </div>
+	        </article>
+	      `;
+	    };
+	    const previewAccountCards = accountCardSamples.map(accountCardMarkup).join("");
+    const previewRealCards = accountCardSamples.filter((account) => account.kind === "real").map(accountCardMarkup).join("");
+    const previewDemoCards = accountCardSamples.filter((account) => account.kind === "demo").map(accountCardMarkup).join("");
     const morphId = moduleMorphId(config, "TradingAccounts") || "statusBoard";
 	    const accountRowsMarkup = `
 	      <div class="ai-account-morph-row" data-kind="real"><b>Live</b><span>80010</span><span>MT5 · HCHoldings-Live2</span><strong>12,480.50</strong><strong>12,726.40</strong><span>500.00</span><span>ECN Standard</span><span>1:100</span><span>528%</span></div>

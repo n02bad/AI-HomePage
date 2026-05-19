@@ -1315,6 +1315,43 @@ async function run() {
 		    assert.strictEqual(guidedPollutionResponse.config.themePreset, "blueFinance");
 		    assert.strictEqual(guidedPollutionResponse.config.theme, "blueFinance");
 
+			    const guidedExplicitOptionalResponse = await postJson(port, {
+		      inputMode: "guided",
+		      prompt:
+		        "请生成开户首页；首页 Banner / 广告轮播需要展示；CopyTrading 信号源、推广链接、FAQ 和风险提示都要保留。交易账号卡片宽度适中，不要过大，希望一行至少能放4个卡片。",
+		      context: { userRole: "client" },
+			      guidedIntake: {
+			        source: "guided-builder",
+			        pageGoal: { id: "openAccount", label: "开真实账户" },
+			        primaryAction: { action: "openAccount", label: "立即开户" },
+			        canonical: {
+			          primaryIntent: "onboarding",
+			          layoutPreset: "onboardingJourney",
+		          heroFocus: "onboarding_guide",
+		          mustHave: ["asset_overview", "quick_actions", "onboarding_guide", "trading_accounts_list"],
+		        },
+		        modules: [
+		          { id: "accountOverview", label: "账户概览", canonicalTargets: ["asset_overview"] },
+			          { id: "quickActions", label: "快捷入口", canonicalTargets: ["quick_actions"] },
+			          { id: "openingFlow", label: "新手引导", canonicalTargets: ["onboarding_guide"] },
+			          { id: "tradingAccounts", label: "交易账号", canonicalTargets: ["trading_accounts_list"] },
+			        ],
+			      },
+		      modelConfig: { provider: "openai" },
+		    });
+		    assert.strictEqual(guidedExplicitOptionalResponse.ok, true);
+		    assertOnlyAllowedBlocks(guidedExplicitOptionalResponse.config);
+		    assert.strictEqual(hasBlock(guidedExplicitOptionalResponse.config, "promo_banner"), true);
+		    assert.strictEqual(hasBlock(guidedExplicitOptionalResponse.config, "copytrading_signals"), true);
+		    assert.strictEqual(hasBlock(guidedExplicitOptionalResponse.config, "referral_link_card"), true);
+		    assert.strictEqual(hasBlock(guidedExplicitOptionalResponse.config, "faq_section"), true);
+		    assert.strictEqual(hasBlock(guidedExplicitOptionalResponse.config, "risk_disclosure"), true);
+		    assert.strictEqual(guidedExplicitOptionalResponse.config.modulePolicy.blockedModules.includes("referral_link_card"), false);
+		    assert.strictEqual(guidedExplicitOptionalResponse.config.moduleSettings.referralLinkCard.enabled, true);
+		    assert.strictEqual(guidedExplicitOptionalResponse.config.moduleSettings.tradingAccounts.grouping, "combined");
+		    assert.strictEqual(guidedExplicitOptionalResponse.config.moduleSettings.tradingAccounts.viewMode, "card");
+		    assert.strictEqual(guidedExplicitOptionalResponse.config.moduleSettings.tradingAccounts.preferredColumns, 4);
+
 			    const modulePolicyBlockedResponse = await postJson(port, {
 		      inputMode: "guided",
 		      prompt: "请生成开户首页；没有 FAQ 内容不要生成 FAQ，不要生成风险提示，也不要生成推广链接。",
@@ -1637,16 +1674,15 @@ async function run() {
 			    assert(aiHtmlResponse.htmlScheme.qualityScore >= 70, "mock AI HTML should pass the basic aesthetic floor");
 			    assert(aiHtmlResponse.htmlScheme.requiredModules.includes("资产概览"), "server AI HTML scheme must expose required module contract");
 			    assert(Array.isArray(aiHtmlResponse.htmlScheme.implementationContract), "server AI HTML scheme must expose implementation contracts");
-				    ["onboarding_guide", "pamm_products", "app_download", "faq_section", "support_contact", "risk_disclosure"].forEach((moduleId) => {
+				    ["onboarding_guide", "pamm_products", "app_download", "referral_link_card", "faq_section", "support_contact", "risk_disclosure"].forEach((moduleId) => {
 		      assert(
 		        aiHtmlResponse.htmlScheme.implementationContract.some((contract) => contract.module === moduleId),
 		        `AI HTML required module must include ${moduleId}`,
 			      );
 			      assert(aiHtmlResponse.htmlScheme.html.includes(`data-ai-html-module="${moduleId}"`), `AI HTML must visibly render ${moduleId}`);
 			    });
-		    assert.strictEqual(hasBlock(aiHtmlResponse.config, "referral_link_card"), false);
-		    assert(aiHtmlResponse.modulePolicy.blockedModules.includes("referral_link_card"));
-		    assert(!aiHtmlResponse.htmlScheme.html.includes('data-ai-html-module="referral_link_card"'), "openAccount non-agent AI HTML must not render referral_link_card");
+		    assert.strictEqual(hasBlock(aiHtmlResponse.config, "referral_link_card"), true);
+		    assert.strictEqual(aiHtmlResponse.modulePolicy.blockedModules.includes("referral_link_card"), false);
 		    assert(aiHtmlResponse.htmlScheme.implementationContract.some((contract) => contract.module === "asset_overview"), "server AI HTML implementation contract must include asset overview");
 		    assert(aiHtmlResponse.htmlScheme.qualityIssues.every((issue) => !issue.includes("静态外观空壳")), "mock AI HTML must satisfy the anti-shell quality gate");
 		    assert(Array.isArray(aiHtmlResponse.htmlScheme.componentReferences), "server AI HTML scheme must expose component references");

@@ -1289,13 +1289,13 @@ function repairHomepageBrickPlan(config, sections) {
   return homepageBlocksFromSections(sections).map((slot) => normalizeHomepageBrickForSlot(slot, existing.get(slot)));
 }
 
-function removeHomepageOptionalModules(config, guidedSnapshot, actions) {
+function removeHomepageOptionalModules(config, guidedSnapshot, actions, prompt = "") {
   const guided = normalizeHomepageGuidedSnapshot(guidedSnapshot);
   if (!guided.hasExplicitModuleSelection) return config;
   const explicit = new Set(guided.explicitBlocks || []);
   const keep = new Set(guided.mustHave || []);
   const removeSet = new Set(
-    collectHomepageBlocks(config).filter((slot) => GUIDED_EXPLICIT_ONLY_BLOCKS.has(slot) && !explicit.has(slot) && !keep.has(slot)),
+    collectHomepageBlocks(config).filter((slot) => GUIDED_EXPLICIT_ONLY_BLOCKS.has(slot) && !explicit.has(slot) && !keep.has(slot) && !homepagePromptRequestsOptionalModule(slot, prompt)),
   );
   if (!removeSet.size) return config;
 
@@ -1316,7 +1316,7 @@ function removeHomepageOptionalModules(config, guidedSnapshot, actions) {
   return config;
 }
 
-function repairHomepageConfig(configSnapshot, guidedSnapshot = {}, modulePolicy = null) {
+function repairHomepageConfig(configSnapshot, guidedSnapshot = {}, modulePolicy = null, prompt = "") {
   const actions = [];
   const source = clonePlain(ensureObject(configSnapshot));
   const guided = normalizeHomepageGuidedSnapshot(guidedSnapshot);
@@ -1393,7 +1393,7 @@ function repairHomepageConfig(configSnapshot, guidedSnapshot = {}, modulePolicy 
   }
 
   next.sections = sections.flatMap(repairHomepageSectionLegality);
-  next = removeHomepageOptionalModules(next, guided, actions);
+  next = removeHomepageOptionalModules(next, guided, actions, prompt);
 
   if (homepageConfigHasMinimalistStyle(next, guided) && next.density === "compact") {
     next.density = "comfortable";
@@ -4063,6 +4063,15 @@ function blockedComponentReferenceIdSet(components = readComponentLibrary().comp
   );
 }
 
+function rawBlockedComponentReferenceIdSet() {
+  return new Set(
+    (readRawComponentLibrary().components || [])
+      .filter((component) => componentReferenceTierFromScore(component?.score) === "blocked")
+      .map((component) => cleanText(component?.id, "", 96))
+      .filter(Boolean),
+  );
+}
+
 function stripBlockedComponentReferenceFields(value = {}) {
   const next = { ...value };
   [
@@ -4086,10 +4095,11 @@ function purgeBlockedComponentReferencesFromConfig(config, options = {}) {
   const components = readComponentLibrary().components;
   const lookup = componentLibraryLookup(components);
   const blockedIds = blockedComponentReferenceIdSet(components);
+  const rawBlockedIds = rawBlockedComponentReferenceIdSet();
   const removed = new Set();
   const isBlockedReference = (reference = {}) => {
     const id = cleanText(reference.componentId || reference.id || reference.referenceComponentId || reference.componentReferenceId, "", 96);
-    const blocked = (id && blockedIds.has(id)) || !componentReferenceAllowedByPolicy(reference, lookup);
+    const blocked = (id && (blockedIds.has(id) || rawBlockedIds.has(id))) || !componentReferenceAllowedByPolicy(reference, lookup);
     if (blocked && id) removed.add(id);
     return blocked;
   };
@@ -4152,10 +4162,11 @@ function applyComponentReferencesToHomepageConfig(config, prompt = "", options =
   if (!config || typeof config !== "object") return [];
   const allComponents = readComponentLibrary().components;
   const componentLookup = componentLibraryLookup(allComponents);
-  const components = allComponents.filter((component) => componentReferenceAllowed(component));
+  const rawBlockedIds = rawBlockedComponentReferenceIdSet();
+  const components = allComponents.filter((component) => componentReferenceAllowed(component) && !rawBlockedIds.has(component.id));
   if (!components.length) {
     const existing = normalizeHomepageConfigComponentReferences(config.componentReferences)
-      .filter((reference) => componentReferenceAllowedByPolicy(reference, componentLookup));
+      .filter((reference) => !rawBlockedIds.has(reference.componentId || reference.id) && componentReferenceAllowedByPolicy(reference, componentLookup));
     config.componentReferences = existing;
     return config.componentReferences;
   }
@@ -4213,11 +4224,11 @@ function applyComponentReferencesToHomepageConfig(config, prompt = "", options =
     .filter(Boolean);
 
   const existingReferences = normalizeHomepageConfigComponentReferences(config.componentReferences)
-    .filter((item) => componentReferenceAllowedByPolicy(item, componentLookup))
+    .filter((item) => !rawBlockedIds.has(item.componentId || item.id) && componentReferenceAllowedByPolicy(item, componentLookup))
     .filter((item) => !references.some((reference) => reference.componentId === item.componentId || (reference.module && reference.module === item.module)))
     .slice(0, Math.max(0, 12 - references.length));
   const blockedExistingCount = normalizeHomepageConfigComponentReferences(config.componentReferences)
-    .filter((item) => !componentReferenceAllowedByPolicy(item, componentLookup))
+    .filter((item) => rawBlockedIds.has(item.componentId || item.id) || !componentReferenceAllowedByPolicy(item, componentLookup))
     .length;
   const mergedReferences = normalizeHomepageConfigComponentReferences([...references, ...existingReferences]);
   if (blockedExistingCount && Array.isArray(options.actions)) {
@@ -7454,6 +7465,55 @@ function brickBackedContractSlotMarkup(block) {
   `;
 }
 
+function fourColumnTradingAccountsBrickHtml() {
+  const accounts = [
+    ["Live", "live", "MT5", "HCHoldings-Live2", "2000281", "99,999.99", "101,280.60", "500.00", "ECN Standard", "1:100", "528%"],
+    ["Live", "live", "MT4", "HCHoldings-Live3", "400009", "52,306.00", "52,880.20", "0.00", "Pro Raw", "1:200", "612%"],
+    ["Demo", "demo", "MT5", "HCHoldings-Demo", "1000008", "50,000.00", "51,280.60", "0.00", "Demo ECN", "1:500", "4345%"],
+    ["Demo", "demo", "XOH", "XOH-Demo-02", "910025", "20,000.00", "20,240.15", "0.00", "Demo Standard", "1:400", "1880%"],
+  ];
+  const cards = accounts
+    .map(
+      ([kind, tone, platform, server, account, balance, equity, credit, accountType, leverage, marginRatio]) => `
+        <article class="ai-html-ta-card ${tone}">
+          <header>
+            <span class="ai-html-ta-badge">${kind}</span>
+            <strong>${account}</strong>
+          </header>
+          <p>${platform} · ${server}</p>
+          <div class="ai-html-ta-metrics">
+            <span><small>余额</small><b>${balance}</b></span>
+            <span><small>净值</small><b>${equity}</b></span>
+            <span><small>信用金</small><b>${credit}</b></span>
+            <span><small>账户类型</small><b>${accountType}</b></span>
+            <span><small>杠杆</small><b>${leverage}</b></span>
+            <span><small>保证金比例</small><b>${marginRatio}</b></span>
+          </div>
+        </article>
+      `,
+    )
+    .join("");
+  return `
+    <section class="ai-html-trading-four-card-grid">
+      <header>
+        <div>
+          <span>Trading Accounts</span>
+          <strong>Live / Demo</strong>
+        </div>
+        <div><button class="primary" type="button">All</button><button type="button">Live</button><button type="button">Demo</button></div>
+      </header>
+      <div class="ai-html-ta-grid">${cards}</div>
+    </section>
+  `;
+}
+
+function brickBackedSlotComponentHtml(slot, component, payload = {}, config = {}) {
+  if (canonicalHomeBlock(slot) === "trading_accounts_list" && wantsServerFourColumnAccountCards(payload.prompt || config.sourcePrompt || "")) {
+    return fourColumnTradingAccountsBrickHtml();
+  }
+  return component.html;
+}
+
 function brickBackedAiHtmlScheme(payload = {}, config = {}, providerConfig = {}, options = {}) {
   const sections = (Array.isArray(config.sections) && config.sections.length ? config.sections : collectHomepageBlocks(config).map((block, index) => homepageSectionForSingleSlot(block, index)))
     .map(parseHomepageSectionInput)
@@ -7499,9 +7559,10 @@ function brickBackedAiHtmlScheme(payload = {}, config = {}, providerConfig = {},
           const selected = selectedByBlock.get(slot);
           if (!selected) return brickBackedContractSlotMarkup(slot);
           const component = selected.component;
+          const componentHtml = brickBackedSlotComponentHtml(slot, component, payload, config);
           return `
             <article class="ai-html-brick-slot" data-ai-html-module="${escapeHtmlText(slot)}" data-component-reference="${escapeHtmlText(component.id)}" data-reference-score="${selected.admission.score}">
-              ${component.html}
+              ${componentHtml}
             </article>
           `;
         })
@@ -7546,7 +7607,25 @@ function brickBackedAiHtmlScheme(payload = {}, config = {}, providerConfig = {},
     .ai-html-contract-filler{display:grid;gap:10px;padding:16px;border:1px dashed var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-card-bg,#fff)}
     .ai-html-contract-filler p{margin:0;color:var(--home-text-muted,#64748b);line-height:1.6}
     .ai-html-brick-backed-page a[data-home-action],.ai-html-brick-backed-page button{min-height:40px;display:inline-grid;place-items:center;width:max-content;max-width:100%;padding:0 14px;border:1px solid var(--home-button-border,var(--home-primary,#2563eb));border-radius:var(--home-radius-sm,8px);background:var(--home-button-bg,var(--home-primary,#2563eb));color:var(--home-button-text,#fff);font:inherit;font-weight:900;text-decoration:none}
+    .ai-html-trading-four-card-grid{display:grid;gap:14px;padding:18px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-card-bg,#fff)}
+    .ai-html-trading-four-card-grid>header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+    .ai-html-trading-four-card-grid>header span{display:block;color:var(--home-text-muted,#64748b);font-size:12px;font-weight:900}
+    .ai-html-trading-four-card-grid>header strong{display:block;margin-top:4px;font-size:20px;color:var(--home-text-strong,#0f172a)}
+    .ai-html-trading-four-card-grid>header div:last-child{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    .ai-html-ta-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+    .ai-html-ta-card{display:grid;gap:10px;min-width:0;padding:14px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:linear-gradient(180deg,#fff,#f8fbff)}
+    .ai-html-ta-card header{display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .ai-html-ta-card header strong{font-size:17px;color:var(--home-text-strong,#0f172a)}
+    .ai-html-ta-badge{display:inline-grid;place-items:center;min-height:22px;padding:0 8px;border-radius:6px;background:#dcfce7;color:#047857;font-size:11px;font-weight:950}
+    .ai-html-ta-card.demo .ai-html-ta-badge{background:#e5e7eb;color:#4b5563}
+    .ai-html-ta-card p{min-width:0;margin:0;color:var(--home-text-muted,#64748b);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .ai-html-ta-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .ai-html-ta-metrics span{display:grid;gap:2px;min-width:0}
+    .ai-html-ta-metrics small{color:var(--home-text-muted,#64748b);font-size:11px}
+    .ai-html-ta-metrics b{min-width:0;color:var(--home-text-strong,#0f172a);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     @media(max-width:860px){.ai-html-brick-backed-page{padding:12px}.ai-html-brick-section-hero,.ai-html-brick-section-split{grid-template-columns:1fr}.ai-html-brick-backed-head h1{font-size:24px}.ai-html-brick-backed-page a[data-home-action],.ai-html-brick-backed-page button{width:100%}}
+    @media(max-width:1180px){.ai-html-ta-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:680px){.ai-html-ta-grid{grid-template-columns:1fr}.ai-html-trading-four-card-grid>header{display:grid}.ai-html-trading-four-card-grid>header div:last-child{justify-content:stretch}.ai-html-trading-four-card-grid>header div:last-child button{width:100%}}
     ${componentCss}
   `;
 
@@ -9279,7 +9358,17 @@ function homepagePromptRejectsModule(block, prompt = "") {
     support_contact: "在线客服|客服|客户经理|服务入口",
     app_download: "app下载|app 下载|下载 app|下载APP|移动端|手机端",
   }[block];
-  return Boolean(label && new RegExp(`${negative}[\\s\\S]{0,36}(?:${label})`, "i").test(source));
+  return Boolean(
+    label &&
+      (new RegExp(`${negative}(?:生成|展示|加入|放|配置)?[\\s\\S]{0,20}(?:${label})`, "i").test(source) ||
+        new RegExp(`(?:${label})[\\s\\S]{0,24}(?:不要生成|不生成|不要展示|不展示|关闭|禁用|隐藏|没有内容|无内容|缺少内容)`, "i").test(source)),
+  );
+}
+
+function homepagePromptRequestsOptionalModule(block, prompt = "") {
+  const canonical = canonicalHomeBlockLoose(block);
+  const pattern = canonical ? HOMEPAGE_OPTIONAL_BLOCK_REQUEST_PATTERNS[canonical] : null;
+  return Boolean(pattern && pattern.test(String(prompt || "")));
 }
 
 function buildHomepageModulePolicy(payload = {}) {
@@ -9311,7 +9400,7 @@ function buildHomepageModulePolicy(payload = {}) {
 
   if (hasGuidedSelection) {
     GUIDED_EXPLICIT_ONLY_BLOCKS.forEach((slot) => {
-      if (!explicitBlocks.has(slot) && !requiredSlots.has(slot)) {
+      if (!explicitBlocks.has(slot) && !requiredSlots.has(slot) && !homepagePromptRequestsOptionalModule(slot, prompt)) {
         block(slot, "未在引导式表单选择，禁止模型自动补入。");
       }
     });
@@ -9323,8 +9412,8 @@ function buildHomepageModulePolicy(payload = {}) {
     }
   });
 
-  if (pageGoal.id === "openAccount" && !homepageIsAgentRole(payload)) {
-    block("referral_link_card", "pageGoal=openAccount 且 userRole 非 agent，默认禁止推广链接卡。");
+  if (pageGoal.id === "openAccount" && !homepageIsAgentRole(payload) && !homepagePromptRequestsOptionalModule("referral_link_card", prompt)) {
+    block("referral_link_card", "pageGoal=openAccount 且 userRole 非 agent，且提示词未显式要求推广链接卡。");
   }
 
   const blockedModules = [...blocked].filter((slot) => !systemRequired.has(slot));
@@ -11805,6 +11894,17 @@ function wantsCombinedTradingAccountCardsPrompt(prompt) {
   return wantsTogether && wantsCards;
 }
 
+function wantsServerFourColumnAccountCards(prompt) {
+  const source = String(prompt || "");
+  if (/(?:不要|不能|不应|别|禁止)(?:用|使用|展示|做成)?\s*卡片|(?:不是|非)卡片/.test(source)) return false;
+  const wantsCards = /卡片|card/i.test(source);
+  const wantsFourAcross =
+    /一行[\s\S]{0,16}(?:至少|最少|不少于|能|可|可以)?[\s\S]{0,10}(?:放|展示|容纳|排)[\s\S]{0,8}(?:4|四)\s*个?[\s\S]{0,8}卡片/i.test(source) ||
+    /(?:4|四)\s*个?[\s\S]{0,8}卡片[\s\S]{0,16}(?:一行|同一行|每行)/i.test(source);
+  const wantsModerateWidth = /卡片[\s\S]{0,18}(?:宽度适中|不要过大|不(?:要)?太大|适中)|(?:宽度适中|不要过大|不(?:要)?太大)[\s\S]{0,18}卡片/.test(source);
+  return wantsCards && (wantsFourAcross || wantsModerateWidth);
+}
+
 function wantsProfessionalTraderWorkbenchPrompt(prompt) {
   const source = String(prompt || "");
   const text = `${source.toLowerCase()} ${source}`;
@@ -11888,6 +11988,24 @@ function wantsServerAccountCardRefinement(prompt) {
 function applyServerTradingAccountPresentationVariety(config, prompt, options = {}) {
   const settings = ensureHomepageModuleSettings(config.moduleSettings);
   if (!settings.tradingAccounts?.enabled) return;
+
+  if (wantsServerFourColumnAccountCards(prompt)) {
+    settings.tradingAccounts = {
+      ...settings.tradingAccounts,
+      enabled: true,
+      realEnabled: true,
+      demoEnabled: true,
+      grouping: "combined",
+      viewMode: "card",
+      realViewMode: "card",
+      demoViewMode: "card",
+      preferredColumns: 4,
+    };
+    config.modules = { ...ensureObject(config.modules), TradingAccounts: { variant: "denseCards" } };
+    config.moduleStyles = { ...ensureObject(config.moduleStyles), tradingAccounts: "dense-cards", trading_accounts_list: "dense-cards" };
+    config.moduleSettings = settings;
+    return;
+  }
 
   const wantsFlatOptimization = wantsServerFlatAccountOptimization(prompt);
   const forceList = wantsServerTradingAccountSingleViewCorrection(prompt);
@@ -12096,6 +12214,7 @@ function extractHomepageUnderstanding(prompt) {
   const wantsProfessionalTraderWorkbench = wantsProfessionalTraderWorkbenchPrompt(source);
   const wantsTradingDataContract = wantsTradingDataContractPrompt(source);
   const wantsCombinedAccountCards = wantsCombinedTradingAccountCardsPrompt(source);
+  const wantsFourColumnAccountCards = wantsServerFourColumnAccountCards(source);
   const wantsFaqSection = /faq|常见问题|问题解答|帮助中心/i.test(source);
 
   return {
@@ -12120,6 +12239,7 @@ function extractHomepageUnderstanding(prompt) {
     wantsProfessionalTraderWorkbench,
     wantsTradingDataContract,
     wantsCombinedAccountCards,
+    wantsFourColumnAccountCards,
     wantsFaqSection,
     recommendationId: recommendationMatch?.[1] || "",
   };
@@ -12162,6 +12282,7 @@ function sanitizeHomepageAllowedBlocks(config, prompt = "", guidedIntake = null,
   const text = `${String(prompt || "").toLowerCase()} ${String(prompt || "")}`;
   const wantsPamm = /pamm/i.test(text);
   const wantsCopyTrading = /copy\s*trading|copytrading|跟单|信号源/i.test(text);
+  const wantsPromoBanner = /banner|广告|轮播|活动|奖励|赠金|权益|promo/i.test(text);
   const wantsReferralCard = Boolean(options.defaultReferralCard) || /代理用户|代理首页|\bib\b|合作伙伴|partner|affiliate|推广链接|推广功能|推广开户链接|邀请链接|邀请码|开户链接|注册链接|referral/i.test(text);
   const wantsKycStatus = /CRM 账户 KYC 状态|KYC 状态|kyc_status_card|account_kyc_status|kycStatus\.current|kyc\s*status|未提交|待审|待审核|审核中|通过|拒绝|未通过/i.test(text);
   const wantsReferralStats = /打开数|注册数|开户数|注册转化率|开户转化率|转化率|推广效果|基础统计|统计数据/.test(text);
@@ -12219,6 +12340,7 @@ function sanitizeHomepageAllowedBlocks(config, prompt = "", guidedIntake = null,
   [
     wantsPamm && ["pamm", "split", "PAMM", "pamm_products"],
     wantsCopyTrading && ["copytrading", "split", "CopyTrading", "copytrading_signals"],
+    wantsPromoBanner && ["promo-banner", "full", "首页 Banner", "promo_banner"],
     wantsReferralCard && ["referral-link", "rail", "推广链接", "referral_link_card"],
     wantsKycStatus && ["kyc-status", "rail", "KYC 状态", "kyc_status_card"],
     wantsAnnouncements && ["announcements", wantsAnnouncementTicker ? "full" : "split", "公告通知", "announcements"],
@@ -12322,6 +12444,8 @@ function sanitizeHomepageAllowedBlocks(config, prompt = "", guidedIntake = null,
   };
   settings.pamm = { ...ensureObject(settings.pamm), enabled: Boolean(settings.pamm?.enabled || wantsPamm) };
   settings.copytrading = { ...ensureObject(settings.copytrading), enabled: Boolean(settings.copytrading?.enabled || wantsCopyTrading) };
+  settings.promoHighlight = { ...ensureObject(settings.promoHighlight), enabled: Boolean(settings.promoHighlight?.enabled || wantsPromoBanner || sectionHasSlot(next.sections, "promo_banner")) };
+  settings.adCarousel = { ...ensureObject(settings.adCarousel), enabled: Boolean(settings.adCarousel?.enabled || wantsPromoBanner || sectionHasSlot(next.sections, "promo_banner")) };
   settings.referralLinkCard = {
     ...ensureObject(settings.referralLinkCard),
     enabled: Boolean(wantsReferralCard),
@@ -13783,7 +13907,29 @@ function applyHomepageUnderstandingToServerConfig(config, prompt, variant = 0) {
   }
 
   const forceSingleAccountView = wantsServerTradingAccountSingleViewCorrection(prompt);
-  if (wantsServerFlatAccountOptimization(prompt) || forceSingleAccountView) {
+  if (understanding.wantsFourColumnAccountCards) {
+    next.modules = {
+      ...ensureObject(next.modules),
+      TradingAccounts: { variant: "denseCards" },
+    };
+    next.moduleStyles = {
+      ...ensureObject(next.moduleStyles),
+      tradingAccounts: "dense-cards",
+      trading_accounts_list: "dense-cards",
+    };
+    settings.tradingAccounts = {
+      ...settings.tradingAccounts,
+      enabled: true,
+      realEnabled: true,
+      demoEnabled: true,
+      grouping: "combined",
+      viewMode: "card",
+      realViewMode: "card",
+      demoViewMode: "card",
+      preferredColumns: 4,
+    };
+    ensureHomepageSectionContains(next, { id: "combined-accounts", type: "full", title: "交易账号" }, "trading_accounts_list");
+  } else if (wantsServerFlatAccountOptimization(prompt) || forceSingleAccountView) {
     const refineCards = wantsServerAccountCardRefinement(prompt) && !wantsServerTradingAccountList(prompt) && !forceSingleAccountView;
     const keepSeparatedCards = wantsServerTradingAccountCards(prompt) || /模拟(?:交易)?账(?:号|户)(?:列表)?[\s\S]{0,32}卡片/.test(String(prompt || ""));
     next.modules = {
@@ -13810,6 +13956,52 @@ function applyHomepageUnderstandingToServerConfig(config, prompt, variant = 0) {
   }
 
   next.moduleSettings = settings;
+  return next;
+}
+
+function enforceFourColumnTradingAccountContract(config, prompt = "") {
+  if (!wantsServerFourColumnAccountCards(prompt)) return config;
+  const next = ensureObject(config);
+  const settings = ensureHomepageModuleSettings(next.moduleSettings);
+  settings.tradingAccounts = {
+    ...settings.tradingAccounts,
+    enabled: true,
+    realEnabled: true,
+    demoEnabled: true,
+    grouping: "combined",
+    viewMode: "card",
+    realViewMode: "card",
+    demoViewMode: "card",
+    preferredColumns: 4,
+  };
+  next.moduleSettings = settings;
+  next.modules = { ...ensureObject(next.modules), TradingAccounts: { variant: "denseCards" } };
+  next.moduleStyles = { ...ensureObject(next.moduleStyles), tradingAccounts: "dense-cards", trading_accounts_list: "dense-cards" };
+  next.componentMorphs = {
+    ...ensureObject(next.componentMorphs),
+    TradingAccounts: {
+      ...ensureObject(next.componentMorphs?.TradingAccounts),
+      variant: "denseCards",
+      morph: "accountWall",
+      morphId: "accountWall",
+    },
+  };
+  ensureHomepageSectionContains(next, { id: "combined-accounts", type: "full", title: "交易账号" }, "trading_accounts_list");
+  next.brickPlan = (Array.isArray(next.brickPlan) ? next.brickPlan : []).map((brick) => {
+    const slot = canonicalHomeBlock(brick?.component || brick?.feature || brick?.brickId);
+    if (slot !== "trading_accounts_list") return brick;
+    return {
+      ...brick,
+      brickId: "tradingAccounts.denseCards",
+      brickName: "四列交易账号卡片",
+      family: "TradingAccounts",
+      feature: "trading_accounts_list",
+      component: "trading_accounts_list",
+      size: "3x2",
+      zone: "full",
+      reason: "提示词要求交易账号卡片宽度适中，并且桌面端一行至少容纳 4 个卡片。",
+    };
+  });
   return next;
 }
 
@@ -15827,10 +16019,11 @@ async function callProvider(payload) {
   if (process.env.HOME_AI_MOCK === "true") {
     const rawMockConfig = enforceHomepagePromptIntent(policyPayload, mockHomepageConfig(policyPayload, config));
     const guidedSnapshot = homepageGuidedSnapshotFromPayload(policyPayload, rawMockConfig);
-    const repaired = repairHomepageConfig(rawMockConfig, guidedSnapshot, modulePolicy);
+    const repaired = repairHomepageConfig(rawMockConfig, guidedSnapshot, modulePolicy, payload.prompt);
     const mockConfig = applyHomepagePagePlan(repaired.config, policyPayload, repaired.repairActions);
     const pagePlanPolicyRepair = applyHomepageModulePolicy(mockConfig, modulePolicy, repaired.repairActions);
     applyComponentReferencesToHomepageConfig(mockConfig, policyPayload.prompt, { actions: repaired.repairActions });
+    enforceFourColumnTradingAccountContract(mockConfig, policyPayload.prompt);
     const combinedPolicyRepair = mergeHomepageModulePolicyRepairResults(repaired.modulePolicyRepairResult, pagePlanPolicyRepair);
     repaired.config = mockConfig;
     repaired.validation = validateHomepageConfig(mockConfig, guidedSnapshot, modulePolicy, combinedPolicyRepair);
@@ -15910,10 +16103,11 @@ async function callProvider(payload) {
     prepareProviderHomepageConfig(policyPayload, result.json, { ...config, provider: result.provider, model: result.model }),
   );
   const guidedSnapshot = homepageGuidedSnapshotFromPayload(policyPayload, rawHomepageConfig);
-  const repaired = repairHomepageConfig(rawHomepageConfig, guidedSnapshot, modulePolicy);
+  const repaired = repairHomepageConfig(rawHomepageConfig, guidedSnapshot, modulePolicy, payload.prompt);
   const homepageConfig = applyHomepagePagePlan(repaired.config, policyPayload, repaired.repairActions);
   const pagePlanPolicyRepair = applyHomepageModulePolicy(homepageConfig, modulePolicy, repaired.repairActions);
   applyComponentReferencesToHomepageConfig(homepageConfig, policyPayload.prompt, { actions: repaired.repairActions });
+  enforceFourColumnTradingAccountContract(homepageConfig, policyPayload.prompt);
   const combinedPolicyRepair = mergeHomepageModulePolicyRepairResults(repaired.modulePolicyRepairResult, pagePlanPolicyRepair);
   repaired.config = homepageConfig;
   repaired.validation = validateHomepageConfig(homepageConfig, guidedSnapshot, modulePolicy, combinedPolicyRepair);

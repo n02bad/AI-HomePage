@@ -3327,6 +3327,12 @@ body[data-home-layout="traderConsole"] .ai-section-rail .ai-quick-feature {
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
 }
 
+.ai-accounts-feature .real-account-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
 .ai-accounts-feature .accounts-card-view[hidden],
 .ai-accounts-feature .accounts-list-view[hidden] {
   display: none !important;
@@ -7605,7 +7611,7 @@ body:not([data-home-layout="tradingPro"]) .ai-balance-feature[data-module-style=
 }
 
 .ai-accounts-feature[data-module-style="dense-cards"] .accounts-card-view {
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .ai-accounts-feature[data-module-style="dense-cards"] {
@@ -9084,7 +9090,7 @@ body:not([data-tenant-theme="darkTech"]):not([data-home-color-mode="dark"]) .ai-
 }
 
 .ai-accounts-feature[data-module-style="account-wall"] .accounts-card-view {
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -9092,6 +9098,25 @@ body:not([data-tenant-theme="darkTech"]):not([data-home-color-mode="dark"]) .ai-
   min-height: 220px;
   border-radius: var(--home-radius-sm);
   box-shadow: none;
+}
+
+@media (max-width: 1180px) {
+  .ai-accounts-feature[data-module-style="dense-cards"] .accounts-card-view,
+  .ai-accounts-feature[data-module-style="account-wall"] .accounts-card-view,
+  body[data-layout-page="client-home"] .ai-accounts-feature[data-module-style="dense-cards"] .accounts-card-view,
+  body[data-layout-page="client-home"] .ai-accounts-feature[data-module-style="account-wall"] .accounts-card-view {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .ai-accounts-feature[data-module-style="dense-cards"] .accounts-card-view,
+  .ai-accounts-feature[data-module-style="account-wall"] .accounts-card-view,
+  .ai-accounts-feature .real-account-card-grid,
+  body[data-layout-page="client-home"] .ai-accounts-feature[data-module-style="dense-cards"] .accounts-card-view,
+  body[data-layout-page="client-home"] .ai-accounts-feature[data-module-style="account-wall"] .accounts-card-view {
+    grid-template-columns: 1fr;
+  }
 }
 
 .ai-accounts-feature[data-module-style="workbench"] {
@@ -9663,9 +9688,28 @@ body[data-layout-page="client-home"] .ai-accounts-feature .accounts-card-view {
   gap: 10px;
 }
 
+body[data-layout-page="client-home"] .ai-accounts-feature[data-module-style="dense-cards"] .accounts-card-view,
+body[data-layout-page="client-home"] .ai-accounts-feature[data-module-style="account-wall"] .accounts-card-view {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 body[data-layout-page="client-home"] .ai-accounts-feature .trade-account-card {
   min-height: 188px;
   padding: 12px;
+}
+
+@media (max-width: 1180px) {
+  body[data-layout-page="client-home"] .ai-accounts-feature[data-module-style="dense-cards"] .accounts-card-view,
+  body[data-layout-page="client-home"] .ai-accounts-feature[data-module-style="account-wall"] .accounts-card-view {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  body[data-layout-page="client-home"] .ai-accounts-feature[data-module-style="dense-cards"] .accounts-card-view,
+  body[data-layout-page="client-home"] .ai-accounts-feature[data-module-style="account-wall"] .accounts-card-view {
+    grid-template-columns: 1fr;
+  }
 }
 
 body[data-layout-page="client-home"] .ai-ad-slide {
