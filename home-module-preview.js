@@ -132,6 +132,14 @@
     "5x3",
   ];
   const COMPONENT_SIZE_PATTERN = /^([1-9]\d?)x([1-9]\d?)$/i;
+  const COMPONENT_COMPLEX_FAMILIES = new Set(["TradingAccounts", "AccountPerformance", "WalletList", "CreateAccountForm"]);
+  const COMPONENT_RICH_FAMILIES = new Set(["AssetOverview", "OnboardingProgress", "PromotionBanner", "RiskDisclosure", "QuickActions"]);
+  const COMPONENT_FAMILY_ALIASES = {
+    ReferralLink: "ReferralLinkCard",
+    referralLink: "ReferralLinkCard",
+    referral_link: "ReferralLinkCard",
+  };
+  const COMPONENT_COMPACT_FAMILIES = new Set(["UserKycRail", "ReferralLinkCard", "SupportContact", "AppDownload"]);
 
   const buttons = [...document.querySelectorAll("[data-brick-filter]")];
   const groups = [...document.querySelectorAll("[data-brick-group]")];
@@ -152,6 +160,13 @@
     referenceClear: document.querySelector("[data-ai-reference-clear]"),
     compose: document.querySelector("[data-ai-compose-home]"),
     status: document.querySelector("[data-ai-component-status]"),
+    result: document.querySelector("[data-ai-component-result]"),
+    resultTitle: document.querySelector("[data-ai-component-result-title]"),
+    resultProvider: document.querySelector("[data-ai-component-result-provider]"),
+    resultPreview: document.querySelector("[data-ai-component-result-preview]"),
+    resultMeta: document.querySelector("[data-ai-component-result-meta]"),
+    confirmSave: document.querySelector("[data-ai-component-confirm-save]"),
+    revise: document.querySelector("[data-ai-component-revise]"),
     aiComponentModal: document.querySelector("[data-ai-component-modal]"),
     savedSection: document.querySelector("[data-saved-section]"),
     savedCount: document.querySelector("[data-saved-count]"),
@@ -178,6 +193,8 @@
   let modelTestState = { tone: "", message: "组件生成会复用这套模型配置" };
   let componentEditorState = { componentId: "", busy: false };
   let componentVisualReference = null;
+  let pendingComponentDraft = null;
+  let pendingComponentMeta = null;
   const brickFilters = {
     group: "all",
     family: "all",
@@ -201,12 +218,99 @@
     els.status.dataset.tone = tone;
   }
 
+  function setGenerateButtonLabel(label) {
+    if (els.generate) els.generate.textContent = label;
+  }
+
+  function renderPendingComponentDraft() {
+    const component = pendingComponentDraft;
+    const meta = pendingComponentMeta || {};
+
+    if (!component) {
+      if (els.result) els.result.hidden = true;
+      if (els.resultPreview) {
+        els.resultPreview.innerHTML = "";
+        if (els.resultPreview.shadowRoot) els.resultPreview.shadowRoot.innerHTML = "";
+      }
+      if (els.resultMeta) els.resultMeta.innerHTML = "";
+      if (els.resultProvider) els.resultProvider.textContent = "";
+      if (els.confirmSave) els.confirmSave.disabled = true;
+      if (els.revise) els.revise.disabled = true;
+      setGenerateButtonLabel("生成组件预览");
+      return;
+    }
+
+    if (els.result) els.result.hidden = false;
+    if (els.resultTitle) els.resultTitle.textContent = component.name || "AI 生成组件";
+    if (els.resultProvider) els.resultProvider.textContent = meta.providerLabel || "";
+    if (els.resultMeta) {
+      els.resultMeta.innerHTML = `
+        <span>${escapeHtml(component.family || "ClientHomeAtoms")}</span>
+        <span>${escapeHtml(component.size || "auto")}</span>
+        <span>${escapeHtml(`${normalizeComponentScore(component.score, 5)}/10`)}</span>
+        <p>${escapeHtml(component.description || "")}</p>
+      `;
+    }
+    renderComponentPreview(els.resultPreview, component);
+    if (els.confirmSave) els.confirmSave.disabled = false;
+    if (els.revise) els.revise.disabled = false;
+    setGenerateButtonLabel("重新生成预览");
+  }
+
+  function setPendingComponentDraft(component, meta = {}) {
+    pendingComponentDraft = component ? sanitizeComponentForClient(component) : null;
+    pendingComponentMeta = component ? meta : null;
+    renderPendingComponentDraft();
+  }
+
+  function clearPendingComponentDraft() {
+    setPendingComponentDraft(null);
+  }
+
+  function revisePendingComponentDraft() {
+    if (!pendingComponentDraft) return;
+    setStatus(`当前结果尚未保存。可以修改组件需求后重新生成：${pendingComponentDraft.name}`, "mock");
+    els.prompt?.focus();
+  }
+
+  async function confirmSavePendingComponent() {
+    const component = pendingComponentDraft;
+    if (!component) {
+      setStatus("还没有待确认的组件，先生成组件预览。", "error");
+      return;
+    }
+
+    if (els.confirmSave) els.confirmSave.disabled = true;
+    if (els.revise) els.revise.disabled = true;
+    if (els.generate) els.generate.disabled = true;
+    setStatus(`正在保存确认后的组件：${component.name}...`);
+
+    try {
+      const data = await requestJson("/api/home-components/save", { component });
+      const savedComponent = data.component || component;
+      syncComponentLibraryFromResponse(data);
+      cacheComponents([savedComponent], { restoreDeleted: true });
+      renderSavedComponents();
+      clearPendingComponentDraft();
+      setStatus(`已确认保存：${savedComponent.name}，现在可以用于首页积木组合。`, "success");
+    } catch (error) {
+      cacheComponents([component], { restoreDeleted: true });
+      renderSavedComponents();
+      clearPendingComponentDraft();
+      setStatus(`已保存到当前浏览器缓存；后端组件库同步失败：${error.message}`, "mock");
+    } finally {
+      if (els.generate) els.generate.disabled = false;
+      renderPendingComponentDraft();
+    }
+  }
+
   function openAiComponentModal(options = {}) {
     const modal = els.aiComponentModal || document.querySelector("[data-ai-component-modal]");
     if (!modal) return;
 
+    if (options.keepDraft !== true) clearPendingComponentDraft();
     if (els.prompt && options.prompt) els.prompt.value = options.prompt;
-    if (els.family && options.family) els.family.value = options.family;
+    if (els.family && options.family) els.family.value = canonicalComponentFamily(options.family);
     if (els.size && options.size) {
       const size = isAutoComponentSize(options.size) ? "auto" : normalizeComponentSizeValue(options.size, "2x1");
       ensureSizeOption(size);
@@ -228,6 +332,11 @@
     const score = Number(value);
     if (!Number.isFinite(score)) return fallback;
     return Math.min(10, Math.max(1, Math.round(score)));
+  }
+
+  function canonicalComponentFamily(value) {
+    const family = String(value || "").trim();
+    return COMPONENT_FAMILY_ALIASES[family] || family;
   }
 
   function loadComponentScores() {
@@ -372,11 +481,13 @@
 
   function syncComponentSizeSelect() {
     if (!els.size) return;
-    const current = els.size.value || "2x1";
-    els.size.innerHTML = COMPONENT_SIZE_OPTIONS.map((size) => `<option value="${size}">${size}</option>`).join("") + '<option value="auto">AI 自行发挥</option>';
+    const current = els.size.value || "auto";
+    els.size.innerHTML =
+      COMPONENT_SIZE_OPTIONS.map((size) => `<option value="${size}">${size}</option>`).join("") +
+      '<option value="auto">AI 自行发挥（按宽度/功能）</option>';
     ensureSizeOption(current);
     els.size.value = current;
-    if (!els.size.value) els.size.value = "2x1";
+    if (!els.size.value) els.size.value = "auto";
   }
 
   function componentSizeParts(value, fallback = "2x1") {
@@ -389,11 +500,107 @@
     };
   }
 
+  function clampNumber(value, min, max) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return min;
+    return Math.min(max, Math.max(min, number));
+  }
+
+  function currentPageCanvasWidth() {
+    const candidates = [".brick-library-shell", "[data-layout-main]", ".brick-preview-page", "body"];
+    for (const selector of candidates) {
+      const rect = document.querySelector(selector)?.getBoundingClientRect?.();
+      if (rect?.width > 0) return Math.round(rect.width);
+    }
+    return Math.round(window.innerWidth || 0);
+  }
+
+  function maxComponentColumnsForWidth(width) {
+    if (width >= 1420) return 5;
+    if (width >= 1160) return 4;
+    if (width >= 900) return 3;
+    if (width >= 680) return 2;
+    return 1;
+  }
+
+  function countMatches(source, patterns) {
+    const text = String(source || "").toLowerCase();
+    return patterns.reduce((total, pattern) => total + (pattern.test(text) ? 1 : 0), 0);
+  }
+
+  function inferComponentComplexity({ family, prompt, visualReference } = {}) {
+    let score = 1;
+    if (COMPONENT_RICH_FAMILIES.has(family)) score += 1;
+    if (COMPONENT_COMPLEX_FAMILIES.has(family)) score += 2;
+    if (COMPONENT_COMPACT_FAMILIES.has(family)) score -= 1;
+
+    score += countMatches(prompt, [
+      /列表|表格|明细|多币种|真实.*模拟|模拟.*真实|趋势|图表|曲线|工作台|流程|步骤|表单|筛选|tab|切换/i,
+      /list|table|ledger|wallets|accounts|trend|chart|workflow|form|tabs|filters|dashboard|workbench/i,
+      /kyc.*入金|入金.*kyc|开户.*入金|推广.*数据|返佣.*统计|风险.*保证金/i,
+    ]);
+
+    if (visualReference?.width && visualReference?.height) {
+      const ratio = visualReference.width / Math.max(1, visualReference.height);
+      if (ratio >= 1.6) score += 1;
+      if (ratio <= 0.75) score += 1;
+    }
+
+    if (score >= 5) return "workbench";
+    if (score >= 3) return "rich";
+    if (score >= 2) return "standard";
+    return "compact";
+  }
+
+  function sizeForAutoContext({ family, complexity, maxColumns }) {
+    const columns = clampNumber(maxColumns, 1, 5);
+    if (columns <= 1) return COMPONENT_COMPLEX_FAMILIES.has(family) || complexity === "workbench" ? "1x3" : "1x2";
+    if (complexity === "workbench") return `${Math.min(columns, 5)}x${family === "CreateAccountForm" ? 3 : 2}`;
+    if (complexity === "rich") return `${Math.min(columns, COMPONENT_COMPLEX_FAMILIES.has(family) ? 4 : 3)}x2`;
+    if (complexity === "standard") return `${Math.min(columns, COMPONENT_COMPACT_FAMILIES.has(family) ? 2 : 3)}x1`;
+    return COMPONENT_COMPACT_FAMILIES.has(family) ? "1x1" : `${Math.min(columns, 2)}x1`;
+  }
+
+  function allowedSizesForContext({ maxColumns, complexity }) {
+    const columns = clampNumber(maxColumns, 1, 5);
+    const maxRows = complexity === "workbench" ? 3 : complexity === "rich" ? 2 : 1;
+    const sizes = COMPONENT_SIZE_OPTIONS.filter((size) => {
+      const parts = componentSizeParts(size, "1x1");
+      return parts.columns <= columns && parts.rows <= maxRows;
+    });
+    return sizes.length ? sizes : ["1x1"];
+  }
+
+  function componentLayoutContextForRequest({ family, prompt, selectedSize, visualReference } = {}) {
+    const pageWidth = currentPageCanvasWidth();
+    const maxColumns = maxComponentColumnsForWidth(pageWidth);
+    const complexity = inferComponentComplexity({ family, prompt, visualReference });
+    const recommendedSize = sizeForAutoContext({ family, complexity, maxColumns });
+    const allowedSizes = allowedSizesForContext({ maxColumns, complexity });
+    if (!allowedSizes.includes(recommendedSize)) allowedSizes.push(recommendedSize);
+    const selectedMode = isAutoComponentSize(selectedSize) ? "auto" : "manual";
+    return {
+      pageWidth,
+      maxColumns,
+      gridUnit: "首页积木宽度单位，1x 侧栏/小卡，2x 主栏，3x+ 宽幅或整行工作台",
+      selectedMode,
+      selectedSize: selectedMode === "manual" ? normalizeComponentSizeValue(selectedSize, "2x1") : "auto",
+      recommendedSize,
+      allowedSizes,
+      functionalComplexity: complexity,
+      sizingPolicy:
+        selectedMode === "auto"
+          ? "按当前页面宽度与功能复杂度决定 size；复杂列表、图表、表单和多步骤工作台可以放大。"
+          : "用户手动选了尺寸；除非需求明确要求放大，否则优先尊重手动尺寸。",
+    };
+  }
+
   function generatedCardLayoutAttrs(size) {
     const parts = componentSizeParts(size, "2x1");
-    const gridSpan = parts.columns >= 3 ? 2 : 1;
-    const previewMinHeight = parts.rows >= 3 ? 340 : parts.rows >= 2 ? 270 : 210;
-    return ` data-component-size="${escapeHtml(parts.size)}" style="--component-grid-span:${gridSpan};--component-preview-min:${previewMinHeight}px;"`;
+    const gridSpan = parts.columns >= 5 ? 3 : parts.columns >= 3 ? 2 : 1;
+    const tabletSpan = Math.min(gridSpan, 2);
+    const previewMinHeight = parts.rows >= 3 ? 360 : parts.rows >= 2 ? 280 : 210;
+    return ` data-component-size="${escapeHtml(parts.size)}" style="--component-grid-span:${gridSpan};--component-grid-span-tablet:${tabletSpan};--component-preview-min:${previewMinHeight}px;"`;
   }
 
   function groupForFamily(family) {
@@ -419,7 +626,7 @@
   function syncCardMetadata(card) {
     if (!card) return null;
     const isGenerated = card.classList.contains("brick-generated-card");
-    const family = card.dataset.brickFamily || (isGenerated ? "" : familyFromCard(card));
+    const family = canonicalComponentFamily(card.dataset.brickFamily || (isGenerated ? "" : familyFromCard(card)));
     const title = card.dataset.brickTitle || titleFromCard(card);
     const size = normalizeComponentSizeValue(card.dataset.brickSize || sizeFromCard(card), "2x1");
     const sizeParts = componentSizeParts(size, "2x1");
@@ -776,6 +983,7 @@
     const localScore = scoreKey ? (componentScores[scoreKey] ?? componentScores[id]) : undefined;
     return {
       ...component,
+      family: canonicalComponentFamily(component.family),
       score: normalizeComponentScore(localScore ?? component.score, 5),
       description: stripEditorTextArtifacts(component.description),
       html: collapseDuplicateComponentTitles(stripEditorArtifacts(component.html)),
@@ -1853,41 +2061,51 @@
 
   async function generateComponent(options = {}) {
     const prompt = options.prompt || els.prompt?.value.trim() || "生成一个适合 ForexCRM 首页的专业组件。";
-    const family = options.family || els.family?.value || "ClientHomeAtoms";
-    const rawSize = options.size || els.size?.value || "2x1";
+    const family = canonicalComponentFamily(options.family || els.family?.value || "ClientHomeAtoms");
+    const rawSize = options.size || els.size?.value || "auto";
     const size = isAutoComponentSize(rawSize) ? "auto" : normalizeComponentSizeValue(rawSize, "2x1");
     const requestConfig = aiRequestModelConfig();
     const trigger = options.trigger || els.generate;
 
     if (els.prompt && options.prompt) els.prompt.value = options.prompt;
-    if (els.family && options.family) els.family.value = options.family;
+    if (els.family && options.family) els.family.value = canonicalComponentFamily(options.family);
     if (els.size && options.size) {
       ensureSizeOption(size);
       els.size.value = size;
     }
 
     const visualReference = visualReferenceForRequest();
-    setStatus(`正在通过 ${modelLabel()} 生成组件${visualReference ? "，并仿照图片/截图参考" : ""}...`);
+    const layoutContext = componentLayoutContextForRequest({ family, prompt, selectedSize: size, visualReference });
+    const autoSizeHint = size === "auto" ? `，页面宽度建议 ${layoutContext.recommendedSize}` : "";
+    setStatus(`正在通过 ${modelLabel()} 生成组件${visualReference ? "，并仿照图片/截图参考" : ""}${autoSizeHint}...`);
     if (trigger) trigger.disabled = true;
     if (trigger !== els.generate && els.generate) els.generate.disabled = true;
+    if (els.confirmSave) els.confirmSave.disabled = true;
+    if (els.revise) els.revise.disabled = true;
 
     try {
       const data = await requestJson("/api/home-components/generate", {
         prompt,
         family,
         size,
-        scoreContext: highScoreReferenceContext({ family, size, prompt }),
+        save: false,
+        layoutContext,
+        scoreContext: highScoreReferenceContext({ family, size: size === "auto" ? layoutContext.recommendedSize : size, prompt }),
         componentScore: normalizeComponentScore(options.componentScore, 5),
         visualReference,
         modelConfig: requestConfig,
       });
-      cacheComponents([data.component], { restoreDeleted: true });
-      renderSavedComponents();
       const providerLabel = `${data.provider || requestConfig.provider} / ${data.model || requestConfig.model}`;
+      setPendingComponentDraft(data.component, {
+        providerLabel,
+        localFallback: Boolean(data.localFallback),
+        mock: Boolean(data.mock),
+      });
+      if (els.aiComponentModal?.hidden) openAiComponentModal({ keepDraft: true });
       setStatus(
         data.localFallback
-          ? `模型输出非标准 JSON，已生成并保存本地兜底：${data.component.name} · ${providerLabel}`
-          : `已生成并保存：${data.component.name} · ${providerLabel}`,
+          ? `模型输出非标准 JSON，已生成待确认兜底组件：${data.component.name} · 请确认保存或修改后重新生成。`
+          : `已生成组件预览：${data.component.name} · 请确认保存或修改后重新生成。`,
         data.localFallback || data.mock ? "mock" : "success",
       );
     } catch (error) {
@@ -1895,6 +2113,7 @@
     } finally {
       if (trigger) trigger.disabled = false;
       if (trigger !== els.generate && els.generate) els.generate.disabled = false;
+      renderPendingComponentDraft();
     }
   }
 
@@ -2192,6 +2411,8 @@
   });
 
   els.generate?.addEventListener("click", generateComponent);
+  els.confirmSave?.addEventListener("click", confirmSavePendingComponent);
+  els.revise?.addEventListener("click", revisePendingComponentDraft);
   els.compose?.addEventListener("click", composeHome);
 
   syncComponentSizeSelect();

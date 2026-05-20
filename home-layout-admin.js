@@ -253,11 +253,21 @@
   let fallbackComponentLibrary = null;
   let skeletonFillRunning = false;
   let skeletonAutoStarted = false;
+  let skeletonSlotPromptContext = null;
   let aestheticScoreTimer = 0;
   let aestheticScoreSignature = "";
   let aestheticScoreState = { pending: false, report: null, record: null, error: "" };
   let aestheticManualDecision = "approve";
   let aestheticManualScoreTouched = false;
+
+  const SKELETON_COMPONENT_PROMPT_PRESETS = [
+    { label: "更扁平", prompt: "整体更扁平，减少内层卡片和厚边框，用清晰的标题、指标行和主按钮层级。" },
+    { label: "更紧凑", prompt: "压缩模块高度和留白，保留核心字段，减少重复说明，让信息更适合客户端首页扫描。" },
+    { label: "卡片式", prompt: "改成卡片式表达，真实账号/模拟账号或关键指标要分组清楚，不要像普通表格。" },
+    { label: "列表式", prompt: "改成更清爽的列表/行项目结构，字段横向可读，减少卡片堆叠。" },
+    { label: "突出图表", prompt: "突出趋势图或图表容器，指标作为辅助，不要把图表挤在角落。" },
+    { label: "减少指标", prompt: "减少指标数量，只保留最关键的业务字段和一个主操作，避免模块内部重点太多。" },
+  ];
 
   function escapeHtml(value) {
     return String(value)
@@ -281,6 +291,155 @@
     showToast.timer = window.setTimeout(() => {
       els.toast.hidden = true;
     }, 1800);
+  }
+
+  function skeletonSlotActionLabel(action, hasComponent = false) {
+    if (action === "style") return "换样式";
+    if (action === "regenerate") return hasComponent ? "重生成" : "生成组件";
+    return "调整模块";
+  }
+
+  function skeletonComponentBrief(component) {
+    if (!component) return null;
+    return {
+      id: component.id || "",
+      name: component.name || "",
+      family: component.family || "",
+      size: component.size || "",
+      sourceType: component.sourceType || "",
+      referenceComponentId: component.referenceComponentId || "",
+      visibleText: fallbackComponentVisibleText(component).slice(0, 220),
+      layoutHints: Array.isArray(component.layoutHints) ? component.layoutHints.slice(0, 5) : [],
+      dataRequirements: Array.isArray(component.dataRequirements) ? component.dataRequirements.slice(0, 6) : [],
+    };
+  }
+
+  function skeletonComponentSignature(component) {
+    return String(component?.html || "")
+      .replace(/class=(["'])(.*?)\1/gi, 'class=""')
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 720);
+  }
+
+  function skeletonComponentSourceLabel(component) {
+    if (!component) return "未生成";
+    if (component.sourceType === "brick-fallback") return "积木兜底";
+    if (component.sourceType === "local-fallback") return "本地兜底";
+    if (component.sourceType === "mock-component-ai") return "Mock 组件";
+    if (component.sourceType === "component-ai") return "AI 组件";
+    return component.sourceType || "组件";
+  }
+
+  function ensureSkeletonComponentPromptModal() {
+    let modal = document.querySelector("[data-skeleton-component-modal]");
+    if (modal) return modal;
+
+    modal = document.createElement("div");
+    modal.className = "skeleton-component-modal";
+    modal.dataset.skeletonComponentModal = "";
+    modal.hidden = true;
+    modal.innerHTML = `
+      <div class="skeleton-component-modal-backdrop" data-skeleton-component-modal-close></div>
+      <form class="skeleton-component-dialog" role="dialog" aria-modal="true" aria-labelledby="skeleton-component-dialog-title" data-skeleton-component-form>
+        <header>
+          <div>
+            <span data-skeleton-component-kicker>单模块调整</span>
+            <h2 id="skeleton-component-dialog-title" data-skeleton-component-title>调整当前模块</h2>
+            <p data-skeleton-component-summary></p>
+          </div>
+          <button class="skeleton-component-close" type="button" data-skeleton-component-modal-close aria-label="关闭">×</button>
+        </header>
+        <div class="skeleton-component-meta" data-skeleton-component-meta></div>
+        <div class="skeleton-component-presets" data-skeleton-component-presets>
+          ${SKELETON_COMPONENT_PROMPT_PRESETS.map((item) => `<button type="button" data-skeleton-component-preset="${escapeHtml(item.prompt)}">${escapeHtml(item.label)}</button>`).join("")}
+        </div>
+        <label class="skeleton-component-prompt-field">
+          <span>补充 prompt</span>
+          <textarea data-skeleton-component-prompt rows="5" maxlength="1200" placeholder="例如：不要表格，改成真实账号和模拟账号两张卡；字段少一点，主按钮更明显。"></textarea>
+        </label>
+        <footer>
+          <button type="button" data-skeleton-component-modal-close>取消</button>
+          <button class="primary" type="submit" data-skeleton-component-submit>确认调整</button>
+        </footer>
+      </form>
+    `;
+    document.body.appendChild(modal);
+
+    modal.querySelectorAll("[data-skeleton-component-modal-close]").forEach((button) => {
+      button.addEventListener("click", closeSkeletonComponentPromptModal);
+    });
+    modal.querySelector("[data-skeleton-component-presets]")?.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-skeleton-component-preset]");
+      if (!button) return;
+      const prompt = button.dataset.skeletonComponentPreset || "";
+      const textarea = modal.querySelector("[data-skeleton-component-prompt]");
+      const current = textarea?.value.trim() || "";
+      if (textarea) {
+        textarea.value = current ? `${current}\n${prompt}` : prompt;
+        textarea.focus();
+      }
+    });
+    modal.querySelector("[data-skeleton-component-form]")?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      submitSkeletonComponentPrompt();
+    });
+    modal.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeSkeletonComponentPromptModal();
+    });
+    return modal;
+  }
+
+  function openSkeletonComponentPromptModal(slotId, action = "regenerate") {
+    if (!isSkeletonPreviewConfig()) return;
+    const scheme = skeletonSchemeFor(currentConfig);
+    const slot = scheme.slots.find((item) => item.id === slotId);
+    if (!slot) return;
+
+    const component = scheme.slotComponents?.[slotId] || null;
+    const hasComponent = Boolean(component?.html || component?.id);
+    const modal = ensureSkeletonComponentPromptModal();
+    const label = slot.label || home.featureLabel(slot.id);
+    skeletonSlotPromptContext = { slotId, action };
+
+    modal.querySelector("[data-skeleton-component-title]").textContent = `${skeletonSlotActionLabel(action, hasComponent)}：${label}`;
+    modal.querySelector("[data-skeleton-component-summary]").textContent = [
+      slot.sectionTitle || slot.sectionType || "slot",
+      skeletonSlotFamily(slot.id),
+      skeletonSlotSize(slot),
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    modal.querySelector("[data-skeleton-component-meta]").innerHTML = `
+      <span><b>当前组件</b>${escapeHtml(component?.name || "未生成")}</span>
+      <span><b>来源</b>${escapeHtml(skeletonComponentSourceLabel(component))}</span>
+      <span><b>状态</b>${escapeHtml(skeletonStatusLabel(slot.status))}</span>
+    `;
+    const textarea = modal.querySelector("[data-skeleton-component-prompt]");
+    if (textarea) textarea.value = "";
+    const submit = modal.querySelector("[data-skeleton-component-submit]");
+    if (submit) submit.textContent = action === "style" ? "按要求换样式" : hasComponent ? "按要求重生成" : "生成组件";
+    modal.hidden = false;
+    document.body.classList.add("skeleton-component-modal-open");
+    window.setTimeout(() => textarea?.focus(), 0);
+  }
+
+  function closeSkeletonComponentPromptModal() {
+    const modal = document.querySelector("[data-skeleton-component-modal]");
+    if (modal) modal.hidden = true;
+    document.body.classList.remove("skeleton-component-modal-open");
+    skeletonSlotPromptContext = null;
+  }
+
+  function submitSkeletonComponentPrompt() {
+    const context = skeletonSlotPromptContext;
+    if (!context) return;
+    const modal = ensureSkeletonComponentPromptModal();
+    const userPrompt = (modal.querySelector("[data-skeleton-component-prompt]")?.value || "").trim();
+    const { slotId, action } = context;
+    closeSkeletonComponentPromptModal();
+    skeletonAutoStarted = true;
+    generateSkeletonSlot(slotId, action, { userPrompt });
   }
 
   function normalizeRenderMode(value, fallback = "config") {
@@ -408,6 +567,7 @@
 	      ["onboarding_guide", "开户引导", /onboarding_guide|开户引导|KYC|kyc|开户流程|创建真实账户|开真实账户|首次入金|新客|已注册未开户/],
 	      ["quick_actions", "快捷入口", /quick_actions|快捷入口|快捷操作|立即开户|入金|联系客服/],
 	      ["trading_accounts_list", "交易账号列表", /trading_accounts_list|交易账号|交易账户|真实账号|模拟账号|MT5|mt5/],
+	      ["wallet_list", "钱包列表/卡片", /wallet_list|钱包列表|钱包卡片|多币种钱包|币种钱包|wallet list|wallet cards/i],
 	      ["promo_banner", "活动权益", /promo_banner|活动权益|活动|入金奖励|权益/],
 	      ["pamm_products", "PAMM 条件", /pamm|PAMM|pamm_products|资管产品/],
 	      ["referral_link_card", "推广链接", /referral_link_card|推广链接|邀请链接|开户链接|注册链接|邀请码|referral/],
@@ -431,6 +591,7 @@
 	          ${section("asset_overview", "账户摘要", `<div class="ai-html-local-metrics"><b>Sample 余额合计 125,430.80 USD</b><b>钱包余额 18,920.00</b><b>交易账号余额 106,510.80</b></div>`)}
 	          ${section("onboarding_guide", "KYC / 开真实账户 / 首次入金", `<ol class="ai-html-local-steps"><li>KYC 状态来自 CRM</li><li>立即开户为主 CTA</li><li>首次入金准备</li></ol><a data-home-action="openAccount" href="#open-account">立即开户</a>`)}
 	          ${section("quick_actions", "下一步操作", `<nav class="ai-html-local-actions"><a data-home-action="openAccount" href="#open-account">立即开户</a><a data-home-action="deposit" href="#deposit">入金</a><a data-home-action="accounts" href="#accounts">交易账号</a><a data-home-action="contactSupport" href="#support">客服</a></nav>`)}
+	          ${section("wallet_list", "钱包列表/卡片", `<div class="ai-html-local-wallets"><b>USD · 12,430.00</b><b>EUR · 8,920.00</b><b>USDT · 21,600.00</b></div>`)}
 	          ${section("promo_banner", "活动权益", `<p>Sample 活动权益，正式内容来自后台活动配置。</p><a data-home-action="deposit" href="#deposit">查看权益</a>`)}
 	          ${section("pamm_products", "PAMM 条件展示", `<div class="ai-html-local-list"><b>稳健策略 A · Sample 风险中低</b><b>平衡策略 B · Sample 风险中</b></div>`)}
 	          ${section("trading_accounts_list", "交易账号列表", `<div class="ai-html-local-accounts"><b>Live 80010 · MT5 · Equity Sample 12,726.40</b><b>Demo 90021 · MT5 · Equity Sample 51,280.60</b></div>`)}
@@ -457,6 +618,7 @@
 	      moduleMapping: Object.fromEntries(required.map(([id, label]) => [label, `data-ai-html-module="${id}" 区域承接。`])),
       componentReferences: [
         { componentId: "asset-overview-vip-hero", family: "AssetOverview", module: "asset_overview", reason: "参考主金额和指标层级。" },
+        { componentId: "wallet-list-tiles", family: "WalletList", module: "wallet_list", reason: "参考多币种钱包卡片结构。" },
         { componentId: "account-performance-pro-chart", family: "AccountPerformance", module: "trading_account_highlight", reason: "参考趋势表现结构。" },
         { componentId: "trading-accounts-separated-list", family: "TradingAccounts", module: "trading_accounts_list", reason: "参考账号环境值与账号列表字段。" },
       ],
@@ -469,6 +631,7 @@
 	          asset_overview: "AssetOverview",
 	          onboarding_guide: "OnboardingProgress",
 	          quick_actions: "QuickActions",
+	          wallet_list: "WalletList",
 	          trading_accounts_list: "TradingAccounts",
 	          promo_banner: "PromotionBanner",
 	          pamm_products: "PammProducts",
@@ -502,8 +665,8 @@
 	      html,
 	      css: `
 	        :host{display:block;color:var(--home-text,#172033);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
-	        .ai-html-page{display:grid;gap:14px;padding:16px;background:var(--home-bg,#f6f8fb)}.ai-html-page *{box-sizing:border-box}.ai-html-local-hero{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:end;padding:22px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-card-bg,#fff)}.ai-html-local-onboarding{grid-template-columns:minmax(0,.9fr) minmax(280px,1.1fr)}.ai-html-local-trader{grid-template-columns:minmax(0,1fr) minmax(260px,.8fr);background:var(--home-surface-soft,#f8fbff)}.ai-html-local-hero div,.ai-html-local-hero ol{display:grid;gap:10px}.ai-html-page h1{margin:0;font-size:32px;line-height:1.08}.ai-html-page p{margin:0;color:var(--home-text-muted,#64748b);line-height:1.6}.ai-html-page span{color:var(--home-primary,#2563eb);font-size:12px;font-weight:950}.ai-html-page a{min-height:42px;display:inline-grid;place-items:center;width:max-content;padding:0 14px;border:1px solid var(--home-button-border,#1d4ed8);border-radius:var(--home-radius-sm,8px);background:var(--home-button-bg,#2563eb);color:var(--home-button-text,#fff);font-weight:950;text-decoration:none}.ai-html-local-hero ol,.ai-html-local-steps{grid-template-columns:repeat(3,minmax(0,1fr));margin:0;padding:0;list-style:none}.ai-html-local-hero li,.ai-html-local-steps li{padding:12px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft,#f8fbff);font-weight:900}.ai-html-local-hero nav,.ai-html-local-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.ai-html-local-flow{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px}.ai-html-local-card{grid-column:span 6;display:grid;gap:12px;padding:18px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-card-bg,#fff)}.ai-html-local-card[data-ai-html-module="trading_accounts_list"],.ai-html-local-card[data-ai-html-module="risk_disclosure"]{grid-column:1/-1}.ai-html-local-card header{display:flex;justify-content:space-between;gap:12px}.ai-html-local-metrics,.ai-html-local-list,.ai-html-local-accounts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.ai-html-local-list,.ai-html-local-accounts{grid-template-columns:repeat(2,minmax(0,1fr))}.ai-html-local-card b{padding:10px;border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft,#f8fbff);color:var(--home-text,#172033)}details{padding:10px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft,#f8fbff)}
-	        @media(max-width:860px){.ai-html-local-hero,.ai-html-local-onboarding,.ai-html-local-trader,.ai-html-local-hero ol,.ai-html-local-steps,.ai-html-local-hero nav,.ai-html-local-actions,.ai-html-local-metrics,.ai-html-local-list,.ai-html-local-accounts{grid-template-columns:1fr}.ai-html-local-flow{grid-template-columns:1fr}.ai-html-local-card{grid-column:1/-1}.ai-html-page h1{font-size:28px}.ai-html-page a{width:100%}}
+	        .ai-html-page{display:grid;gap:14px;padding:16px;background:var(--home-bg,#f6f8fb)}.ai-html-page *{box-sizing:border-box}.ai-html-local-hero{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:end;padding:22px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-card-bg,#fff)}.ai-html-local-onboarding{grid-template-columns:minmax(0,.9fr) minmax(280px,1.1fr)}.ai-html-local-trader{grid-template-columns:minmax(0,1fr) minmax(260px,.8fr);background:var(--home-surface-soft,#f8fbff)}.ai-html-local-hero div,.ai-html-local-hero ol{display:grid;gap:10px}.ai-html-page h1{margin:0;font-size:32px;line-height:1.08}.ai-html-page p{margin:0;color:var(--home-text-muted,#64748b);line-height:1.6}.ai-html-page span{color:var(--home-primary,#2563eb);font-size:12px;font-weight:950}.ai-html-page a{min-height:42px;display:inline-grid;place-items:center;width:max-content;padding:0 14px;border:1px solid var(--home-button-border,#1d4ed8);border-radius:var(--home-radius-sm,8px);background:var(--home-button-bg,#2563eb);color:var(--home-button-text,#fff);font-weight:950;text-decoration:none}.ai-html-local-hero ol,.ai-html-local-steps{grid-template-columns:repeat(3,minmax(0,1fr));margin:0;padding:0;list-style:none}.ai-html-local-hero li,.ai-html-local-steps li{padding:12px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft,#f8fbff);font-weight:900}.ai-html-local-hero nav,.ai-html-local-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.ai-html-local-flow{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px}.ai-html-local-card{grid-column:span 6;display:grid;gap:12px;padding:18px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-card-bg,#fff)}.ai-html-local-card[data-ai-html-module="wallet_list"],.ai-html-local-card[data-ai-html-module="trading_accounts_list"],.ai-html-local-card[data-ai-html-module="risk_disclosure"]{grid-column:1/-1}.ai-html-local-card header{display:flex;justify-content:space-between;gap:12px}.ai-html-local-metrics,.ai-html-local-list,.ai-html-local-accounts,.ai-html-local-wallets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.ai-html-local-list,.ai-html-local-accounts{grid-template-columns:repeat(2,minmax(0,1fr))}.ai-html-local-card b{padding:10px;border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft,#f8fbff);color:var(--home-text,#172033)}details{padding:10px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft,#f8fbff)}
+	        @media(max-width:860px){.ai-html-local-hero,.ai-html-local-onboarding,.ai-html-local-trader,.ai-html-local-hero ol,.ai-html-local-steps,.ai-html-local-hero nav,.ai-html-local-actions,.ai-html-local-metrics,.ai-html-local-list,.ai-html-local-accounts,.ai-html-local-wallets{grid-template-columns:1fr}.ai-html-local-flow{grid-template-columns:1fr}.ai-html-local-card{grid-column:1/-1}.ai-html-page h1{font-size:28px}.ai-html-page a{width:100%}}
 	      `,
 	    };
 	  }
@@ -1180,6 +1343,8 @@
       trading_account_highlight: "AccountPerformance",
       trading_accounts_list: "TradingAccounts",
       create_account_form: "CreateAccountForm",
+      pamm_products: "PammProducts",
+      copytrading_signals: "CopytradingSignals",
       promo_banner: "PromotionBanner",
       ad_carousel: "PromotionBanner",
       referral_link_card: "ReferralLinkCard",
@@ -1202,6 +1367,12 @@
     return "2x1";
   }
 
+  function skeletonComponentMatchesSlotFamily(component, family) {
+    if (!component?.family || !family) return false;
+    if (component.family === family) return true;
+    return family === "ClientHomeAtoms" && component.family === "ClientHomeAtoms";
+  }
+
   function skeletonSchemeFor(config = currentConfig) {
     const normalized = home.normalizeConfig(config);
     if (normalized.skeletonHtmlScheme?.enabled) return normalized.skeletonHtmlScheme;
@@ -1210,6 +1381,20 @@
       sourceType: "local-skeleton",
       status: "pending-fill",
     });
+  }
+
+  function skeletonDesignContractFor(config = currentConfig) {
+    const normalized = home.normalizeConfig(config);
+    return (
+      normalized.skeletonHtmlScheme?.designContract ||
+      (typeof home.buildSkeletonDesignContract === "function" ? home.buildSkeletonDesignContract(normalized) : null) ||
+      {}
+    );
+  }
+
+  function skeletonDesignContractBrief(config = currentConfig) {
+    const contract = skeletonDesignContractFor(config);
+    return typeof home.skeletonDesignContractPrompt === "function" ? home.skeletonDesignContractPrompt(contract) : compactPromptJson(contract, 900);
   }
 
   function skeletonStageFor(slots, explicitStatus = "") {
@@ -1420,12 +1605,26 @@
       component.family,
       component.size,
       component.description,
+      component.sourcePrompt,
       ...(Array.isArray(component.tags) ? component.tags : []),
       ...(Array.isArray(component.layoutHints) ? component.layoutHints : []),
       ...(Array.isArray(component.dataRequirements) ? component.dataRequirements : []),
     ]
       .join(" ")
       .toLowerCase();
+  }
+
+  function fallbackComponentMatchesSlotFamily(component, family) {
+    if (!family) return true;
+    if (component.family === family) return true;
+    const haystack = fallbackComponentSearchText(component);
+    if (family === "CopytradingSignals") {
+      return component.family === "ClientHomeAtoms" && /copytrading|copy trading|信号源|signals?|跟单/i.test(haystack);
+    }
+    if (family === "PammProducts") {
+      return component.family === "ClientHomeAtoms" && /pamm|资管|产品推荐|策略产品|managed|portfolio/i.test(haystack);
+    }
+    return false;
   }
 
   function fallbackComponentVisibleText(component) {
@@ -1457,9 +1656,9 @@
     );
     const promptText = [slot.label, slot.sectionTitle, slotId, brick?.brickName, brick?.reason, action].filter(Boolean).join(" ").toLowerCase();
     const referenceableComponents = components.filter(fallbackComponentCanReference);
-    const sameFamily = referenceableComponents.filter((component) => component.family === family);
-    const pool = sameFamily.length ? sameFamily : referenceableComponents.filter((component) => component.family === "ClientHomeAtoms");
-    const candidates = pool.length ? pool : components;
+    const sameFamily = referenceableComponents.filter((component) => fallbackComponentMatchesSlotFamily(component, family));
+    const pool = sameFamily.length ? sameFamily : family === "ClientHomeAtoms" ? referenceableComponents.filter((component) => component.family === "ClientHomeAtoms") : [];
+    const candidates = pool.length ? pool : [];
     return candidates
       .filter(fallbackComponentCanReference)
       .map((component, index) => {
@@ -1468,7 +1667,7 @@
           .split(/\s+|[，,。；;、]/)
           .filter((word) => word.length >= 2 && haystack.includes(word)).length;
         const referenceScore = referenceIds.has(component.id) ? 160 : 0;
-        const familyScore = component.family === family ? 100 : 0;
+        const familyScore = component.family === family ? 100 : fallbackComponentMatchesSlotFamily(component, family) ? 46 : 0;
         const exactSizeScore = component.size === size ? 36 : 0;
         const sizeScore = Math.max(0, 28 - fallbackComponentSizeDistance(component.size, size) * 7);
         const userScore = fallbackComponentScore(component, 5);
@@ -1730,6 +1929,7 @@
       `页面框架：${compactPromptText(normalized.layoutPreset || normalized.pageStory || "standard", "standard", 64)} / ${compactPromptText(normalized.themePreset || normalized.theme, "default", 64)} / ${compactPromptText(normalized.density, "balanced", 40)}`,
       normalized.heroFocus ? `首屏重心：${home.featureLabel(normalized.heroFocus)}` : "",
       uniqueSlotLabels.length ? `骨架模块：${uniqueSlotLabels.join(" / ")}` : "",
+      skeletonDesignContractBrief(normalized),
       "全局边界：不要编造收益、下载链接、联系方式、活动规则或后台未提供数据；整体保持克制、专业、可嵌入金融客户端。",
     ]
       .filter(Boolean)
@@ -1762,18 +1962,27 @@
     }[slot.id] || "生成当前 slot 对应的真实业务组件，内容要服务当前模块，不要扩展成无关首页区块。";
   }
 
-  function skeletonSlotPrompt(slot, action, highScoreReferences = []) {
+  function skeletonSlotPrompt(slot, action, highScoreReferences = [], options = {}) {
     const normalized = home.normalizeConfig(currentConfig);
-    const actionText = action === "style" ? "更换一种明显不同的组件样式" : "生成这个 slot 的完整组件";
+    const userPrompt = compactPromptText(options.userPrompt, "", 900);
+    const existingBrief = skeletonComponentBrief(options.existingComponent);
+    const actionText =
+      action === "style"
+        ? "更换一种明显不同的组件样式"
+        : existingBrief
+          ? "重生成这个 slot 的组件内部呈现"
+          : "生成这个 slot 的完整组件";
     const brick = skeletonBrickForSlot(slot, normalized);
     const relatedSettings = skeletonRelatedSettings(slot, normalized);
     const references = Array.isArray(highScoreReferences) ? highScoreReferences : [];
     return [
       skeletonPageBrief(normalized),
       "",
-      "骨架 HTML 生成总约束:",
-      "当前是整页骨架里的单 slot 生成：只填充当前 slot，但视觉必须融入整页的 layout、theme、density、首屏重心和相邻模块节奏。",
-      "AI 可以自行发挥新的组件形态，但必须先参考组件库里的高分积木；灵感来自字段密度、按钮层级、状态标签、图表/列表表达、卡片比例和响应式方式。",
+	      "骨架 HTML 生成总约束:",
+	      "当前是整页骨架里的单 slot 生成：只填充当前 slot，但视觉必须融入整页的 layout、theme、density、首屏重心和相邻模块节奏。",
+	      "整页风格契约是硬约束：可以更换组件内部工艺，但不得更换全页圆角、阴影、按钮高度、标签样式、主色策略或叙事语气。",
+	      "CSS 必须优先使用 var(--home-*) 和 var(--home-skeleton-contract-*) token；不要为当前 slot 单独发明一套随机品牌色、渐变、厚阴影或大圆角。",
+	      "AI 可以自行发挥新的组件形态，但必须先参考组件库里的高分积木；灵感来自字段密度、按钮层级、状态标签、图表/列表表达、卡片比例和响应式方式。",
       "组件库评分规则：8-10 分强参考，6-7 分适度参考，5 分及以下禁止参考。若无法明显提升，就按最匹配高分积木同款微调，只调整文案、主题 token、动作绑定、响应式和 spacing。",
       "生成结果要像高分积木上的升级版：保留真实业务字段和动作，同时改进结构、层级、密度或组合方式；不要从零生成普通白卡片。",
       references.length ? `当前 slot 优先参考的高分积木：${compactPromptJson(references, 980)}` : "当前 slot 暂无显式高分积木参考时，也必须遵守同 family 积木语言和设计治理。",
@@ -1786,12 +1995,15 @@
       `所在区域：${slot.sectionTitle || slot.sectionId || "首页区域"} / ${slot.sectionType || "full"}`,
       slot.variant ? `当前变体：${slot.variant}` : "",
       slot.morph ? `当前 morph：${slot.morph}` : "",
+      existingBrief ? `当前已有组件摘要：${compactPromptJson(existingBrief, 720)}` : "",
       brick ? `积木意图：${compactPromptText([brick.brickName || brick.brickId, brick.reason].filter(Boolean).join(" - "), "", 220)}` : "",
       relatedSettings ? `相关配置：${compactPromptJson(relatedSettings)}` : "",
+      userPrompt ? `管理员补充 prompt：${userPrompt}` : "",
       `模块目标：${skeletonSlotObjective(slot)}`,
       "输出要求：生成真实业务字段、清晰按钮层级、专业金融客户端质感；不要只显示模块名或通用占位。",
       "审美要求：参考同 family 积木的字段密度、按钮层级、状态标签、卡片比例和响应式方式，生成新的漂亮变体；不要照抄积木，也不要只换颜色。",
       "结构要求：至少体现一种明确组件工艺，例如指标带、状态条、步骤连接、趋势图容器、操作坞、表格/列表、左右分栏或紧凑信息流。",
+      existingBrief ? "差异要求：当前已有组件不能原样返回；HTML/CSS 必须在 DOM 结构、字段组织、密度、主次层级或交互区排布上至少一处明显不同。" : "",
       slot.id === "risk_disclosure" || slot.id === "risk_notice"
         ? "风险提示硬性要求：只能生成风险披露、杠杆风险、保证金风险、亏损风险、合规说明；不要生成资产概览、账户余额、入金、开户或营销活动组件。"
         : "",
@@ -1803,7 +2015,7 @@
       .join("\n");
   }
 
-  async function generateSkeletonSlot(slotId, action = "regenerate") {
+  async function generateSkeletonSlot(slotId, action = "regenerate", options = {}) {
     if (!isSkeletonPreviewConfig()) return;
     const scheme = skeletonSchemeFor(currentConfig);
     const slot = scheme.slots.find((item) => item.id === slotId);
@@ -1838,24 +2050,61 @@
       const family = skeletonSlotFamily(slotId);
       const size = skeletonSlotSize(slot);
       const scoreContext = await skeletonHighScoreReferenceContext(slot, action, currentConfig);
-      const slotPrompt = skeletonSlotPrompt(slot, action, scoreContext);
-      const isStyleEdit = action === "style" && existing?.id;
-      const payload = isStyleEdit
+      const userPrompt = compactPromptText(options.userPrompt, "", 900);
+      const slotPrompt = skeletonSlotPrompt(slot, action, scoreContext, { userPrompt, existingComponent: existing });
+      const currentComponentSummary = skeletonComponentBrief(existing);
+      const currentHtmlSignature = skeletonComponentSignature(existing);
+      const excludeComponentIds = [
+        existing?.id,
+        existing?.referenceComponentId,
+        existing?.componentId,
+      ]
+        .map((id) => String(id || "").trim())
+        .filter(Boolean);
+      const shouldEditExisting =
+        Boolean(existing?.id) &&
+        (action === "style" || action === "regenerate") &&
+        skeletonComponentMatchesSlotFamily(existing, family);
+      const payload = shouldEditExisting
         ? {
             componentId: existing.id,
             component: existing,
-            instruction: `${slotPrompt}\n请保持业务能力不变，但重做视觉层级、排版、密度或结构；优先参考上面的高分积木，不要只换颜色。`,
-            scoreContext,
-            modelConfig: aiRequestModelConfig(),
-          }
+            instruction: [
+              slotPrompt,
+              action === "style"
+                ? "请保持业务能力不变，但重做视觉层级、排版、密度或结构；优先参考上面的高分积木，不要只换颜色。"
+                : "请以当前组件为业务基稿，重做内部结构、DOM 排列、密度和视觉层级；不要只换标题、颜色或边框。",
+              currentHtmlSignature ? `当前 HTML 签名禁止原样复用：${currentHtmlSignature}` : "",
+            ]
+              .filter(Boolean)
+              .join("\n"),
+            adjustmentPrompt: userPrompt,
+            currentComponentSummary,
+	            currentHtmlSignature,
+	            excludeComponentIds,
+	            designContract: skeletonDesignContractFor(currentConfig),
+	            scoreContext,
+	            modelConfig: aiRequestModelConfig(),
+	          }
         : {
-            prompt: slotPrompt,
+            prompt: [
+              slotPrompt,
+              currentComponentSummary ? `需要避开的当前组件：${compactPromptJson(currentComponentSummary, 720)}` : "",
+              currentHtmlSignature ? `当前 HTML 签名禁止原样复用：${currentHtmlSignature}` : "",
+            ]
+              .filter(Boolean)
+              .join("\n"),
             family,
             size,
-            scoreContext,
-            modelConfig: aiRequestModelConfig(),
-          };
-      const result = await requestJsonEndpoint(isStyleEdit ? "/api/home-components/edit" : "/api/home-components/generate", payload);
+            adjustmentPrompt: userPrompt,
+            currentComponentSummary,
+	            currentHtmlSignature,
+	            excludeComponentIds,
+	            designContract: skeletonDesignContractFor(currentConfig),
+	            scoreContext,
+	            modelConfig: aiRequestModelConfig(),
+	          };
+      const result = await requestJsonEndpoint(shouldEditExisting ? "/api/home-components/edit" : "/api/home-components/generate", payload);
       const resultComponent = result.component || (await brickFallbackSlotComponent(slot, action));
       const component = {
         ...resultComponent,
@@ -2093,6 +2342,7 @@
       quickActions: "快捷入口：展示操作入口，4-10个快捷入口位置，icon或者icon+文字，样式可自行发挥",
       openingFlow: "新手 Onboarding 引导：KYC -> 开真实账户 -> 首次入金 -> 首次交易，帮助新用户完成基础流程，其中首次交易可要可不要",
       accountBenefits: "交易表现：说明真实账户的交易表现，左右结构。左侧展示真实交易账号的基础信息，右侧展示净值折线图(7d、30d)",
+      walletList: "钱包列表/卡片：使用 wallet_list 独立模块展示多币种钱包卡片，只展示钱包货币、币种图标和钱包余额，不把多币种明细塞到账户概览",
       kycGuide: "CRM 账户 KYC 状态：未提交、待审、通过、拒绝；只展示当前状态,未提交时补充展示去提交按钮，拒绝是展示再次提交",
       depositBonus: "入金奖励、首存门槛和赠金梯度",
       rewardRules: "展示活动信息：活动名称、奖励金额、活动日期、简易活动规则说明、倒计时和权益说明。需要有营销的风格",
@@ -2134,6 +2384,7 @@
     quickActions: ["quick_actions"],
     openingFlow: ["onboarding_guide"],
     accountBenefits: ["trading_account_highlight"],
+    walletList: ["wallet_list"],
     kycGuide: ["onboarding_guide"],
     depositBonus: ["promo_banner", "asset_overview"],
     rewardRules: ["promo_banner", "announcements"],
@@ -2483,6 +2734,7 @@
     "copytrading_signals",
     "onboarding_guide",
     "asset_overview",
+    "wallet_list",
     "quick_actions",
     "pamm_products",
     "referral_link_card",
@@ -2502,6 +2754,7 @@
     copytrading_signals: { id: "guided-hero", type: "split", title: "首屏重点" },
     onboarding_guide: { id: "guided-hero", type: "split", title: "首屏重点" },
     asset_overview: { id: "guided-overview", type: "split", title: "账户概览" },
+    wallet_list: { id: "guided-wallets", type: "full", title: "钱包列表" },
     quick_actions: { id: "guided-actions", type: "split", title: "快捷操作" },
     pamm_products: { id: "guided-products", type: "split", title: "产品推荐" },
     referral_link_card: { id: "guided-growth", type: "split", title: "增长工具" },
@@ -2603,6 +2856,22 @@
       });
       modules.QuickActions = modules.QuickActions || { variant: "gridCards" };
       styles.quickActions = styles.quickActions || "matrix";
+    }
+
+    if (slot === "wallet_list") {
+      mergeGuidedSetting(config, "wallet", {
+        enabled: true,
+        placement: "standalone",
+        showFundActions: false,
+      });
+      mergeGuidedSetting(config, "assets", {
+        enabled: true,
+        wallets: Array.isArray(config.moduleSettings.assets?.wallets) && config.moduleSettings.assets.wallets.length
+          ? config.moduleSettings.assets.wallets
+          : ["USD", "EUR", "USDT"],
+      });
+      modules.WalletList = modules.WalletList || { variant: "walletTiles" };
+      styles.walletList = styles.walletList || "wallet-tiles";
     }
 
     if (slot === "onboarding_guide") {
@@ -3906,6 +4175,15 @@
 	    if (options.inputMode) context.inputMode = options.inputMode;
 	    if (options.guidedIntake) context.guidedIntake = options.guidedIntake;
     if (options.renderMode) context.renderMode = normalizeRenderMode(options.renderMode);
+    if (context.renderMode === "skeletonHtml") {
+      const designContract = skeletonDesignContractFor(currentConfig);
+      context.skeletonDesignContract = designContract;
+      context.skeletonGenerationRules = [
+        "先让 designGenome/pageStory/layoutPreset 形成整页叙事差异，再生成 slot。",
+        "同一个骨架方案里的所有 slot 必须继承 skeletonDesignContract 的 token、CTA 和组件语法。",
+        "多方案之间必须改变首屏重心、section 顺序和核心模块 morph，不能只换颜色或文案。",
+      ];
+    }
 	    return context;
 	  }
 
@@ -4270,8 +4548,11 @@
 	      name: normalized.name,
 	      layoutPreset: normalized.layoutPreset,
 	      themePreset: normalized.themePreset || normalized.theme,
-		      density: normalized.density,
-          renderMode: normalized.activeRenderMode || "config",
+			      density: normalized.density,
+		      designGenome: normalized.designGenome,
+		      pageStory: normalized.pageStory,
+		      heroFocus: normalized.heroFocus,
+	          renderMode: normalized.activeRenderMode || "config",
 	          htmlScheme: normalized.htmlScheme?.enabled ? normalized.htmlScheme.name : "",
 	          htmlSourceType: normalized.htmlScheme?.enabled ? normalized.htmlScheme.sourceType || "" : "",
 	          htmlIsFallback: Boolean(normalized.htmlScheme?.enabled && normalized.htmlScheme.isFallback),
@@ -4280,11 +4561,15 @@
 	          htmlFallbackReason: normalized.htmlScheme?.enabled ? normalized.htmlScheme.fallbackReason || "" : "",
 			      intent: normalized.brickTrace?.intent || "",
 	      strategy: normalized.brickTrace?.strategy || normalized.compositionStrategy || "",
-	      brickIds: normalized.brickPlan.map((item) => item.brickId || item.feature).filter(Boolean),
-	      sections: normalized.sections.map((section) => `${section.type}:${section.slots.join("+")}`),
-		          htmlPipeline: normalized.htmlScheme?.enabled ? normalized.htmlScheme.generationPipeline || normalized.htmlScheme.sourceType || "" : "",
-		    };
-		  }
+		      brickIds: normalized.brickPlan.map((item) => item.brickId || item.feature).filter(Boolean),
+		      sections: normalized.sections.map((section) => `${section.type}:${section.slots.join("+")}`),
+		      firstScreen: normalized.sections.slice(0, 2).map((section) => `${section.type}:${section.slots.join("+")}`),
+		      morphs: Object.keys(normalized.componentMorphs || {})
+		        .map((moduleId) => `${moduleId}:${normalized.componentMorphs[moduleId]?.morphId || normalized.componentMorphs[moduleId]?.morph || ""}`)
+		        .filter(Boolean),
+			          htmlPipeline: normalized.htmlScheme?.enabled ? normalized.htmlScheme.generationPipeline || normalized.htmlScheme.sourceType || "" : "",
+			    };
+			  }
 
 		  function homepageHistoryFinalPage(config) {
 		    const normalized = home.normalizeConfig(config || {});
@@ -4305,12 +4590,23 @@
 	    const second = summarizeHomepageConfig(secondConfig);
 	    const firstBricks = new Set(first.brickIds);
 	    const secondBricks = new Set(second.brickIds);
-	    const overlap = [...secondBricks].filter((brickId) => firstBricks.has(brickId)).length;
-	    const maxSize = Math.max(firstBricks.size, secondBricks.size, 1);
-	    const sameSections = first.sections.join("|") === second.sections.join("|");
+		    const overlap = [...secondBricks].filter((brickId) => firstBricks.has(brickId)).length;
+		    const maxSize = Math.max(firstBricks.size, secondBricks.size, 1);
+		    const sameSections = first.sections.join("|") === second.sections.join("|");
+		    const sameFirstScreen = first.firstScreen.join("|") === second.firstScreen.join("|");
+		    const sameNarrative = first.designGenome === second.designGenome || first.pageStory === second.pageStory;
+		    const sameHero = first.heroFocus === second.heroFocus;
+		    const morphOverlap = second.morphs.filter((morph) => first.morphs.includes(morph)).length;
+		    const morphSimilarity = morphOverlap / Math.max(first.morphs.length, second.morphs.length, 1);
 
-	    return first.layoutPreset === second.layoutPreset && sameSections && overlap / maxSize >= 0.82;
-	  }
+		    return (
+		      first.layoutPreset === second.layoutPreset &&
+		      sameNarrative &&
+		      (sameSections || (sameFirstScreen && sameHero)) &&
+		      overlap / maxSize >= 0.72 &&
+		      morphSimilarity >= 0.64
+		    );
+		  }
 
 		  function findDistinctLocalConfig(prompt, referenceConfig, startVariant = 0) {
 		    let fallback = null;
@@ -4979,8 +5275,13 @@
     if (event.data?.type !== "home-skeleton-slot-action") return;
     const slot = String(event.data.slot || "").trim();
     if (!slot) return;
+    const action = event.data.action || "regenerate";
     skeletonAutoStarted = true;
-    generateSkeletonSlot(slot, event.data.action || "regenerate");
+    if (action === "lock" || action === "unlock") {
+      generateSkeletonSlot(slot, action);
+      return;
+    }
+    openSkeletonComponentPromptModal(slot, action);
   });
 
 	  els.generateSuggestions?.addEventListener("click", () => {

@@ -324,6 +324,112 @@
   color: #fff;
 }
 
+.brick-ai-result[hidden] {
+  display: none;
+}
+
+.brick-ai-result {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #c7d7ee;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.brick-ai-result header,
+.brick-ai-result footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.brick-ai-result header span {
+  display: block;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.brick-ai-result header strong {
+  display: block;
+  margin-top: 4px;
+  color: #0f172a;
+  font-size: 18px;
+  letter-spacing: 0;
+}
+
+.brick-ai-result header small {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: right;
+}
+
+.brick-ai-result-preview {
+  min-height: 220px;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.brick-ai-result-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.brick-ai-result-meta span {
+  min-height: 26px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 9px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #fff;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.brick-ai-result-meta p {
+  flex-basis: 100%;
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.brick-ai-result footer {
+  justify-content: flex-end;
+}
+
+.brick-ai-result footer button {
+  min-height: 36px;
+  padding: 0 13px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #fff;
+  color: #334155;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.brick-ai-result footer button.primary {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #fff;
+}
+
+.brick-ai-result footer button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
 .brick-ai-modal[hidden] {
   display: none;
 }
@@ -2260,6 +2366,10 @@
     grid-column: span 1;
   }
 
+  .brick-card[data-component-size] {
+    grid-column: span var(--component-grid-span-tablet, 1);
+  }
+
   .brick-preview-grid {
     grid-template-columns: repeat(2, minmax(280px, 1fr));
   }
@@ -2302,9 +2412,17 @@
 
   .brick-page-head,
   .brick-ai-dialog-head,
+  .brick-ai-result header,
+  .brick-ai-result footer,
   .brick-family-head {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .brick-ai-result footer button,
+  .brick-ai-result header small {
+    width: 100%;
+    text-align: left;
   }
 
   .brick-overview-band,

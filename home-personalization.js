@@ -2419,6 +2419,159 @@
     },
   };
 
+  const SKELETON_STYLE_CONTRACTS = {
+    accountOpsConsole: {
+      id: "ops-console",
+      label: "账户运营控制台契约",
+      personality: "ops-console",
+      tone: "冷静、清晰、可扫描",
+      surface: "薄边框白底模块，浅蓝灰背景，只用一套主色强调状态和主操作。",
+      tokens: {
+        cardRadius: "8px",
+        buttonRadius: "8px",
+        sectionGap: "14px",
+        cardPadding: "16px",
+        cardShadow: "none",
+      },
+      componentRules: [
+        "所有业务模块保持薄边框、低阴影、紧凑标题栏和一致的指标字号。",
+        "列表、钱包、账号和图表都用同一套状态点、标签、分隔线和按钮高度。",
+        "模块之间可以换结构，但不能换成另一套品牌色、圆角、阴影或营销海报语言。",
+      ],
+      ctaRules: [
+        "全页只保留一个最强主 CTA，其余动作降级为描边、文本或工具按钮。",
+        "资金动作、快捷入口和账号动作不能重复放大同一个按钮。",
+      ],
+      moduleGrammar: "指标带、运营表格、钱包矩阵、账号证明和轻量趋势图共同组成工作台。",
+      differenceRule: "本方案差异来自运营工作台的信息编排，不靠随机颜色、厚重阴影或大面积装饰。",
+    },
+    tradingCommand: {
+      id: "trading-command",
+      label: "交易指挥中心契约",
+      personality: "trading-command",
+      tone: "高密度、行动优先、终端感克制",
+      surface: "紧凑工具栏、趋势图和状态面板优先，背景可以更深但仍要保持金融客户端克制。",
+      tokens: {
+        cardRadius: "6px",
+        buttonRadius: "6px",
+        sectionGap: "12px",
+        cardPadding: "14px",
+        cardShadow: "none",
+      },
+      componentRules: [
+        "所有模块围绕交易动作、账号状态和趋势图组织，避免营销 Banner 抢首屏。",
+        "指标、图表、账号列表使用统一的终端式密度和短标签。",
+        "卡片可以更紧凑，但同屏组件必须共享边框粗细、标题高度和图表线条风格。",
+      ],
+      ctaRules: [
+        "主操作偏交易或切换账号，入金只能作为辅助动作。",
+        "按钮使用短命令式文案，避免多个大面积蓝色按钮并排。",
+      ],
+      moduleGrammar: "命令栏、净值趋势、账号表格、风险/保证金状态共同组成交易控制台。",
+      differenceRule: "本方案差异必须体现首屏交易指挥感，而不是普通资产卡片重排。",
+    },
+    onboardingJourney: {
+      id: "onboarding-journey",
+      label: "新客旅程契约",
+      personality: "onboarding-journey",
+      tone: "有秩序、推进感、低压力",
+      surface: "步骤、里程碑、下一步行动和状态证明使用同一套路径语言。",
+      tokens: {
+        cardRadius: "8px",
+        buttonRadius: "8px",
+        sectionGap: "16px",
+        cardPadding: "16px",
+        cardShadow: "0 10px 26px rgba(15,23,42,.06)",
+      },
+      componentRules: [
+        "每个模块都要服务 KYC、开真实账号、首次入金或首次交易的连续路径。",
+        "步骤编号、进度、状态标签和下一步按钮必须共享同一视觉语法。",
+        "资产和账号模块只能做证明或承接，不能抢走旅程主线。",
+      ],
+      ctaRules: [
+        "唯一主 CTA 应指向下一步，新手路径以外的动作保持低干扰。",
+        "已完成、待完成和下一步状态必须清楚区分。",
+      ],
+      moduleGrammar: "旅程主面板、任务轨、进度票据、账号证明和辅助 FAQ 共同组成激活流程。",
+      differenceRule: "本方案差异必须体现连续旅程，不要退回普通仪表盘。",
+    },
+    magazineCampaign: {
+      id: "magazine-campaign",
+      label: "活动专题契约",
+      personality: "magazine-campaign",
+      tone: "专题化、转化明确、仍然克制",
+      surface: "活动权益可以做强视觉，但下方模块必须用同一套专题卡片和数据证明承接。",
+      tokens: {
+        cardRadius: "8px",
+        buttonRadius: "8px",
+        sectionGap: "16px",
+        cardPadding: "18px",
+        cardShadow: "0 14px 34px rgba(15,23,42,.10)",
+      },
+      componentRules: [
+        "活动、快捷入口、账号证明和风险提示要像同一篇专题里的不同段落。",
+        "允许更强首屏，但禁止每个组件各自使用不同渐变、插画或按钮样式。",
+        "下方运营模块要降噪，避免与活动主视觉争抢。",
+      ],
+      ctaRules: [
+        "活动报名或查看权益是主 CTA，入金和开户只作为承接动作。",
+        "同一屏不重复出现多个同权重活动按钮。",
+      ],
+      moduleGrammar: "专题封面、权益摘要、参与路径、账号证明和合规说明共同组成活动页面。",
+      differenceRule: "本方案差异必须来自专题叙事和首屏重心，而不是把工作台染成活动色。",
+    },
+    privateWealthDesk: {
+      id: "wealth-desk",
+      label: "私行服务台契约",
+      personality: "wealth-desk",
+      tone: "稳重、留白更足、服务感",
+      surface: "资产、权益和服务入口使用更舒展的分组，但圆角、边框和标签必须统一。",
+      tokens: {
+        cardRadius: "8px",
+        buttonRadius: "8px",
+        sectionGap: "18px",
+        cardPadding: "18px",
+        cardShadow: "0 16px 36px rgba(15,23,42,.08)",
+      },
+      componentRules: [
+        "资产和专属服务是主线，交易账号和活动只能做辅助证明。",
+        "模块密度可舒展，但标题、金额、标签和分隔线必须保持同一节奏。",
+        "黑金或轻金色只作为克制强调，不把每个模块做成不同奢华卡片。",
+      ],
+      ctaRules: [
+        "主 CTA 偏专属服务、开户或咨询，资金动作降级。",
+        "服务入口不能和普通快捷入口混成同权重按钮组。",
+      ],
+      moduleGrammar: "资产信任、权益服务、客户经理入口和账号证明共同组成服务台。",
+      differenceRule: "本方案差异必须体现服务台和资产信任，不要做成普通营销落地页。",
+    },
+    depositLadder: {
+      id: "deposit-ladder",
+      label: "入金转化契约",
+      personality: "deposit-ladder",
+      tone: "转化清晰、奖励明确、辅助信息降噪",
+      surface: "奖励阶梯、账户摘要和下一步路径使用同一套转化组件语言。",
+      tokens: {
+        cardRadius: "8px",
+        buttonRadius: "8px",
+        sectionGap: "14px",
+        cardPadding: "16px",
+        cardShadow: "0 12px 30px rgba(37,99,235,.08)",
+      },
+      componentRules: [
+        "入金奖励和账户摘要是首屏主线，钱包长列表、出金和复杂图表必须降级。",
+        "阶梯、进度、权益和账号证明的标签样式要统一。",
+        "不要在快捷入口、资产卡和活动卡里同时放大入金按钮。",
+      ],
+      ctaRules: [
+        "首次入金是唯一主 CTA，其他动作只做辅助承接。",
+        "活动规则和风险说明必须低干扰但可见。",
+      ],
+      moduleGrammar: "奖励阶梯、资产摘要、新手路径、账号证明和规则说明共同组成入金转化页。",
+      differenceRule: "本方案差异必须体现入金路径，不要只是把普通首页顶部换成活动文案。",
+    },
+  };
+
   const PAGE_GOVERNANCE_CONTRACTS = {
     standard: {
       label: "标准工作台契约",
@@ -5370,14 +5523,99 @@
     };
   }
 
-  function buildSkeletonHtmlMarkup(sections, slots) {
+  function skeletonContractArray(value, fallback = []) {
+    const source = Array.isArray(value) ? value : fallback;
+    return source.map((item) => cleanMetaText(item, "", 180)).filter(Boolean).slice(0, 8);
+  }
+
+  function normalizeSkeletonDesignContract(source, fallback = {}) {
+    const contract = source && typeof source === "object" ? source : fallback && typeof fallback === "object" ? fallback : {};
+    const fallbackTokens = fallback.tokens && typeof fallback.tokens === "object" ? fallback.tokens : {};
+    const tokens = contract.tokens && typeof contract.tokens === "object" ? contract.tokens : fallbackTokens;
+    return {
+      id: cleanMetaText(contract.id || fallback.id, "ops-console", 48),
+      label: cleanMetaText(contract.label || fallback.label, "账户运营控制台契约", 80),
+      personality: cleanMetaText(contract.personality || fallback.personality, "ops-console", 48),
+      tone: cleanMetaText(contract.tone || fallback.tone, "冷静、清晰、可扫描", 120),
+      surface: cleanMetaText(contract.surface || fallback.surface, "薄边框白底模块，浅蓝灰背景，只用一套主色强调状态和主操作。", 180),
+      narrative: cleanMetaText(contract.narrative || fallback.narrative, "先决定整页叙事，再按 slot 填充模块。", 180),
+      density: cleanMetaText(contract.density || fallback.density, "balanced", 32),
+      theme: cleanMetaText(contract.theme || fallback.theme, "blueFinance", 48),
+      tokens: {
+        cardRadius: cleanMetaText(tokens.cardRadius, "8px", 24),
+        buttonRadius: cleanMetaText(tokens.buttonRadius, "8px", 24),
+        sectionGap: cleanMetaText(tokens.sectionGap, "14px", 24),
+        cardPadding: cleanMetaText(tokens.cardPadding, "16px", 24),
+        cardShadow: cleanMetaText(tokens.cardShadow, "none", 80),
+      },
+      componentRules: skeletonContractArray(contract.componentRules, fallback.componentRules),
+      ctaRules: skeletonContractArray(contract.ctaRules, fallback.ctaRules),
+      moduleGrammar: cleanMetaText(contract.moduleGrammar || fallback.moduleGrammar, "用统一模块语法组织整页。", 220),
+      differenceRule: cleanMetaText(contract.differenceRule || fallback.differenceRule, "差异来自整页叙事和结构分叉，不靠随机换色。", 220),
+    };
+  }
+
+  function buildSkeletonDesignContract(config = {}) {
+    const source = config && typeof config === "object" ? config : {};
+    const layoutPreset = normalizeLayoutPreset(source.layoutPreset || (typeof source.layout === "string" ? source.layout : ""));
+    const designGenome = normalizeDesignGenome(source.designGenome || source.layoutGene || source.genome, designGenomeForLayout(layoutPreset));
+    const genome = DESIGN_GENOMES[designGenome] || DESIGN_GENOMES.accountOpsConsole;
+    const storyId = normalizePageStory(source.pageStory || source.heroNarrative || source.story, genome.story || "opsClarity");
+    const story = PAGE_STORIES[storyId] || PAGE_STORIES.opsClarity;
+    const template = SKELETON_STYLE_CONTRACTS[designGenome] || SKELETON_STYLE_CONTRACTS[genome.id] || SKELETON_STYLE_CONTRACTS.accountOpsConsole;
+    const density = ["compact", "comfortable", "balanced", "spacious"].includes(source.density) ? source.density : genome.density || DEFAULT_CONFIG.density;
+    const theme = normalizeThemeId(source.themePreset || source.theme || genome.themePreset || DEFAULT_CONFIG.themePreset);
+    return normalizeSkeletonDesignContract(
+      {
+        ...template,
+        narrative: `${story.label || storyId}：${story.summary || template.differenceRule}`,
+        density,
+        theme,
+      },
+      SKELETON_STYLE_CONTRACTS.accountOpsConsole,
+    );
+  }
+
+  function skeletonDesignContractPrompt(contract = {}) {
+    const normalized = normalizeSkeletonDesignContract(contract, SKELETON_STYLE_CONTRACTS.accountOpsConsole);
+    return [
+      `整页风格契约：${normalized.label} / ${normalized.tone}`,
+      `叙事规则：${normalized.narrative}`,
+      `视觉表面：${normalized.surface}`,
+      `全局 token：圆角 ${normalized.tokens.cardRadius}，按钮圆角 ${normalized.tokens.buttonRadius}，区块间距 ${normalized.tokens.sectionGap}，卡片内距 ${normalized.tokens.cardPadding}，阴影 ${normalized.tokens.cardShadow}`,
+      normalized.componentRules.length ? `组件统一规则：${normalized.componentRules.join("；")}` : "",
+      normalized.ctaRules.length ? `CTA 统一规则：${normalized.ctaRules.join("；")}` : "",
+      `模块语法：${normalized.moduleGrammar}`,
+      `差异规则：${normalized.differenceRule}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  function skeletonContractCssValue(value, fallback) {
+    const source = String(value || fallback || "").trim();
+    return /^[#\w\s.,:%()+-]+$/.test(source) ? source.slice(0, 90) : fallback;
+  }
+
+  function applySkeletonContractStyleVars(node, contract = {}) {
+    if (!node?.style) return;
+    const normalized = normalizeSkeletonDesignContract(contract, SKELETON_STYLE_CONTRACTS.accountOpsConsole);
+    node.style.setProperty("--home-skeleton-contract-radius", skeletonContractCssValue(normalized.tokens.cardRadius, "8px"));
+    node.style.setProperty("--home-skeleton-contract-button-radius", skeletonContractCssValue(normalized.tokens.buttonRadius, "8px"));
+    node.style.setProperty("--home-skeleton-contract-gap", skeletonContractCssValue(normalized.tokens.sectionGap, "14px"));
+    node.style.setProperty("--home-skeleton-contract-padding", skeletonContractCssValue(normalized.tokens.cardPadding, "16px"));
+    node.style.setProperty("--home-skeleton-contract-shadow", skeletonContractCssValue(normalized.tokens.cardShadow, "none"));
+  }
+
+  function buildSkeletonHtmlMarkup(sections, slots, designContract = {}) {
+    const contract = normalizeSkeletonDesignContract(designContract, SKELETON_STYLE_CONTRACTS.accountOpsConsole);
     const slotByKey = Object.fromEntries(slots.map((slot) => [slot.id, slot]));
     return `
-      <section class="home-skeleton-html-page" data-home-skeleton-root>
+      <section class="home-skeleton-html-page" data-home-skeleton-root data-home-skeleton-contract="${escapeHtml(contract.id)}" data-home-skeleton-personality="${escapeHtml(contract.personality)}" data-home-skeleton-density="${escapeHtml(contract.density)}">
         <header class="home-skeleton-top">
-          <span>Skeleton HTML</span>
+          <span>${escapeHtml(contract.label)}</span>
           <strong>整页骨架 HTML</strong>
-          <small>此层只声明 section 与 slot，占位完成后再按 slot 填充模块内容。</small>
+          <small>${escapeHtml(contract.narrative)} 此层先声明统一风格契约、section 与 slot，再按 slot 填充模块内容。</small>
         </header>
         <main class="home-skeleton-flow">
           ${sections
@@ -5416,6 +5654,7 @@
 
   function buildSkeletonHtmlScheme(config, options = {}) {
     const normalized = config?.sections && config?.layout ? config : normalizeConfig(config);
+    const designContract = normalizeSkeletonDesignContract(options.designContract, buildSkeletonDesignContract(normalized));
     const sections = (Array.isArray(normalized.sections) ? normalized.sections : [])
       .map((section) => ({
         ...section,
@@ -5431,8 +5670,9 @@
         sourceType: cleanMetaText(options.sourceType, "local-skeleton", 48),
         generatedAt: new Date().toISOString(),
         status: normalizeSkeletonStatus(options.status, "pending-fill"),
+        designContract,
         slots,
-        skeletonHtml: buildSkeletonHtmlMarkup(sections, slots),
+        skeletonHtml: buildSkeletonHtmlMarkup(sections, slots, designContract),
         slotComponents: options.slotComponents && typeof options.slotComponents === "object" ? options.slotComponents : {},
         slotRegenerationLog: Array.isArray(options.slotRegenerationLog) ? options.slotRegenerationLog : [],
       },
@@ -5482,6 +5722,7 @@
       sourceType: cleanMetaText(scheme.sourceType, "local-skeleton", 48),
       generatedAt: cleanMetaText(scheme.generatedAt, "", 48),
       status: schemeStatus,
+      designContract: normalizeSkeletonDesignContract(scheme.designContract || scheme.styleContract, SKELETON_STYLE_CONTRACTS.accountOpsConsole),
       skeletonHtml,
       slots,
       slotComponents,
@@ -12159,6 +12400,30 @@
     return wrapper;
   }
 
+  function renderSkeletonModuleLoading(doc, label, mode = "loading") {
+    const loading = doc.createElement("div");
+    loading.className = "home-skeleton-module-loading";
+    loading.dataset.homeSkeletonModuleLoading = mode;
+    loading.setAttribute("aria-hidden", "true");
+    loading.innerHTML = `
+      <div class="home-skeleton-module-loading-head">
+        <span>${escapeHtml(mode === "refreshing" ? "Regenerating" : "Generating")}</span>
+        <strong>${escapeHtml(label)}</strong>
+      </div>
+      <div class="home-skeleton-module-loading-lines">
+        <i></i>
+        <i></i>
+        <i></i>
+      </div>
+      <div class="home-skeleton-module-loading-grid">
+        <b></b>
+        <b></b>
+        <b></b>
+      </div>
+    `;
+    return loading;
+  }
+
   function renderSkeletonHtmlScheme(config, target) {
     const shell = target.querySelector("[data-home-shell]");
     const scheme = normalizeSkeletonHtmlScheme(config.skeletonHtmlScheme, true);
@@ -12175,6 +12440,7 @@
     shell.classList.add("is-skeleton-html-home");
     shell.dataset.skeletonHtmlScheme = effectiveScheme.name;
     shell.dataset.skeletonHtmlSource = effectiveScheme.sourceType || "";
+    shell.dataset.skeletonHtmlContract = effectiveScheme.designContract?.id || "";
 
     const host = doc.createElement("section");
     host.className = "home-skeleton-render-host";
@@ -12182,6 +12448,10 @@
     host.dataset.homeSkeletonSource = effectiveScheme.sourceType || "";
     host.dataset.homeSkeletonSourceLabel = skeletonSourceLabel(effectiveScheme);
     host.dataset.homeSkeletonStatus = effectiveScheme.status || "pending-fill";
+    host.dataset.homeSkeletonContract = effectiveScheme.designContract?.id || "";
+    host.dataset.homeSkeletonPersonality = effectiveScheme.designContract?.personality || "";
+    host.dataset.homeSkeletonDensity = effectiveScheme.designContract?.density || "";
+    applySkeletonContractStyleVars(host, effectiveScheme.designContract);
     host.setAttribute("aria-label", effectiveScheme.name || "骨架 HTML 填充首页预览");
     host.innerHTML = effectiveScheme.skeletonHtml || buildSkeletonHtmlScheme(config).skeletonHtml;
 
@@ -12245,6 +12515,9 @@
         content.dataset.homeSkeletonFilledSlot = slot;
         content.dataset.homeSkeletonFillMode = "ai-component";
         slotNode.appendChild(content);
+      }
+      if (status === "generating") {
+        slotNode.appendChild(renderSkeletonModuleLoading(doc, label, component?.html ? "refreshing" : "loading"));
       }
       if (canEditSlots) slotNode.appendChild(renderSkeletonSlotTools(doc, slot, label, slotRecord));
     });
@@ -12537,6 +12810,7 @@
     body.dataset.homeRenderMode = normalized.activeRenderMode || "config";
     body.dataset.homeHtmlEnabled = normalized.htmlScheme?.enabled ? "true" : "false";
     body.dataset.homeSkeletonEnabled = normalized.skeletonHtmlScheme?.enabled ? "true" : "false";
+    body.dataset.homeSkeletonContract = normalized.skeletonHtmlScheme?.designContract?.id || "";
     body.dataset.homePublished = normalized.publishedAt ? "true" : "false";
     body.dataset.homeGenome = normalized.designGenome;
     body.dataset.homeStory = normalized.pageStory;
@@ -12697,10 +12971,10 @@
       },
       {
         label: "组件变体",
-        value: variants,
-        reason:
+          value: variants,
+          reason:
           normalized.skeletonHtmlScheme?.enabled && normalized.renderMode === "skeletonHtml"
-            ? `当前使用 ${normalized.skeletonHtmlScheme.name}：先保留整页 slot 骨架，再按 slot 填充模块。`
+            ? `当前使用 ${normalized.skeletonHtmlScheme.name}：先以「${normalized.skeletonHtmlScheme.designContract?.label || "整页风格契约"}」锁住视觉语言，再按 slot 填充模块。`
             :
           normalized.htmlScheme?.enabled && normalized.renderMode !== "config"
             ? `当前同时保留组件化配置和 ${normalized.htmlScheme.name}，管理员可切换预览/发布方式。`
@@ -12724,9 +12998,9 @@
       .join(" / ");
 
 	    choices.push(settings.wallet.enabled && settings.wallet.placement === "standalone" ? "钱包独立展示" : "钱包聚合到资产");
-	    choices.push(
-	      normalized.activeRenderMode === "skeletonHtml" && normalized.skeletonHtmlScheme?.enabled
-	        ? `骨架填充：${normalized.skeletonHtmlScheme.slots.length} 个 slot`
+		choices.push(
+		  normalized.activeRenderMode === "skeletonHtml" && normalized.skeletonHtmlScheme?.enabled
+		    ? `骨架填充：${normalized.skeletonHtmlScheme.designContract?.label || "统一契约"} · ${normalized.skeletonHtmlScheme.slots.length} 个 slot`
 	        : normalized.htmlScheme?.enabled
 	        ? `${aiHtmlSourceLabel(normalized.htmlScheme)}：${normalized.activeRenderMode === "aiHtml" ? "当前预览 HTML 版" : "当前预览组件版"}`
 	        : "AI HTML 未启用",
@@ -12781,6 +13055,7 @@
     TENANT_THEME_TOKENS: clone(TENANT_THEME_TOKENS),
     THEMES,
     applyConfig,
+    buildSkeletonDesignContract,
     buildSkeletonHtmlScheme,
     clearDraft,
     densityLabel,
@@ -12805,6 +13080,7 @@
     resetConfig,
     saveDraft,
     saveConfig,
+    skeletonDesignContractPrompt,
     refreshCharts: initializeHomeCharts,
     t,
     themeLabel,

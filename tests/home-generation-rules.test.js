@@ -494,11 +494,22 @@ async function run() {
   assert.strictEqual(normalizedSkeletonHtml.htmlScheme.enabled, false);
   assert.strictEqual(normalizedSkeletonHtml.skeletonHtmlScheme.enabled, true);
   assert(normalizedSkeletonHtml.skeletonHtmlScheme.skeletonHtml.includes("data-home-skeleton-slot"), "skeleton mode must generate slot placeholder HTML");
+  assert(normalizedSkeletonHtml.skeletonHtmlScheme.skeletonHtml.includes("data-home-skeleton-contract"), "skeleton mode must stamp the page style contract into the shell");
+  assert.strictEqual(normalizedSkeletonHtml.skeletonHtmlScheme.designContract.label.length > 0, true, "skeleton mode must expose a style contract");
   assert(
     normalizedSkeletonHtml.skeletonHtmlScheme.slots.some((slot) => slot.id === "asset_overview"),
     "skeleton scheme must expose individual slot records",
   );
   assert.strictEqual(typeof home.buildSkeletonHtmlScheme, "function", "skeleton builder must be exported for admin slot refresh");
+  assert.strictEqual(typeof home.buildSkeletonDesignContract, "function", "skeleton style contract builder must be exported for slot prompts");
+
+  const assetSkeletonA = home.buildSkeletonHtmlScheme(home.promptToConfig("生成一个资产管理首页", 0));
+  const assetSkeletonB = home.buildSkeletonHtmlScheme(home.promptToConfig("生成一个资产管理首页", 1));
+  assert.notStrictEqual(
+    assetSkeletonA.designContract.id,
+    assetSkeletonB.designContract.id,
+    "different skeleton candidates should carry different page-level style contracts",
+  );
 
   const normalizedFilledSkeletonHtml = home.normalizeConfig({
     schemaVersion: 4,
@@ -952,6 +963,11 @@ async function run() {
 		  assert(serverSource.includes("deleteComponentReferenceAsset"), "deleting a component must clean uploaded component visual assets");
 		  assert(modulePreviewSource.includes("syncLocalComponentScoresToServer"), "module preview should sync existing local scores into the persisted score store");
 		  assert(modulePreviewHtmlSource.includes("data-ai-component-reference-file"), "AI component generation must support uploaded image/screenshot references");
+		  assert(modulePreviewHtmlSource.includes("data-ai-component-result"), "AI component generation must render a pending preview before saving");
+		  assert(modulePreviewHtmlSource.includes("data-ai-component-confirm-save"), "AI component generation must require explicit save confirmation");
+		  assert(modulePreviewSource.includes("save: false"), "AI component preview generation must request a draft instead of immediately saving");
+		  assert(modulePreviewSource.includes("confirmSavePendingComponent"), "AI component preview must have a confirmed save path");
+		  assert(serverSource.includes("shouldPersistGeneratedComponent"), "component generation API must support draft-only generation before confirmed save");
 		  assert(serverSource.includes("componentVisualReferencePromptReference"), "component generation prompts must include image/screenshot visual references");
 		  assert(serverSource.includes("input_image"), "OpenAI Responses component generation should forward uploaded image references");
 	  assert(serverSource.includes("productWarnings"), "homepage responses should expose productWarnings separately from HTML quality");
@@ -1026,6 +1042,13 @@ async function run() {
 		  assert(serverSource.includes("在线客服服务卡"), "SupportContact mock fallback must render a real support card");
 		  assert(!serverSource.includes("<strong>${prompt}</strong>"), "component fallbacks must not paste the administrator prompt into the customer UI");
 		  assert(serverSource.includes("generatedComponentViolatesFamily"), "component generation must reject family-mismatched RiskDisclosure output");
+		  assert(serverSource.includes('"CopytradingSignals"'), "CopyTrading signal slots must be a dedicated component family");
+		  assert(serverSource.includes('family === "CopytradingSignals"'), "component generation must reject onboarding/PAMM output for CopyTrading slots");
+		  assert(adminSource.includes('copytrading_signals: "CopytradingSignals"'), "skeleton slot generation must request the CopyTrading family for signal slots");
+		  assert(modulePreviewHtmlSource.includes('value="CopytradingSignals"'), "component workbench family selector must expose saved CopyTrading signal bricks");
+		  assert(modulePreviewHtmlSource.includes('value="ReferralLinkCard"'), "component workbench must use ReferralLinkCard for promotion link bricks");
+		  assert(!/<option\s+value="ReferralLink">/.test(modulePreviewHtmlSource), "component workbench must not create new bricks under the legacy ReferralLink family");
+		  assert(serverSource.includes("function canonicalComponentFamily"), "server must canonicalize legacy component families before saving/filtering");
 	  assert(adminSource.includes("interpretationRound += 1;"), "normal homepage generation must advance interpretation variant");
 	  assert(serverSource.includes("applyHomepageUnderstandingToServerConfig(next, prompt, payload.variant)"), "server prompt governance must receive the generation variant");
 	  assert(serverSource.includes("depositGovernedBrickPlan(payload.variant)"), "server deposit governance must preserve variant diversity");
@@ -1035,6 +1058,7 @@ async function run() {
 		  assert(adminSource.includes("积木保底"), "admin history must label brick-backed AI HTML as a fallback source");
 	  assert(adminSource.includes("prepareConfigForPublish"), "publishing must normalize skeleton drafts into a clean final customer config");
 	  assert(personalizationCss.includes(".home-skeleton-render-host.is-published-skeleton"), "published skeleton pages must hide editor shell markers");
+	  assert(personalizationSource.includes("home-skeleton-module-loading"), "generating skeleton slots must render a module-level lazy-loading placeholder");
 	  assert(personalizationCss.includes(".home-skeleton-section-split .home-skeleton-slot:only-child"), "single-slot split skeleton sections must span the full row");
 	  assert(personalizationCss.includes('body[data-home-preview="content-only"] > .sidebar'), "iframe previews must stay content-only");
 	  assert(!personalizationCss.includes('body[data-home-published="true"] > .sidebar'), "published customer pages must keep the shared sidebar");

@@ -1539,7 +1539,6 @@ const COMPONENT_FAMILIES = [
   "FundActions",
   "QuickActions",
   "PromotionBanner",
-  "ReferralLink",
   "ReferralLinkCard",
   "TradingAccounts",
   "OpenAccount",
@@ -1548,6 +1547,8 @@ const COMPONENT_FAMILIES = [
   "AccountPerformance",
   "WalletList",
   "CreateAccountForm",
+  "PammProducts",
+  "CopytradingSignals",
   "RiskDisclosure",
   "FaqSection",
   "SupportContact",
@@ -2735,6 +2736,21 @@ function oneOfList(value, options, fallback) {
   return options.includes(value) ? value : fallback;
 }
 
+const COMPONENT_FAMILY_ALIASES = {
+  ReferralLink: "ReferralLinkCard",
+  referralLink: "ReferralLinkCard",
+  referral_link: "ReferralLinkCard",
+};
+
+function canonicalComponentFamily(value) {
+  const family = cleanText(value, "", 60);
+  return COMPONENT_FAMILY_ALIASES[family] || family;
+}
+
+function oneOfComponentFamily(value, fallback = "ClientHomeAtoms") {
+  return oneOfList(canonicalComponentFamily(value), COMPONENT_FAMILIES, fallback);
+}
+
 function normalizeComponentSize(value, fallback = "2x1") {
   const normalized = String(value || "")
     .trim()
@@ -2895,9 +2911,46 @@ function enrichComponentReferencePolicy(reference = {}, lookup = componentLibrar
 
 function autoComponentSizeForFamily(family) {
   if (["PromotionBanner", "AssetOverview", "QuickActions"].includes(family)) return "4x1";
-  if (["TradingAccounts", "AccountPerformance", "WalletList"].includes(family)) return "4x2";
+  if (["TradingAccounts", "AccountPerformance", "WalletList", "PammProducts", "CopytradingSignals"].includes(family)) return "4x2";
   if (["CreateAccountForm", "OnboardingProgress"].includes(family)) return "4x3";
   return "2x1";
+}
+
+function isAutoComponentSizeValue(value) {
+  return ["auto", "ai", "free"].includes(String(value || "").trim().toLowerCase());
+}
+
+function normalizeComponentLayoutContext(value = {}) {
+  const source = value && typeof value === "object" ? value : {};
+  const pageWidth = Number(source.pageWidth);
+  const maxColumns = Number(source.maxColumns);
+  const selectedMode = cleanText(source.selectedMode, "", 16).toLowerCase() === "manual" ? "manual" : "auto";
+  const functionalComplexity = oneOfList(cleanText(source.functionalComplexity, "standard", 20), ["compact", "standard", "rich", "workbench"], "standard");
+  const recommendedSize = normalizeComponentSize(source.recommendedSize, "");
+  const selectedSize = isAutoComponentSizeValue(source.selectedSize) ? "auto" : normalizeComponentSize(source.selectedSize, "");
+  const allowedSizes = (Array.isArray(source.allowedSizes) ? source.allowedSizes : [])
+    .map((size) => normalizeComponentSize(size, ""))
+    .filter(Boolean)
+    .slice(0, 10);
+
+  return {
+    available: Boolean(recommendedSize || allowedSizes.length || Number.isFinite(pageWidth) || Number.isFinite(maxColumns)),
+    pageWidth: Number.isFinite(pageWidth) ? Math.max(0, Math.round(pageWidth)) : null,
+    maxColumns: Number.isFinite(maxColumns) ? Math.min(12, Math.max(1, Math.round(maxColumns))) : null,
+    selectedMode,
+    selectedSize: selectedSize || (selectedMode === "auto" ? "auto" : ""),
+    recommendedSize,
+    allowedSizes,
+    functionalComplexity,
+    gridUnit: cleanText(source.gridUnit, "1x 侧栏/小卡，2x 主栏，3x+ 宽幅或整行工作台", 140),
+    sizingPolicy: cleanText(source.sizingPolicy, "按页面宽度、可用列数和功能复杂度选择尺寸。", 180),
+  };
+}
+
+function autoComponentSizeForPayload(payload = {}, family = "") {
+  const context = normalizeComponentLayoutContext(payload.layoutContext);
+  if (context.recommendedSize) return context.recommendedSize;
+  return autoComponentSizeForFamily(family);
 }
 
 function componentSizeRows(size) {
@@ -2911,9 +2964,52 @@ function componentSizePromptLabel(value, fallback = "2x1") {
   return normalizeComponentSize(value, fallback);
 }
 
+function componentLayoutContextPromptReference(payload = {}) {
+  const family = oneOfComponentFamily(payload.family);
+  const context = normalizeComponentLayoutContext(payload.layoutContext);
+  const recommendedSize = context.recommendedSize || autoComponentSizeForFamily(family);
+  const payloadSelectedMode = isAutoComponentSizeValue(payload.size) ? "auto" : "manual";
+  const selectedMode = context.available ? context.selectedMode : payloadSelectedMode;
+  return {
+    available: context.available,
+    pageWidth: context.pageWidth,
+    maxColumns: context.maxColumns,
+    selectedMode,
+    selectedSize: context.selectedSize || (payloadSelectedMode === "auto" ? "auto" : normalizeComponentSize(payload.size, "")),
+    recommendedSize,
+    allowedSizes: context.allowedSizes.length ? context.allowedSizes : COMPONENT_SIZES,
+    functionalComplexity: context.functionalComplexity,
+    gridUnit: context.gridUnit,
+    sizingPolicy: context.sizingPolicy,
+    decisionRules: [
+      "size 的第一位数字不要超过 maxColumns；maxColumns 为空时按常用尺寸判断。",
+      "列表、表格、图表、表单、多步骤流程、多账号/多币种工作台可以扩大到 3x2、4x2、4x3 或 5x3。",
+      "单状态、单链接、单按钮类侧栏组件保持 1x1/1x2/2x1，避免假大空。",
+      "移动端会单列降级，所以桌面宽度足够时可以用更宽的结构提高信息承载。",
+    ],
+  };
+}
+
 function homepageRenderMode(payload) {
   const value = cleanText(payload?.renderMode || payload?.generationRenderMode || payload?.context?.renderMode, "config", 24);
   return ["config", "aiHtml", "skeletonHtml", "compare"].includes(value) ? value : "config";
+}
+
+function skeletonHomepagePromptLines(payload = {}) {
+  if (homepageRenderMode(payload) !== "skeletonHtml") return [];
+  const context = ensureObject(payload.context);
+  return [
+    "骨架 HTML 模式治理:",
+    compactJson({
+      skeletonDesignContract: context.skeletonDesignContract || null,
+      skeletonGenerationRules: Array.isArray(context.skeletonGenerationRules) ? context.skeletonGenerationRules.slice(0, 6) : [],
+      hardRules: [
+        "先生成整页级 designGenome/pageStory/layoutPreset 差异，再按 slot 填充模块。",
+        "同一方案内所有 slot 必须服从同一套 token、CTA、标签、按钮、密度和模块语法。",
+        "多方案之间必须改变首屏重心、section 顺序和核心模块 morph，不能只是换颜色、标题或按钮文案。",
+      ],
+    }),
+  ];
 }
 
 function normalizeServerHomeColorMode(value, fallback = "auto") {
@@ -3381,8 +3477,10 @@ function prepareComponentVisualReference(payload = {}) {
 
 function normalizeGeneratedComponent(component, payload = {}, options = {}) {
   const source = component && typeof component === "object" ? component : {};
-  const family = oneOfList(source.family || payload.family, COMPONENT_FAMILIES, "ClientHomeAtoms");
-  const size = normalizeComponentSize(source.size || payload.size, "2x1");
+  const requestedFamily = oneOfComponentFamily(payload.family, "");
+  const sourceFamily = oneOfComponentFamily(source.family, "");
+  const family = requestedFamily && requestedFamily !== "ClientHomeAtoms" ? requestedFamily : sourceFamily || requestedFamily || "ClientHomeAtoms";
+  const size = normalizeComponentSize(source.size || payload.size, autoComponentSizeForPayload(payload, family));
   const name = cleanText(source.name, `${family} AI 组件`, 48);
   const id = safeId(source.id || `${family}-${name}-${Date.now().toString(36)}`, "component");
   const now = new Date().toISOString();
@@ -3394,6 +3492,7 @@ function normalizeGeneratedComponent(component, payload = {}, options = {}) {
     type: cleanText(source.type, "ai-generated", 32),
     name,
     family,
+    ...(sourceFamily && sourceFamily !== family ? { modelFamily: sourceFamily } : {}),
     size,
     score: normalizeComponentScore(source.score ?? payload.componentScore, 5),
     description: cleanText(stripEditorArtifactsFromText(source.description), "AI 生成的首页积木组件。", 260),
@@ -3461,8 +3560,25 @@ function generatedComponentTooGeneric(component) {
 }
 
 function generatedComponentViolatesFamily(component, payload = {}) {
-  const family = oneOfList(component?.family || payload.family, COMPONENT_FAMILIES, "ClientHomeAtoms");
+  const requestedFamily = oneOfComponentFamily(payload.family, "");
+  const modelFamily = oneOfComponentFamily(component?.modelFamily, "");
+  const family = oneOfComponentFamily(component?.family || requestedFamily);
   const source = `${component?.name || ""} ${component?.description || ""} ${component?.html || ""}`;
+  if (requestedFamily && requestedFamily !== "ClientHomeAtoms" && modelFamily && modelFamily !== requestedFamily) {
+    return true;
+  }
+  if (family === "PammProducts") {
+    const hasPammSemantics = /PAMM|资管|产品|策略|年化|收益|规模|跟投|风险|排行|yield|portfolio|managed/i.test(source);
+    const looksLikeCopytrading = /CopyTrading|跟单|信号源|signal|follow/i.test(source);
+    const looksLikeOnboarding = /KYC|开户|开真实账户|创建真实账户|首次入金|身份认证|onboarding|deposit progress/i.test(source);
+    return !hasPammSemantics || looksLikeCopytrading || looksLikeOnboarding;
+  }
+  if (family === "CopytradingSignals") {
+    const hasSignalSemantics = /CopyTrading|跟单|信号源|signal|收益率|总收益|最大回撤|回撤|订阅|关注|跟单|curve|trend/i.test(source);
+    const looksLikeOnboarding = /KYC|开户|开真实账户|创建真实账户|首次入金|身份认证|账户开通进度|onboarding|deposit progress/i.test(source);
+    const looksLikePamm = /PAMM|资管产品|产品推荐|年化|跟投规模/i.test(source);
+    return !hasSignalSemantics || looksLikeOnboarding || looksLikePamm;
+  }
   if (family === "RiskDisclosure") {
     const hasRiskSemantics = /风险|风险披露|合规|免责声明|保证金|杠杆|强平|亏损|Risk|Disclosure|Margin|Leverage|Loss/i.test(source);
     const looksLikeAccountOverview = /Account Overview|Wallet Balance|Trading Balance|Total Assets|Deposit|Open Account|账户概览|资产概览|钱包余额|交易余额/i.test(source);
@@ -3620,6 +3736,39 @@ function componentStructureSignals(component = {}) {
   add(/@media/i.test(css), "响应式降级");
 
   return signals.slice(0, 8);
+}
+
+function componentReferenceFamilySearchText(component = {}) {
+  return normalizeKeywordText(
+    [
+      component.id,
+      component.name,
+      component.family,
+      component.description,
+      component.html,
+      ...(Array.isArray(component.tags) ? component.tags : []),
+      ...(Array.isArray(component.layoutHints) ? component.layoutHints : []),
+      ...(Array.isArray(component.dataRequirements) ? component.dataRequirements : []),
+    ].join(" "),
+  );
+}
+
+function componentMatchesReferenceFamily(component = {}, family = "") {
+  const requestedFamily = canonicalComponentFamily(family);
+  const componentFamily = canonicalComponentFamily(component.family);
+  if (!requestedFamily) return true;
+  if (componentFamily === requestedFamily) return true;
+  const text = componentReferenceFamilySearchText(component);
+  if (requestedFamily === "CopytradingSignals") {
+    return componentFamily === "ClientHomeAtoms" && /copytrading|copy trading|信号源|signals?|跟单/i.test(text);
+  }
+  if (requestedFamily === "PammProducts") {
+    return componentFamily === "ClientHomeAtoms" && /pamm|资管|产品推荐|策略产品|managed|portfolio/i.test(text);
+  }
+  if (requestedFamily === "AppDownload") {
+    return componentFamily === "ClientHomeAtoms" && /app|下载|二维码|download|mobile/i.test(text);
+  }
+  return false;
 }
 
 function compactComponentReferenceForPrompt(component = {}, options = {}) {
@@ -3781,16 +3930,38 @@ function componentSizeDistance(firstSize, secondSize) {
   );
 }
 
+function componentFallbackExcludeIds(payload = {}, options = {}) {
+  return [
+    options.excludeIds,
+    payload.excludeIds,
+    payload.excludeComponentIds,
+    payload.avoidComponentIds,
+    payload.currentComponentId,
+    payload.componentId,
+    payload.currentComponentSummary?.id,
+    payload.currentComponentSummary?.referenceComponentId,
+    payload.currentComponent?.id,
+    payload.component?.id,
+    payload.component?.referenceComponentId,
+  ]
+    .flat(Infinity)
+    .map((id) => cleanText(id, "", 90))
+    .filter(Boolean);
+}
+
 function componentLibraryFallbackForPayload(payload = {}, options = {}) {
-  const family = oneOfList(payload.family, COMPONENT_FAMILIES, "ClientHomeAtoms");
-  const size = normalizeComponentSize(payload.size, autoComponentSizeForFamily(family));
+  const family = oneOfComponentFamily(payload.family);
+  const size = normalizeComponentSize(payload.size, autoComponentSizeForPayload(payload, family));
   const prompt = cleanText(payload.prompt || payload.instruction || "", "", 500);
-  const excludeIds = new Set((Array.isArray(options.excludeIds) ? options.excludeIds : []).map((id) => cleanText(id, "", 90)).filter(Boolean));
+  const excludeIds = new Set(componentFallbackExcludeIds(payload, options));
   const libraryComponents = readComponentLibrary().components.filter((component) => !excludeIds.has(component.id) && componentReferenceAllowed(component, payload));
   if (!libraryComponents.length) return null;
 
-  const sameFamily = libraryComponents.filter((component) => component.family === family);
-  const ranked = rankComponentReferences(sameFamily.length ? sameFamily : libraryComponents, {
+  const compatibleFamily = libraryComponents.filter((component) => componentMatchesReferenceFamily(component, family));
+  const pool = family === "ClientHomeAtoms" ? libraryComponents.filter((component) => component.family === "ClientHomeAtoms") : compatibleFamily;
+  if (!pool.length) return null;
+
+  const ranked = rankComponentReferences(pool, {
     family,
     size,
     prompt,
@@ -3828,7 +3999,8 @@ function componentLibraryFallbackForPayload(payload = {}, options = {}) {
 }
 
 function componentLibraryPromptReference(options = {}) {
-  const components = readComponentLibrary().components;
+  const family = cleanText(options.family, "", 60);
+  const components = readComponentLibrary().components.filter((component) => componentMatchesReferenceFamily(component, family));
   const selected = rankComponentReferences(components, options);
   const policy = componentReferencePolicyPrompt(components, options);
 
@@ -7420,9 +7592,8 @@ function selectHighScoreBrickForHomepageBlock(block, payload = {}, config = {}, 
   const family = cleanText(brick?.family || meta.family || homepageComponentReferenceForBlock(canonical), "", 80);
   if (!family) return null;
   const size = normalizeComponentSize(brick?.size || meta.size || "", meta.size || autoComponentSizeForFamily(family));
-  const families = new Set(aiHtmlReferenceFamilies(family));
   const libraryComponents = readComponentLibrary().components.filter(
-    (component) => componentReferenceAllowed(component, payload) && families.has(component.family) && !usedIds.has(component.id),
+    (component) => componentReferenceAllowed(component, payload) && componentMatchesReferenceFamily(component, family) && !usedIds.has(component.id),
   );
   if (!libraryComponents.length) return null;
   const ranked = rankComponentReferences(libraryComponents, {
@@ -8444,10 +8615,10 @@ function componentFamilySpec(family) {
       requiredUi: ["活动标题", "奖池/剩余时间/权益", "CTA"],
       forbidden: ["纯色空广告块"],
     },
-    ReferralLink: {
+    ReferralLinkCard: {
       purpose: "邀请开户链接、邀请码、二维码和转化数据",
       requiredUi: ["测试开户链接", "邀请码", "Copy 按钮", "点击/开户/交易账号转化指标"],
-      forbidden: ["Primary Action", "只显示 ReferralLink 字样"],
+      forbidden: ["Primary Action", "只显示 ReferralLinkCard 字样"],
     },
     TradingAccounts: {
       purpose: "真实账号和模拟账号管理",
@@ -8484,6 +8655,16 @@ function componentFamilySpec(family) {
       requiredUi: ["交易平台", "账号类型", "币种", "杠杆", "创建按钮"],
       forbidden: ["不可识别的空表单"],
     },
+    PammProducts: {
+      purpose: "PAMM 产品推荐、产品排行和资管策略卡片",
+      requiredUi: ["PAMM 产品名称", "收益或年化", "风险等级", "规模/跟投人数", "趋势图或排行结构"],
+      forbidden: ["CopyTrading 信号源", "KYC/开户步骤", "首次入金进度", "只有普通标题"],
+    },
+    CopytradingSignals: {
+      purpose: "CopyTrading 信号源推荐、跟单策略和收益曲线卡片",
+      requiredUi: ["信号源名称", "收益率", "总收益或订阅人数", "最大回撤", "风险等级", "收益趋势图容器", "关注/跟单动作"],
+      forbidden: ["KYC/开户步骤", "首次入金进度", "PAMM 产品排行", "只有普通标题"],
+    },
     RiskDisclosure: {
       purpose: "风险披露、保证金和杠杆风险提示",
       requiredUi: ["风险提示标题", "杠杆/保证金/亏损风险", "合规披露文案", "后台合规配置占位"],
@@ -8506,9 +8687,10 @@ function componentFamilySpec(family) {
 
 function buildComponentPrompt(payload) {
   const prompt = String(payload.prompt || "").trim();
-  const family = oneOfList(payload.family, COMPONENT_FAMILIES, "ClientHomeAtoms");
+  const family = oneOfComponentFamily(payload.family);
+  const layoutContext = componentLayoutContextPromptReference(payload);
   const size = componentSizePromptLabel(payload.size, "2x1");
-  const referenceSize = normalizeComponentSize(payload.size, "");
+  const referenceSize = normalizeComponentSize(payload.size, layoutContext.recommendedSize || "");
   const familySpec = componentFamilySpec(family);
   const componentReference = componentLibraryPromptReference({ family, size: referenceSize, prompt, limit: 8 });
   const scoreReference = scoreContextPromptReference(payload.scoreContext);
@@ -8533,6 +8715,7 @@ function buildComponentPrompt(payload) {
     "圆角控制在 8px 或以下，避免营销式大圆角和装饰性渐变球。",
     "组件必须能作为积木参与首页布局，明确 size、layoutHints 和 dataRequirements。",
     `尺寸规则: ${COMPONENT_SIZE_GUIDE}`,
+    "当推荐尺寸为 AI 自行选择时，必须结合“页面宽度/尺寸决策上下文”决定 size；功能越复杂、当前页面越宽，可把组件放大到 3x2、4x2、4x3、5x3 或合理 NxM，简单侧栏组件不要强行变大。",
     "组件布局必须能自适应容器宽度，避免固定大空白、空占位或依赖不可控高度撑开。",
     "组件内部只保留一个可见主标题：如果使用 strong/h1-h4 做主标题，就不要再放 span/small/label 作为上方 eyebrow、分类名或第二标题；span/small 只用于数据行字段标签。",
     "禁止返回通用占位组件；不要使用 Primary Action、AI 样式、Sample、Lorem ipsum 这类无业务含义文案。",
@@ -8544,6 +8727,9 @@ function buildComponentPrompt(payload) {
   const user = [
     `目标模块: ${family}`,
     `推荐尺寸: ${size}`,
+    "",
+    "页面宽度/尺寸决策上下文:",
+    compactJson(layoutContext),
     "",
     "该模块必须包含的业务结构:",
     compactJson(familySpec),
@@ -8598,13 +8784,15 @@ function compactMiniMaxComponentReference(item = {}) {
 }
 
 function compactMiniMaxComponentContext(payload, family, size, prompt) {
-  const referenceSize = normalizeComponentSize(size, "");
+  const layoutContext = componentLayoutContextPromptReference({ ...payload, family });
+  const referenceSize = normalizeComponentSize(size, layoutContext.recommendedSize || "");
   const componentReference = componentLibraryPromptReference({ family, size: referenceSize, prompt, limit: 3 });
   const scoreReference = scoreContextPromptReference(payload.scoreContext).slice(0, 3);
   const aestheticReference = componentAestheticPromptReference({ family, size: referenceSize, prompt, limit: 3, sampleLimit: 1, feedbackLimit: 2 });
   const designGovernance = designRulesPromptReference();
 
   return {
+    layoutContext,
     visualReference: componentVisualReferencePromptReference(payload),
     componentLibrary: (componentReference.selectedComponents || []).slice(0, 3).map(compactMiniMaxComponentReference),
     scoreReference: scoreReference.map(compactMiniMaxComponentReference),
@@ -8626,7 +8814,8 @@ function compactMiniMaxComponentContext(payload, family, size, prompt) {
 
 function buildMiniMaxComponentPrompt(payload, config = {}) {
   const prompt = cleanText(payload.prompt, "生成一个适合 ForexCRM 首页的专业金融组件。", 1100);
-  const family = oneOfList(payload.family, COMPONENT_FAMILIES, "ClientHomeAtoms");
+  const family = oneOfComponentFamily(payload.family);
+  const layoutContext = componentLayoutContextPromptReference(payload);
   const size = componentSizePromptLabel(payload.size, "2x1");
   const familySpec = componentFamilySpec(family);
   const providerName = config.name || "MiniMax";
@@ -8642,6 +8831,7 @@ function buildMiniMaxComponentPrompt(payload, config = {}) {
     "html <= 1800 字符，css <= 2400 字符，description <= 80 字符，layoutHints/dataRequirements 各最多 4 项。",
     "HTML 根元素必须有稳定 class；CSS 只能写根 class 作用域；禁止 script、外链、iframe、图片 URL、表单提交和不安全属性。",
     "组件必须体现一种真实工艺：指标带、状态条、步骤连接、趋势图容器、操作坞、表格/列表、左右分栏或紧凑信息流。",
+    "如果目标 size 是 AI 自行选择，必须按 layoutContext 的 pageWidth、maxColumns、functionalComplexity 和 recommendedSize 选最终 size。",
     "若紧凑参考里有 visualReference，按它的构图、密度、主色和控件层级做 ForexCRM 积木变体，不要复制图片原文和品牌。",
     "金融客户端要克制专业，圆角 8px 或以下，不要厚重阴影、随机渐变、通用占位或只换颜色。",
     `${providerName} 如果不确定，宁可少写字段内容，也必须保证 JSON.parse 可解析。`,
@@ -8649,7 +8839,7 @@ function buildMiniMaxComponentPrompt(payload, config = {}) {
 
   const user = [
     "目标:",
-    compactJson({ family, size, familySpec }),
+    compactJson({ family, size, familySpec, layoutContext }),
     "",
     "需求 brief:",
     prompt,
@@ -8688,7 +8878,7 @@ function normalizeEditMessages(messages) {
 
 function buildComponentEditPrompt(payload, component) {
   const instruction = cleanText(payload.instruction || payload.prompt, "优化当前组件。", 900);
-  const family = oneOfList(component.family, COMPONENT_FAMILIES, "ClientHomeAtoms");
+  const family = oneOfComponentFamily(component.family);
   const familySpec = componentFamilySpec(family);
   const rootClass = firstHtmlClass(component.html);
   const componentReference = componentLibraryPromptReference({ family, size: component.size, prompt: instruction, limit: 6 });
@@ -8764,7 +8954,7 @@ function buildComponentEditPrompt(payload, component) {
 
 function buildMiniMaxComponentEditPrompt(payload, component, config = {}) {
   const instruction = cleanText(payload.instruction || payload.prompt, "优化当前组件。", 900);
-  const family = oneOfList(component.family, COMPONENT_FAMILIES, "ClientHomeAtoms");
+  const family = oneOfComponentFamily(component.family);
   const size = normalizeComponentSize(component.size || payload.size, "2x1");
   const familySpec = componentFamilySpec(family);
   const rootClass = firstHtmlClass(component.html);
@@ -10219,7 +10409,8 @@ function buildMiniMaxPrompt(payload) {
 }
 
 function compactComponentLibraryPromptReference(options = {}) {
-  const components = readComponentLibrary().components;
+  const family = cleanText(options.family, "", 60);
+  const components = readComponentLibrary().components.filter((component) => componentMatchesReferenceFamily(component, family));
   return rankComponentReferences(components, { ...options, limit: Math.min(Number(options.limit) || 4, 4) }).map((component) => {
     const admission = componentReferenceAdmission(component, options);
     return {
@@ -10386,6 +10577,7 @@ function buildLowLatencyHomepagePrompt(payload, config = {}) {
       slots: [slot],
     })),
   }, { limit: 6 });
+  const skeletonPromptLines = skeletonHomepagePromptLines(payload);
 
   const system = [
     "你是 ForexCRM 首页蓝图生成器。",
@@ -10424,6 +10616,8 @@ function buildLowLatencyHomepagePrompt(payload, config = {}) {
     "当前草稿摘要:",
     compactJson(compactCurrentConfigReference(context.currentConfig)),
     "",
+    ...skeletonPromptLines,
+    ...(skeletonPromptLines.length ? [""] : []),
     "紧凑输出契约:",
     compactJson(compactHomepageContract(intentProfile, prompt, modulePolicy)),
     "",
@@ -10484,6 +10678,7 @@ function buildMiniMaxHomepagePatchPrompt(payload, config = {}) {
   const providerName = config.name || "MiniMax";
   const compactModeLabel = config.provider === "minimax" ? "MiniMax 2048 completion token" : `${providerName} 稳定 JSON`;
   const designGovernance = designRulesPromptReference();
+  const skeletonPromptLines = skeletonHomepagePromptLines(payload);
 
   const system = [
     "你是 ForexCRM 首页蓝图 patch 生成器。",
@@ -10511,6 +10706,8 @@ function buildMiniMaxHomepagePatchPrompt(payload, config = {}) {
     "服务端页面计划 pagePlan:",
     compactJson(pagePlan),
     "",
+    ...skeletonPromptLines,
+    ...(skeletonPromptLines.length ? [""] : []),
     "allowedBlocks:",
     compactJson(modulePolicy.allowedModules),
     "",
@@ -10563,6 +10760,7 @@ function buildPrompt(payload, config = {}) {
   const pagePlan = buildHomepagePagePlan(payload, { pageIntent: intentProfile });
   const modulePolicy = buildHomepageModulePolicy(payload);
   const designGovernance = designRulesPromptReference();
+  const skeletonPromptLines = skeletonHomepagePromptLines(payload);
 
   const system = [
     "你是 ForexCRM 的首页蓝图生成器。",
@@ -10703,6 +10901,8 @@ function buildPrompt(payload, config = {}) {
     "当前草稿配置:",
     compactJson(context.currentConfig),
     "",
+    ...skeletonPromptLines,
+    ...(skeletonPromptLines.length ? [""] : []),
     "请只返回首页配置 JSON。",
   ].join("\n");
 
@@ -14333,8 +14533,8 @@ function enforceHomepagePromptIntent(payload, config) {
 }
 
 function mockGeneratedComponent(payload, providerConfig) {
-  const family = oneOfList(payload.family, COMPONENT_FAMILIES, "ClientHomeAtoms");
-  const size = normalizeComponentSize(payload.size, autoComponentSizeForFamily(family));
+  const family = oneOfComponentFamily(payload.family);
+  const size = normalizeComponentSize(payload.size, autoComponentSizeForPayload(payload, family));
   const root = safeId(`${family}-${Date.now().toString(36)}`, "ai-brick");
   const prompt = cleanText(payload.prompt, componentFamilySpec(family).purpose, 160);
 	  const baseCss = `
@@ -14381,11 +14581,11 @@ function mockGeneratedComponent(payload, providerConfig) {
 	      css: `${baseCss}.${root}{align-content:center;background:var(--home-banner-bg);color:var(--home-banner-text);border-color:var(--home-banner-border)}.${root} strong{color:var(--home-banner-text);font-size:26px}.${root} p{margin:0;color:var(--home-banner-muted)}.${root} div{display:flex;gap:8px;flex-wrap:wrap}.${root} b{padding:8px 10px;border:1px solid color-mix(in srgb,var(--home-banner-text) 24%,transparent);border-radius:var(--home-radius-sm,8px);color:var(--home-banner-text)}`,
       dataRequirements: ["campaignTitle", "reward", "remainingDays", "ctaUrl"],
     },
-    ReferralLink: {
-      name: "开户链接增长面板",
-      description: "展示测试开户链接、邀请码、复制动作和渠道转化数据的邀请积木。",
+    ReferralLinkCard: {
+      name: "推广链接卡片",
+      description: "轻量展示开户链接、邀请码、复制动作和基础转化数据的推广积木。",
       html: `<section class="${root}"><header><span>Referral Link</span><strong>开户链接增长面板</strong></header><div class="link"><small>Test registration link</small><p>https://user.hcs555.com/regist-real?invite=123456</p><button class="primary" type="button">Copy</button></div><div class="stats"><b>271 Clicks</b><b>62 Accounts</b><b>18 Trading A/C</b></div></section>`,
-	      css: `${baseCss}.${root} header{display:grid;gap:4px}.${root} header strong{font-size:22px}.${root} .link{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end;padding:10px;border:1px solid var(--home-border);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft)}.${root} .link small{grid-column:1/-1}.${root} p{margin:0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}.${root} .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.${root} b{padding:9px;border-radius:var(--home-radius-sm,8px);background:var(--home-primary-soft);color:var(--home-primary);font-size:12px}@media(max-width:620px){.${root} .link,.${root} .stats{grid-template-columns:1fr}}`,
+      css: `${baseCss}.${root} header{display:grid;gap:4px}.${root} header strong{font-size:22px}.${root} .link{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end;padding:10px;border:1px solid var(--home-border);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft)}.${root} .link small{grid-column:1/-1}.${root} p{margin:0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}.${root} .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.${root} b{padding:9px;border-radius:var(--home-radius-sm,8px);background:var(--home-primary-soft);color:var(--home-primary);font-size:12px}@media(max-width:620px){.${root} .link,.${root} .stats{grid-template-columns:1fr}}`,
       dataRequirements: ["inviteUrl", "inviteCode", "clicks", "registeredAccounts", "tradingAccounts"],
     },
 	    TradingAccounts: {
@@ -14429,6 +14629,20 @@ function mockGeneratedComponent(payload, providerConfig) {
       html: `<section class="${root}"><header><span>Wallet List</span><strong>多币种钱包</strong></header><div class="wallets"><article><span><i>🇺🇸</i><b>USD</b></span><strong>99,999.99</strong></article><article><span><i>🇦🇺</i><b>AUD</b></span><strong>10.48</strong></article><article><span><i>₮</i><b>USDT</b></span><strong>6,280.00</strong></article></div></section>`,
 	      css: `${baseCss}.${root} header{display:flex;align-items:center;justify-content:space-between;gap:10px}.${root} .wallets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.${root} article{display:grid;gap:12px;padding:14px;border:1px solid var(--home-border);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft)}.${root} article span{display:flex;align-items:center;gap:9px}.${root} article i{width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--home-border);border-radius:999px;background:var(--home-surface);color:var(--home-text);font-style:normal;font-weight:950}.${root} article b{font-size:15px;color:var(--home-text)}.${root} article strong{font-size:24px}@media(max-width:720px){.${root} .wallets{grid-template-columns:1fr}}`,
       dataRequirements: ["walletRows", "currency", "balance", "currencyIcon"],
+    },
+    PammProducts: {
+      name: "PAMM 产品推荐区",
+      description: "展示 PAMM 产品名称、收益、风险、规模和趋势的产品推荐积木。",
+      html: `<section class="${root}"><header><strong>PAMM 产品推荐</strong><span>策略筛选</span></header><div class="pamm-grid"><article><b>稳健多品种</b><strong>+18.6%</strong><small>年化收益 · 中低风险</small><div class="curve"><i style="height:32%"></i><i style="height:48%"></i><i style="height:42%"></i><i style="height:64%"></i><i style="height:58%"></i></div></article><article><b>趋势增强</b><strong>+31.2%</strong><small>年化收益 · 中风险</small><div class="curve"><i style="height:28%"></i><i style="height:54%"></i><i style="height:38%"></i><i style="height:76%"></i><i style="height:70%"></i></div></article><article><b>低波动组合</b><strong>+11.4%</strong><small>年化收益 · 低风险</small><div class="curve"><i style="height:36%"></i><i style="height:44%"></i><i style="height:46%"></i><i style="height:52%"></i><i style="height:56%"></i></div></article></div></section>`,
+      css: `${baseCss}.${root} header{display:flex;justify-content:space-between;gap:12px;align-items:center}.${root} .pamm-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.${root} article{display:grid;gap:8px;padding:14px;border:1px solid var(--home-border);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft)}.${root} article strong{font-size:26px;color:var(--home-success)}.${root} article b{font-size:14px;color:var(--home-text-strong)}.${root} .curve{height:54px;display:flex;align-items:end;gap:5px;padding:8px;border-radius:var(--home-radius-sm,8px);background:var(--home-card-bg)}.${root} .curve i{flex:1;border-radius:999px 999px 0 0;background:var(--home-primary);opacity:.78}@media(max-width:720px){.${root} header,.${root} .pamm-grid{grid-template-columns:1fr;display:grid}}`,
+      dataRequirements: ["pammProductName", "yield", "riskLevel", "aum", "pammTrend"],
+    },
+    CopytradingSignals: {
+      name: "CopyTrading 信号源推荐区",
+      description: "展示信号源名称、收益率、总收益、最大回撤、风险等级和趋势图的跟单推荐积木。",
+      html: `<section class="${root}"><header><strong>精选信号源</strong><span>CopyTrading</span></header><div class="signals"><article><div><b>AlphaStream</b><small>中等风险</small></div><strong>+42.8%</strong><div class="metrics"><span>总收益 $12,450</span><span>回撤 12.4%</span></div><div class="trend"><i></i></div><button class="primary" type="button">立即跟单</button></article><article><div><b>TrendPulse</b><small>高风险</small></div><strong>+67.2%</strong><div class="metrics"><span>总收益 $8,720</span><span>回撤 28.6%</span></div><div class="trend is-volatile"><i></i></div><button class="primary" type="button">关注信号</button></article><article><div><b>Conservix</b><small>低风险</small></div><strong>+15.3%</strong><div class="metrics"><span>总收益 $23,100</span><span>回撤 5.1%</span></div><div class="trend is-stable"><i></i></div><button class="primary" type="button">查看详情</button></article></div></section>`,
+      css: `${baseCss}.${root} header{display:flex;justify-content:space-between;gap:12px;align-items:center}.${root} .signals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.${root} article{display:grid;gap:10px;min-height:220px;padding:14px;border:1px solid var(--home-border);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft)}.${root} article>div:first-child{display:flex;justify-content:space-between;gap:8px;align-items:start}.${root} b{color:var(--home-text-strong);font-size:14px}.${root} article>strong{color:var(--home-success);font-size:28px}.${root} .metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.${root} .metrics span{padding:7px;border-radius:var(--home-radius-sm,8px);background:var(--home-card-bg);color:var(--home-text-muted)}.${root} .trend{position:relative;overflow:hidden;min-height:54px;border-radius:var(--home-radius-sm,8px);background:linear-gradient(180deg,var(--home-card-bg),var(--home-primary-faint))}.${root} .trend i{position:absolute;inset:10px 8px;border-bottom:2px solid var(--home-primary);border-radius:50%;transform:skewX(-18deg)}.${root} .trend.is-volatile i{border-color:var(--home-warning)}.${root} .trend.is-stable i{border-color:var(--home-success)}@media(max-width:720px){.${root} header,.${root} .signals{grid-template-columns:1fr;display:grid}}`,
+      dataRequirements: ["signalName", "returnRate", "totalProfit", "maxDrawdown", "riskLevel", "returnCurve", "followAction"],
     },
     RiskDisclosure: {
       name: "风险披露提示条",
@@ -14615,15 +14829,102 @@ function progressiveOnboardingComponent(payload, component, title, instruction) 
       size: component.size,
       prompt: "",
     },
+	  );
+}
+
+function instructionRequestsComponentRestyle(instruction, payload = {}) {
+  return /换样式|重生成|重做|明显不同|优化|排版|层级|结构|扁平|紧凑|卡片|列表|双列|图表|趋势|减少指标|少一点|不要表格|不要列表|card|list|chart|compact|flat/i.test(
+    `${instruction || ""}\n${payload.adjustmentPrompt || ""}`,
+  );
+}
+
+function mockRestyledComponent(payload, component, title, instruction) {
+  const family = oneOfComponentFamily(component.family || payload.family);
+  const rootClass = firstHtmlClass(component.html) || safeId(`${family}-${component.id || Date.now().toString(36)}`, "ai-brick");
+  const safeTitle = escapeHtmlText(title || component.name || componentFamilySpec(family).purpose || "首页组件");
+  const wantsList = /列表|list|row|行项目/i.test(instruction);
+  const wantsChart = /图表|趋势|chart|curve|折线|净值/i.test(instruction);
+  const wantsCompact = /紧凑|减少指标|少一点|compact/i.test(instruction);
+
+  const baseCss = `
+    .${rootClass}{display:grid;gap:14px;padding:18px;border:1px solid var(--home-border);border-radius:var(--home-radius-md,8px);background:var(--home-card-bg);color:var(--home-text);font-family:Inter,system-ui,sans-serif}
+    .${rootClass} *{box-sizing:border-box}
+    .${rootClass} header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .${rootClass} strong{color:var(--home-text-strong);font-weight:950}
+    .${rootClass} span,.${rootClass} small{color:var(--home-text-muted);font-size:12px;font-weight:850}
+    .${rootClass} button,.${rootClass} a{min-height:34px;display:inline-flex;align-items:center;justify-content:center;padding:0 11px;border:1px solid var(--home-border);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft);color:var(--home-text);font-size:12px;font-weight:900;text-decoration:none}
+    .${rootClass} .primary{border-color:var(--home-button-border);background:var(--home-button-bg);color:var(--home-button-text)}
+  `;
+
+  let html = "";
+  let css = "";
+  let layoutHints = Array.isArray(component.layoutHints) ? component.layoutHints : [];
+
+  if (family === "TradingAccounts") {
+    if (wantsList) {
+      html = `<section class="${rootClass}"><header><strong>${safeTitle}</strong><nav><button class="primary" type="button">All</button><button type="button">Live</button><button type="button">Demo</button></nav></header><div class="account-lines"><p><b>Live</b><span>2000281</span><span>MT5 · HCHoldings-Live2</span><strong>Equity 101,280.60</strong><small>1:100 · ECN Standard</small></p><p><b>Demo</b><span>1000008</span><span>MT5 · HCHoldings-Demo</span><strong>Equity 51,280.60</strong><small>1:500 · Demo ECN</small></p></div></section>`;
+      css = `${baseCss}.${rootClass} nav{display:flex;gap:6px}.${rootClass} .account-lines{display:grid;gap:8px}.${rootClass} p{display:grid;grid-template-columns:70px 88px minmax(150px,1fr) minmax(140px,.8fr) minmax(120px,.7fr);gap:10px;align-items:center;margin:0;padding:11px 12px;border:1px solid var(--home-border);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft)}.${rootClass} b{color:var(--home-text-strong);font-size:14px}@media(max-width:720px){.${rootClass} header,.${rootClass} p{grid-template-columns:1fr;display:grid}.${rootClass} nav{width:100%}}`;
+      layoutHints = [...layoutHints, "compact account rows"];
+    } else {
+      html = `<section class="${rootClass}"><header><strong>${safeTitle}</strong><nav><button class="primary" type="button">All</button><button type="button">Live</button><button type="button">Demo</button></nav></header><div class="account-card-grid"><article><span>Live Account</span><b>2000281</b><strong>101,280.60</strong><small>MT5 · HCHoldings-Live2</small><footer><em>ECN Standard</em><em>1:100</em><em>528%</em></footer></article><article><span>Demo Account</span><b>1000008</b><strong>51,280.60</strong><small>MT5 · HCHoldings-Demo</small><footer><em>Demo ECN</em><em>1:500</em><em>4345%</em></footer></article></div></section>`;
+      css = `${baseCss}.${rootClass} nav{display:flex;gap:6px}.${rootClass} .account-card-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.${rootClass} article{display:grid;gap:9px;min-height:154px;padding:14px;border:1px solid var(--home-border);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft)}.${rootClass} article b{color:var(--home-primary);font-size:13px}.${rootClass} article strong{font-size:26px}.${rootClass} footer{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.${rootClass} em{padding:7px 8px;border-radius:var(--home-radius-sm,8px);background:var(--home-card-bg);color:var(--home-text-muted);font-size:11px;font-style:normal;font-weight:900;text-align:center}@media(max-width:720px){.${rootClass} header,.${rootClass} .account-card-grid{grid-template-columns:1fr;display:grid}.${rootClass} nav{width:100%}}`;
+      layoutHints = [...layoutHints, "live demo card wall"];
+    }
+  } else if (family === "AccountPerformance") {
+    html = `<section class="${rootClass}"><header><div><strong>${safeTitle}</strong><span>7D / 30D 净值走势</span></div><nav><button class="primary" type="button">7D</button><button type="button">30D</button></nav></header><div class="performance-strip"><p><small>账号</small><b>400009</b></p><p><small>Equity</small><b>378,283.99</b></p>${wantsCompact ? "" : "<p><small>Floating P/L</small><b>+225,977.99</b></p>"}</div><div class="curve-panel"><div data-home-echart data-chart-kind="account-performance" data-chart-axis-mode="xy" data-chart-period="7" role="img" aria-label="账号净值趋势"></div><small>05/05 · 05/08 · 05/11</small></div></section>`;
+    css = `${baseCss}.${rootClass} nav{display:flex;gap:6px}.${rootClass} .performance-strip{display:grid;grid-template-columns:repeat(${wantsCompact ? 2 : 3},minmax(0,1fr));gap:10px}.${rootClass} .performance-strip p{display:grid;gap:5px;margin:0;padding:10px;border:1px solid var(--home-border);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft)}.${rootClass} .performance-strip b{font-size:18px}.${rootClass} .curve-panel{display:grid;gap:8px;min-height:${wantsChart ? "250px" : "190px"};padding:12px;border:1px solid var(--home-border);border-radius:var(--home-radius-sm,8px);background:linear-gradient(180deg,var(--home-surface-soft),var(--home-card-bg))}.${rootClass} .curve-panel div{min-height:${wantsChart ? "210px" : "150px"}}@media(max-width:720px){.${rootClass} header,.${rootClass} .performance-strip{grid-template-columns:1fr;display:grid}.${rootClass} nav{width:100%}}`;
+    layoutHints = [...layoutHints, "top summary with full trend chart"];
+  } else if (family === "QuickActions") {
+    html = `<section class="${rootClass}"><header><strong>${safeTitle}</strong><span>常用操作</span></header><div class="action-dock"><a class="primary">入金</a><a>出金</a><a>交易</a><a>持仓</a><a>开账户</a></div></section>`;
+    css = `${baseCss}.${rootClass}{align-content:center}.${rootClass} .action-dock{display:flex;gap:8px;flex-wrap:wrap}.${rootClass} .action-dock a{min-width:96px;min-height:42px}@media(max-width:720px){.${rootClass} .action-dock a{flex:1 1 42%}}`;
+    layoutHints = [...layoutHints, "compact action dock"];
+  } else if (family === "CopytradingSignals") {
+    html = `<section class="${rootClass}"><header><strong>${safeTitle}</strong><span>CopyTrading</span></header><div class="signal-board"><article><b>AlphaStream</b><strong>+42.8%</strong><small>总收益 $12,450 · 回撤 12.4%</small><div class="mini-curve"><i></i></div><button class="primary" type="button">立即跟单</button></article><article><b>TrendPulse</b><strong>+67.2%</strong><small>总收益 $8,720 · 回撤 28.6%</small><div class="mini-curve is-volatile"><i></i></div><button class="primary" type="button">关注信号</button></article></div></section>`;
+    css = `${baseCss}.${rootClass} .signal-board{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.${rootClass} article{display:grid;gap:9px;padding:13px;border:1px solid var(--home-border);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft)}.${rootClass} article strong{font-size:26px;color:var(--home-success)}.${rootClass} .mini-curve{position:relative;min-height:${wantsChart ? "96px" : "58px"};overflow:hidden;border-radius:var(--home-radius-sm,8px);background:var(--home-card-bg)}.${rootClass} .mini-curve i{position:absolute;inset:10px;border-bottom:2px solid var(--home-primary);border-radius:50%;transform:skewX(-18deg)}.${rootClass} .mini-curve.is-volatile i{border-color:var(--home-warning)}@media(max-width:720px){.${rootClass} header,.${rootClass} .signal-board{grid-template-columns:1fr;display:grid}}`;
+    layoutHints = [...layoutHints, "copytrading signal board"];
+  } else if (family === "PammProducts") {
+    html = `<section class="${rootClass}"><header><strong>${safeTitle}</strong><span>PAMM</span></header><div class="pamm-rows"><p><b>稳健多品种</b><strong>+18.6%</strong><small>中低风险 · 规模 2.4M</small></p><p><b>趋势增强</b><strong>+31.2%</strong><small>中风险 · 规模 1.8M</small></p><p><b>低波动组合</b><strong>+11.4%</strong><small>低风险 · 规模 3.1M</small></p></div></section>`;
+    css = `${baseCss}.${rootClass} .pamm-rows{display:grid;grid-template-columns:${wantsList ? "1fr" : "repeat(3,minmax(0,1fr))"};gap:10px}.${rootClass} p{display:grid;gap:6px;margin:0;padding:13px;border:1px solid var(--home-border);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft)}.${rootClass} p strong{font-size:22px;color:var(--home-success)}@media(max-width:720px){.${rootClass} header,.${rootClass} .pamm-rows{grid-template-columns:1fr;display:grid}}`;
+    layoutHints = [...layoutHints, "pamm product rows"];
+  } else {
+    html = `<section class="${rootClass}"><header><strong>${safeTitle}</strong><span>${escapeHtmlText(component.family || "Module")}</span></header><div class="module-brief"><p><b>核心信息</b><small>保留当前业务字段，重排为更清晰的信息块。</small></p><p><b>主操作</b><small>保留一个最高优先级动作，其余入口弱化。</small></p></div><button class="primary" type="button">查看详情</button></section>`;
+    css = `${baseCss}.${rootClass} .module-brief{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.${rootClass} p{display:grid;gap:6px;margin:0;padding:12px;border:1px solid var(--home-border);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft)}.${rootClass} button{width:max-content}@media(max-width:720px){.${rootClass} .module-brief{grid-template-columns:1fr}.${rootClass} button{width:100%}}`;
+    layoutHints = [...layoutHints, "restyled module blocks"];
+  }
+
+  return normalizeGeneratedComponent(
+    {
+      ...component,
+      id: component.id,
+      name: title || component.name,
+      description: cleanText(`${stripEditorArtifactsFromText(component.description) || "首页积木组件"} 已按单模块补充 prompt 调整结构。`, "", 260),
+      tags: [...new Set([...(Array.isArray(component.tags) ? component.tags : []), "single-module-adjusted"])],
+      html,
+      css,
+      layoutHints: [...new Set(layoutHints)],
+      sourcePrompt: "",
+      changeSummary: "已根据单模块补充 prompt 调整组件结构和视觉层级。",
+      createdAt: component.createdAt,
+    },
+    {
+      ...payload,
+      family,
+      size: component.size,
+      prompt: "",
+    },
   );
 }
 
 function mockEditedComponent(payload, component, providerConfig) {
-  const instruction = cleanText(payload.instruction || payload.prompt, "优化组件层级", 180);
+  const instruction = cleanText([payload.instruction || payload.prompt, payload.adjustmentPrompt].filter(Boolean).join("\n"), "优化组件层级", 900);
   const nextName = requestedComponentName(instruction);
 
   if (wantsProgressiveSteps(instruction, component)) {
     return progressiveOnboardingComponent(payload, component, nextName || component.name, instruction);
+  }
+
+  if (instructionRequestsComponentRestyle(instruction, payload)) {
+    return mockRestyledComponent(payload, component, nextName || component.name, instruction);
   }
 
   const html = replacePrimaryTitle(component.html, nextName);
@@ -16428,11 +16729,17 @@ function componentProviderFallbackReason(error, fallback) {
   return cleanText(providerFailureSummary(error, fallback), fallback, 260);
 }
 
+function shouldPersistGeneratedComponent(payload = {}) {
+  return payload.save !== false && payload.persist !== false && payload.draftOnly !== true;
+}
+
 function componentProviderFallbackComponent(payload, config, reason, options = {}) {
   const brickFallback = componentLibraryFallbackForPayload(payload, { ...options, reason });
   if (brickFallback) return brickFallback;
+  const component = mockGeneratedComponent(payload, config);
+  const normalized = options.persist === false ? normalizeGeneratedComponent(component, payload) : saveComponent(component);
   return {
-    ...saveComponent(mockGeneratedComponent(payload, config)),
+    ...normalized,
     sourceType: "local-fallback",
     fallbackReason: reason,
   };
@@ -16440,15 +16747,18 @@ function componentProviderFallbackComponent(payload, config, reason, options = {
 
 async function callComponentProvider(payload) {
   const config = normalizeProviderConfig(payload.modelConfig);
+  const persist = shouldPersistGeneratedComponent(payload);
 
   if (process.env.HOME_AI_MOCK === "true") {
     const component = mockGeneratedComponent(payload, config);
     return {
-      component: saveComponent(component),
+      component: persist ? saveComponent(component) : normalizeGeneratedComponent(component, payload),
       provider: config.provider,
       model: config.model,
       rawText: "",
       mock: true,
+      saved: persist,
+      draft: !persist,
     };
   }
 
@@ -16458,7 +16768,7 @@ async function callComponentProvider(payload) {
   } catch (error) {
     if (!componentProviderCanUseLocalFallback(config, error)) throw error;
     const reason = componentProviderFallbackReason(error, `${config.name} 输出不是可解析 JSON，已使用本地安全组件兜底。`);
-    const component = componentProviderFallbackComponent(payload, config, reason);
+    const component = componentProviderFallbackComponent(payload, config, reason, { persist });
     return {
       component,
       provider: config.provider,
@@ -16466,6 +16776,8 @@ async function callComponentProvider(payload) {
       rawText: "",
       usage: null,
       localFallback: true,
+      saved: persist && component.sourceType !== "brick-fallback",
+      draft: !persist,
       fallbackSource: component.sourceType === "brick-fallback" ? "brick-library" : "local-template",
       fallbackReason: reason,
     };
@@ -16473,7 +16785,7 @@ async function callComponentProvider(payload) {
   const normalized = normalizeGeneratedComponent(result.json, payload);
   if (generatedComponentTooGeneric(normalized) || generatedComponentViolatesFamily(normalized, payload)) {
     const reason = `${config.name} 已返回组件，但内容不符合当前 family 或业务字段要求，已引用积木库兜底。`;
-    const component = componentProviderFallbackComponent(payload, config, reason);
+    const component = componentProviderFallbackComponent(payload, config, reason, { persist });
     return {
       component,
       provider: result.provider,
@@ -16481,17 +16793,21 @@ async function callComponentProvider(payload) {
       rawText: result.rawText,
       usage: result.usage,
       localFallback: true,
+      saved: persist && component.sourceType !== "brick-fallback",
+      draft: !persist,
       fallbackSource: component.sourceType === "brick-fallback" ? "brick-library" : "local-template",
       fallbackReason: reason,
     };
   }
-  const component = saveComponent(normalized);
+  const component = persist ? saveComponent(normalized) : normalized;
   return {
     component,
     provider: result.provider,
     model: result.model,
     rawText: result.rawText,
     usage: result.usage,
+    saved: persist,
+    draft: !persist,
   };
 }
 

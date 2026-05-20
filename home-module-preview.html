@@ -454,7 +454,7 @@
           <section class="brick-family" data-brick-group="core" id="referral-link">
             <div class="brick-family-head">
               <div>
-                <span>ReferralLink</span>
+                <span>ReferralLinkCard</span>
                 <h2>邀请链接</h2>
               </div>
               <b>1x1 / 2x1 / 3x1</b>
@@ -732,7 +732,7 @@
         <section class="brick-ai-workbench" aria-label="AI 组件生成工作台">
           <div class="brick-ai-copy">
             <h3>组件生成配置</h3>
-            <p>保存后的组件可以参与首页积木组合，并生成首页草稿进入预览页。</p>
+            <p>组件生成成功后会先回显预览，确认后才会写入组件库并参与首页积木组合。</p>
             <div class="ai-model-status-card compact" data-component-model-summary></div>
           </div>
           <div class="brick-ai-panel">
@@ -747,11 +747,13 @@
               <label>
                 模块归属
                 <select data-ai-component-family>
+                  <option value="WelcomeHeader">WelcomeHeader</option>
                   <option value="AssetOverview">AssetOverview</option>
                   <option value="WalletBalance">WalletBalance</option>
                   <option value="FundActions">FundActions</option>
                   <option value="QuickActions">QuickActions</option>
-                  <option value="ReferralLink">ReferralLink</option>
+                  <option value="PromotionBanner">PromotionBanner</option>
+                  <option value="ReferralLinkCard">ReferralLinkCard</option>
                   <option value="TradingAccounts">TradingAccounts</option>
                   <option value="OpenAccount">OpenAccount</option>
                   <option value="OnboardingProgress">OnboardingProgress</option>
@@ -759,6 +761,12 @@
                   <option value="AccountPerformance">AccountPerformance</option>
                   <option value="WalletList">WalletList</option>
                   <option value="CreateAccountForm">CreateAccountForm</option>
+                  <option value="PammProducts">PammProducts</option>
+                  <option value="CopytradingSignals">CopytradingSignals</option>
+                  <option value="RiskDisclosure">RiskDisclosure</option>
+                  <option value="FaqSection">FaqSection</option>
+                  <option value="SupportContact">SupportContact</option>
+                  <option value="AppDownload">AppDownload</option>
                   <option value="ClientHomeAtoms" selected>ClientHomeAtoms</option>
                 </select>
               </label>
@@ -767,7 +775,7 @@
                 <select data-ai-component-size>
                   <option value="1x1">1x1</option>
                   <option value="1x2">1x2</option>
-                  <option value="2x1" selected>2x1</option>
+                  <option value="2x1">2x1</option>
                   <option value="2x2">2x2</option>
                   <option value="3x1">3x1</option>
                   <option value="3x2">3x2</option>
@@ -777,7 +785,7 @@
                   <option value="5x1">5x1</option>
                   <option value="5x2">5x2</option>
                   <option value="5x3">5x3</option>
-                  <option value="auto">AI 自行发挥</option>
+                  <option value="auto" selected>AI 自行发挥（按宽度/功能）</option>
                 </select>
               </label>
             </div>
@@ -792,10 +800,25 @@
               <div class="brick-ai-reference-preview" data-ai-reference-preview hidden></div>
             </div>
             <div class="brick-ai-actions">
-              <button class="primary" type="button" data-ai-generate-component>生成并保存组件</button>
+              <button class="primary" type="button" data-ai-generate-component>生成组件预览</button>
               <button type="button" data-ai-compose-home>用保存组件生成首页草稿</button>
             </div>
             <p class="brick-ai-status" data-ai-component-status>等待生成组件</p>
+            <section class="brick-ai-result" data-ai-component-result hidden aria-live="polite">
+              <header>
+                <div>
+                  <span>待确认组件</span>
+                  <strong data-ai-component-result-title>生成结果</strong>
+                </div>
+                <small data-ai-component-result-provider></small>
+              </header>
+              <div class="brick-ai-result-preview" data-ai-component-result-preview></div>
+              <div class="brick-ai-result-meta" data-ai-component-result-meta></div>
+              <footer>
+                <button class="primary" type="button" data-ai-component-confirm-save>确认保存组件</button>
+                <button type="button" data-ai-component-revise>重新修改</button>
+              </footer>
+            </section>
           </div>
         </section>
       </section>
