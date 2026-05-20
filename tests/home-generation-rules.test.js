@@ -1052,8 +1052,16 @@ async function run() {
 	  assert(adminSource.includes("interpretationRound += 1;"), "normal homepage generation must advance interpretation variant");
 	  assert(serverSource.includes("applyHomepageUnderstandingToServerConfig(next, prompt, payload.variant)"), "server prompt governance must receive the generation variant");
 	  assert(serverSource.includes("depositGovernedBrickPlan(payload.variant)"), "server deposit governance must preserve variant diversity");
-		  assert(adminSource.includes("在线客服硬性要求"), "skeleton slot prompt must include SupportContact-specific constraints");
-		  assert(adminSource.includes("isRealModelAiHtmlScheme"), "admin distinct-generation guard must preserve real model AI HTML");
+			  assert(adminSource.includes("在线客服硬性要求"), "skeleton slot prompt must include SupportContact-specific constraints");
+			  assert(serverSource.includes("WelcomeHeader: {"), "WelcomeHeader generation must have a dedicated family contract");
+			  assert(serverSource.includes("promptRequestsStrictWelcomeHeader"), "strict welcome prompts must bypass conversion-heavy brick fallback");
+			  assert(adminSource.includes("欢迎头部硬性要求"), "welcome slot prompt must preserve strict name/greeting/login requests");
+			  assert(adminSource.includes("skeletonSlotPromptContract"), "skeleton slot generation must compile a compact slot prompt contract");
+			  assert(adminSource.includes("不要把完整 sections、skeletonHtml 或其他 slot 的 HTML/CSS 放进单组件 prompt"), "single-slot prompts must not carry full page structure");
+			  assert(serverSource.includes("componentDesignContractPromptReference"), "component providers must receive compact page design contracts");
+			  assert(serverSource.includes("骨架 slot 契约"), "component prompts must expose the structured skeleton slot contract");
+			  assert(personalizationSource.includes("slotPromptContractSummary"), "skeleton slot prompt metadata must survive config normalization");
+			  assert(adminSource.includes("isRealModelAiHtmlScheme"), "admin distinct-generation guard must preserve real model AI HTML");
 	  assert(adminSource.includes("serverHtmlLooksModelGenerated"), "admin history must not mislabel model/free-html as fallback when server metadata is older");
 		  assert(adminSource.includes("积木保底"), "admin history must label brick-backed AI HTML as a fallback source");
 	  assert(adminSource.includes("prepareConfigForPublish"), "publishing must normalize skeleton drafts into a clean final customer config");
@@ -1080,9 +1088,20 @@ async function run() {
     stdio: ["ignore", "pipe", "pipe"],
   });
 
-  try {
-    await waitForServer(child, port);
-    const designSamplesPath = path.join(ROOT, "home-design-samples.json");
+	  try {
+	    await waitForServer(child, port);
+	    const strictWelcomeComponent = await requestJson(port, "/api/home-components/generate", {
+	      family: "WelcomeHeader",
+	      size: "3x1",
+	      save: false,
+	      prompt: "只要求放上客户姓名问候语，然后还有最近登录时间，不要营销引导区。",
+	      modelConfig: { provider: "openai" },
+	    });
+	    const strictWelcomeText = String(strictWelcomeComponent.component?.html || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+	    assert(strictWelcomeText.includes("最近登录时间"), "strict WelcomeHeader generation must include recent login time");
+	    assert(!/身份认证|真实账户|首次入金|总资产|钱包余额|去完成|入金/.test(strictWelcomeText), "strict WelcomeHeader generation must not leak onboarding, asset, or deposit content");
+
+	    const designSamplesPath = path.join(ROOT, "home-design-samples.json");
     const originalDesignSamples = fs.readFileSync(designSamplesPath, "utf8");
     try {
       const savedGolden = await requestJson(port, "/api/home-ai/design-samples", {

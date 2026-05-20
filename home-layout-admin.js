@@ -1701,7 +1701,16 @@
       }));
   }
 
-  async function brickFallbackSlotComponent(slot, action, error = null) {
+  function isStrictWelcomeHeaderPrompt(slot, userPrompt = "") {
+    if ((slot.id || slot.slot) !== "welcome_header") return false;
+    const text = String(userPrompt || "");
+    const hasWelcomeCue = /姓名|客户姓名|用户名|昵称|问候|欢迎|最近登录|上次登录|last\s*login|login\s*time/i.test(text);
+    const hasLimitCue = /只要求|只需要|只放|只展示|只显示|只保留|仅|只要|不要.{0,24}(营销|开户|入金|资产|KYC|认证|引导|钱包|总资产)/i.test(text);
+    return hasWelcomeCue && (hasLimitCue || /最近登录|上次登录|last\s*login|login\s*time/i.test(text));
+  }
+
+  async function brickFallbackSlotComponent(slot, action, error = null, options = {}) {
+    if (isStrictWelcomeHeaderPrompt(slot, options.userPrompt)) return localFallbackSlotComponent(slot, action, error, options);
     const components = await loadFallbackComponentLibrary();
     const selected = selectedFallbackComponentFromLibrary(components, slot, action);
     if (!selected) return localFallbackSlotComponent(slot, action, error);
@@ -1728,10 +1737,42 @@
     };
   }
 
-  function localFallbackSlotComponent(slot, action, error = null) {
+  function localFallbackSlotComponent(slot, action, error = null, options = {}) {
     const label = slot.label || home.featureLabel(slot.id);
     const rootClass = `skeleton-local-${String(slot.id || "slot").replace(/[^a-zA-Z0-9_-]/g, "-")}`;
     const reason = action === "style" ? "已切换备用样式" : "内容待生成";
+    if (isStrictWelcomeHeaderPrompt(slot, options.userPrompt)) {
+      return {
+        id: `${slot.id}-local-${Date.now().toString(36)}`,
+        slot: slot.id,
+        name: "极简欢迎登录条",
+        family: "WelcomeHeader",
+        size: skeletonSlotSize(slot),
+        sourceType: "local-fallback",
+        generatedAt: new Date().toISOString(),
+        description: error ? `严格欢迎头部兜底：${errorMessage(error, 120)}` : "只展示客户姓名、问候语和最近登录时间的欢迎头部",
+        html: `
+          <section class="${rootClass}" aria-label="欢迎头部">
+            <div>
+              <strong>早安，张明</strong>
+              <span>欢迎回来</span>
+            </div>
+            <p><small>最近登录时间</small><b>2026-05-20 09:41</b></p>
+          </section>
+        `,
+        css: `
+          .${rootClass}{min-height:128px;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:18px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-card-bg,#fff);color:var(--home-text,#172033)}
+          .${rootClass} *{box-sizing:border-box}
+          .${rootClass} div{display:grid;gap:6px}
+          .${rootClass} strong{color:var(--home-text-strong,#0f172a);font-size:26px;font-weight:950;letter-spacing:0}
+          .${rootClass} span,.${rootClass} small{color:var(--home-text-muted,#64748b);font-size:13px;font-weight:850}
+          .${rootClass} p{display:grid;gap:5px;min-width:220px;margin:0;padding:12px 14px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft,#f8fbff)}
+          .${rootClass} b{color:var(--home-text-strong,#0f172a);font-size:15px;font-weight:950}
+          @media(max-width:720px){.${rootClass}{align-items:stretch;flex-direction:column}.${rootClass} p{min-width:0;width:100%}}
+        `,
+        dataRequirements: ["customerName", "greeting", "lastLoginAt"],
+      };
+    }
     if (slot.id === "risk_disclosure" || slot.id === "risk_notice") {
       return {
         id: `${slot.id}-local-${Date.now().toString(36)}`,
@@ -1918,17 +1959,10 @@
 
   function skeletonPageBrief(config = currentConfig) {
     const normalized = home.normalizeConfig(config);
-    const sectionSlots = (Array.isArray(normalized.sections) ? normalized.sections : [])
-      .flatMap((section) => (Array.isArray(section.slots) ? section.slots : []))
-      .map((slot) => home.featureLabel(slot))
-      .filter(Boolean)
-      .slice(0, 8);
-    const uniqueSlotLabels = [...new Set(sectionSlots)];
     return [
       `页面摘要：${compactPromptText(normalized.aiSummary || normalized.name, "专业 ForexCRM 用户端首页", 180)}`,
       `页面框架：${compactPromptText(normalized.layoutPreset || normalized.pageStory || "standard", "standard", 64)} / ${compactPromptText(normalized.themePreset || normalized.theme, "default", 64)} / ${compactPromptText(normalized.density, "balanced", 40)}`,
       normalized.heroFocus ? `首屏重心：${home.featureLabel(normalized.heroFocus)}` : "",
-      uniqueSlotLabels.length ? `骨架模块：${uniqueSlotLabels.join(" / ")}` : "",
       skeletonDesignContractBrief(normalized),
       "全局边界：不要编造收益、下载链接、联系方式、活动规则或后台未提供数据；整体保持克制、专业、可嵌入金融客户端。",
     ]
@@ -1938,7 +1972,7 @@
 
   function skeletonSlotObjective(slot) {
     return {
-      welcome_header: "生成轻量欢迎头部，体现客户姓名、问候、当前账户状态或下一步动作，不要占用过大首屏。",
+      welcome_header: "生成轻量欢迎头部，优先体现客户姓名、问候和最近登录/当前时间；除非管理员明确要求，不要扩展成开户、入金、资产或营销引导。",
       asset_overview: "生成账户概览组件，聚焦总资产、钱包余额、交易账号余额或可用资金，缺失数据用占位或隐藏。",
       wallet_balance: "生成钱包余额摘要，突出币种、可用余额、冻结/处理中状态和资金动作入口。",
       wallet_list: "生成多币种钱包列表或表格，字段密度清楚，币种、余额、状态和操作入口要分层。",
@@ -1962,7 +1996,86 @@
     }[slot.id] || "生成当前 slot 对应的真实业务组件，内容要服务当前模块，不要扩展成无关首页区块。";
   }
 
-  function skeletonSlotPrompt(slot, action, highScoreReferences = [], options = {}) {
+  function compactSkeletonDesignContract(contract = {}) {
+    const tokens = contract.tokens && typeof contract.tokens === "object" ? contract.tokens : {};
+    return {
+      id: compactPromptText(contract.id, "ops-console", 48),
+      label: compactPromptText(contract.label, "账户运营控制台契约", 80),
+      personality: compactPromptText(contract.personality, "", 48),
+      tone: compactPromptText(contract.tone, "", 120),
+      surface: compactPromptText(contract.surface, "", 180),
+      density: compactPromptText(contract.density, "balanced", 32),
+      theme: compactPromptText(contract.theme, "blueFinance", 48),
+      tokens: {
+        cardRadius: compactPromptText(tokens.cardRadius, "8px", 24),
+        buttonRadius: compactPromptText(tokens.buttonRadius, "8px", 24),
+        sectionGap: compactPromptText(tokens.sectionGap, "14px", 24),
+        cardPadding: compactPromptText(tokens.cardPadding, "16px", 24),
+        cardShadow: compactPromptText(tokens.cardShadow, "none", 80),
+      },
+      componentRules: (Array.isArray(contract.componentRules) ? contract.componentRules : []).slice(0, 4),
+      ctaRules: (Array.isArray(contract.ctaRules) ? contract.ctaRules : []).slice(0, 3),
+      moduleGrammar: compactPromptText(contract.moduleGrammar, "", 180),
+      differenceRule: compactPromptText(contract.differenceRule, "", 180),
+    };
+  }
+
+  function compactSkeletonHighScoreReferences(references, strictWelcome = false) {
+    if (strictWelcome) return [];
+    return (Array.isArray(references) ? references : [])
+      .slice(0, 4)
+      .map((item) => ({
+        componentId: compactPromptText(item.componentId, "", 80),
+        family: compactPromptText(item.family, "", 48),
+        name: compactPromptText(item.name, "", 60),
+        size: compactPromptText(item.size, "", 16),
+        score: item.score,
+        visibleText: compactPromptText(item.visibleText, "", 160),
+        description: compactPromptText(item.description, "", 120),
+        layoutHints: Array.isArray(item.layoutHints) ? item.layoutHints.slice(0, 3) : [],
+        dataRequirements: Array.isArray(item.dataRequirements) ? item.dataRequirements.slice(0, 3) : [],
+      }));
+  }
+
+  function skeletonAdjacentSlotBrief(slot, config = currentConfig) {
+    const scheme = skeletonSchemeFor(config);
+    const slots = Array.isArray(scheme.slots) ? scheme.slots : [];
+    const index = slots.findIndex((item) => item.id === slot.id);
+    if (index < 0) return { previous: null, next: null };
+    const toBrief = (item) =>
+      item
+        ? {
+            id: item.id,
+            label: item.label || home.featureLabel(item.id),
+            sectionType: item.sectionType || "",
+          }
+        : null;
+    return {
+      previous: toBrief(slots[index - 1]),
+      next: toBrief(slots[index + 1]),
+    };
+  }
+
+  function skeletonSlotHardRules(slot, strictWelcome = false) {
+    return [
+      "只生成当前 slot 的组件 HTML/CSS，不重排整页骨架，不改其他模块。",
+      "不要把完整 sections、skeletonHtml 或其他 slot 的 HTML/CSS 放进单组件 prompt，也不要在组件 UI 里渲染管理员提示词。",
+      "CSS 必须优先使用 var(--home-*) 和 var(--home-skeleton-contract-*) token；不要为当前 slot 单独发明随机品牌色、渐变、厚阴影或大圆角。",
+      "组件库评分规则：8-10 分强参考，6-7 分适度参考，5 分及以下禁止参考。",
+      "结构要求：至少体现一种明确组件工艺，例如指标带、状态条、步骤连接、趋势图容器、操作坞、表格/列表、左右分栏或紧凑信息流。",
+      slot.id === "risk_disclosure" || slot.id === "risk_notice"
+        ? "风险提示硬性要求：只能生成风险披露、杠杆风险、保证金风险、亏损风险、合规说明；不要生成资产概览、账户余额、入金、开户或营销活动组件。"
+        : "",
+      slot.id === "support_contact"
+        ? "在线客服硬性要求：生成在线客服 serviceCard，必须包含服务时间、在线状态或客户经理、工单/帮助中心、联系客服主按钮；不要显示页面摘要、当前步骤、slot 等管理员提示词；不要生成账户余额、KYC、开户或钱包组件。"
+        : "",
+      strictWelcome
+        ? "欢迎头部硬性要求：只展示客户姓名/昵称、问候语、最近登录时间三类信息；不要生成身份认证、真实账户、首次入金、总资产、钱包余额、营销活动、下一步 CTA 或操作按钮。"
+        : "",
+    ].filter(Boolean);
+  }
+
+  function skeletonSlotPromptContract(slot, action, highScoreReferences = [], options = {}) {
     const normalized = home.normalizeConfig(currentConfig);
     const userPrompt = compactPromptText(options.userPrompt, "", 900);
     const existingBrief = skeletonComponentBrief(options.existingComponent);
@@ -1974,45 +2087,86 @@
           : "生成这个 slot 的完整组件";
     const brick = skeletonBrickForSlot(slot, normalized);
     const relatedSettings = skeletonRelatedSettings(slot, normalized);
-    const references = Array.isArray(highScoreReferences) ? highScoreReferences : [];
-    return [
-      skeletonPageBrief(normalized),
+    const strictWelcome = isStrictWelcomeHeaderPrompt(slot, userPrompt);
+    const references = compactSkeletonHighScoreReferences(highScoreReferences, strictWelcome);
+    const designContract = compactSkeletonDesignContract(skeletonDesignContractFor(normalized));
+    const originalSlotPrompt = compactPromptText(
+      options.existingComponent?.originalSlotPrompt || options.existingComponent?.sourcePrompt || `${slot.label || home.featureLabel(slot.id)}：${skeletonSlotObjective(slot)}`,
       "",
-	      "骨架 HTML 生成总约束:",
-	      "当前是整页骨架里的单 slot 生成：只填充当前 slot，但视觉必须融入整页的 layout、theme、density、首屏重心和相邻模块节奏。",
-	      "整页风格契约是硬约束：可以更换组件内部工艺，但不得更换全页圆角、阴影、按钮高度、标签样式、主色策略或叙事语气。",
-	      "CSS 必须优先使用 var(--home-*) 和 var(--home-skeleton-contract-*) token；不要为当前 slot 单独发明一套随机品牌色、渐变、厚阴影或大圆角。",
-	      "AI 可以自行发挥新的组件形态，但必须先参考组件库里的高分积木；灵感来自字段密度、按钮层级、状态标签、图表/列表表达、卡片比例和响应式方式。",
-      "组件库评分规则：8-10 分强参考，6-7 分适度参考，5 分及以下禁止参考。若无法明显提升，就按最匹配高分积木同款微调，只调整文案、主题 token、动作绑定、响应式和 spacing。",
-      "生成结果要像高分积木上的升级版：保留真实业务字段和动作，同时改进结构、层级、密度或组合方式；不要从零生成普通白卡片。",
-      references.length ? `当前 slot 优先参考的高分积木：${compactPromptJson(references, 980)}` : "当前 slot 暂无显式高分积木参考时，也必须遵守同 family 积木语言和设计治理。",
+      900,
+    );
+    return {
+      contractVersion: "skeleton-slot-v2",
+      pageDesign: {
+        summary: compactPromptText(normalized.aiSummary || normalized.name, "专业 ForexCRM 用户端首页", 180),
+        layoutPreset: compactPromptText(normalized.layoutPreset || normalized.pageStory || "standard", "standard", 64),
+        themePreset: compactPromptText(normalized.themePreset || normalized.theme, "default", 64),
+        density: compactPromptText(normalized.density || designContract.density, "balanced", 40),
+        heroFocus: normalized.heroFocus ? home.featureLabel(normalized.heroFocus) : "",
+        designContract,
+      },
+      slotContract: {
+        id: slot.id,
+        label: slot.label || home.featureLabel(slot.id),
+        family: skeletonSlotFamily(slot.id),
+        size: skeletonSlotSize(slot),
+        sectionTitle: slot.sectionTitle || slot.sectionId || "首页区域",
+        sectionType: slot.sectionType || "full",
+        variant: slot.variant || "",
+        morph: slot.morph || "",
+        action: actionText,
+        objective: skeletonSlotObjective(slot),
+        brickIntent: brick ? compactPromptText([brick.brickName || brick.brickId, brick.reason].filter(Boolean).join(" - "), "", 220) : "",
+        relatedSettings,
+        adjacentSlots: skeletonAdjacentSlotBrief(slot, normalized),
+      },
+      originalSlotPrompt,
+      userPrompt,
+      currentComponentSummary: existingBrief || null,
+      currentReferences: references,
+      hardRules: skeletonSlotHardRules(slot, strictWelcome),
+    };
+  }
+
+  function skeletonSlotPromptFromContract(contract = {}) {
+    const slot = contract.slotContract || {};
+    return [
+      "骨架 HTML 单 slot 生成契约 v2:",
+      "只填充当前 slot。全页一致性来自 pageDesign.designContract；当前组件要求来自 slotContract。",
+      "全局设计契约:",
+      compactPromptJson(contract.pageDesign, 1200),
       "",
       "当前模块 brief:",
-      `当前步骤：${actionText}，只处理当前模块，不要改整页骨架和其他模块。`,
-      `slot：${slot.id}`,
-      `模块名称：${slot.label || home.featureLabel(slot.id)}`,
-      `模块归属：${skeletonSlotFamily(slot.id)} / ${skeletonSlotSize(slot)}`,
-      `所在区域：${slot.sectionTitle || slot.sectionId || "首页区域"} / ${slot.sectionType || "full"}`,
-      slot.variant ? `当前变体：${slot.variant}` : "",
-      slot.morph ? `当前 morph：${slot.morph}` : "",
-      existingBrief ? `当前已有组件摘要：${compactPromptJson(existingBrief, 720)}` : "",
-      brick ? `积木意图：${compactPromptText([brick.brickName || brick.brickId, brick.reason].filter(Boolean).join(" - "), "", 220)}` : "",
-      relatedSettings ? `相关配置：${compactPromptJson(relatedSettings)}` : "",
-      userPrompt ? `管理员补充 prompt：${userPrompt}` : "",
-      `模块目标：${skeletonSlotObjective(slot)}`,
-      "输出要求：生成真实业务字段、清晰按钮层级、专业金融客户端质感；不要只显示模块名或通用占位。",
-      "审美要求：参考同 family 积木的字段密度、按钮层级、状态标签、卡片比例和响应式方式，生成新的漂亮变体；不要照抄积木，也不要只换颜色。",
-      "结构要求：至少体现一种明确组件工艺，例如指标带、状态条、步骤连接、趋势图容器、操作坞、表格/列表、左右分栏或紧凑信息流。",
-      existingBrief ? "差异要求：当前已有组件不能原样返回；HTML/CSS 必须在 DOM 结构、字段组织、密度、主次层级或交互区排布上至少一处明显不同。" : "",
-      slot.id === "risk_disclosure" || slot.id === "risk_notice"
-        ? "风险提示硬性要求：只能生成风险披露、杠杆风险、保证金风险、亏损风险、合规说明；不要生成资产概览、账户余额、入金、开户或营销活动组件。"
-        : "",
-      slot.id === "support_contact"
-        ? "在线客服硬性要求：生成在线客服 serviceCard，必须包含服务时间、在线状态或客户经理、工单/帮助中心、联系客服主按钮；不要显示页面摘要、当前步骤、slot 等管理员提示词；不要生成账户余额、KYC、开户或钱包组件。"
-        : "",
+      compactPromptJson(slot, 1200),
+      contract.originalSlotPrompt ? `原始生成基线：${contract.originalSlotPrompt}` : "",
+      contract.userPrompt ? `管理员补充 prompt（当前 slot 最高优先级）：${contract.userPrompt}` : "",
+      contract.currentComponentSummary ? `当前已有组件摘要：${compactPromptJson(contract.currentComponentSummary, 620)}` : "",
+      contract.currentReferences?.length ? `当前 slot 优先参考的高分积木：${compactPromptJson(contract.currentReferences, 860)}` : "当前 slot 暂无显式高分积木参考时，也必须遵守同 family 积木语言和设计治理。",
+      "",
+      "输出要求:",
+      "生成真实业务字段、清晰按钮层级、专业金融客户端质感；不要只显示模块名或通用占位。",
+      "参考同 family 积木的字段密度、按钮层级、状态标签、卡片比例和响应式方式，生成新的漂亮变体；不要照抄积木，也不要只换颜色。",
+      ...(Array.isArray(contract.hardRules) ? contract.hardRules : []),
+      contract.currentComponentSummary ? "差异要求：当前已有组件不能原样返回；HTML/CSS 必须在 DOM 结构、字段组织、密度、主次层级或交互区排布上至少一处明显不同。" : "",
     ]
       .filter(Boolean)
       .join("\n");
+  }
+
+  function skeletonSlotPrompt(slot, action, highScoreReferences = [], options = {}) {
+    return skeletonSlotPromptFromContract(skeletonSlotPromptContract(slot, action, highScoreReferences, options));
+  }
+
+  function applySkeletonSlotPromptMetadata(component, promptContract, promptText, userPrompt = "", existingComponent = null) {
+    if (!component || typeof component !== "object") return component;
+    const originalSlotPrompt = compactPromptText(existingComponent?.originalSlotPrompt || component.originalSlotPrompt || promptContract?.originalSlotPrompt || promptText, "", 1200);
+    return {
+      ...component,
+      sourcePrompt: compactPromptText(component.sourcePrompt || originalSlotPrompt || promptText, "", 1200),
+      originalSlotPrompt,
+      slotPromptContractSummary: compactPromptJson(promptContract, 1800),
+      lastAdjustmentPrompt: compactPromptText(userPrompt, "", 500),
+    };
   }
 
   async function generateSkeletonSlot(slotId, action = "regenerate", options = {}) {
@@ -2045,13 +2199,16 @@
     }
 
     setConfig(withSkeletonSlotUpdate(currentConfig, slotId, { status: "generating" }, undefined, null, { status: "generating" }), `正在生成：${slot.label}`, { saveDraft: true });
+    const userPrompt = compactPromptText(options.userPrompt, "", 900);
+    let slotPromptContract = null;
+    let slotPrompt = "";
     try {
       const existing = scheme.slotComponents?.[slotId];
       const family = skeletonSlotFamily(slotId);
       const size = skeletonSlotSize(slot);
       const scoreContext = await skeletonHighScoreReferenceContext(slot, action, currentConfig);
-      const userPrompt = compactPromptText(options.userPrompt, "", 900);
-      const slotPrompt = skeletonSlotPrompt(slot, action, scoreContext, { userPrompt, existingComponent: existing });
+      slotPromptContract = skeletonSlotPromptContract(slot, action, scoreContext, { userPrompt, existingComponent: existing });
+      slotPrompt = skeletonSlotPromptFromContract(slotPromptContract);
       const currentComponentSummary = skeletonComponentBrief(existing);
       const currentHtmlSignature = skeletonComponentSignature(existing);
       const excludeComponentIds = [
@@ -2078,14 +2235,18 @@
             ]
               .filter(Boolean)
               .join("\n"),
+            originalSlotPrompt: slotPromptContract.originalSlotPrompt,
+            pageDesignContract: slotPromptContract.pageDesign,
+            slotContract: slotPromptContract.slotContract,
+            slotPromptContract,
             adjustmentPrompt: userPrompt,
             currentComponentSummary,
-	            currentHtmlSignature,
-	            excludeComponentIds,
-	            designContract: skeletonDesignContractFor(currentConfig),
-	            scoreContext,
-	            modelConfig: aiRequestModelConfig(),
-	          }
+            currentHtmlSignature,
+            excludeComponentIds,
+            designContract: skeletonDesignContractFor(currentConfig),
+            scoreContext,
+            modelConfig: aiRequestModelConfig(),
+          }
         : {
             prompt: [
               slotPrompt,
@@ -2096,17 +2257,21 @@
               .join("\n"),
             family,
             size,
+            originalSlotPrompt: slotPromptContract.originalSlotPrompt,
+            pageDesignContract: slotPromptContract.pageDesign,
+            slotContract: slotPromptContract.slotContract,
+            slotPromptContract,
             adjustmentPrompt: userPrompt,
             currentComponentSummary,
-	            currentHtmlSignature,
-	            excludeComponentIds,
-	            designContract: skeletonDesignContractFor(currentConfig),
-	            scoreContext,
-	            modelConfig: aiRequestModelConfig(),
-	          };
+            currentHtmlSignature,
+            excludeComponentIds,
+            designContract: skeletonDesignContractFor(currentConfig),
+            scoreContext,
+            modelConfig: aiRequestModelConfig(),
+          };
       const result = await requestJsonEndpoint(shouldEditExisting ? "/api/home-components/edit" : "/api/home-components/generate", payload);
-      const resultComponent = result.component || (await brickFallbackSlotComponent(slot, action));
-      const component = {
+      const resultComponent = result.component || (await brickFallbackSlotComponent(slot, action, null, { userPrompt }));
+      const component = applySkeletonSlotPromptMetadata({
         ...resultComponent,
         slot: slotId,
         sourceType: resultComponent.sourceType || (result.localFallback ? "fallback-component-ai" : result.mock ? "mock-component-ai" : "component-ai"),
@@ -2114,7 +2279,7 @@
         provider: result.provider || "",
         model: result.model || "",
         generatedAt: new Date().toISOString(),
-      };
+      }, slotPromptContract, slotPrompt, userPrompt, existing);
       const next = withSkeletonSlotUpdate(
         currentConfig,
         slotId,
@@ -2124,15 +2289,16 @@
       );
       setConfig(next, result.localFallback || component.sourceType === "brick-fallback" ? `已引用积木兜底：${slot.label}` : `已生成：${slot.label}`, { saveDraft: true });
     } catch (error) {
-      const fallback = await brickFallbackSlotComponent(slot, action, error);
+      const fallback = await brickFallbackSlotComponent(slot, action, error, { userPrompt });
+      const fallbackWithPrompt = applySkeletonSlotPromptMetadata(fallback, slotPromptContract, slotPrompt, userPrompt, scheme.slotComponents?.[slotId]);
       const next = withSkeletonSlotUpdate(
         currentConfig,
         slotId,
         { status: "filled", locked: false, filledAt: new Date().toISOString() },
-        fallback,
+        fallbackWithPrompt,
         { action: "fallback" },
       );
-      const fallbackLabel = fallback.sourceType === "brick-fallback" ? "积木兜底" : "本地兜底";
+      const fallbackLabel = fallbackWithPrompt.sourceType === "brick-fallback" ? "积木兜底" : "本地兜底";
       setConfig(next, `模型生成失败，已使用${fallbackLabel}：${slot.label}`, { saveDraft: true });
       showToast(`模块生成失败，已${fallbackLabel}：${slot.label}`);
     }

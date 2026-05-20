@@ -2990,6 +2990,86 @@ function componentLayoutContextPromptReference(payload = {}) {
   };
 }
 
+function componentDesignContractPromptReference(payload = {}) {
+  const pageDesign = payload.pageDesignContract && typeof payload.pageDesignContract === "object"
+    ? payload.pageDesignContract
+    : payload.slotPromptContract?.pageDesign && typeof payload.slotPromptContract.pageDesign === "object"
+      ? payload.slotPromptContract.pageDesign
+      : {};
+  const contract = pageDesign.designContract && typeof pageDesign.designContract === "object"
+    ? pageDesign.designContract
+    : payload.designContract && typeof payload.designContract === "object"
+      ? payload.designContract
+      : {};
+  const tokens = contract.tokens && typeof contract.tokens === "object" ? contract.tokens : {};
+  const hasContract = Object.keys(contract).length || Object.keys(pageDesign).length;
+  if (!hasContract) return { available: false };
+  return {
+    available: true,
+    pageSummary: cleanText(pageDesign.summary, "", 180),
+    layoutPreset: cleanText(pageDesign.layoutPreset, "", 64),
+    themePreset: cleanText(pageDesign.themePreset, pageDesign.theme || "", 64),
+    density: cleanText(pageDesign.density || contract.density, "", 32),
+    heroFocus: cleanText(pageDesign.heroFocus, "", 80),
+    style: {
+      id: cleanText(contract.id, "", 48),
+      label: cleanText(contract.label, "", 80),
+      personality: cleanText(contract.personality, "", 48),
+      tone: cleanText(contract.tone, "", 120),
+      surface: cleanText(contract.surface, "", 180),
+      theme: cleanText(contract.theme, "", 48),
+      density: cleanText(contract.density, "", 32),
+      tokens: {
+        cardRadius: cleanText(tokens.cardRadius, "", 24),
+        buttonRadius: cleanText(tokens.buttonRadius, "", 24),
+        sectionGap: cleanText(tokens.sectionGap, "", 24),
+        cardPadding: cleanText(tokens.cardPadding, "", 24),
+        cardShadow: cleanText(tokens.cardShadow, "", 80),
+      },
+      componentRules: (Array.isArray(contract.componentRules) ? contract.componentRules : []).map((item) => cleanText(item, "", 160)).filter(Boolean).slice(0, 4),
+      ctaRules: (Array.isArray(contract.ctaRules) ? contract.ctaRules : []).map((item) => cleanText(item, "", 160)).filter(Boolean).slice(0, 3),
+      moduleGrammar: cleanText(contract.moduleGrammar, "", 180),
+      differenceRule: cleanText(contract.differenceRule, "", 180),
+    },
+  };
+}
+
+function componentSlotContractPromptReference(payload = {}) {
+  const source = payload.slotContract && typeof payload.slotContract === "object"
+    ? payload.slotContract
+    : payload.slotPromptContract?.slotContract && typeof payload.slotPromptContract.slotContract === "object"
+      ? payload.slotPromptContract.slotContract
+      : {};
+  if (!Object.keys(source).length) return { available: false };
+  return {
+    available: true,
+    id: cleanText(source.id, "", 64),
+    label: cleanText(source.label, "", 80),
+    family: cleanText(source.family, "", 48),
+    size: cleanText(source.size, "", 24),
+    sectionTitle: cleanText(source.sectionTitle, "", 80),
+    sectionType: cleanText(source.sectionType, "", 24),
+    variant: cleanText(source.variant, "", 80),
+    morph: cleanText(source.morph, "", 80),
+    action: cleanText(source.action, "", 120),
+    objective: cleanText(source.objective, "", 260),
+    brickIntent: cleanText(source.brickIntent, "", 220),
+    relatedSettings: source.relatedSettings && typeof source.relatedSettings === "object" ? source.relatedSettings : null,
+    adjacentSlots: source.adjacentSlots && typeof source.adjacentSlots === "object" ? source.adjacentSlots : null,
+  };
+}
+
+function componentSkeletonPromptContractReference(payload = {}) {
+  const contract = payload.slotPromptContract && typeof payload.slotPromptContract === "object" ? payload.slotPromptContract : {};
+  return {
+    pageDesign: componentDesignContractPromptReference(payload),
+    slotContract: componentSlotContractPromptReference(payload),
+    originalSlotPrompt: cleanText(payload.originalSlotPrompt || contract.originalSlotPrompt, "", 700),
+    userPrompt: cleanText(payload.adjustmentPrompt || contract.userPrompt, "", 500),
+    hardRules: (Array.isArray(contract.hardRules) ? contract.hardRules : []).map((item) => cleanText(item, "", 180)).filter(Boolean).slice(0, 6),
+  };
+}
+
 function homepageRenderMode(payload) {
   const value = cleanText(payload?.renderMode || payload?.generationRenderMode || payload?.context?.renderMode, "config", 24);
   return ["config", "aiHtml", "skeletonHtml", "compare"].includes(value) ? value : "config";
@@ -3502,6 +3582,9 @@ function normalizeGeneratedComponent(component, payload = {}, options = {}) {
     layoutHints: (Array.isArray(source.layoutHints) ? source.layoutHints : []).map((item) => cleanText(item, "", 120)).filter(Boolean).slice(0, 6),
     dataRequirements: (Array.isArray(source.dataRequirements) ? source.dataRequirements : []).map((item) => cleanText(item, "", 120)).filter(Boolean).slice(0, 6),
     sourcePrompt: cleanText(payload.prompt || source.sourcePrompt, "", 500),
+    originalSlotPrompt: cleanText(payload.originalSlotPrompt || source.originalSlotPrompt, "", 900),
+    slotPromptContractSummary: cleanText(source.slotPromptContractSummary || (payload.slotPromptContract ? JSON.stringify(payload.slotPromptContract).slice(0, 1800) : ""), "", 1800),
+    lastAdjustmentPrompt: cleanText(payload.adjustmentPrompt || source.lastAdjustmentPrompt, "", 500),
     ...(visualReference ? { visualReference } : {}),
     createdAt: source.createdAt || now,
     updatedAt: preserveUpdatedAt && source.updatedAt ? source.updatedAt : now,
@@ -3512,6 +3595,12 @@ function generatedComponentTooGeneric(component) {
   const source = `${component?.name || ""} ${component?.description || ""} ${component?.html || ""}`;
   if (/Primary Action|AI\s*样式|Lorem ipsum|Sample Component/i.test(source)) return true;
   const businessSignals = [
+    "欢迎",
+    "问候",
+    "最近登录",
+    "上次登录",
+    "Last Login",
+    "Last login",
     "Deposit",
     "Withdraw",
     "Withdrawal",
@@ -3590,7 +3679,37 @@ function generatedComponentViolatesFamily(component, payload = {}) {
     const looksLikeAccountOverview = /Account Overview|Wallet Balance|Trading Balance|Total Assets|KYC Verified|Open Account|账户概览|资产概览|钱包余额|交易余额|开真实账户/i.test(source);
     return !hasSupportSemantics || leaksPrompt || looksLikeAccountOverview;
   }
+  if (family === "WelcomeHeader" && promptRequestsStrictWelcomeHeader(payload)) {
+    const hasWelcomeSemantics = /张明|姓名|客户|用户|昵称|早安|午安|晚安|欢迎|问候|最近登录|上次登录|Last\s*login|Login\s*time/i.test(source);
+    const leaksConversionModule = /身份认证|KYC|真实账户|首次入金|总资产|钱包余额|资产概览|入金|开户|活动|营销|奖励|推广|CopyTrading|去完成/i.test(source);
+    return !hasWelcomeSemantics || leaksConversionModule;
+  }
   return false;
+}
+
+function strictWelcomePromptText(payload = {}) {
+  return [
+    payload.prompt,
+    payload.instruction,
+    payload.adjustmentPrompt,
+    payload.originalSlotPrompt,
+    payload.slotPromptContract?.originalSlotPrompt,
+    payload.slotPromptContract?.userPrompt,
+    payload.slotContract?.objective,
+    payload.context?.prompt,
+    payload.currentComponentSummary?.description,
+    payload.currentComponentSummary?.sourcePrompt,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function promptRequestsStrictWelcomeHeader(payload = {}) {
+  if (oneOfComponentFamily(payload.family, "") !== "WelcomeHeader") return false;
+  const text = strictWelcomePromptText(payload);
+  const hasWelcomeCue = /姓名|客户姓名|用户名|昵称|问候|欢迎|最近登录|上次登录|last\s*login|login\s*time/i.test(text);
+  const hasLimitCue = /只要求|只需要|只放|只展示|只显示|只保留|仅|只要|不要.{0,24}(营销|开户|入金|资产|KYC|认证|引导|钱包|总资产)/i.test(text);
+  return hasWelcomeCue && (hasLimitCue || /最近登录|上次登录|last\s*login|login\s*time/i.test(text));
 }
 
 function componentScoreKeyForId(componentId) {
@@ -3952,6 +4071,7 @@ function componentFallbackExcludeIds(payload = {}, options = {}) {
 function componentLibraryFallbackForPayload(payload = {}, options = {}) {
   const family = oneOfComponentFamily(payload.family);
   const size = normalizeComponentSize(payload.size, autoComponentSizeForPayload(payload, family));
+  if (promptRequestsStrictWelcomeHeader({ ...payload, family })) return null;
   const prompt = cleanText(payload.prompt || payload.instruction || "", "", 500);
   const excludeIds = new Set(componentFallbackExcludeIds(payload, options));
   const libraryComponents = readComponentLibrary().components.filter((component) => !excludeIds.has(component.id) && componentReferenceAllowed(component, payload));
@@ -8590,6 +8710,11 @@ function saveComposition(composition) {
 
 function componentFamilySpec(family) {
   const specs = {
+    WelcomeHeader: {
+      purpose: "轻量欢迎头部，只承担客户身份识别、问候和最近登录/当前时间等低干扰状态提示",
+      requiredUi: ["客户姓名或昵称", "问候语", "最近登录时间、当前时间或一条低干扰状态提示"],
+      forbidden: ["KYC/开户/首次入金流程", "总资产/钱包/交易账号余额", "营销活动、奖励或推广 CTA", "把欢迎头部扩展成完整转化模块"],
+    },
     AssetOverview: {
       purpose: "展示总资产、钱包余额、交易账号余额、信用和资金动作",
       requiredUi: ["总资产或 Balance 大数字", "Wallet/TA/Credit 指标", "Deposit/Withdraw 按钮"],
@@ -8697,12 +8822,14 @@ function buildComponentPrompt(payload) {
   const aestheticReference = componentAestheticPromptReference({ family, size: referenceSize, prompt, limit: 6, sampleLimit: 2, feedbackLimit: 3 });
   const designGovernance = designRulesPromptReference();
   const visualReference = componentVisualReferencePromptReference(payload);
+  const skeletonContract = componentSkeletonPromptContractReference(payload);
 
   const system = [
     "你是 ForexCRM 首页积木组件设计器。",
     "你只能返回一个 JSON object，不要 markdown，不要解释。",
     "组件用于金融/交易 CRM 用户端首页，必须克制、专业、信息清晰。",
     "必须遵守 design.md 设计治理：组件漂亮来自主焦点、字段层级、状态细节、按钮主次和响应式稳定，不来自大圆角、厚阴影、随机渐变或营销装饰。",
+    "如果用户消息包含骨架 slot 契约，必须只使用 pageDesign/slotContract 里的颜色、界面规范、密度、尺寸、间距和当前模块要求；不要依据整页 sections 或其他 slot 重排页面。",
     "生成前必须先参考用户消息里的“组件库参考”“用户评分优先参考”和“漂亮积木审美参考”：理解已保存积木的业务字段、尺寸、按钮、标签、卡片密度、视觉层级和漂亮组件的结构手法，再围绕本次需求发挥。",
     "用户评分为 1-10 分；同类或同尺寸组件中优先参考高分积木，但不要逐字复制。",
     "组件生成底线：只参考 5 分以上积木；如果模型无法明显提升，就返回最接近高分积木的同款微调版，不要自由生成普通卡片。",
@@ -8727,6 +8854,9 @@ function buildComponentPrompt(payload) {
   const user = [
     `目标模块: ${family}`,
     `推荐尺寸: ${size}`,
+    "",
+    "骨架 slot 契约:",
+    compactJson(skeletonContract),
     "",
     "页面宽度/尺寸决策上下文:",
     compactJson(layoutContext),
@@ -8792,6 +8922,7 @@ function compactMiniMaxComponentContext(payload, family, size, prompt) {
   const designGovernance = designRulesPromptReference();
 
   return {
+    skeletonContract: componentSkeletonPromptContractReference(payload),
     layoutContext,
     visualReference: componentVisualReferencePromptReference(payload),
     componentLibrary: (componentReference.selectedComponents || []).slice(0, 3).map(compactMiniMaxComponentReference),
@@ -8832,6 +8963,7 @@ function buildMiniMaxComponentPrompt(payload, config = {}) {
     "HTML 根元素必须有稳定 class；CSS 只能写根 class 作用域；禁止 script、外链、iframe、图片 URL、表单提交和不安全属性。",
     "组件必须体现一种真实工艺：指标带、状态条、步骤连接、趋势图容器、操作坞、表格/列表、左右分栏或紧凑信息流。",
     "如果目标 size 是 AI 自行选择，必须按 layoutContext 的 pageWidth、maxColumns、functionalComplexity 和 recommendedSize 选最终 size。",
+    "若紧凑参考里有 skeletonContract，只按其中的 pageDesign/slotContract 生成当前组件，不读取或补全整页结构。",
     "若紧凑参考里有 visualReference，按它的构图、密度、主色和控件层级做 ForexCRM 积木变体，不要复制图片原文和品牌。",
     "金融客户端要克制专业，圆角 8px 或以下，不要厚重阴影、随机渐变、通用占位或只换颜色。",
     `${providerName} 如果不确定，宁可少写字段内容，也必须保证 JSON.parse 可解析。`,
@@ -8896,12 +9028,14 @@ function buildComponentEditPrompt(payload, component) {
     dataRequirements: component.dataRequirements,
   };
   const designGovernance = designRulesPromptReference();
+  const skeletonContract = componentSkeletonPromptContractReference(payload);
 
   const system = [
     "你是 ForexCRM 首页积木组件编辑器。",
     "你只能返回一个 JSON object，不要 markdown，不要解释。",
     "你的任务是对当前组件做局部编辑，并返回完整替换版组件定义。",
     "把 currentComponent 当成唯一基稿，不能从零重新设计，不能替换成无关模块。",
+    "如果存在骨架 slot 契约，编辑必须基于原始 slot prompt 再叠加最新修改要求；只改当前组件，不重排整页或借用其他 slot 的上下文。",
     "必须遵守 design.md 设计治理：编辑时优先提升信息层级、状态表达、间距和响应式，不用装饰堆叠掩盖结构问题。",
     "必须参考同 family 组件库积木和漂亮积木审美参考来优化层级，但最终必须仍是 currentComponent 的局部演进。",
     "优化重点是让组件更像成熟金融客户端：主焦点更明确、字段层级更顺、按钮权重更克制、形态不再是普通白卡堆叠。",
@@ -8929,6 +9063,9 @@ function buildComponentEditPrompt(payload, component) {
     "",
     "该模块业务约束:",
     compactJson(familySpec),
+    "",
+    "骨架 slot 契约:",
+    compactJson(skeletonContract),
     "",
     "同类组件库参考:",
     compactJson(componentReference),
@@ -8982,6 +9119,7 @@ function buildMiniMaxComponentEditPrompt(payload, component, config = {}) {
     "html 和 css 必须是 JSON 字符串；请压缩为单行并正确转义双引号，禁止字符串内裸换行。",
     rootClass ? `HTML 根 class 必须继续使用 ${rootClass}，CSS 也必须限定在 .${rootClass} 下。` : "HTML 根元素必须使用一个稳定 class，CSS 必须限定在该 class 下。",
     "保留当前业务能力，只调整用户点名的视觉层级、排版、密度或结构。",
+    "若紧凑参考里有 skeletonContract，以原始 slot prompt 为基线叠加最新修改要求；不要补全整页结构。",
     "禁止 script、外链、iframe、图片 URL、表单提交和不安全属性。",
     `${providerName} 如果不确定，宁可少写视觉细节，也必须保证 JSON.parse 可解析。`,
   ].join("\n");
@@ -14546,6 +14684,13 @@ function mockGeneratedComponent(payload, providerConfig) {
 	    .${root} .primary{border-color:var(--home-button-border);background:var(--home-button-bg);color:var(--home-button-text)}
 	  `;
   const templates = {
+    WelcomeHeader: {
+      name: "极简欢迎登录条",
+      description: "展示客户姓名、问候语和最近登录时间的轻量欢迎头部。",
+      html: `<section class="${root}"><div><strong>早安，张明</strong><span>欢迎回来</span></div><p><small>最近登录时间</small><b>2026-05-20 09:41</b></p></section>`,
+      css: `${baseCss}.${root}{min-height:128px;display:flex;align-items:center;justify-content:space-between}.${root} div{display:grid;gap:6px}.${root} strong{font-size:26px}.${root} p{display:grid;gap:5px;min-width:220px;margin:0;padding:12px 14px;border:1px solid var(--home-border);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft)}.${root} b{color:var(--home-text-strong);font-size:15px}@media(max-width:720px){.${root}{align-items:stretch;flex-direction:column}.${root} p{min-width:0;width:100%}}`,
+      dataRequirements: ["customerName", "greeting", "lastLoginAt"],
+    },
     AssetOverview: {
       name: "资产概览操作台",
       description: "展示总资产、钱包、交易账号余额和资金动作的首页资产积木。",
@@ -16733,7 +16878,35 @@ function shouldPersistGeneratedComponent(payload = {}) {
   return payload.save !== false && payload.persist !== false && payload.draftOnly !== true;
 }
 
+function strictWelcomeHeaderFallbackComponent(payload = {}, providerConfig = {}) {
+  const family = "WelcomeHeader";
+  const size = normalizeComponentSize(payload.size, autoComponentSizeForPayload(payload, family));
+  const root = safeId(`WelcomeHeader-strict-${Date.now().toString(36)}`, "ai-brick");
+  return normalizeGeneratedComponent(
+    {
+      name: "极简欢迎登录条",
+      family,
+      size,
+      description: `只展示客户姓名、问候语和最近登录时间的欢迎头部。通过 ${providerConfig.name || "local"} / ${providerConfig.model || "fallback"} 兜底生成。`,
+      tags: [family, size, "welcome", "last-login"],
+      html: `<section class="${root}" aria-label="欢迎头部"><div><strong>早安，张明</strong><span>欢迎回来</span></div><p><small>最近登录时间</small><b>2026-05-20 09:41</b></p></section>`,
+      css: `.${root}{min-height:128px;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:18px;border:1px solid var(--home-border);border-radius:var(--home-radius-sm,8px);background:var(--home-card-bg);color:var(--home-text);font-family:Inter,system-ui,sans-serif}.${root} *{box-sizing:border-box}.${root} div{display:grid;gap:6px}.${root} strong{color:var(--home-text-strong);font-size:26px;font-weight:950;letter-spacing:0}.${root} span,.${root} small{color:var(--home-text-muted);font-size:13px;font-weight:850}.${root} p{display:grid;gap:5px;min-width:220px;margin:0;padding:12px 14px;border:1px solid var(--home-border);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft)}.${root} b{color:var(--home-text-strong);font-size:15px;font-weight:950}@media(max-width:720px){.${root}{align-items:stretch;flex-direction:column}.${root} p{min-width:0;width:100%}}`,
+      layoutHints: [size, "轻量整行欢迎头部", "只展示姓名、问候和最近登录时间"],
+      dataRequirements: ["customerName", "greeting", "lastLoginAt"],
+    },
+    payload,
+  );
+}
+
 function componentProviderFallbackComponent(payload, config, reason, options = {}) {
+  if (promptRequestsStrictWelcomeHeader(payload)) {
+    const component = strictWelcomeHeaderFallbackComponent(payload, config);
+    return {
+      ...component,
+      sourceType: "local-fallback",
+      fallbackReason: reason,
+    };
+  }
   const brickFallback = componentLibraryFallbackForPayload(payload, { ...options, reason });
   if (brickFallback) return brickFallback;
   const component = mockGeneratedComponent(payload, config);
