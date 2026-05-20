@@ -1998,6 +1998,7 @@
 
   function compactSkeletonDesignContract(contract = {}) {
     const tokens = contract.tokens && typeof contract.tokens === "object" ? contract.tokens : {};
+    const chromePolicy = contract.chromePolicy && typeof contract.chromePolicy === "object" ? contract.chromePolicy : {};
     return {
       id: compactPromptText(contract.id, "ops-console", 48),
       label: compactPromptText(contract.label, "账户运营控制台契约", 80),
@@ -2017,7 +2018,85 @@
       ctaRules: (Array.isArray(contract.ctaRules) ? contract.ctaRules : []).slice(0, 3),
       moduleGrammar: compactPromptText(contract.moduleGrammar, "", 180),
       differenceRule: compactPromptText(contract.differenceRule, "", 180),
+      chromePolicy: {
+        mode: compactPromptText(chromePolicy.mode, "cardedDashboard", 40),
+        sectionChrome: compactPromptText(chromePolicy.sectionChrome, "group", 32),
+        defaultSlotChrome: compactPromptText(chromePolicy.defaultSlotChrome, "contained", 32),
+        componentBoundary: compactPromptText(chromePolicy.componentBoundary, "component-contained", 48),
+        promptRule: compactPromptText(chromePolicy.promptRule, "", 180),
+      },
     };
+  }
+
+  function compactSkeletonPagePlan(config = {}) {
+    const plan = config.pagePlan && typeof config.pagePlan === "object" ? config.pagePlan : {};
+    const visualHierarchy = {};
+    Object.entries(plan.visualHierarchy && typeof plan.visualHierarchy === "object" ? plan.visualHierarchy : {})
+      .slice(0, 14)
+      .forEach(([key, value]) => {
+        visualHierarchy[key] = Number(value) || 0;
+      });
+    const moduleRoles = {};
+    Object.entries(plan.moduleRoles && typeof plan.moduleRoles === "object" ? plan.moduleRoles : {})
+      .slice(0, 14)
+      .forEach(([key, value]) => {
+        const role = value && typeof value === "object" ? value : {};
+        moduleRoles[key] = {
+          role: compactPromptText(role.role, "", 24),
+          weight: Number(role.weight) || visualHierarchy[key] || 0,
+        };
+      });
+    const compositionGroups = (Array.isArray(plan.compositionGroups) ? plan.compositionGroups : [])
+      .slice(0, 4)
+      .map((group) => ({
+        id: compactPromptText(group?.id, "", 48),
+        title: compactPromptText(group?.title, "", 60),
+        role: compactPromptText(group?.role, "", 28),
+        surface: compactPromptText(group?.surface, "", 40),
+        modules: Array.isArray(group?.modules) ? group.modules.slice(0, 8) : [],
+        visualWeight: Number(group?.visualWeight) || 0,
+        guidance: compactPromptText(group?.guidance, "", 140),
+      }))
+      .filter((group) => group.id || group.modules.length);
+    return {
+      pageGoal: compactPromptText(plan.pageGoal, "", 40),
+      primaryCta: compactPromptText(plan.primaryCta || plan.primaryAction?.label, "", 80),
+      mainVisual: compactPromptText(plan.mainVisual, "", 48),
+      layoutStrategy: compactPromptText(plan.layoutStrategy, "", 48),
+      compositionGroups,
+      visualHierarchy,
+      moduleRoles,
+      compositionRules: (Array.isArray(plan.compositionRules) ? plan.compositionRules : []).slice(0, 6),
+    };
+  }
+
+  function skeletonParentGroupForSlot(slotId, pagePlan = {}) {
+    const group = (Array.isArray(pagePlan.compositionGroups) ? pagePlan.compositionGroups : []).find((item) =>
+      Array.isArray(item.modules) && item.modules.includes(slotId),
+    );
+    if (!group) return null;
+    return {
+      id: group.id,
+      title: group.title,
+      role: group.role,
+      surface: group.surface,
+      modules: group.modules,
+      guidance: group.guidance,
+    };
+  }
+
+  function skeletonSlotSurfaceBehavior(slot = {}, pagePlan = {}) {
+    const chrome = compactPromptText(slot.chrome || "contained", "contained", 32);
+    const role = compactPromptText(pagePlan.moduleRoles?.[slot.id]?.role, "", 24);
+    const weight = Number(pagePlan.visualHierarchy?.[slot.id] || pagePlan.moduleRoles?.[slot.id]?.weight || 0);
+    if (["bare", "inline", "flat"].includes(chrome) || role === "support" || role === "decision" || (weight > 0 && weight < 70)) {
+      return "content-fragment";
+    }
+    if (chrome === "featured") return "featured-main-path";
+    if (chrome === "tableSurface") return "shared-workbench-surface";
+    if (chrome === "legalStrip") return "legal-strip";
+    if (chrome === "rail") return "side-rail";
+    return "contained-surface";
   }
 
   function compactSkeletonHighScoreReferences(references, strictWelcome = false) {
@@ -2061,6 +2140,11 @@
       "只生成当前 slot 的组件 HTML/CSS，不重排整页骨架，不改其他模块。",
       "不要把完整 sections、skeletonHtml 或其他 slot 的 HTML/CSS 放进单组件 prompt，也不要在组件 UI 里渲染管理员提示词。",
       "CSS 必须优先使用 var(--home-*) 和 var(--home-skeleton-contract-*) token；不要为当前 slot 单独发明随机品牌色、渐变、厚阴影或大圆角。",
+      "模块外壳由 pageDesign.designContract.chromePolicy 和 slotContract.chrome 决定；bare/inline/flat 不要自带完整卡片外框，contained/featured/tableSurface 才允许轻量外壳。",
+      "页面外壳和 parentGroup 负责整体感；当前 slot 应继承父级表面、标题语言和按钮层级，优先用分割线、指标行、列表、图表区或内联按钮衔接。",
+      "support/decision/低权重 slot 必须降噪：不要生成大标题、大背景、厚边框、强阴影、强主按钮或完整独立卡片。",
+      "不要重复 sectionTitle 或 parentGroup 标题；除非 slot 是 primary/featured，否则组件标题保持短小、低干扰。",
+      "生成 HTML 时优先把 title、metrics、actions、list/chart 当作当前 slot 的内容片段；不要每个 slot 都重复大标题区、厚边框、白卡片和强阴影。",
       "组件库评分规则：8-10 分强参考，6-7 分适度参考，5 分及以下禁止参考。",
       "结构要求：至少体现一种明确组件工艺，例如指标带、状态条、步骤连接、趋势图容器、操作坞、表格/列表、左右分栏或紧凑信息流。",
       slot.id === "risk_disclosure" || slot.id === "risk_notice"
@@ -2090,6 +2174,9 @@
     const strictWelcome = isStrictWelcomeHeaderPrompt(slot, userPrompt);
     const references = compactSkeletonHighScoreReferences(highScoreReferences, strictWelcome);
     const designContract = compactSkeletonDesignContract(skeletonDesignContractFor(normalized));
+    const pagePlan = compactSkeletonPagePlan(normalized);
+    const parentGroup = skeletonParentGroupForSlot(slot.id, pagePlan);
+    const roleInfo = pagePlan.moduleRoles?.[slot.id] || {};
     const originalSlotPrompt = compactPromptText(
       options.existingComponent?.originalSlotPrompt || options.existingComponent?.sourcePrompt || `${slot.label || home.featureLabel(slot.id)}：${skeletonSlotObjective(slot)}`,
       "",
@@ -2104,6 +2191,7 @@
         density: compactPromptText(normalized.density || designContract.density, "balanced", 40),
         heroFocus: normalized.heroFocus ? home.featureLabel(normalized.heroFocus) : "",
         designContract,
+        pagePlan,
       },
       slotContract: {
         id: slot.id,
@@ -2114,6 +2202,11 @@
         sectionType: slot.sectionType || "full",
         variant: slot.variant || "",
         morph: slot.morph || "",
+        chrome: compactPromptText(slot.chrome || "contained", "contained", 32),
+        role: compactPromptText(roleInfo.role, "", 24),
+        visualWeight: Number(pagePlan.visualHierarchy?.[slot.id] || roleInfo.weight || 0),
+        parentGroup,
+        surfaceBehavior: skeletonSlotSurfaceBehavior(slot, pagePlan),
         action: actionText,
         objective: skeletonSlotObjective(slot),
         brickIntent: brick ? compactPromptText([brick.brickName || brick.brickId, brick.reason].filter(Boolean).join(" - "), "", 220) : "",
@@ -2135,6 +2228,9 @@
       "只填充当前 slot。全页一致性来自 pageDesign.designContract；当前组件要求来自 slotContract。",
       "全局设计契约:",
       compactPromptJson(contract.pageDesign, 1200),
+      "",
+      "页面布局计划:",
+      compactPromptJson(contract.pageDesign?.pagePlan, 1000),
       "",
       "当前模块 brief:",
       compactPromptJson(slot, 1200),
@@ -2274,6 +2370,7 @@
       const component = applySkeletonSlotPromptMetadata({
         ...resultComponent,
         slot: slotId,
+        chrome: slot.chrome || resultComponent.chrome || "contained",
         sourceType: resultComponent.sourceType || (result.localFallback ? "fallback-component-ai" : result.mock ? "mock-component-ai" : "component-ai"),
         fallbackReason: result.fallbackReason || resultComponent.fallbackReason || "",
         provider: result.provider || "",
@@ -2290,7 +2387,7 @@
       setConfig(next, result.localFallback || component.sourceType === "brick-fallback" ? `已引用积木兜底：${slot.label}` : `已生成：${slot.label}`, { saveDraft: true });
     } catch (error) {
       const fallback = await brickFallbackSlotComponent(slot, action, error, { userPrompt });
-      const fallbackWithPrompt = applySkeletonSlotPromptMetadata(fallback, slotPromptContract, slotPrompt, userPrompt, scheme.slotComponents?.[slotId]);
+      const fallbackWithPrompt = applySkeletonSlotPromptMetadata({ ...fallback, chrome: slot.chrome || fallback.chrome || "contained" }, slotPromptContract, slotPrompt, userPrompt, scheme.slotComponents?.[slotId]);
       const next = withSkeletonSlotUpdate(
         currentConfig,
         slotId,

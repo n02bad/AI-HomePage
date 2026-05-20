@@ -3002,6 +3002,8 @@ function componentDesignContractPromptReference(payload = {}) {
       ? payload.designContract
       : {};
   const tokens = contract.tokens && typeof contract.tokens === "object" ? contract.tokens : {};
+  const chromePolicy = contract.chromePolicy && typeof contract.chromePolicy === "object" ? contract.chromePolicy : {};
+  const pagePlan = pageDesign.pagePlan && typeof pageDesign.pagePlan === "object" ? pageDesign.pagePlan : {};
   const hasContract = Object.keys(contract).length || Object.keys(pageDesign).length;
   if (!hasContract) return { available: false };
   return {
@@ -3011,6 +3013,23 @@ function componentDesignContractPromptReference(payload = {}) {
     themePreset: cleanText(pageDesign.themePreset, pageDesign.theme || "", 64),
     density: cleanText(pageDesign.density || contract.density, "", 32),
     heroFocus: cleanText(pageDesign.heroFocus, "", 80),
+    pagePlan: Object.keys(pagePlan).length
+      ? {
+          pageGoal: cleanText(pagePlan.pageGoal, "", 40),
+          primaryCta: cleanText(pagePlan.primaryCta, "", 80),
+          mainVisual: cleanText(pagePlan.mainVisual, "", 48),
+          layoutStrategy: cleanText(pagePlan.layoutStrategy, "", 48),
+          compositionGroups: (Array.isArray(pagePlan.compositionGroups) ? pagePlan.compositionGroups : []).slice(0, 4).map((group) => ({
+            id: cleanText(group?.id, "", 48),
+            title: cleanText(group?.title, "", 60),
+            role: cleanText(group?.role, "", 28),
+            surface: cleanText(group?.surface, "", 40),
+            modules: Array.isArray(group?.modules) ? group.modules.slice(0, 8) : [],
+            guidance: cleanText(group?.guidance, "", 120),
+          })),
+          compositionRules: (Array.isArray(pagePlan.compositionRules) ? pagePlan.compositionRules : []).map((item) => cleanText(item, "", 150)).filter(Boolean).slice(0, 5),
+        }
+      : null,
     style: {
       id: cleanText(contract.id, "", 48),
       label: cleanText(contract.label, "", 80),
@@ -3030,6 +3049,13 @@ function componentDesignContractPromptReference(payload = {}) {
       ctaRules: (Array.isArray(contract.ctaRules) ? contract.ctaRules : []).map((item) => cleanText(item, "", 160)).filter(Boolean).slice(0, 3),
       moduleGrammar: cleanText(contract.moduleGrammar, "", 180),
       differenceRule: cleanText(contract.differenceRule, "", 180),
+      chromePolicy: {
+        mode: cleanText(chromePolicy.mode, "", 40),
+        sectionChrome: cleanText(chromePolicy.sectionChrome, "", 32),
+        defaultSlotChrome: cleanText(chromePolicy.defaultSlotChrome, "", 32),
+        componentBoundary: cleanText(chromePolicy.componentBoundary, "", 48),
+        promptRule: cleanText(chromePolicy.promptRule, "", 180),
+      },
     },
   };
 }
@@ -3051,6 +3077,20 @@ function componentSlotContractPromptReference(payload = {}) {
     sectionType: cleanText(source.sectionType, "", 24),
     variant: cleanText(source.variant, "", 80),
     morph: cleanText(source.morph, "", 80),
+    chrome: cleanText(source.chrome || source.slotChrome, "", 32),
+    role: cleanText(source.role, "", 24),
+    visualWeight: Number(source.visualWeight) || 0,
+    parentGroup: source.parentGroup && typeof source.parentGroup === "object"
+      ? {
+          id: cleanText(source.parentGroup.id, "", 48),
+          title: cleanText(source.parentGroup.title, "", 60),
+          role: cleanText(source.parentGroup.role, "", 28),
+          surface: cleanText(source.parentGroup.surface, "", 40),
+          modules: Array.isArray(source.parentGroup.modules) ? source.parentGroup.modules.slice(0, 8) : [],
+          guidance: cleanText(source.parentGroup.guidance, "", 120),
+        }
+      : null,
+    surfaceBehavior: cleanText(source.surfaceBehavior, "", 48),
     action: cleanText(source.action, "", 120),
     objective: cleanText(source.objective, "", 260),
     brickIntent: cleanText(source.brickIntent, "", 220),
@@ -8830,6 +8870,9 @@ function buildComponentPrompt(payload) {
     "组件用于金融/交易 CRM 用户端首页，必须克制、专业、信息清晰。",
     "必须遵守 design.md 设计治理：组件漂亮来自主焦点、字段层级、状态细节、按钮主次和响应式稳定，不来自大圆角、厚阴影、随机渐变或营销装饰。",
     "如果用户消息包含骨架 slot 契约，必须只使用 pageDesign/slotContract 里的颜色、界面规范、密度、尺寸、间距和当前模块要求；不要依据整页 sections 或其他 slot 重排页面。",
+    "如果骨架 slot 契约包含 chromePolicy 或 slotContract.chrome，必须遵守页面外壳策略：bare/inline/flat 输出内容片段，不自带完整卡片外框；contained/featured/tableSurface 才允许轻量边框或工作台表面。",
+    "如果骨架 slot 契约包含 pagePlan、parentGroup、slotContract.role 或 visualWeight，必须让当前组件继承父级业务组的表面、标题和按钮语言；不要重复 sectionTitle 或把自己包装成独立页面区块。",
+    "slotContract.role 为 support/decision 或 visualWeight 低于 70 时必须降噪：不生成大标题、强背景、厚边框、主按钮或完整独立卡片，只作为父级业务组里的内容片段。",
     "生成前必须先参考用户消息里的“组件库参考”“用户评分优先参考”和“漂亮积木审美参考”：理解已保存积木的业务字段、尺寸、按钮、标签、卡片密度、视觉层级和漂亮组件的结构手法，再围绕本次需求发挥。",
     "用户评分为 1-10 分；同类或同尺寸组件中优先参考高分积木，但不要逐字复制。",
     "组件生成底线：只参考 5 分以上积木；如果模型无法明显提升，就返回最接近高分积木的同款微调版，不要自由生成普通卡片。",
@@ -8964,6 +9007,7 @@ function buildMiniMaxComponentPrompt(payload, config = {}) {
     "组件必须体现一种真实工艺：指标带、状态条、步骤连接、趋势图容器、操作坞、表格/列表、左右分栏或紧凑信息流。",
     "如果目标 size 是 AI 自行选择，必须按 layoutContext 的 pageWidth、maxColumns、functionalComplexity 和 recommendedSize 选最终 size。",
     "若紧凑参考里有 skeletonContract，只按其中的 pageDesign/slotContract 生成当前组件，不读取或补全整页结构。",
+    "若 skeletonContract 含 pagePlan/parentGroup/role/visualWeight，按父级业务组生成内容片段；support/decision 或低权重组件降噪，禁止重卡片外壳和重复大标题。",
     "若紧凑参考里有 visualReference，按它的构图、密度、主色和控件层级做 ForexCRM 积木变体，不要复制图片原文和品牌。",
     "金融客户端要克制专业，圆角 8px 或以下，不要厚重阴影、随机渐变、通用占位或只换颜色。",
     `${providerName} 如果不确定，宁可少写字段内容，也必须保证 JSON.parse 可解析。`,
@@ -9036,6 +9080,8 @@ function buildComponentEditPrompt(payload, component) {
     "你的任务是对当前组件做局部编辑，并返回完整替换版组件定义。",
     "把 currentComponent 当成唯一基稿，不能从零重新设计，不能替换成无关模块。",
     "如果存在骨架 slot 契约，编辑必须基于原始 slot prompt 再叠加最新修改要求；只改当前组件，不重排整页或借用其他 slot 的上下文。",
+    "如果骨架 slot 契约包含 chromePolicy 或 slotContract.chrome，编辑后仍要遵守页面外壳策略：bare/inline/flat 不要新增完整卡片外框，contained/featured/tableSurface 才允许保留轻量容器。",
+    "如果骨架 slot 契约包含 pagePlan、parentGroup、slotContract.role 或 visualWeight，编辑后仍要继承父级业务组；support/decision 或低权重组件不得新增强背景、厚边框、大标题或主 CTA。",
     "必须遵守 design.md 设计治理：编辑时优先提升信息层级、状态表达、间距和响应式，不用装饰堆叠掩盖结构问题。",
     "必须参考同 family 组件库积木和漂亮积木审美参考来优化层级，但最终必须仍是 currentComponent 的局部演进。",
     "优化重点是让组件更像成熟金融客户端：主焦点更明确、字段层级更顺、按钮权重更克制、形态不再是普通白卡堆叠。",
@@ -9120,6 +9166,7 @@ function buildMiniMaxComponentEditPrompt(payload, component, config = {}) {
     rootClass ? `HTML 根 class 必须继续使用 ${rootClass}，CSS 也必须限定在 .${rootClass} 下。` : "HTML 根元素必须使用一个稳定 class，CSS 必须限定在该 class 下。",
     "保留当前业务能力，只调整用户点名的视觉层级、排版、密度或结构。",
     "若紧凑参考里有 skeletonContract，以原始 slot prompt 为基线叠加最新修改要求；不要补全整页结构。",
+    "若 skeletonContract 含 pagePlan/parentGroup/role/visualWeight，继续作为父级业务组里的内容片段；support/decision 或低权重组件禁止新增重卡片外壳。",
     "禁止 script、外链、iframe、图片 URL、表单提交和不安全属性。",
     `${providerName} 如果不确定，宁可少写视觉细节，也必须保证 JSON.parse 可解析。`,
   ].join("\n");
@@ -9978,6 +10025,75 @@ function homepagePlanWeightForBlock(block, mainVisual) {
   }[canonical] || 40;
 }
 
+function homepageCompositionGroupsForPlan(visibleModules = [], mainVisual = "", pageGoal = "") {
+  const visibleSet = new Set(
+    (Array.isArray(visibleModules) ? visibleModules : [])
+      .map(canonicalHomeBlock)
+      .filter((slot) => slot && CANONICAL_HOME_BLOCKS.includes(slot)),
+  );
+  const pick = (items = []) => items.map(canonicalHomeBlock).filter((slot) => slot && visibleSet.has(slot));
+  const defs = [
+    {
+      id: "activation_overview",
+      title: "账户启动区",
+      role: "primary",
+      modules: pick(["welcome_header", "onboarding_guide", "asset_overview", "quick_actions", "kyc_status_card"]),
+      surface: "connected-panel",
+      guidance: "欢迎、开户进度、资产状态和下一步动作共享首屏表面，用连续路径而不是多张独立卡片。",
+    },
+    {
+      id: "account_workspace",
+      title: "账户与交易区",
+      role: "proof",
+      modules: pick(["trading_accounts_list", "trading_account_highlight", "wallet_list"]),
+      surface: "shared-workbench",
+      guidance: "账号列表、账户表现和钱包信息组成同一个工作区，大模块可整行展示但视觉语言要统一。",
+    },
+    {
+      id: "opportunities",
+      title: "交易机会区",
+      role: "support",
+      modules: pick(["copytrading_signals", "pamm_products", "promo_banner", "announcements", "market_news", "referral_link_card"]),
+      surface: "light-section",
+      guidance: "机会、活动和资讯作为辅助增长内容，降低标题、背景和 CTA 权重，不抢主路径。",
+    },
+    {
+      id: "support_compliance",
+      title: "帮助与合规区",
+      role: "decision",
+      modules: pick(["faq_section", "support_contact", "app_download", "risk_disclosure"]),
+      surface: "minimal",
+      guidance: "FAQ、客服、下载和风险披露统一收口，优先用低干扰列表、横条或法务提示。",
+    },
+  ];
+  const priorityByGoal = {
+    openAccount: ["activation_overview", "account_workspace", "opportunities", "support_compliance"],
+    deposit: ["activation_overview", "opportunities", "account_workspace", "support_compliance"],
+    copytrading: ["opportunities", "activation_overview", "account_workspace", "support_compliance"],
+    pamm: ["opportunities", "activation_overview", "account_workspace", "support_compliance"],
+    asset: ["activation_overview", "account_workspace", "opportunities", "support_compliance"],
+    trading: ["account_workspace", "activation_overview", "opportunities", "support_compliance"],
+    startTrading: ["account_workspace", "activation_overview", "opportunities", "support_compliance"],
+    contactSupport: ["activation_overview", "support_compliance", "account_workspace", "opportunities"],
+    downloadApp: ["activation_overview", "support_compliance", "account_workspace", "opportunities"],
+    learnMore: ["activation_overview", "account_workspace", "opportunities", "support_compliance"],
+  };
+  const order = priorityByGoal[pageGoal] || ["activation_overview", "account_workspace", "opportunities", "support_compliance"];
+  return defs
+    .filter((group) => group.modules.length)
+    .map((group) => ({
+      ...group,
+      visualWeight: Math.max(...group.modules.map((slot) => homepagePlanWeightForBlock(slot, mainVisual))),
+    }))
+    .sort((a, b) => {
+      const aHasMain = a.modules.includes(mainVisual);
+      const bHasMain = b.modules.includes(mainVisual);
+      if (aHasMain !== bHasMain) return aHasMain ? -1 : 1;
+      return order.indexOf(a.id) - order.indexOf(b.id);
+    })
+    .slice(0, 4);
+}
+
 function buildHomepagePagePlan(payload = {}, config = {}) {
   const guidedIntake = guidedAiIntakeFromPayload(payload);
   const intentProfile = applyGuidedIntentProfile(buildHomepageIntentProfile(payload.prompt), guidedIntake);
@@ -10020,6 +10136,7 @@ function buildHomepagePagePlan(payload = {}, config = {}) {
   );
   const optionalModules = visibleModules.filter((block) => GUIDED_EXPLICIT_ONLY_BLOCKS.has(block) || HOMEPAGE_OPTIONAL_BLOCK_REQUEST_PATTERNS[block]);
   const requiredModules = visibleModules.filter((block) => !optionalModules.includes(block));
+  const compositionGroups = homepageCompositionGroupsForPlan(visibleModules, mainVisual, goal.id);
 
   return {
     planVersion: 1,
@@ -10033,6 +10150,8 @@ function buildHomepagePagePlan(payload = {}, config = {}) {
     optionalModules,
     excludedModules,
     visualHierarchy,
+    layoutStrategy: "grouped-workbench",
+    compositionGroups,
     moduleRoles: Object.fromEntries(
       visibleModules.map((block) => [
         block,
@@ -10045,10 +10164,101 @@ function buildHomepagePagePlan(payload = {}, config = {}) {
     compositionRules: [
       "全页只能有一个最高视觉权重模块。",
       "Hero/首屏只表达一个主目标和一个主 CTA。",
+      "页面优先组织成 3-4 个业务组，不要把每个 slot 拆成独立 section。",
+      "同一业务组共享父级表面和标题，子模块用分割线、留白、指标行或工具栏衔接，避免重复白卡、厚边框和阴影。",
       "Features/Proof/Pricing/FAQ/Support 等辅助模块不得使用强于主视觉的标题、背景或 CTA。",
+      "FAQ、风险披露、客服、活动等低权重模块必须合并到低干扰辅助区，不要独占强卡片或强 CTA。",
       "未选择或被 modulePolicy 禁止的选填模块不得为了填满页面而生成。",
     ],
   };
+}
+
+function applyHomepageCompositionGroupsToSections(sections = [], pagePlan = {}) {
+  const existingSlots = [...new Set(homepageBlocksFromSections(sections))];
+  if (!existingSlots.length || !Array.isArray(pagePlan.compositionGroups) || !pagePlan.compositionGroups.length) {
+    return Array.isArray(sections) ? sections : [];
+  }
+  const existingSet = new Set(existingSlots);
+  const used = new Set();
+  const next = [];
+  const pushSection = (section) => {
+    const repaired = repairHomepageSectionLegality(section);
+    repaired.forEach((item) => {
+      if (item.slots?.length) {
+        item.slots.forEach((slot) => used.add(slot));
+        next.push(item);
+      }
+    });
+  };
+  const firstSectionSlots = (Array.isArray(sections[0]?.slots) ? sections[0].slots : [])
+    .map(canonicalHomeBlock)
+    .filter(Boolean);
+  if (firstSectionSlots.includes("announcements")) {
+    pushSection({
+      id: cleanText(sections[0]?.id || "top-announcements", "top-announcements", 42),
+      type: "full",
+      title: homepageSectionTitleForSlot("announcements", sections[0]?.title || "公告通知"),
+      slots: ["announcements"],
+    });
+  }
+  const pushCompactSections = (group, slots, groupIndex) => {
+    if (!slots.length) return;
+    let pending = slots;
+    const mainVisual = canonicalHomeBlock(pagePlan.mainVisual);
+    if (groupIndex === 0 && mainVisual && pending.includes(mainVisual)) {
+      const ordered = [mainVisual, ...pending.filter((slot) => slot !== mainVisual)];
+      const heroSlots = ordered.slice(0, 2);
+      pushSection({
+        id: cleanText(group.id || "primary-group", "primary-group", 42),
+        type: "hero",
+        title: cleanText(group.title || "首屏", "首屏", 60),
+        slots: heroSlots,
+      });
+      pending = ordered.slice(2);
+    }
+    for (let index = 0; index < pending.length; index += 2) {
+      const pair = pending.slice(index, index + 2);
+      pushSection({
+        id: cleanText(`${group.id || "group"}-${Math.floor(index / 2) + 1}`, `group-${next.length + 1}`, 42),
+        type: pair.length === 2 ? "split" : "full",
+        title: cleanText(group.title || "业务区", "业务区", 60),
+        slots: pair,
+      });
+    }
+  };
+
+  pagePlan.compositionGroups.forEach((group, groupIndex) => {
+    const modules = (Array.isArray(group?.modules) ? group.modules : [])
+      .map(canonicalHomeBlock)
+      .filter((slot) => slot && existingSet.has(slot) && !used.has(slot));
+    if (!modules.length) return;
+    const footerSlots = modules.filter((slot) => slot === "risk_disclosure");
+    const largeSlots = modules.filter((slot) => LARGE_FULL_ROW_HOME_BLOCKS.has(slot));
+    const compactSlots = modules.filter((slot) => !LARGE_FULL_ROW_HOME_BLOCKS.has(slot) && slot !== "risk_disclosure");
+    pushCompactSections(group, compactSlots, groupIndex);
+    largeSlots.forEach((slot) => {
+      pushSection({
+        id: cleanText(`${group.id || "group"}-${slot}`, `full-row-${next.length + 1}`, 42),
+        type: "full",
+        title: homepageSectionTitleForSlot(slot, group.title || ""),
+        slots: [slot],
+      });
+    });
+    footerSlots.forEach((slot) => {
+      pushSection({
+        id: cleanText(`${group.id || "group"}-${slot}`, `footer-${next.length + 1}`, 42),
+        type: "full",
+        title: homepageSectionTitleForSlot(slot, group.title || "风险提示"),
+        slots: [slot],
+      });
+    });
+  });
+
+  existingSlots
+    .filter((slot) => !used.has(slot))
+    .forEach((slot, index) => pushSection(homepageSectionForSingleSlot(slot, next.length + index)));
+
+  return homepageSectionsContainSlot(next, "risk_disclosure") ? moveRiskDisclosureToFooter(next) : next;
 }
 
 function removeHomepageBlocksByPlan(config, blocks = [], actions = []) {
@@ -10086,6 +10296,13 @@ function applyHomepagePagePlan(config, payload = {}, actions = []) {
     ...buildHomepagePagePlan(payload, next),
     excludedModules: initialPlan.excludedModules || [],
   };
+  if (Array.isArray(next.sections) && pagePlan.layoutStrategy === "grouped-workbench") {
+    const beforeGroupedSections = next.sections.map(homepageSectionSignature).join("|");
+    next.sections = applyHomepageCompositionGroupsToSections(next.sections, pagePlan);
+    if (next.sections.map(homepageSectionSignature).join("|") !== beforeGroupedSections && actions) {
+      actions.push("已按 pagePlan.compositionGroups 合并相关模块，减少孤立 section。");
+    }
+  }
   const plannedAction = typeof pagePlan.primaryAction === "string"
     ? pagePlan.primaryAction
     : pagePlan.primaryAction?.action;
@@ -10242,6 +10459,9 @@ function buildMiniMaxPrompt(payload) {
     "账号、钱包列表、表格、8 个快捷入口、首屏轮播属于高风险模块，必须按 layoutGrammar.moduleSizing 选择 size 和 zone。",
     "如果布局美观度和模块数量冲突，优先保证行配方完整、同高、少空白，再减少辅助模块。",
     "必须先遵守服务端提供的 pageIntent 和 pagePlan；pagePlan.mainVisual 是唯一最高视觉权重模块，其它模块只能解释、证明或收口。",
+    "页面美观规则：先按 pagePlan.compositionGroups 组织 3-4 个业务组，再决定每组 slots；不要把每个模块拆成独立 section。",
+    "同一 composition group 内共享父级表面、标题和间距，子模块用分割线、指标行、工具栏或留白衔接，避免重复白卡、厚边框和阴影。",
+    "低权重 support/decision 模块必须服从 pagePlan.moduleRoles，不得独占强背景、强标题或强 CTA。",
     "如果请求包含引导式结构化选择 guidedIntake，它是管理员显式选择，优先级高于拼接后的自然语言 prompt。",
     "guidedIntake 中的 canonical.primaryIntent、heroFocus、layoutPreset、mustHave 是硬约束；modules[].canonicalTargets 是可用首页积木承接方式。",
     "引导式生成时，modules[].canonicalTargets 未选择的可选模块不得出现；不要自动补客服、FAQ、APP 下载、风险提示、公告、资讯、PAMM、CopyTrading 或推广链接。",
@@ -10733,6 +10953,8 @@ function buildLowLatencyHomepagePrompt(payload, config = {}) {
     "紧凑输出契约也包含 localPromptBrickContext；这是服务端对原始 prompt 的本地加工和高分积木命中结果，brickPlan 与 moduleStyles 必须优先贴合 matchedBricks。",
     "组件库评分必须执行：8-10 分强参考，6-7 分适度参考，5 分及以下禁止参考。",
     "视觉模式必须返回 colorMode=\"auto\"，除非管理员只要求白天或只要求暗夜；minimalWhite、blueFinance、lightGold 的白天模式不得使用大面积黑色/终端色块，暗色只在 darkTech 或 colorMode=dark 时出现。",
+    "必须按 pagePlan.compositionGroups 组织 3-4 个业务组；sections 应优先对应业务组，不要把每个 slot 拆成独立 section。",
+    "同一业务组共享父级表面，子模块用分割线、指标行、工具栏或留白衔接；support/decision 模块不得使用强卡片、强背景或强 CTA。",
     `空间利用是硬约束：桌面 12 栅格紧凑填充，${COMPONENT_SIZE_GUIDE} 优先宽幅积木独占、2x+1x、2x+2x；移动端自然单列。`,
     `${providerName} 请求会走短上下文模式；不要复述规则，只返回最终 JSON。`,
   ].join("\n");
@@ -10788,7 +11010,7 @@ function buildLowLatencyHomepagePrompt(payload, config = {}) {
       personalizationStrength: "strong",
       density: compactIntent.density,
       heroFocus: compactIntent.heroFocus,
-      sections: [{ id: "hero", type: "hero", title: "首屏", slots: [compactIntent.heroFocus, "quick_actions"].filter((slot, index, arr) => slot && arr.indexOf(slot) === index) }],
+      sections: [{ id: "activation_overview", type: "hero", title: "账户启动区", slots: [compactIntent.heroFocus, "quick_actions"].filter((slot, index, arr) => slot && arr.indexOf(slot) === index) }],
       brickPlan: [{ brickId: "assetOverview.flexible", brickName: "资产概览区", family: "AssetOverview", feature: "asset_overview", component: "asset_overview", size: "2x1", zone: "hero", reason: "承接首屏资金状态。" }],
       modules: { AssetOverview: { variant: "standard" }, QuickActions: { variant: "gridCards" } },
       moduleStyles: { asset_overview: "command", quick_actions: "matrix" },
@@ -10827,6 +11049,8 @@ function buildMiniMaxHomepagePatchPrompt(payload, config = {}) {
     "必须返回 schemaVersion=4、blueprintVersion=5、generationMode=\"brick-v2\"、name、layoutPreset、themePreset、colorMode、density、heroFocus、sections、brickPlan、modules、moduleStyles、moduleSettings、aiSummary。",
     "所有 sections[].slots 和 brickPlan[].component 只能使用 allowedBlocks；quickActions.actions 必须是空数组。",
     "遵守 design.md 设计治理：只做金融 CRM 工作台式美化，不做营销式大 hero、卡片套卡片或随机渐变。",
+    "必须按 pagePlan.compositionGroups 合并相关模块；sections 最多 4 个业务组，不要一 slot 一 section。",
+    "同组模块共享父级表面和标题，低权重 support/decision 模块只做收口或辅助，不得独占强卡片。",
     `${providerName} 如果不确定字段，宁可少写，不能写白名单外模块或让 JSON 截断。`,
   ].join("\n");
 
@@ -10977,6 +11201,8 @@ function buildPrompt(payload, config = {}) {
     "如果管理员给出快捷入口名称，也不要把名称写死进 moduleSettings.quickActions.actions；只设置 quick_actions 的展示数量、样式和占位，入口内容由后台配置或接口返回。",
     "如果管理员提到空白、少留白、空间利用或压缩高度，density 必须是 compact 或 balanced，不得使用 spacious；onboarding_guide 优先使用 compact/checklist/ribbon-rail 或紧凑 guide-cards。",
     "必须先遵守服务端提供的 pagePlan：pageGoal 决定唯一主 CTA，mainVisual 是最高视觉权重模块，visualHierarchy 决定辅助模块降权；不要让 hero、feature、proof、pricing/FAQ、CTA 同时抢戏。",
+    "必须按 pagePlan.compositionGroups 组织页面：相关模块合并为 3-4 个业务组，sections 优先对应业务组，不要把每个 slot 拆成独立 section。",
+    "同一业务组共享父级表面、标题、间距和按钮语言，slot 内只表达内容片段；FAQ、风险、客服、活动等低权重模块只能低干扰收口。",
     "如果管理员提到小屏幕、手机端、移动端或适配，autoLayout.strategy 必须保持 responsive-grid 或 mobile-first-stack，并优先让 paired rows collapse 为单列。",
     "如果管理员要求活动增长、交易大赛、奖池，并明确说明租户已配置活动，必须使用 promo_banner 作为活动模块；如果有 welcome_header，promo_banner 可紧跟在 welcome_header 后面。",
     "如果管理员要求欢迎模块、欢迎区或 welcome，保留轻量 welcome_header 首行；welcome 必须固定在页面最顶部，只提供用户上下文，不展示重复的个性化入口，也不改变业务 heroFocus。",

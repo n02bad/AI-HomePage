@@ -2433,6 +2433,21 @@
         cardPadding: "16px",
         cardShadow: "none",
       },
+      chromePolicy: {
+        mode: "flatConnected",
+        sectionChrome: "connected",
+        defaultSlotChrome: "flat",
+        slotOverrides: {
+          trading_account_highlight: "tableSurface",
+          trading_accounts_list: "tableSurface",
+          wallet_list: "tableSurface",
+          risk_disclosure: "legalStrip",
+          support_contact: "rail",
+          app_download: "rail",
+        },
+        componentBoundary: "page-owned",
+        promptRule: "页面骨架负责外壳、分隔线和区块衔接，普通 slot 输出无重卡片内容片段。",
+      },
       componentRules: [
         "所有业务模块保持薄边框、低阴影、紧凑标题栏和一致的指标字号。",
         "列表、钱包、账号和图表都用同一套状态点、标签、分隔线和按钮高度。",
@@ -2458,6 +2473,19 @@
         cardPadding: "14px",
         cardShadow: "none",
       },
+      chromePolicy: {
+        mode: "workbench",
+        sectionChrome: "workbench",
+        defaultSlotChrome: "tableSurface",
+        slotOverrides: {
+          quick_actions: "inline",
+          asset_overview: "inline",
+          risk_disclosure: "legalStrip",
+          support_contact: "rail",
+        },
+        componentBoundary: "shared-workbench",
+        promptRule: "slot 之间共享工作台表面，优先用工具栏、状态条、表格和图表区衔接，避免每块独立白卡。",
+      },
       componentRules: [
         "所有模块围绕交易动作、账号状态和趋势图组织，避免营销 Banner 抢首屏。",
         "指标、图表、账号列表使用统一的终端式密度和短标签。",
@@ -2475,16 +2503,31 @@
       label: "新客旅程契约",
       personality: "onboarding-journey",
       tone: "有秩序、推进感、低压力",
-      surface: "步骤、里程碑、下一步行动和状态证明使用同一套路径语言。",
+      surface: "开户、资产、快捷操作和账号证明共享连续工作台表面，辅助内容用轻分割线收口。",
       tokens: {
         cardRadius: "8px",
         buttonRadius: "8px",
-        sectionGap: "16px",
+        sectionGap: "12px",
         cardPadding: "16px",
-        cardShadow: "0 10px 26px rgba(15,23,42,.06)",
+        cardShadow: "none",
+      },
+      chromePolicy: {
+        mode: "flatConnected",
+        sectionChrome: "connected",
+        defaultSlotChrome: "flat",
+        slotOverrides: {
+          onboarding_guide: "featured",
+          trading_accounts_list: "tableSurface",
+          trading_account_highlight: "tableSurface",
+          risk_disclosure: "legalStrip",
+          faq_section: "bare",
+          support_contact: "rail",
+        },
+        componentBoundary: "page-owned",
+        promptRule: "页面骨架负责统一外壳和分区衔接，普通 slot 输出内容片段；只有开户主路径可轻量 featured。",
       },
       componentRules: [
-        "每个模块都要服务 KYC、开真实账号、首次入金或首次交易的连续路径。",
+        "开户进度、资产摘要、快捷入口和账号证明要像同一组账户启动区，避免各自独立成卡。",
         "步骤编号、进度、状态标签和下一步按钮必须共享同一视觉语法。",
         "资产和账号模块只能做证明或承接，不能抢走旅程主线。",
       ],
@@ -2492,7 +2535,7 @@
         "唯一主 CTA 应指向下一步，新手路径以外的动作保持低干扰。",
         "已完成、待完成和下一步状态必须清楚区分。",
       ],
-      moduleGrammar: "旅程主面板、任务轨、进度票据、账号证明和辅助 FAQ 共同组成激活流程。",
+      moduleGrammar: "旅程主面板、任务轨、资产证明、账号工作台和辅助 FAQ 共同组成连续激活流程。",
       differenceRule: "本方案差异必须体现连续旅程，不要退回普通仪表盘。",
     },
     magazineCampaign: {
@@ -2507,6 +2550,19 @@
         sectionGap: "16px",
         cardPadding: "18px",
         cardShadow: "0 14px 34px rgba(15,23,42,.10)",
+      },
+      chromePolicy: {
+        mode: "heroProof",
+        sectionChrome: "band",
+        defaultSlotChrome: "contained",
+        slotOverrides: {
+          promo_banner: "featured",
+          welcome_header: "bare",
+          quick_actions: "inline",
+          risk_disclosure: "legalStrip",
+        },
+        componentBoundary: "mixed",
+        promptRule: "专题首屏可以强视觉，下方证明区降噪；禁止每个 slot 使用不同大卡片和不同按钮语言。",
       },
       componentRules: [
         "活动、快捷入口、账号证明和风险提示要像同一篇专题里的不同段落。",
@@ -2533,6 +2589,19 @@
         cardPadding: "18px",
         cardShadow: "0 16px 36px rgba(15,23,42,.08)",
       },
+      chromePolicy: {
+        mode: "heroProof",
+        sectionChrome: "group",
+        defaultSlotChrome: "contained",
+        slotOverrides: {
+          asset_overview: "featured",
+          trading_accounts_list: "tableSurface",
+          risk_disclosure: "legalStrip",
+          support_contact: "rail",
+        },
+        componentBoundary: "mixed",
+        promptRule: "资产和服务模块可独立成块，但边框、标题、状态标签和按钮节奏必须像同一张服务台。",
+      },
       componentRules: [
         "资产和专属服务是主线，交易账号和活动只能做辅助证明。",
         "模块密度可舒展，但标题、金额、标签和分隔线必须保持同一节奏。",
@@ -2557,6 +2626,21 @@
         sectionGap: "14px",
         cardPadding: "16px",
         cardShadow: "0 12px 30px rgba(37,99,235,.08)",
+      },
+      chromePolicy: {
+        mode: "sectionBand",
+        sectionChrome: "band",
+        defaultSlotChrome: "flat",
+        slotOverrides: {
+          promo_banner: "featured",
+          asset_overview: "inline",
+          onboarding_guide: "inline",
+          trading_account_highlight: "tableSurface",
+          trading_accounts_list: "tableSurface",
+          risk_disclosure: "legalStrip",
+        },
+        componentBoundary: "page-owned",
+        promptRule: "入金路径由连续内容带串联，奖励、账户摘要和下一步动作共享外壳；辅助 slot 不再自带重卡片。",
       },
       componentRules: [
         "入金奖励和账户摘要是首屏主线，钱包长列表、出金和复杂图表必须降级。",
@@ -5449,6 +5533,70 @@
     return ["pending-fill", "generating", "filled", "locked", "failed", "review", "final"].includes(raw) ? raw : fallback;
   }
 
+  function normalizeSkeletonChromeMode(value, fallback = "cardedDashboard") {
+    const raw = cleanMetaText(value, fallback, 40);
+    return ["cardedDashboard", "flatConnected", "sectionBand", "workbench", "heroProof"].includes(raw) ? raw : fallback;
+  }
+
+  function normalizeSkeletonSlotChrome(value, fallback = "contained") {
+    const raw = cleanMetaText(value, fallback, 32);
+    return ["contained", "flat", "inline", "bare", "featured", "rail", "tableSurface", "legalStrip"].includes(raw) ? raw : fallback;
+  }
+
+  function normalizeSkeletonSectionChrome(value, fallback = "group") {
+    const raw = cleanMetaText(value, fallback, 32);
+    return ["group", "connected", "band", "workbench", "hero", "plain"].includes(raw) ? raw : fallback;
+  }
+
+  function normalizeSkeletonChromePolicy(source, fallback = {}) {
+    const policy = source && typeof source === "object" ? source : {};
+    const fallbackPolicy = fallback && typeof fallback === "object" ? fallback : {};
+    const mode = normalizeSkeletonChromeMode(policy.mode || fallbackPolicy.mode);
+    const defaultSlotChrome = normalizeSkeletonSlotChrome(
+      policy.defaultSlotChrome || fallbackPolicy.defaultSlotChrome,
+      mode === "flatConnected" ? "flat" : mode === "workbench" ? "tableSurface" : "contained",
+    );
+    const slotOverrides = policy.slotOverrides && typeof policy.slotOverrides === "object" ? policy.slotOverrides : fallbackPolicy.slotOverrides || {};
+    const sectionOverrides = policy.sectionOverrides && typeof policy.sectionOverrides === "object" ? policy.sectionOverrides : fallbackPolicy.sectionOverrides || {};
+
+    return {
+      mode,
+      sectionChrome: normalizeSkeletonSectionChrome(
+        policy.sectionChrome || fallbackPolicy.sectionChrome,
+        mode === "flatConnected" ? "connected" : mode === "sectionBand" ? "band" : mode === "workbench" ? "workbench" : "group",
+      ),
+      defaultSlotChrome,
+      slotOverrides: Object.fromEntries(
+        Object.entries(slotOverrides)
+          .map(([key, item]) => [skeletonSlotKey(key), normalizeSkeletonSlotChrome(item, defaultSlotChrome)])
+          .filter(([key]) => key),
+      ),
+      sectionOverrides: Object.fromEntries(
+        Object.entries(sectionOverrides)
+          .map(([key, item]) => [cleanMetaText(key, "", 64), normalizeSkeletonSectionChrome(item)])
+          .filter(([key]) => key),
+      ),
+      componentBoundary: cleanMetaText(
+        policy.componentBoundary || fallbackPolicy.componentBoundary,
+        mode === "flatConnected"
+          ? "page-owned"
+          : mode === "workbench"
+            ? "shared-workbench"
+            : "component-contained",
+        48,
+      ),
+      promptRule: cleanMetaText(
+        policy.promptRule || fallbackPolicy.promptRule,
+        mode === "flatConnected"
+          ? "页面骨架负责外壳和分隔线，slot 组件优先输出无外框内容片段。"
+          : mode === "workbench"
+            ? "页面骨架负责工作台表面，slot 组件使用工具栏、表格、状态条和图表区域衔接。"
+            : "slot 可以保留轻量卡片外壳，但圆角、边框、阴影和按钮必须继承页面契约。",
+        180,
+      ),
+    };
+  }
+
   function normalizeSkeletonSlotComponent(component, slot) {
     const source = component && typeof component === "object" ? component.component || component : {};
     const slotKey = skeletonSlotKey(component?.slot || slot);
@@ -5475,6 +5623,7 @@
         .map((item) => cleanMetaText(item, "", 32))
         .filter(Boolean)
         .slice(0, 8),
+      chrome: normalizeSkeletonSlotChrome(source.chrome || component?.chrome || component?.slotChrome, "contained"),
       html,
       css,
       sourceType: cleanMetaText(source.sourceType || component?.sourceType, "component-ai", 48),
@@ -5507,20 +5656,22 @@
     );
   }
 
-  function skeletonSlotRecord(slot, config, section, index) {
+  function skeletonSlotRecord(slot, config, section, index, designContract = {}) {
     const moduleId = moduleKeyFor(slot);
     const variant = moduleId ? config?.modules?.[moduleId]?.variant || MODULE_VARIANT_DEFAULTS[moduleId] || "" : "";
     const morph = moduleId ? config?.componentMorphs?.[moduleId]?.morphId || "" : "";
+    const slotKey = skeletonSlotKey(slot);
     return {
-      id: skeletonSlotKey(slot),
-      slot: skeletonSlotKey(slot),
-      label: cleanMetaText(featureLabel(slot), slot, 80),
+      id: slotKey,
+      slot: slotKey,
+      label: cleanMetaText(featureLabel(slotKey), slot, 80),
       sectionId: cleanMetaText(section?.id, "", 64),
       sectionTitle: cleanMetaText(section?.title, "", 80),
       sectionType: cleanMetaText(section?.type, "full", 24),
       moduleId,
       variant,
       morph,
+      chrome: skeletonSlotChrome(slotKey, config, section, designContract),
       status: "pending-fill",
       filledAt: "",
       index,
@@ -5536,6 +5687,7 @@
     const contract = source && typeof source === "object" ? source : fallback && typeof fallback === "object" ? fallback : {};
     const fallbackTokens = fallback.tokens && typeof fallback.tokens === "object" ? fallback.tokens : {};
     const tokens = contract.tokens && typeof contract.tokens === "object" ? contract.tokens : fallbackTokens;
+    const chromePolicy = normalizeSkeletonChromePolicy(contract.chromePolicy, fallback.chromePolicy);
     return {
       id: cleanMetaText(contract.id || fallback.id, "ops-console", 48),
       label: cleanMetaText(contract.label || fallback.label, "账户运营控制台契约", 80),
@@ -5556,6 +5708,7 @@
       ctaRules: skeletonContractArray(contract.ctaRules, fallback.ctaRules),
       moduleGrammar: cleanMetaText(contract.moduleGrammar || fallback.moduleGrammar, "用统一模块语法组织整页。", 220),
       differenceRule: cleanMetaText(contract.differenceRule || fallback.differenceRule, "差异来自整页叙事和结构分叉，不靠随机换色。", 220),
+      chromePolicy,
     };
   }
 
@@ -5590,6 +5743,7 @@
       normalized.componentRules.length ? `组件统一规则：${normalized.componentRules.join("；")}` : "",
       normalized.ctaRules.length ? `CTA 统一规则：${normalized.ctaRules.join("；")}` : "",
       `模块语法：${normalized.moduleGrammar}`,
+      `外壳策略：${normalized.chromePolicy.mode} / ${normalized.chromePolicy.componentBoundary}。${normalized.chromePolicy.promptRule}`,
       `差异规则：${normalized.differenceRule}`,
     ]
       .filter(Boolean)
@@ -5611,36 +5765,63 @@
     node.style.setProperty("--home-skeleton-contract-shadow", skeletonContractCssValue(normalized.tokens.cardShadow, "none"));
   }
 
+  function skeletonSectionChrome(section = {}, designContract = {}) {
+    const contract = normalizeSkeletonDesignContract(designContract, SKELETON_STYLE_CONTRACTS.accountOpsConsole);
+    const policy = contract.chromePolicy || {};
+    const sectionId = cleanMetaText(section.id, "", 64);
+    if (sectionId && policy.sectionOverrides?.[sectionId]) return normalizeSkeletonSectionChrome(policy.sectionOverrides[sectionId]);
+    if (section.type === "hero") return "hero";
+    if (section.type === "full" && policy.mode === "workbench") return "workbench";
+    if (policy.mode === "flatConnected") return "connected";
+    if (policy.mode === "sectionBand" || policy.mode === "heroProof") return "band";
+    return normalizeSkeletonSectionChrome(policy.sectionChrome, "group");
+  }
+
+  function skeletonSlotChrome(slotId, config = {}, section = {}, designContract = {}) {
+    const key = skeletonSlotKey(slotId);
+    const contract = normalizeSkeletonDesignContract(designContract, SKELETON_STYLE_CONTRACTS.accountOpsConsole);
+    const policy = contract.chromePolicy || {};
+    if (key && policy.slotOverrides?.[key]) return normalizeSkeletonSlotChrome(policy.slotOverrides[key]);
+    if (["trading_accounts_list", "trading_account_highlight", "wallet_list", "copytrading_signals", "pamm_products"].includes(key)) return "tableSurface";
+    if (["risk_disclosure", "risk_notice"].includes(key)) return "legalStrip";
+    if (["support_contact", "app_download", "referral_link_card", "kyc_status_card"].includes(key) || section.type === "rail") return "rail";
+    if (section.type === "hero" || key === config.heroFocus || ["promo_banner", "ad_carousel"].includes(key)) return "featured";
+    if (policy.mode === "flatConnected" || policy.mode === "sectionBand") return normalizeSkeletonSlotChrome(policy.defaultSlotChrome, "flat");
+    if (policy.mode === "workbench") return normalizeSkeletonSlotChrome(policy.defaultSlotChrome, "tableSurface");
+    return normalizeSkeletonSlotChrome(policy.defaultSlotChrome, "contained");
+  }
+
   function buildSkeletonHtmlMarkup(sections, slots, designContract = {}) {
     const contract = normalizeSkeletonDesignContract(designContract, SKELETON_STYLE_CONTRACTS.accountOpsConsole);
     const slotByKey = Object.fromEntries(slots.map((slot) => [slot.id, slot]));
     return `
-      <section class="home-skeleton-html-page" data-home-skeleton-root data-home-skeleton-contract="${escapeHtml(contract.id)}" data-home-skeleton-personality="${escapeHtml(contract.personality)}" data-home-skeleton-density="${escapeHtml(contract.density)}">
+      <section class="home-skeleton-html-page" data-home-skeleton-root data-home-skeleton-contract="${escapeHtml(contract.id)}" data-home-skeleton-chrome-mode="${escapeHtml(contract.chromePolicy.mode)}" data-home-skeleton-component-boundary="${escapeHtml(contract.chromePolicy.componentBoundary)}" data-home-skeleton-personality="${escapeHtml(contract.personality)}" data-home-skeleton-density="${escapeHtml(contract.density)}">
         <header class="home-skeleton-top">
           <span>${escapeHtml(contract.label)}</span>
           <strong>整页骨架 HTML</strong>
-          <small>${escapeHtml(contract.narrative)} 此层先声明统一风格契约、section 与 slot，再按 slot 填充模块内容。</small>
+          <small>${escapeHtml(contract.narrative)} 此层先声明统一风格契约、外壳策略、section 与 slot，再按 slot 填充模块内容。</small>
         </header>
         <main class="home-skeleton-flow">
           ${sections
             .map((section, sectionIndex) => {
               const sectionSlots = (section.slots || []).map((slot) => slotByKey[skeletonSlotKey(slot)]).filter(Boolean);
               if (!sectionSlots.length) return "";
+              const sectionChrome = skeletonSectionChrome(section, contract);
               return `
-                <section class="home-skeleton-section ${skeletonSectionClass(section.type)}" data-home-skeleton-section="${escapeHtml(section.id || `section-${sectionIndex + 1}`)}" data-home-skeleton-section-type="${escapeHtml(section.type || "full")}">
+                <section class="home-skeleton-section ${skeletonSectionClass(section.type)}" data-home-skeleton-section="${escapeHtml(section.id || `section-${sectionIndex + 1}`)}" data-home-skeleton-section-type="${escapeHtml(section.type || "full")}" data-home-skeleton-section-chrome="${escapeHtml(sectionChrome)}">
                   <header class="home-skeleton-section-head">
-                    <span>${escapeHtml(section.type || "full")}</span>
+                    <span>${escapeHtml(sectionChrome)}</span>
                     <strong>${escapeHtml(section.title || `Section ${sectionIndex + 1}`)}</strong>
                   </header>
                   <div class="home-skeleton-slot-grid" data-home-skeleton-section-slots>
                     ${sectionSlots
                       .map(
                         (slot, slotIndex) => `
-                          <article class="home-skeleton-slot" data-home-skeleton-slot="${escapeHtml(slot.id)}" data-home-skeleton-module="${escapeHtml(slot.moduleId)}" data-home-skeleton-variant="${escapeHtml(slot.variant)}" data-home-skeleton-slot-index="${slotIndex}">
+                          <article class="home-skeleton-slot" data-home-skeleton-slot="${escapeHtml(slot.id)}" data-home-skeleton-module="${escapeHtml(slot.moduleId)}" data-home-skeleton-variant="${escapeHtml(slot.variant)}" data-home-skeleton-chrome="${escapeHtml(slot.chrome || contract.chromePolicy.defaultSlotChrome)}" data-home-skeleton-slot-index="${slotIndex}">
                             <div class="home-skeleton-placeholder" data-home-skeleton-placeholder>
                               <span>slot ${String(slotIndex + 1).padStart(2, "0")}</span>
                               <strong>${escapeHtml(slot.label)}</strong>
-                              <small>${escapeHtml(slot.id)} · 等待填充</small>
+                              <small>${escapeHtml(slot.id)} · ${escapeHtml(slot.chrome || "contained")} · 等待填充</small>
                             </div>
                           </article>
                         `,
@@ -5665,7 +5846,7 @@
         slots: expandSlots(section.slots || [], normalized),
       }))
       .filter((section) => section.slots.length);
-    const slots = sections.flatMap((section) => (section.slots || []).map((slot, index) => skeletonSlotRecord(slot, normalized, section, index)));
+    const slots = sections.flatMap((section) => (section.slots || []).map((slot, index) => skeletonSlotRecord(slot, normalized, section, index, designContract)));
     return normalizeSkeletonHtmlScheme(
       {
         enabled: true,
@@ -5704,6 +5885,7 @@
           moduleId: cleanMetaText(item.moduleId, "", 80),
           variant: cleanMetaText(item.variant, "", 80),
           morph: cleanMetaText(item.morph || item.morphId, "", 80),
+          chrome: normalizeSkeletonSlotChrome(item.chrome || item.slotChrome, "contained"),
           status,
           filledAt: cleanMetaText(item.filledAt, "", 48),
           componentId: cleanMetaText(item.componentId || component?.id, "", 90),
@@ -12380,7 +12562,7 @@
     return tools;
   }
 
-  function renderSkeletonSlotComponent(doc, slot, component) {
+  function renderSkeletonSlotComponent(doc, slot, component, slotRecord = {}) {
     const wrapper = doc.createElement("div");
     wrapper.className = "home-skeleton-ai-component";
     wrapper.dataset.homeSkeletonSlotComponent = slot;
@@ -12388,6 +12570,7 @@
     wrapper.dataset.homeSkeletonComponentFamily = component.family || "";
     wrapper.dataset.homeSkeletonComponentSource = component.sourceType || "";
     wrapper.dataset.homeSkeletonReferenceComponent = component.referenceComponentId || "";
+    wrapper.dataset.homeSkeletonSlotChrome = normalizeSkeletonSlotChrome(component.chrome || slotRecord.chrome || "contained");
     wrapper.classList.toggle("is-brick-fallback", component.sourceType === "brick-fallback");
     if (component.fallbackReason) wrapper.title = component.fallbackReason;
 
@@ -12453,6 +12636,8 @@
     host.dataset.homeSkeletonSourceLabel = skeletonSourceLabel(effectiveScheme);
     host.dataset.homeSkeletonStatus = effectiveScheme.status || "pending-fill";
     host.dataset.homeSkeletonContract = effectiveScheme.designContract?.id || "";
+    host.dataset.homeSkeletonChromeMode = effectiveScheme.designContract?.chromePolicy?.mode || "";
+    host.dataset.homeSkeletonComponentBoundary = effectiveScheme.designContract?.chromePolicy?.componentBoundary || "";
     host.dataset.homeSkeletonPersonality = effectiveScheme.designContract?.personality || "";
     host.dataset.homeSkeletonDensity = effectiveScheme.designContract?.density || "";
     applySkeletonContractStyleVars(host, effectiveScheme.designContract);
@@ -12476,6 +12661,7 @@
       const component = effectiveScheme.slotComponents?.[slot];
       const status = normalizeSkeletonStatus(slotRecord.status, component?.html ? "filled" : "pending-fill");
       const placeholder = slotNode.querySelector("[data-home-skeleton-placeholder]");
+      slotNode.dataset.homeSkeletonChrome = normalizeSkeletonSlotChrome(slotRecord.chrome || slotNode.dataset.homeSkeletonChrome || "contained");
       slotNode.dataset.homeSkeletonStatus = status;
       slotNode.setAttribute("aria-busy", status === "generating" ? "true" : "false");
       slotNode.classList.toggle("is-generating", status === "generating");
@@ -12485,7 +12671,7 @@
       if (isPublishedSkeleton) {
         slotNode.classList.add("home-skeleton-published-slot");
         slotNode.innerHTML = "";
-        const content = component?.html ? renderSkeletonSlotComponent(doc, slot, component) : renderSlot(doc, slot, config);
+        const content = component?.html ? renderSkeletonSlotComponent(doc, slot, component, slotRecord) : renderSlot(doc, slot, config);
         content.classList.add("home-skeleton-slot-content");
         content.dataset.homeSkeletonPublishedSlot = slot;
         content.dataset.homeSkeletonFillMode = component?.html ? "ai-component" : "config-fallback";
@@ -12502,7 +12688,7 @@
         const statusText = placeholder.querySelector("small");
         const progress = placeholder.querySelector("[data-home-skeleton-progress]");
         if (title) title.textContent = label;
-        if (statusText) statusText.textContent = status === "generating" ? `${slot} · 正在生成，请稍候...` : `${slot} · ${skeletonSlotStatusLabel(slotRecord.status)}`;
+        if (statusText) statusText.textContent = status === "generating" ? `${slot} · ${slotNode.dataset.homeSkeletonChrome} · 正在生成，请稍候...` : `${slot} · ${slotNode.dataset.homeSkeletonChrome} · ${skeletonSlotStatusLabel(slotRecord.status)}`;
         if (status === "generating" && !progress) {
           const progressNode = doc.createElement("div");
           progressNode.className = "home-skeleton-generation-progress";
@@ -12514,7 +12700,7 @@
         }
       }
       if (component?.html) {
-        const content = renderSkeletonSlotComponent(doc, slot, component);
+        const content = renderSkeletonSlotComponent(doc, slot, component, slotRecord);
         content.classList.add("home-skeleton-slot-content");
         content.dataset.homeSkeletonFilledSlot = slot;
         content.dataset.homeSkeletonFillMode = "ai-component";

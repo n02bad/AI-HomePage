@@ -495,10 +495,17 @@ async function run() {
   assert.strictEqual(normalizedSkeletonHtml.skeletonHtmlScheme.enabled, true);
   assert(normalizedSkeletonHtml.skeletonHtmlScheme.skeletonHtml.includes("data-home-skeleton-slot"), "skeleton mode must generate slot placeholder HTML");
   assert(normalizedSkeletonHtml.skeletonHtmlScheme.skeletonHtml.includes("data-home-skeleton-contract"), "skeleton mode must stamp the page style contract into the shell");
+  assert(normalizedSkeletonHtml.skeletonHtmlScheme.skeletonHtml.includes("data-home-skeleton-chrome-mode"), "skeleton mode must stamp the page chrome policy into the shell");
+  assert(normalizedSkeletonHtml.skeletonHtmlScheme.skeletonHtml.includes("data-home-skeleton-chrome"), "skeleton mode must stamp slot chrome into placeholders");
   assert.strictEqual(normalizedSkeletonHtml.skeletonHtmlScheme.designContract.label.length > 0, true, "skeleton mode must expose a style contract");
+  assert.strictEqual(Boolean(normalizedSkeletonHtml.skeletonHtmlScheme.designContract.chromePolicy?.mode), true, "skeleton mode must expose a page chrome policy");
   assert(
     normalizedSkeletonHtml.skeletonHtmlScheme.slots.some((slot) => slot.id === "asset_overview"),
     "skeleton scheme must expose individual slot records",
+  );
+  assert(
+    normalizedSkeletonHtml.skeletonHtmlScheme.slots.every((slot) => typeof slot.chrome === "string" && slot.chrome.length > 0),
+    "skeleton scheme must expose per-slot chrome roles",
   );
   assert.strictEqual(typeof home.buildSkeletonHtmlScheme, "function", "skeleton builder must be exported for admin slot refresh");
   assert.strictEqual(typeof home.buildSkeletonDesignContract, "function", "skeleton style contract builder must be exported for slot prompts");
@@ -1058,6 +1065,8 @@ async function run() {
 			  assert(adminSource.includes("欢迎头部硬性要求"), "welcome slot prompt must preserve strict name/greeting/login requests");
 			  assert(adminSource.includes("skeletonSlotPromptContract"), "skeleton slot generation must compile a compact slot prompt contract");
 			  assert(adminSource.includes("不要把完整 sections、skeletonHtml 或其他 slot 的 HTML/CSS 放进单组件 prompt"), "single-slot prompts must not carry full page structure");
+			  assert(adminSource.includes("chrome: compactPromptText(slot.chrome"), "single-slot prompts must carry the page-owned slot chrome role");
+			  assert(adminSource.includes("模块外壳由 pageDesign.designContract.chromePolicy"), "single-slot prompts must delegate outer chrome to the page contract");
 			  assert(serverSource.includes("componentDesignContractPromptReference"), "component providers must receive compact page design contracts");
 			  assert(serverSource.includes("骨架 slot 契约"), "component prompts must expose the structured skeleton slot contract");
 			  assert(personalizationSource.includes("slotPromptContractSummary"), "skeleton slot prompt metadata must survive config normalization");
@@ -1066,6 +1075,8 @@ async function run() {
 		  assert(adminSource.includes("积木保底"), "admin history must label brick-backed AI HTML as a fallback source");
 	  assert(adminSource.includes("prepareConfigForPublish"), "publishing must normalize skeleton drafts into a clean final customer config");
 	  assert(personalizationCss.includes(".home-skeleton-render-host.is-published-skeleton"), "published skeleton pages must hide editor shell markers");
+	  assert(personalizationCss.includes('data-home-skeleton-slot-chrome="flat"'), "published skeleton pages must support flat slot chrome without an extra card shell");
+	  assert(personalizationCss.includes('data-home-skeleton-section-chrome="connected"'), "published skeleton pages must support connected section chrome");
 	  assert(personalizationSource.includes("home-skeleton-module-loading"), "generating skeleton slots must render a module-level lazy-loading placeholder");
 	  assert(personalizationCss.includes(".home-skeleton-section-split .home-skeleton-slot:only-child"), "single-slot split skeleton sections must span the full row");
 	  assert(personalizationCss.includes('body[data-home-preview="content-only"] > .sidebar'), "iframe previews must stay content-only");
