@@ -27,7 +27,7 @@
       "themeAdvice": "使用 blackGold 主题，资产和广告权重最高，账号列表保持安静表格。",
       "polishInstructions": "首屏保持宽松，右侧只放开户和资金动作，不再堆叠过多小卡片。",
       "createdAt": "2026-05-07T00:00:00.000Z",
-      "updatedAt": "2026-05-20T07:40:59.566Z"
+      "updatedAt": "2026-05-21T04:02:38.609Z"
     },
     {
       "id": "trader-console-brick-flow",
@@ -56,7 +56,7 @@
       "themeAdvice": "使用 default 或 darkTech，信息密度 compact，账号列表固定 list。",
       "polishInstructions": "账号表现使用主账号摘要 + 7D/30D 净值或 PnL 折线图，底部只保留少量关键指标；交易账号卡片/列表只使用账号类型、交易环境值、账号、余额、净值、信用金、账户类型、杠杆、保证金比例。交易环境由 platform+server 合并为 MT5 · HCHoldings-Live2 这类值，卡片里不要露出“平台/服务器”字段名；高密度时默认列表/表格。",
       "createdAt": "2026-05-07T00:00:00.000Z",
-      "updatedAt": "2026-05-20T07:40:59.566Z"
+      "updatedAt": "2026-05-21T04:02:38.609Z"
     },
     {
       "id": "onboarding-conversion-brick-flow",
@@ -85,7 +85,7 @@
       "themeAdvice": "使用 blueFinance，开户路径清晰，按钮权重要高于广告。",
       "polishInstructions": "首屏不要堆太多资产数字，优先把开户步骤、开户动作和表单连起来。",
       "createdAt": "2026-05-07T00:00:00.000Z",
-      "updatedAt": "2026-05-20T07:40:59.566Z"
+      "updatedAt": "2026-05-21T04:02:38.609Z"
     },
     {
       "id": "mowlkigr",
@@ -133,7 +133,7 @@
       "polishInstructions": "确保所有卡片圆角一致（8px），行间距12px，列间距16px；资产总览添加悬浮微动效；工具条按钮高对比度，悬停时金色描边；开户面板增加步骤引导指示器；账号列表隔行浅色区分；轮播图保证4:1宽高比，切换平滑。",
       "sourcePrompt": "用已保存组件组合一个专业首页。",
       "createdAt": "2026-05-08T07:32:12.795Z",
-      "updatedAt": "2026-05-20T07:40:59.566Z"
+      "updatedAt": "2026-05-21T04:02:38.609Z"
     },
     {
       "id": "professional-trader-dashboard-mowlltek",
@@ -175,7 +175,7 @@
       "polishInstructions": "Use a flat selected-account summary, an ECharts-powered 7D/30D equity or PnL line chart, and one quiet 3-4 item metric strip in AccountPerformance. AccountPerformance and TradingAccounts should each occupy a full row when both appear, so charts and long account lists do not squeeze each other. Trading account cards/lists only use account type, trading environment value, account number, balance, equity, credit, account category, leverage, and margin ratio. Merge platform+server into a value such as MT5 · HCHoldings-Live2 and do not show the platform/server label inside cards; use tables for dense account data.",
       "sourcePrompt": "用已保存组件组合一个专业首页。",
       "createdAt": "2026-05-08T07:33:13.628Z",
-      "updatedAt": "2026-05-20T07:40:59.566Z"
+      "updatedAt": "2026-05-21T04:02:38.609Z"
     }
   ]
 }

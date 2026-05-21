@@ -79,7 +79,7 @@ loadLocalEnvFile(".env");
 loadLocalEnvFile(".env.local");
 
 const PORT = Number(process.env.PORT || 5174);
-const MAX_BODY_BYTES = 8_000_000;
+const MAX_BODY_BYTES = 24_000_000;
 const COMPONENT_LIBRARY_FILE = mutableFile("home-component-library.json");
 const COMPONENT_SCORE_FILE = mutableFile("home-component-scores.json");
 const COMPOSITION_LIBRARY_FILE = mutableFile("home-component-compositions.json");
@@ -1144,6 +1144,7 @@ function validateHomepageConfig(configSnapshot, guidedSnapshot = {}, modulePolic
 
   if (!sections.length) warnings.push("sections is empty; repair will use a version default layout.");
   if (heroFocusMismatch) warnings.push(`heroFocus ${heroFocus} is not in the first two core sections.`);
+  if (optionalModuleMismatch.length) warnings.push(`未选择的选填模块仍然可见: ${optionalModuleMismatch.join(", ")}`);
   if (densityStyleConflict) warnings.push("minimalist/whitespace style conflicts with compact density.");
 
   const validation = {
@@ -1298,6 +1299,33 @@ function enforceAssetOverviewHeroFocusSections(sections, heroFocus) {
   return normalizeHomepageHeroSectionCount(next);
 }
 
+function enforceWelcomeFirstSection(sections, heroFocus = "") {
+  if (!homepageSectionsContainSlot(sections, "welcome_header")) return sections;
+  const focus = canonicalHomeBlock(heroFocus);
+  const heroSlots = ["welcome_header"];
+  if (focus && focus !== "welcome_header" && homepageSectionsContainSlot(sections, focus)) {
+    heroSlots.push(focus);
+  }
+
+  let next = removeHomepageSlotFromSections(sections, "welcome_header");
+  if (heroSlots.includes(focus)) {
+    next = removeHomepageSlotFromSections(next, focus);
+  }
+  const demoted = next.flatMap((section, index) => {
+    if (section.type !== "hero") return repairHomepageSectionLegality(section, index);
+    return repairHomepageSectionLegality({ ...section, type: section.slots?.length === 2 ? "split" : "full" }, index);
+  });
+  return normalizeHomepageHeroSectionCount([
+    {
+      id: focus === "asset_overview" ? "hero-welcome-asset-overview" : "hero-welcome",
+      type: "hero",
+      title: focus === "asset_overview" ? "首页概览" : "欢迎",
+      slots: heroSlots.slice(0, 2),
+    },
+    ...demoted,
+  ]);
+}
+
 function moveRiskDisclosureToFooter(sections) {
   const hadRisk = homepageSectionsContainSlot(sections, "risk_disclosure");
   const withoutRisk = removeHomepageSlotFromSections(sections, "risk_disclosure");
@@ -1337,7 +1365,7 @@ function removeHomepageOptionalModules(config, guidedSnapshot, actions, prompt =
   const explicit = new Set(guided.explicitBlocks || []);
   const keep = new Set(guided.mustHave || []);
   const removeSet = new Set(
-    collectHomepageBlocks(config).filter((slot) => GUIDED_EXPLICIT_ONLY_BLOCKS.has(slot) && !explicit.has(slot) && !keep.has(slot) && !homepagePromptRequestsOptionalModule(slot, prompt)),
+    collectHomepageBlocks(config).filter((slot) => GUIDED_EXPLICIT_ONLY_BLOCKS.has(slot) && !explicit.has(slot) && !keep.has(slot)),
   );
   if (!removeSet.size) return config;
 
@@ -1607,8 +1635,59 @@ const COMPONENT_SIZE_SCHEMA = {
 const COMPONENT_SIZE_GUIDE = [
   "常用尺寸: 1x1, 1x2, 2x1, 2x2, 3x1, 3x2, 4x1, 4x2, 4x3, 5x1, 5x2, 5x3。",
   "也允许 AI 按 NxM 自行提出其他尺寸；N/M 必须是数字并用 x 连接，例如 6x2 或 8x3，同时在 reason/layoutHints 中说明适用场景、响应式降级和回退尺寸。",
-  "布局映射约定: 1x 是侧栏/小卡，2x 是主栏，3x 及以上是整行或宽屏工作台；移动端统一降级为单列。",
+  "布局映射约定: 全部组件和 AI 首页统一进入 12 栏桌面栅格；1x=4/12 栏侧栏/小卡，2x=8/12 栏主栏，3x 及以上=12/12 栏整行或宽屏工作台；移动端统一降级为单列。",
 ].join(" ");
+const HOME_GRID_COLUMNS = 12;
+const HOME_GRID_ROW_RECIPES = ["12+0", "8+4", "6+6", "4+8"];
+
+function componentLayoutSpanForSize(size, fallback = 8) {
+  const columns = componentSizeColumns(size);
+  if (columns >= 3) return HOME_GRID_COLUMNS;
+  if (columns >= 2) return 8;
+  if (columns >= 1) return 4;
+  return fallback;
+}
+
+function componentRowRecipeForSpan(span) {
+  if (span >= HOME_GRID_COLUMNS) return "12+0";
+  if (span === 8) return "8+4";
+  if (span === 6) return "6+6";
+  return "4+8";
+}
+
+function componentGridContractForSize(size, options = {}) {
+  const normalizedSize = normalizeComponentSize(size || options.fallbackSize, "2x1");
+  const desktopSpan = Math.min(HOME_GRID_COLUMNS, Math.max(1, Number(options.desktopSpan) || componentLayoutSpanForSize(normalizedSize)));
+  const rowSpan = Math.max(1, Number(options.rowSpan) || componentSizeRows(normalizedSize));
+  return {
+    gridColumns: HOME_GRID_COLUMNS,
+    size: normalizedSize,
+    desktopSpan,
+    tabletSpan: HOME_GRID_COLUMNS,
+    mobileSpan: HOME_GRID_COLUMNS,
+    rowSpan,
+    rowRecipe: componentRowRecipeForSpan(desktopSpan),
+    zone: cleanText(options.zone, "", 24),
+    slot: cleanText(options.slot, "", 64),
+    sectionType: cleanText(options.sectionType, "", 24),
+    sizingPolicy: "1x=4/12, 2x=8/12, 3x+=12/12; tablet/mobile single-column.",
+  };
+}
+
+function normalizeComponentGridContract(source, size, options = {}) {
+  const raw = source && typeof source === "object" ? source : {};
+  const contract = componentGridContractForSize(size || raw.size, {
+    desktopSpan: raw.desktopSpan || raw.layoutSpan || raw.span,
+    rowSpan: raw.rowSpan,
+    zone: raw.zone || options.zone,
+    slot: raw.slot || options.slot,
+    sectionType: raw.sectionType || options.sectionType,
+  });
+  return {
+    ...contract,
+    rowRecipe: cleanText(raw.rowRecipe, contract.rowRecipe, 24),
+  };
+}
 
 const HOMEPAGE_INTENT_PRESETS = {
   standard: {
@@ -2071,6 +2150,7 @@ const GENERATED_COMPONENT_JSON_SCHEMA = {
     tags: { type: "array", items: { type: "string" } },
     html: { type: "string" },
     css: { type: "string" },
+    layoutContract: { type: "object" },
     layoutHints: { type: "array", items: { type: "string" } },
     dataRequirements: { type: "array", items: { type: "string" } },
   },
@@ -2089,6 +2169,7 @@ const AI_HTML_SCHEME_JSON_SCHEMA = {
     moduleMapping: { type: "object" },
     implementationContract: { type: "array", items: { type: "object" } },
     componentReferences: { type: "array", items: { type: "object" } },
+    layoutContract: { type: "object" },
     designNotes: { type: "array", items: { type: "string" } },
     html: { type: "string" },
     css: { type: "string" },
@@ -2124,6 +2205,10 @@ const COMPONENT_COMPOSITION_JSON_SCHEMA = {
         properties: {
           componentId: { type: "string" },
           size: COMPONENT_SIZE_SCHEMA,
+          gridColumns: { type: "number" },
+          layoutSpan: { type: "number" },
+          rowSpan: { type: "number" },
+          rowRecipe: { type: "string" },
           zone: { enum: ["hero", "main", "rail", "full"] },
           reason: { type: "string" },
         },
@@ -2679,6 +2764,8 @@ function homepageRecordSnapshot(config) {
   const brickPlan = Array.isArray(source.brickPlan) ? source.brickPlan : [];
   const sections = Array.isArray(source.sections) ? source.sections : [];
   const trace = source.brickTrace && typeof source.brickTrace === "object" ? source.brickTrace : {};
+  const primaryCta = source.pagePlan?.primaryCta || source.pagePlan?.primaryAction || source.pageIntent?.primaryCta || source.pageIntent?.primaryAction;
+  const primaryCtaLabel = primaryCta && typeof primaryCta === "object" ? primaryCta.label || primaryCta.action || "" : primaryCta;
 
   return {
     name: safeRecordText(source.name, 80),
@@ -2699,7 +2786,7 @@ function homepageRecordSnapshot(config) {
 	    htmlFallbackReason: source.htmlScheme?.enabled ? safeRecordText(source.htmlScheme.fallbackReason, 180) : "",
 	    pageGoal: safeRecordText(source.pagePlan?.pageGoal || source.pageIntent?.pageGoal, 48),
 	    mainVisual: safeRecordText(source.pagePlan?.mainVisual || source.pageIntent?.mainVisual, 48),
-	    primaryCta: safeRecordText(source.pagePlan?.primaryCta || source.pageIntent?.primaryCta, 80),
+		    primaryCta: safeRecordText(primaryCtaLabel, 80),
 	    validationWarnings: source.validation?.warnings?.length || 0,
 	    modulePolicyScore: Number.isFinite(Number(source.modulePolicyScore || source.validation?.modulePolicy?.score)) ? Math.round(Number(source.modulePolicyScore || source.validation?.modulePolicy?.score)) : null,
 	    blockedModules: Array.isArray(source.modulePolicy?.blockedModules) ? source.modulePolicy.blockedModules.slice(0, 12) : [],
@@ -2813,6 +2900,10 @@ const COMPONENT_REFERENCE_SCORE_POLICY = Object.freeze({
   strongMin: 8,
   moderateMin: 6,
   blockedMax: 5,
+});
+
+const FRESH_GENERATED_COMPONENT_OPTIONS = Object.freeze({
+  defaultScore: COMPONENT_REFERENCE_SCORE_POLICY.moderateMin,
 });
 
 function componentReferenceConstraintPolicy() {
@@ -2966,27 +3057,46 @@ function isAutoComponentSizeValue(value) {
 function normalizeComponentLayoutContext(value = {}) {
   const source = value && typeof value === "object" ? value : {};
   const pageWidth = Number(source.pageWidth);
+  const gridColumns = Number(source.gridColumns || source.homeGridColumns || source.maxColumns);
   const maxColumns = Number(source.maxColumns);
+  const maxSizeUnits = Number(source.maxSizeUnits || source.maxComponentColumns || source.maxUnits);
   const selectedMode = cleanText(source.selectedMode, "", 16).toLowerCase() === "manual" ? "manual" : "auto";
   const functionalComplexity = oneOfList(cleanText(source.functionalComplexity, "standard", 20), ["compact", "standard", "rich", "workbench"], "standard");
   const recommendedSize = normalizeComponentSize(source.recommendedSize, "");
   const selectedSize = isAutoComponentSizeValue(source.selectedSize) ? "auto" : normalizeComponentSize(source.selectedSize, "");
+  const selectedSpan = Number(source.selectedSpan || source.desktopSpan || source.layoutSpan);
+  const recommendedSpan = Number(source.recommendedSpan);
   const allowedSizes = (Array.isArray(source.allowedSizes) ? source.allowedSizes : [])
     .map((size) => normalizeComponentSize(size, ""))
     .filter(Boolean)
     .slice(0, 10);
+  const allowedSpans = (Array.isArray(source.allowedSpans) ? source.allowedSpans : [])
+    .map((span) => Number(span))
+    .filter((span) => Number.isFinite(span) && span > 0)
+    .map((span) => Math.min(HOME_GRID_COLUMNS, Math.max(1, Math.round(span))))
+    .slice(0, 8);
+  const rowRecipes = (Array.isArray(source.rowRecipes) ? source.rowRecipes : [])
+    .map((item) => cleanText(item, "", 24))
+    .filter(Boolean)
+    .slice(0, 8);
 
   return {
-    available: Boolean(recommendedSize || allowedSizes.length || Number.isFinite(pageWidth) || Number.isFinite(maxColumns)),
+    available: Boolean(recommendedSize || allowedSizes.length || Number.isFinite(pageWidth) || Number.isFinite(gridColumns) || Number.isFinite(maxColumns) || Number.isFinite(maxSizeUnits)),
     pageWidth: Number.isFinite(pageWidth) ? Math.max(0, Math.round(pageWidth)) : null,
-    maxColumns: Number.isFinite(maxColumns) ? Math.min(12, Math.max(1, Math.round(maxColumns))) : null,
+    gridColumns: Number.isFinite(gridColumns) ? Math.min(HOME_GRID_COLUMNS, Math.max(1, Math.round(gridColumns))) : HOME_GRID_COLUMNS,
+    maxColumns: Number.isFinite(maxColumns) ? Math.min(HOME_GRID_COLUMNS, Math.max(1, Math.round(maxColumns))) : HOME_GRID_COLUMNS,
+    maxSizeUnits: Number.isFinite(maxSizeUnits) ? Math.min(12, Math.max(1, Math.round(maxSizeUnits))) : null,
     selectedMode,
     selectedSize: selectedSize || (selectedMode === "auto" ? "auto" : ""),
+    selectedSpan: Number.isFinite(selectedSpan) ? Math.min(HOME_GRID_COLUMNS, Math.max(1, Math.round(selectedSpan))) : null,
     recommendedSize,
+    recommendedSpan: Number.isFinite(recommendedSpan) ? Math.min(HOME_GRID_COLUMNS, Math.max(1, Math.round(recommendedSpan))) : null,
     allowedSizes,
+    allowedSpans,
+    rowRecipes: rowRecipes.length ? rowRecipes : HOME_GRID_ROW_RECIPES,
     functionalComplexity,
-    gridUnit: cleanText(source.gridUnit, "1x 侧栏/小卡，2x 主栏，3x+ 宽幅或整行工作台", 140),
-    sizingPolicy: cleanText(source.sizingPolicy, "按页面宽度、可用列数和功能复杂度选择尺寸。", 180),
+    gridUnit: cleanText(source.gridUnit, "12栏首页栅格：1x=4/12栏，2x=8/12栏，3x及以上=12/12栏；移动端单列。", 180),
+    sizingPolicy: cleanText(source.sizingPolicy, "按页面宽度、可用尺寸单位和功能复杂度选择 size，并同步映射到 12 栏 desktopSpan。", 220),
   };
 }
 
@@ -3016,16 +3126,24 @@ function componentLayoutContextPromptReference(payload = {}) {
   return {
     available: context.available,
     pageWidth: context.pageWidth,
+    gridColumns: HOME_GRID_COLUMNS,
     maxColumns: context.maxColumns,
+    maxSizeUnits: context.maxSizeUnits,
     selectedMode,
     selectedSize: context.selectedSize || (payloadSelectedMode === "auto" ? "auto" : normalizeComponentSize(payload.size, "")),
+    selectedSpan: context.selectedSpan || componentLayoutSpanForSize(context.selectedSize || payload.size || recommendedSize),
     recommendedSize,
+    recommendedSpan: context.recommendedSpan || componentLayoutSpanForSize(recommendedSize),
     allowedSizes: context.allowedSizes.length ? context.allowedSizes : COMPONENT_SIZES,
+    allowedSpans: context.allowedSpans.length ? context.allowedSpans : [12, 8, 4],
+    rowRecipes: context.rowRecipes.length ? context.rowRecipes : HOME_GRID_ROW_RECIPES,
     functionalComplexity: context.functionalComplexity,
     gridUnit: context.gridUnit,
     sizingPolicy: context.sizingPolicy,
     decisionRules: [
-      "size 的第一位数字不要超过 maxColumns；maxColumns 为空时按常用尺寸判断。",
+      "所有组件必须支持 12 栏首页栅格；返回 layoutContract.gridColumns=12，并让 desktopSpan 与 size 匹配。",
+      "size 的第一位数字不要超过 maxSizeUnits；maxSizeUnits 为空时按常用尺寸判断。",
+      "desktopSpan 映射固定为 1x=4/12、2x=8/12、3x及以上=12/12；rowRecipe 只能使用 12+0、8+4、6+6、4+8。",
       "列表、表格、图表、表单、多步骤流程、多账号/多币种工作台可以扩大到 3x2、4x2、4x3 或 5x3。",
       "单状态、单链接、单按钮类侧栏组件保持 1x1/1x2/2x1，避免假大空。",
       "移动端会单列降级，所以桌面宽度足够时可以用更宽的结构提高信息承载。",
@@ -3116,6 +3234,11 @@ function componentSlotContractPromptReference(payload = {}) {
     label: cleanText(source.label, "", 80),
     family: cleanText(source.family, "", 48),
     size: cleanText(source.size, "", 24),
+    layoutContract: normalizeComponentGridContract(source.layoutContract, source.size || payload.size || "2x1", {
+      zone: source.sectionType || source.zone,
+      slot: source.id,
+      sectionType: source.sectionType,
+    }),
     sectionTitle: cleanText(source.sectionTitle, "", 80),
     sectionType: cleanText(source.sectionType, "", 24),
     variant: cleanText(source.variant, "", 80),
@@ -3648,7 +3771,23 @@ function normalizeGeneratedComponent(component, payload = {}, options = {}) {
   const id = safeId(source.id || `${family}-${name}-${Date.now().toString(36)}`, "component");
   const now = new Date().toISOString();
   const preserveUpdatedAt = Boolean(options.preserveUpdatedAt);
+  const defaultScore = Number.isFinite(Number(options.defaultScore)) ? normalizeComponentScore(options.defaultScore, 5) : 5;
   const visualReference = normalizeComponentVisualReferenceRecord(source.visualReference || payload.visualReference);
+  const layoutContract = normalizeComponentGridContract(source.layoutContract || payload.layoutContext || payload.slotContract?.layoutContract, size, {
+    zone: payload.slotContract?.sectionType || payload.layoutContext?.zone,
+    slot: payload.slotContract?.id || payload.layoutContext?.slot,
+    sectionType: payload.slotContract?.sectionType || payload.layoutContext?.sectionType,
+  });
+  const rawLayoutHints = Array.isArray(source.layoutHints) ? source.layoutHints : [];
+  const layoutHints = [
+    ...rawLayoutHints,
+    `${layoutContract.desktopSpan}/12 栏`,
+    layoutContract.rowRecipe,
+    "移动端单列",
+  ]
+    .map((item) => cleanText(item, "", 120))
+    .filter(Boolean)
+    .slice(0, 8);
 
   return {
     id,
@@ -3657,12 +3796,13 @@ function normalizeGeneratedComponent(component, payload = {}, options = {}) {
     family,
     ...(sourceFamily && sourceFamily !== family ? { modelFamily: sourceFamily } : {}),
     size,
-    score: normalizeComponentScore(source.score ?? payload.componentScore, 5),
+    score: normalizeComponentScore(source.score ?? payload.componentScore, defaultScore),
     description: cleanText(stripEditorArtifactsFromText(source.description), "AI 生成的首页积木组件。", 260),
     tags: (Array.isArray(source.tags) ? source.tags : [family, size]).map((tag) => cleanText(tag, "", 28)).filter(Boolean).slice(0, 8),
     html: collapseDuplicateComponentTitles(stripEditorArtifactsFromHtml(sanitizeGeneratedHtml(source.html))),
     css: stripEditorArtifactsFromCss(sanitizeGeneratedCss(source.css)),
-    layoutHints: (Array.isArray(source.layoutHints) ? source.layoutHints : []).map((item) => cleanText(item, "", 120)).filter(Boolean).slice(0, 6),
+    layoutContract,
+    layoutHints,
     dataRequirements: (Array.isArray(source.dataRequirements) ? source.dataRequirements : []).map((item) => cleanText(item, "", 120)).filter(Boolean).slice(0, 6),
     sourcePrompt: cleanText(payload.prompt || source.sourcePrompt, "", 500),
     originalSlotPrompt: cleanText(payload.originalSlotPrompt || source.originalSlotPrompt, "", 900),
@@ -3768,6 +3908,67 @@ function generatedComponentViolatesFamily(component, payload = {}) {
     return !hasWelcomeSemantics || leaksConversionModule;
   }
   return false;
+}
+
+function generatedComponentExplicitScore(component, payload = {}) {
+  const score = component?.score ?? payload.componentScore;
+  return Number.isFinite(Number(score)) ? normalizeComponentScore(score, COMPONENT_REFERENCE_SCORE_POLICY.blockedMax) : null;
+}
+
+function generatedComponentHasChartEvidence(component) {
+  const html = String(component?.html || "");
+  const css = String(component?.css || "");
+  const source = `${html} ${css}`;
+  return /<svg\b|<path\b|<polyline\b|<canvas\b|data-home-echart|data-chart|sparkline|curve|trend|chart-line|area-chart|走势图|曲线|趋势/i.test(source);
+}
+
+function generatedComponentHasVisiblePlaceholder(component) {
+  const html = String(component?.html || "");
+  const css = String(component?.css || "");
+  const source = `${html} ${css}`;
+  return (
+    /\b(?:chart|curve|trend|signal|sparkline)[\w-]*placeholder\b|\bplaceholder[\w-]*(?:chart|curve|trend|signal|sparkline)\b/i.test(source) ||
+    /home-chart-placeholder-bg|chart-placeholder-bg|signal-chart-placeholder/i.test(source) ||
+    /灰色占位|空图表|图表占位|待生成图表|chart\s+placeholder|empty\s+chart/i.test(source)
+  );
+}
+
+function generatedComponentUsesBrokenIconFont(component) {
+  const html = String(component?.html || "");
+  const css = String(component?.css || "");
+  return /<i\b[^>]*>\s*<\/i>/i.test(html) && /content\s*:\s*["']\\(?:e[0-9a-f]{3}|[0-9a-f]{4})/i.test(css);
+}
+
+function generatedComponentVisibleText(component) {
+  return stripHtmlTags(component?.html || "");
+}
+
+function generatedComponentQualityIssues(component, payload = {}) {
+  const family = oneOfComponentFamily(component?.family || payload.family);
+  const issues = [];
+  const explicitScore = generatedComponentExplicitScore(component, payload);
+  const source = `${component?.name || ""} ${component?.description || ""} ${component?.html || ""} ${component?.css || ""}`;
+  if (explicitScore != null && explicitScore <= COMPONENT_REFERENCE_SCORE_POLICY.blockedMax) {
+    issues.push(`组件评分 ${explicitScore}/10 属于阻断档，不能作为当前 slot 填充或后续参考。`);
+  }
+  if (["AccountPerformance", "CopytradingSignals", "PammProducts"].includes(family)) {
+    if (generatedComponentHasVisiblePlaceholder(component)) {
+      issues.push("图表型组件包含可见 chart/curve placeholder，占位会在首页渲染成空灰块。");
+    }
+    if (!generatedComponentHasChartEvidence(component)) {
+      issues.push("图表型组件缺少 SVG/canvas/data-chart/趋势结构证据。");
+    }
+  }
+  if (family === "QuickActions" && generatedComponentUsesBrokenIconFont(component)) {
+    issues.push("快捷入口使用空 i 标签和私有 iconfont content，当前页面没有加载对应字体，会渲染成空图标。");
+  }
+  if (/首页目标|当前步骤|slot：|模块名称：|Client Home Atom|data-ai-edit-note|AI\s*修改/i.test(source)) {
+    issues.push("组件 UI 泄露了管理员提示词或 AI 编辑痕迹。");
+  }
+  if (generatedComponentVisibleText(component).length < 18 && !/<svg\b|data-home-echart|data-chart/i.test(source)) {
+    issues.push("组件可见业务内容过少，容易退化成空壳。");
+  }
+  return [...new Set(issues)].slice(0, 6);
 }
 
 function strictWelcomePromptText(payload = {}) {
@@ -4179,6 +4380,11 @@ function componentLibraryFallbackForPayload(payload = {}, options = {}) {
   if (!selected) return null;
 
   const reason = cleanText(options.reason, "模型组件生成失败，已引用组件库积木兜底。", 260);
+  const layoutContract = normalizeComponentGridContract(selected.layoutContract || payload.layoutContext, size, {
+    zone: payload.slotContract?.sectionType,
+    slot: payload.slotContract?.id,
+    sectionType: payload.slotContract?.sectionType,
+  });
   return {
     ...selected,
     sourceType: "brick-fallback",
@@ -4192,6 +4398,8 @@ function componentLibraryFallbackForPayload(payload = {}, options = {}) {
     referenceTier: componentReferenceTierFromScore(componentReferenceScore(selected, payload)),
     requestedFamily: family,
     requestedSize: size,
+    requestedSpan: layoutContract.desktopSpan,
+    layoutContract,
     generatedAt: new Date().toISOString(),
     layoutHints: [
       ...(Array.isArray(selected.layoutHints) ? selected.layoutHints : []),
@@ -4766,6 +4974,438 @@ const HOME_SCENARIO_TAGS = [
   "白标资金安全",
   "默认资产首页",
 ];
+
+const GOLDEN_SAMPLE_ANALYSIS_FILE_LIMIT = 3;
+
+function uniqueCleanValues(values = [], limit = 10, textLimit = 120) {
+  const seen = new Set();
+  const output = [];
+  (Array.isArray(values) ? values : []).forEach((value) => {
+    const text = cleanText(value, "", textLimit);
+    const key = text.toLowerCase();
+    if (!text || seen.has(key)) return;
+    seen.add(key);
+    output.push(text);
+  });
+  return output.slice(0, limit);
+}
+
+function matchCleanValues(source = "", pattern, limit = 12, mapper = (match) => match[1] || match[0], textLimit = 120) {
+  const matches = [];
+  const regex = new RegExp(pattern.source, pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`);
+  for (const match of String(source || "").matchAll(regex)) {
+    const value = mapper(match);
+    if (Array.isArray(value)) matches.push(...value);
+    else matches.push(value);
+    if (matches.length >= limit * 2) break;
+  }
+  return uniqueCleanValues(matches, limit, textLimit);
+}
+
+function goldenAnalysisFileType(file = {}) {
+  const source = `${file.mime || ""} ${file.name || ""}`.toLowerCase();
+  if (/image\/|\.png|\.jpe?g|\.webp|\.gif$/.test(source)) return "image";
+  if (/html|\.html?$/.test(source)) return "html";
+  if (/css|\.css$/.test(source)) return "css";
+  if (/javascript|ecmascript|\.mjs$|\.cjs$|\.js$/.test(source)) return "js";
+  if (/pdf|\.pdf$/.test(source)) return "pdf";
+  return "file";
+}
+
+function normalizeGoldenAnalysisFile(file = {}) {
+  const name = cleanText(file.name, "黄金样本文件", 120);
+  const mime = cleanText(file.mime, "", 80);
+  const type = goldenAnalysisFileType({ ...file, name, mime });
+  const rawText = String(file.textContent || "");
+  const textContent =
+    type === "html"
+      ? sanitizeGeneratedHtml(rawText)
+      : type === "css"
+        ? sanitizeGeneratedCss(rawText)
+        : type === "js"
+          ? rawText.slice(0, 80_000)
+          : rawText.slice(0, 40_000);
+  const width = Number(file.width);
+  const height = Number(file.height);
+  return {
+    name,
+    mime,
+    type,
+    size: Number.isFinite(Number(file.size)) ? Math.max(0, Number(file.size)) : 0,
+    textContent,
+    textExcerpt: cleanText(stripHtmlTags(textContent), "", 900),
+    width: Number.isFinite(width) ? Math.max(0, Math.round(width)) : 0,
+    height: Number.isFinite(height) ? Math.max(0, Math.round(height)) : 0,
+    aspectRatio: cleanText(file.aspectRatio, "", 24),
+    layoutHint: cleanText(file.layoutHint, "", 140),
+    dominantColors: uniqueCleanValues(file.dominantColors || [], 8, 24),
+    brightness: cleanText(file.brightness, "", 24),
+  };
+}
+
+function goldenAnalysisSearchText(files = [], metadata = {}) {
+  return [
+    metadata.name,
+    metadata.prompt,
+    metadata.pageIntent,
+    metadata.themePreset,
+    metadata.visualStyle,
+    ...(Array.isArray(metadata.scenarioTags) ? metadata.scenarioTags : []),
+    ...files.flatMap((file) => [file.name, file.type, file.textExcerpt, file.layoutHint, file.brightness, ...(file.dominantColors || [])]),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function extractGoldenHtmlStructure(files = []) {
+  const html = files.filter((file) => file.type === "html").map((file) => file.textContent).join("\n");
+  const htmlText = cleanText(stripHtmlTags(html), "", 1200);
+  const tags = ["header", "nav", "main", "section", "article", "aside", "footer"].filter((tag) => new RegExp(`<${tag}\\b`, "i").test(html));
+  const headings = matchCleanValues(
+    html,
+    /<(h[1-4]|strong|summary)\b[^>]*>([\s\S]{1,240}?)<\/\1>/gi,
+    14,
+    (match) => stripHtmlTags(match[2]),
+    90,
+  );
+  const classNames = matchCleanValues(
+    html,
+    /\bclass\s*=\s*["']([^"']+)["']/gi,
+    28,
+    (match) => String(match[1] || "").split(/\s+/),
+    60,
+  );
+  const dataHooks = matchCleanValues(html, /\bdata-[\w-]+\s*=\s*["']?([^"'\s>]+)/gi, 14, (match) => match[1], 80);
+  const sectionCount = (html.match(/<(section|article|aside)\b/gi) || []).length;
+  return {
+    hasHtml: Boolean(html.trim()),
+    tags,
+    headings,
+    classNames,
+    dataHooks,
+    sectionCount,
+    textExcerpt: htmlText,
+  };
+}
+
+function cssDeclarationValues(css = "", propertyPattern, limit = 10) {
+  return matchCleanValues(css, new RegExp(`(?:${propertyPattern})\\s*:\\s*([^;}]+)`, "gi"), limit, (match) => match[1], 80);
+}
+
+function extractGoldenCssSummary(files = [], htmlStructure = {}) {
+  const htmlCss = files
+    .filter((file) => file.type === "html")
+    .flatMap((file) => matchCleanValues(file.textContent, /<style\b[^>]*>([\s\S]*?)<\/style>/gi, 20, (match) => match[1], 5000));
+  const inlineStyles = files
+    .filter((file) => file.type === "html")
+    .flatMap((file) => matchCleanValues(file.textContent, /\bstyle\s*=\s*["']([^"']+)["']/gi, 40, (match) => match[1], 500));
+  const css = [
+    ...files.filter((file) => file.type === "css").map((file) => file.textContent),
+    ...htmlCss,
+    ...inlineStyles,
+  ].join("\n");
+  const imageColors = files.flatMap((file) => file.dominantColors || []);
+  const colors = uniqueCleanValues(
+    [
+      ...matchCleanValues(css, /#[0-9a-f]{3,8}\b|rgba?\([^)]+\)|hsla?\([^)]+\)|var\(--[\w-]+\)/gi, 16, (match) => match[0], 40),
+      ...imageColors,
+    ],
+    12,
+    40,
+  );
+  const spacingScale = uniqueCleanValues(
+    [
+      ...cssDeclarationValues(css, "gap|padding|margin|inset|top|right|bottom|left", 16),
+      ...matchCleanValues(css, /\b(?:min-|max-)?(?:width|height)\s*:\s*([^;}]+)/gi, 10, (match) => match[1], 80),
+    ],
+    12,
+    80,
+  );
+  const radiusScale = cssDeclarationValues(css, "border-radius", 8);
+  const shadowStyle = cssDeclarationValues(css, "box-shadow|filter", 6);
+  const fontScale = cssDeclarationValues(css, "font-size|line-height|font-weight", 12);
+  const layoutSignals = uniqueCleanValues(
+    [
+      /display\s*:\s*grid/i.test(css) ? "grid layout" : "",
+      /display\s*:\s*flex/i.test(css) ? "flex layout" : "",
+      /grid-template-columns/i.test(css) ? "explicit grid columns" : "",
+      /position\s*:\s*sticky/i.test(css) ? "sticky context" : "",
+      /@media/i.test(css) ? "responsive media queries" : "",
+      /\b(clamp|minmax|container-type)\b/i.test(css) ? "responsive sizing tokens" : "",
+      htmlStructure.tags.includes("nav") ? "navigation present" : "",
+      htmlStructure.sectionCount >= 4 ? "multi-section page" : "",
+    ],
+    10,
+    80,
+  );
+  const componentStyleNotes = uniqueCleanValues(
+    [
+      /border\s*:\s*1px/i.test(css) ? "薄边框卡片" : "",
+      /backdrop-filter|blur\(/i.test(css) ? "玻璃/模糊背景" : "",
+      /linear-gradient|radial-gradient/i.test(css) ? "渐变背景或状态底色" : "",
+      /box-shadow/i.test(css) ? "阴影层级" : "",
+      /border-radius/i.test(css) ? "统一圆角系统" : "",
+      /button|btn|cta/i.test(`${css} ${htmlStructure.classNames.join(" ")}`) ? "明确 CTA / button 层级" : "",
+      /card|panel|tile|widget/i.test(`${css} ${htmlStructure.classNames.join(" ")}`) ? "卡片/面板组件语言" : "",
+      /table|list|row/i.test(`${css} ${htmlStructure.classNames.join(" ")}`) ? "列表/行式信息组件" : "",
+    ],
+    10,
+    90,
+  );
+  return {
+    hasCss: Boolean(css.trim()),
+    colorPalette: colors,
+    spacingScale,
+    radiusScale,
+    shadowStyle,
+    fontScale,
+    layoutSignals,
+    componentStyleNotes,
+    cssLength: css.length,
+  };
+}
+
+function detectGoldenHomeComponents(searchText = "", htmlStructure = {}) {
+  const specs = [
+    { name: "资产总览", pattern: /资产|balance|equity|账户余额|总览|overview|净值|余额/, modules: ["asset_overview"], data: ["balance", "equity", "walletTotal"], actions: ["查看资产", "入金"] },
+    { name: "钱包列表", pattern: /钱包|wallet|多币种|usd|usdt|xau|eur/, modules: ["wallet_list"], data: ["currency", "availableBalance"], actions: ["转账", "出入金"] },
+    { name: "交易账号", pattern: /交易账号|account|mt4|mt5|真实账户|模拟账户|leverage|杠杆/, modules: ["trading_accounts"], data: ["accountId", "balance", "leverage"], actions: ["开新账户", "切换账户"] },
+    { name: "开户进度", pattern: /开户进度|kyc|身份认证|onboarding|progress|完成资料|首次入金|新客/, modules: ["onboarding_guide"], data: ["stepStatus", "progress"], actions: ["继续完成", "去认证"] },
+    { name: "快捷操作", pattern: /快捷|quick|入金|出金|转账|deposit|withdraw|transfer/, modules: ["quick_actions"], data: ["actionName", "actionStatus"], actions: ["入金", "出金", "转账"] },
+    { name: "交易表现", pattern: /盈亏|收益|performance|positions|orders|chart|曲线|趋势/, modules: ["performance_summary"], data: ["pnl", "drawdown", "positions"], actions: ["查看报表"] },
+    { name: "邀请推广", pattern: /邀请|referral|refer|ib|代理|推广|邀请码/, modules: ["referral_panel"], data: ["inviteCode", "commission", "conversion"], actions: ["复制链接", "查看推广"] },
+    { name: "活动增长", pattern: /活动|campaign|bonus|reward|奖励|挑战赛|promo/, modules: ["campaign_banner"], data: ["reward", "deadline", "progress"], actions: ["查看活动", "领取奖励"] },
+    { name: "资金安全", pattern: /安全|风控|security|risk|白标|保证金|隔离|监管/, modules: ["security_trust"], data: ["riskLevel", "margin", "fundSafety"], actions: ["查看安全说明"] },
+    { name: "CopyTrading", pattern: /copy\s?trading|跟单|复制交易|leaderboard|排行榜|signal/, modules: ["copy_trading"], data: ["leader", "return", "followers"], actions: ["查看策略", "跟单"] },
+  ];
+  const detected = specs
+    .filter((spec) => spec.pattern.test(searchText))
+    .map((spec) => ({
+      name: spec.name,
+      objective: `${spec.name}在样本中形成了可复用的首页功能组件。`,
+      modules: spec.modules,
+      data: spec.data,
+      actions: spec.actions,
+      states: ["default", "hover", "empty"].filter((state) => searchText.includes(state) || state === "default"),
+    }));
+  if (detected.length) return detected.slice(0, 8);
+  return htmlStructure.headings.slice(0, 4).map((heading, index) => ({
+    name: heading,
+    objective: "从页面标题和区块结构推断的首页内容模块。",
+    modules: [`sample_section_${index + 1}`],
+    data: [],
+    actions: [],
+    states: ["default"],
+  }));
+}
+
+function inferGoldenScenarioTags(searchText = "", metadata = {}) {
+  return uniqueCleanValues(
+    [
+      ...(Array.isArray(metadata.scenarioTags) ? metadata.scenarioTags : []),
+      /开户进度|kyc|身份认证|onboarding|新客|完成资料|首次入金/.test(searchText) ? "新客开户" : "",
+      /交易|account|mt4|mt5|position|order|盈亏|performance|trader/.test(searchText) ? "专业交易" : "",
+      /copy\s?trading|跟单|排行榜|leaderboard|signal/.test(searchText) ? "CopyTrading" : "",
+      /ib|代理|推广|referral|refer|邀请/.test(searchText) ? "IB 推广" : "",
+      /vip|黑金|gold|private|高净值|premium/.test(searchText) ? "黑金 VIP" : "",
+      /活动|campaign|bonus|reward|奖励|promo/.test(searchText) ? "活动增长" : "",
+      /极简|minimal|white|留白|clean/.test(searchText) ? "极简白" : "",
+      /mobile|移动端|手机|单列/.test(searchText) ? "移动端优先" : "",
+      /安全|白标|资金安全|security|risk|监管/.test(searchText) ? "白标资金安全" : "",
+      /资产|钱包|wallet|balance|overview/.test(searchText) ? "默认资产首页" : "",
+    ],
+    10,
+    36,
+  ).filter((tag) => HOME_SCENARIO_TAGS.includes(tag));
+}
+
+function inferGoldenPageIntent(searchText = "", metadata = {}) {
+  const explicit = cleanText(metadata.pageIntent, "", 60);
+  if (explicit) return explicit;
+  if (/vip|黑金|gold|private|高净值|premium/.test(searchText)) return "vip";
+  if (/开户进度|kyc|身份认证|onboarding|新客|完成资料|首次入金/.test(searchText)) return "onboarding";
+  if (/ib|代理|推广|referral|refer|邀请/.test(searchText)) return "ib";
+  if (/copy\s?trading|跟单|leaderboard/.test(searchText)) return "copyTrading";
+  if (/交易|account|mt4|mt5|position|order|trader|盈亏/.test(searchText)) return "trader";
+  return "homepage";
+}
+
+function inferGoldenThemePreset(searchText = "", cssSummary = {}, metadata = {}) {
+  const explicit = cleanText(metadata.themePreset, "", 60);
+  if (explicit) return explicit;
+  const palette = (cssSummary.colorPalette || []).join(" ").toLowerCase();
+  const combined = `${searchText} ${palette}`;
+  if (/(黑金|gold|#b7791f|#f5c66b|#d4af37|premium)/.test(combined) && /(#000|#111|black|黑|dark)/.test(combined)) return "blackGold";
+  if (/(security|安全|trust|资金|#2563eb|#1d4ed8|blue)/.test(combined)) return "trustBlue";
+  if (/(dark|#000|#111827|#0f172a|石墨|terminal)/.test(combined)) return "darkPro";
+  if (/(minimal|极简|white|#fff|#ffffff|留白|clean)/.test(combined)) return "minimalWhite";
+  return "balancedFintech";
+}
+
+function inferGoldenVisualStyle(searchText = "", cssSummary = {}, metadata = {}) {
+  const explicit = cleanText(metadata.visualStyle, "", 80);
+  if (explicit) return explicit;
+  const parts = [
+    inferGoldenThemePreset(searchText, cssSummary, {}),
+    cssSummary.layoutSignals?.includes("grid layout") ? "grid dashboard" : cssSummary.layoutSignals?.includes("flex layout") ? "flex composition" : "structured homepage",
+    cssSummary.componentStyleNotes?.includes("列表/行式信息组件") ? "list-card components" : "",
+    cssSummary.spacingScale?.length >= 4 ? "tokenized spacing" : "",
+  ].filter(Boolean);
+  return cleanText(parts.join(" / "), "fintech homepage visual reference", 80);
+}
+
+function buildGoldenSampleBlocks(functions = [], cssSummary = {}, htmlStructure = {}) {
+  const notes = uniqueCleanValues([...(cssSummary.layoutSignals || []), ...(cssSummary.componentStyleNotes || [])], 6, 90);
+  const blocks = functions.slice(0, 8).map((item, index) => ({
+    name: item.name,
+    page: index === 0 ? "first-screen" : "content-section",
+    function: item.objective,
+    componentRefs: [],
+    visualNotes: notes,
+    dataFields: item.data || [],
+  }));
+  if (blocks.length) return blocks;
+  return [
+    {
+      name: htmlStructure.headings[0] || "页面视觉骨架",
+      page: "full-page",
+      function: "从外部样本提取首页骨架、信息层级和视觉 token。",
+      componentRefs: [],
+      visualNotes: notes,
+      dataFields: [],
+    },
+  ];
+}
+
+function inferGoldenScoreDimensions(files = [], htmlStructure = {}, cssSummary = {}, functions = []) {
+  const hasImage = files.some((file) => file.type === "image");
+  const hasHtml = htmlStructure.hasHtml;
+  const hasCss = cssSummary.hasCss;
+  const hasResponsive = (cssSummary.layoutSignals || []).some((item) => /responsive|media/i.test(item));
+  return {
+    firstScreenFocus: hasImage || htmlStructure.headings.length ? 9 : 8,
+    informationHierarchy: htmlStructure.headings.length >= 3 || htmlStructure.sectionCount >= 3 ? 9 : 8,
+    moduleBalance: cssSummary.layoutSignals?.length >= 2 || functions.length >= 3 ? 9 : 8,
+    componentCraft: hasCss && cssSummary.componentStyleNotes?.length >= 3 ? 9 : hasCss ? 8 : 7,
+    financialTone: functions.length >= 2 ? 9 : 8,
+    businessTruth: functions.length >= 2 || hasHtml ? 8 : 7,
+    responsive: hasResponsive ? 9 : hasImage || hasHtml ? 8 : 7,
+    visualConsistency: cssSummary.colorPalette?.length || cssSummary.spacingScale?.length ? 9 : 8,
+    publishability: hasHtml || hasImage ? 8 : 7,
+  };
+}
+
+function buildGoldenSampleAnalysis(payload = {}) {
+  const metadata = payload.metadata && typeof payload.metadata === "object" ? payload.metadata : {};
+  const files = (Array.isArray(payload.files) ? payload.files : [])
+    .slice(0, GOLDEN_SAMPLE_ANALYSIS_FILE_LIMIT)
+    .map(normalizeGoldenAnalysisFile)
+    .filter((file) => file.name || file.textContent || file.type === "image");
+  if (!files.length) {
+    throw Object.assign(new Error("请先上传 1-3 个图片、HTML、CSS 或 JS 文件"), { statusCode: 400 });
+  }
+  const htmlStructure = extractGoldenHtmlStructure(files);
+  const cssSummary = extractGoldenCssSummary(files, htmlStructure);
+  const searchText = goldenAnalysisSearchText(files, metadata);
+  const functions = detectGoldenHomeComponents(searchText, htmlStructure);
+  const sampleBlocks = buildGoldenSampleBlocks(functions, cssSummary, htmlStructure);
+  const scenarioTags = inferGoldenScenarioTags(searchText, metadata);
+  const pageIntent = inferGoldenPageIntent(searchText, metadata);
+  const themePreset = inferGoldenThemePreset(searchText, cssSummary, metadata);
+  const visualStyle = inferGoldenVisualStyle(searchText, cssSummary, metadata);
+  const imageFiles = files.filter((file) => file.type === "image");
+  const layoutSummary = uniqueCleanValues(
+    [
+      imageFiles.map((file) => [file.name, file.layoutHint, file.width && file.height ? `${file.width}x${file.height}` : ""].filter(Boolean).join(" · ")).join("；"),
+      htmlStructure.tags.length ? `DOM 骨架：${htmlStructure.tags.join(" / ")}` : "",
+      htmlStructure.sectionCount ? `区块数量约 ${htmlStructure.sectionCount}` : "",
+      cssSummary.layoutSignals?.length ? `布局信号：${cssSummary.layoutSignals.join("、")}` : "",
+    ],
+    6,
+    180,
+  );
+  const goodPatterns = uniqueCleanValues(
+    [
+      layoutSummary[0] ? `学习整体骨架：${layoutSummary[0]}` : "",
+      cssSummary.spacingScale?.length ? `学习间距/留白 token：${cssSummary.spacingScale.slice(0, 6).join(" / ")}` : "",
+      cssSummary.colorPalette?.length ? `学习主色与中性色关系：${cssSummary.colorPalette.slice(0, 6).join(" / ")}` : "",
+      cssSummary.componentStyleNotes?.length ? `学习组件工艺：${cssSummary.componentStyleNotes.join("、")}` : "",
+      functions.length ? `学习功能组件组织：${functions.map((item) => item.name).slice(0, 6).join("、")}` : "",
+      htmlStructure.headings.length ? `学习标题层级：${htmlStructure.headings.slice(0, 6).join(" / ")}` : "",
+    ],
+    10,
+    140,
+  );
+  const avoidPatterns = uniqueCleanValues(
+    [
+      "不要像素级复刻原稿布局",
+      "不要照搬品牌 Logo、图片、插画和受保护素材",
+      "不要复制原稿里的具体金额、姓名、账户、活动文案",
+      files.some((file) => file.type === "js") ? "JS 只作为交互意图参考，不把外部脚本直接带入首页生成" : "",
+    ],
+    8,
+    120,
+  );
+  const name = cleanText(metadata.name, "", 80) || cleanText(files[0]?.name?.replace(/\.[^.]+$/, ""), "自动提取黄金样本", 80);
+  const prompt = cleanText(
+    metadata.prompt,
+    `适合 ${scenarioTags.slice(0, 3).join("、") || pageIntent} 的首页生成参考：学习它的页面骨架、信息层级、间距留白、组件样式和金融产品气质。`,
+    900,
+  );
+  return {
+    source: "local-golden-sample-extractor",
+    aiSupplementStatus: "reserved",
+    name,
+    prompt,
+    pageIntent,
+    themePreset,
+    visualStyle,
+    scenarioTags,
+    applicableScenarios: uniqueCleanValues([...(Array.isArray(metadata.applicableScenarios) ? metadata.applicableScenarios : []), ...scenarioTags, pageIntent], 10, 80),
+    humanScore: Number.isFinite(Number(metadata.humanScore)) ? Math.max(0, Math.min(100, Math.round(Number(metadata.humanScore)))) : 92,
+    scoreDimensions: inferGoldenScoreDimensions(files, htmlStructure, cssSummary, functions),
+    page: {
+      name,
+      layout: cleanText(layoutSummary.join("；") || "本地自动提取的 visual-only 首页骨架。", "", 180),
+      hero: cleanText(goodPatterns[0] || "学习首屏焦点、模块比例和信息层级。", "", 180),
+      navigation: cleanText(htmlStructure.tags.includes("nav") ? "包含导航/顶部操作，可学习其层级和压缩方式。" : htmlStructure.headings.slice(0, 4).join(" / "), "", 140),
+      mobile: cleanText(cssSummary.layoutSignals?.some((item) => /responsive|media/i.test(item)) ? "包含响应式断点或自适应尺寸，可学习移动端单列节奏。" : imageFiles.some((file) => file.height > file.width) ? "图片接近移动端比例，可学习移动端首屏节奏。" : "", "", 160),
+    },
+    functions,
+    sampleBlocks,
+    goodPatterns,
+    avoidPatterns,
+    whyGood: cleanText(goodPatterns.join("；"), "它提供了可学习的整页骨架、视觉 token 和功能组件组织。", 900),
+    whyBad: "",
+    forbiddenReuse: cleanText(avoidPatterns.join("；"), "", 900),
+    cssSummary: {
+      ...cssSummary,
+      htmlStructure,
+      sourceFiles: files.map((file) => ({
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        width: file.width,
+        height: file.height,
+        layoutHint: file.layoutHint,
+        dominantColors: file.dominantColors,
+      })),
+    },
+    themeTokens: {
+      themePreset,
+      visualStyle,
+      colorPalette: cssSummary.colorPalette,
+      spacingScale: cssSummary.spacingScale,
+      radiusScale: cssSummary.radiusScale,
+      shadowStyle: cssSummary.shadowStyle,
+      fontScale: cssSummary.fontScale,
+    },
+    domSnapshot: cleanText([htmlStructure.textExcerpt, files.filter((file) => file.type === "js").map((file) => file.textExcerpt).join(" ")].filter(Boolean).join(" "), "", 3000),
+    promptSeeds: [prompt, ...htmlStructure.headings].filter(Boolean).slice(0, 8),
+    sourceFileSummary: files.map((file) => `${file.name} · ${file.type}${file.width && file.height ? ` · ${file.width}x${file.height}` : ""}`),
+  };
+}
 
 function jsonCloneWithinLimit(value, fallback, limit = 120_000) {
   if (!value || typeof value !== "object") return fallback;
@@ -5363,13 +6003,15 @@ function referenceAssetType(mime = "", filename = "") {
   const source = `${mime} ${filename}`.toLowerCase();
   if (/image\/|\.png|\.jpe?g|\.webp|\.gif$/.test(source)) return "image";
   if (/html|\.html?$/.test(source)) return "html";
+  if (/css|\.css$/.test(source)) return "css";
+  if (/javascript|ecmascript|\.mjs$|\.cjs$|\.js$/.test(source)) return "js";
   if (/pdf|\.pdf$/.test(source)) return "pdf";
   return "file";
 }
 
 function referenceAssetExtension(mime = "", filename = "") {
   const ext = path.extname(filename || "").replace(".", "").toLowerCase();
-  if (["png", "jpg", "jpeg", "webp", "gif", "html", "htm", "pdf", "txt"].includes(ext)) {
+  if (["png", "jpg", "jpeg", "webp", "gif", "html", "htm", "css", "js", "mjs", "cjs", "pdf", "txt"].includes(ext)) {
     return ext === "htm" ? "html" : ext;
   }
   if (/png/i.test(mime)) return "png";
@@ -5377,6 +6019,8 @@ function referenceAssetExtension(mime = "", filename = "") {
   if (/webp/i.test(mime)) return "webp";
   if (/gif/i.test(mime)) return "gif";
   if (/html/i.test(mime)) return "html";
+  if (/css/i.test(mime)) return "css";
+  if (/javascript|ecmascript/i.test(mime)) return "js";
   if (/pdf/i.test(mime)) return "pdf";
   if (/text/i.test(mime)) return "txt";
   return "txt";
@@ -5462,9 +6106,9 @@ function saveReferenceAsset(asset = {}) {
 
   if (asset.textContent || type === "html") {
     const rawText = String(asset.textContent || "");
-    const text = ext === "html" ? sanitizeGeneratedHtml(rawText) : rawText.slice(0, 200_000);
+    const text = ext === "html" ? sanitizeGeneratedHtml(rawText) : ext === "css" ? sanitizeGeneratedCss(rawText) : rawText.slice(0, 200_000);
     buffer = Buffer.from(text, "utf8");
-    mime = ext === "html" ? "text/html" : "text/plain";
+    mime = ext === "html" ? "text/html" : ext === "css" ? "text/css" : ext === "js" || ext === "mjs" || ext === "cjs" ? "text/javascript" : inputMime || "text/plain";
     textExcerpt = cleanText(text.replace(/<[^>]+>/g, " "), "", 900);
   } else {
     const decoded = decodeReferenceDataUrl(asset.dataUrl);
@@ -6985,6 +7629,7 @@ function normalizeAiHtmlScheme(scheme, payload = {}, config = {}, providerConfig
     moduleMapping: cleanAiHtmlTextMap(source.moduleMapping),
     implementationContract,
     componentReferences,
+    layoutContract: normalizeAiHtmlLayoutContract(source.layoutContract),
     designNotes,
     html,
 	    css,
@@ -7270,6 +7915,41 @@ function categoryScore(value) {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
+function evaluateSkeletonSlotQuality(config = {}) {
+  const scheme = config?.skeletonHtmlScheme && typeof config.skeletonHtmlScheme === "object" ? config.skeletonHtmlScheme : null;
+  if (!scheme?.enabled && !scheme?.slots?.length && !scheme?.slotComponents) {
+    return { enabled: false, score: 100, issues: [], filledCount: 0, slotCount: 0 };
+  }
+  const slotComponents = scheme.slotComponents && typeof scheme.slotComponents === "object" ? scheme.slotComponents : {};
+  const slots = Array.isArray(scheme.slots) ? scheme.slots : [];
+  const issues = [];
+  const componentEntries = Object.entries(slotComponents);
+  componentEntries.forEach(([slot, rawComponent]) => {
+    const component = rawComponent && typeof rawComponent === "object" ? rawComponent.component || rawComponent : {};
+    if (!component.html && !component.css) return;
+    const family = component.family || HOMEPAGE_COMPONENT_REFERENCE_MODULE_MAP[canonicalHomeBlock(slot)] || "";
+    const componentIssues = generatedComponentQualityIssues(component, { family, slotContract: { id: slot } });
+    const referenceTier = cleanText(component.referenceTier, "", 24);
+    if (referenceTier === "blocked") componentIssues.push("组件 referenceTier=blocked，属于低分阻断引用。");
+    componentIssues.slice(0, 2).forEach((issue) => issues.push(`${slot}: ${issue}`));
+  });
+  const filledCount = componentEntries.filter(([, component]) => component?.html || component?.component?.html).length;
+  const slotCount = slots.length || componentEntries.length;
+  const emptyFilledSlots = slots.filter((slot) => ["filled", "locked", "final"].includes(cleanText(slot?.status, "", 24)) && !slotComponents[slot.id || slot.slot]?.html).length;
+  if (emptyFilledSlots) issues.push(`${emptyFilledSlots} 个 skeleton slot 标记为已填充但没有可渲染组件。`);
+  if (slotCount && filledCount < slotCount && ["review", "final"].includes(cleanText(scheme.status, "", 24))) {
+    issues.push(`骨架方案进入 ${scheme.status} 状态，但仍有 ${slotCount - filledCount} 个 slot 未填充。`);
+  }
+  const score = categoryScore(100 - Math.min(70, issues.length * 12 + emptyFilledSlots * 10 + Math.max(0, slotCount - filledCount) * 3));
+  return {
+    enabled: true,
+    score,
+    issues: [...new Set(issues)].slice(0, 10),
+    filledCount,
+    slotCount,
+  };
+}
+
 function evaluateHomepageAesthetic(payload = {}, config = {}) {
   const sourceConfig = config && typeof config === "object" ? config : {};
   const prompt = cleanText(payload.prompt || sourceConfig.prompt || "", "", 1200);
@@ -7282,8 +7962,9 @@ function evaluateHomepageAesthetic(payload = {}, config = {}) {
   const brickPlan = Array.isArray(sourceConfig.brickPlan) ? sourceConfig.brickPlan : [];
   const componentMorphs = sourceConfig.componentMorphs && typeof sourceConfig.componentMorphs === "object" ? sourceConfig.componentMorphs : {};
   const moduleStyles = sourceConfig.moduleStyles && typeof sourceConfig.moduleStyles === "object" ? sourceConfig.moduleStyles : {};
-  const htmlQuality = htmlScheme?.enabled || html || css ? evaluateAiHtmlQuality({ ...htmlScheme, html, css }, payload, sourceConfig) : null;
-  const componentRefs = beautifulComponentReferences({ prompt, limit: 8 });
+	  const htmlQuality = htmlScheme?.enabled || html || css ? evaluateAiHtmlQuality({ ...htmlScheme, html, css }, payload, sourceConfig) : null;
+  const skeletonQuality = evaluateSkeletonSlotQuality(sourceConfig);
+	  const componentRefs = beautifulComponentReferences({ prompt, limit: 8 });
   const sampleRefs = rankDesignSamplesForPrompt(prompt, 4).map(summarizeDesignSampleForPrompt);
   const feedbackRefs = feedbackMemoryPromptReference(prompt, 5);
   const strengths = [];
@@ -7316,7 +7997,7 @@ function evaluateHomepageAesthetic(payload = {}, config = {}) {
   const feedbackBoost = feedbackRefs.some((item) => ["approve", "like", "selected", "good"].includes(item.decision)) ? 8 : 0;
   const htmlQualityScore = htmlQuality ? htmlQuality.score : null;
 
-  const categories = [
+	  const categories = [
     {
       key: "visualFocus",
       label: "首屏视觉焦点",
@@ -7379,8 +8060,8 @@ function evaluateHomepageAesthetic(payload = {}, config = {}) {
         sourceConfig.dataContract ? "有数据契约" : "数据契约较弱",
       ],
     },
-    {
-      key: "responsiveSafety",
+	    {
+	      key: "responsiveSafety",
       label: "响应式与可发布安全",
       weight: 8,
       score: categoryScore((responsive ? 46 : 18) + (htmlScheme?.safetyStatus === "sanitized" || !htmlScheme?.enabled ? 30 : 12) + (htmlScheme?.isFallback ? 8 : 24)),
@@ -7388,11 +8069,23 @@ function evaluateHomepageAesthetic(payload = {}, config = {}) {
         responsive ? "有响应式/autoLayout" : "响应式证据不足",
         htmlScheme?.enabled ? `HTML 安全状态 ${htmlScheme.safetyStatus || "unknown"}` : "组件化安全路径",
       ],
-    },
-  ];
+	    },
+	  ];
+  if (skeletonQuality.enabled) {
+    categories.push({
+      key: "skeletonSlotQuality",
+      label: "骨架填充质量",
+      weight: 16,
+      score: skeletonQuality.score,
+      notes: [
+        `${skeletonQuality.filledCount}/${skeletonQuality.slotCount} 个 slot 已填充`,
+        skeletonQuality.issues[0] || "未发现空图表、低分组件或假图标",
+      ],
+    });
+  }
 
-  const totalWeight = categories.reduce((sum, item) => sum + item.weight, 0);
-  const score = categoryScore(categories.reduce((sum, item) => sum + item.score * item.weight, 0) / totalWeight + feedbackBoost);
+	  const totalWeight = categories.reduce((sum, item) => sum + item.weight, 0);
+	  const score = categoryScore(categories.reduce((sum, item) => sum + item.score * item.weight, 0) / totalWeight + feedbackBoost);
 
   categories.forEach((category) => {
     addIssue(category.score >= 70, `${category.label}偏弱：${category.notes.join("；")}`, `${category.label}需要补充可执行设计约束。`);
@@ -7407,11 +8100,15 @@ function evaluateHomepageAesthetic(payload = {}, config = {}) {
   addStrength(sampleRefs.length > 0, "已命中样本库页面和功能参考。");
   addStrength(feedbackRefs.length > 0, "已读取历史反馈偏好。");
 
-  if (htmlQuality?.issues?.length) {
-    htmlQuality.issues.slice(0, 3).forEach((issue) => issues.push(`AI HTML 质量门禁：${issue}`));
+	  if (htmlQuality?.issues?.length) {
+	    htmlQuality.issues.slice(0, 3).forEach((issue) => issues.push(`AI HTML 质量门禁：${issue}`));
+	  }
+  if (skeletonQuality.issues.length) {
+    skeletonQuality.issues.slice(0, 5).forEach((issue) => issues.push(`骨架填充质量：${issue}`));
+    suggestions.push("重新生成低分或占位 slot，优先引用同 family 高分积木，图表模块必须输出真实 SVG/data-chart/趋势结构。");
   }
 
-  return {
+	  return {
     label: "首页审美评分",
     score,
     status: scoreBand(score),
@@ -7496,7 +8193,10 @@ function evaluateHomepagePlanCritic(payload = {}, config = {}) {
 function homepageValidationHasBlockingErrors(validation = {}) {
   return Boolean(
     (Array.isArray(validation.missingRequiredModules) && validation.missingRequiredModules.length) ||
-      (Array.isArray(validation.invalidSections) && validation.invalidSections.length),
+      (Array.isArray(validation.invalidSections) && validation.invalidSections.length) ||
+      (Array.isArray(validation.duplicateHeroSections) && validation.duplicateHeroSections.length) ||
+      Boolean(validation.heroFocusMismatch) ||
+      (Array.isArray(validation.optionalModuleMismatch) && validation.optionalModuleMismatch.length),
   );
 }
 
@@ -7583,8 +8283,19 @@ function homepageProductWarnings(payload = {}, config = {}, guidedSnapshot = {})
     warnings.push("professional tier was converted to onboarding layout");
   }
 
-  if ((homepagePromptMentionsReferral(prompt) || homepagePayloadHasReferralDefault(payload) || selected.has("referral_link_card")) && !blocks.has("referral_link_card")) {
+  const referralExpected =
+    selected.has("referral_link_card") ||
+    homepagePayloadHasReferralDefault(payload) ||
+    (!guidedSnapshot.hasExplicitModuleSelection && homepagePromptMentionsReferral(prompt));
+  if (referralExpected && !blocks.has("referral_link_card")) {
     warnings.push("referral_link_card was mentioned but not selected");
+  }
+  if (guidedSnapshot.hasExplicitModuleSelection) {
+    const selectedOrRequired = new Set([...(guidedSnapshot.explicitBlocks || []), ...(guidedSnapshot.mustHave || [])]);
+    const unselectedVisible = [...blocks].filter((slot) => GUIDED_EXPLICIT_ONLY_BLOCKS.has(slot) && !selectedOrRequired.has(slot));
+    if (unselectedVisible.length) {
+      warnings.push(`unselected optional modules rendered: ${unselectedVisible.join(", ")}`);
+    }
   }
 
   if ((homepagePromptMentionsKycStatus(prompt) || selected.has("kyc_status_card")) && !blocks.has("kyc_status_card")) {
@@ -7609,13 +8320,19 @@ function finalizeHomepageQuality(payload = {}, config = {}, htmlScheme = null) {
   const modulePolicyScore = Number.isFinite(Number(validation.modulePolicy?.score ?? config.modulePolicyScore))
     ? Math.max(0, Math.min(100, Math.round(Number(validation.modulePolicy?.score ?? config.modulePolicyScore))))
     : 100;
-  const score = Math.min(baseScore, planCritic.score, modulePolicyScore);
+  const productPenalty = Math.min(24, productWarnings.length * 8);
+  const warningPenalty = Math.min(20, (validation.warnings || []).length * 4);
+  const score = Math.max(0, Math.min(baseScore, planCritic.score, modulePolicyScore) - productPenalty - warningPenalty);
   const blockingStructure = homepageValidationHasBlockingErrors(validation);
   const status = blockingStructure ? "needs-repair" : homepageQualityStatusFromScore(score);
   const structuralIssues = [
     ...(validation.missingRequiredModules || []).map((slot) => `缺少必选模块 ${slot}`),
     ...(validation.invalidSections || []).map((item) => `非法 section: ${item.section || item.reason}`),
+    ...(validation.duplicateHeroSections || []).map((item) => `重复 hero section: ${item.section || item.index}`),
+    ...(validation.optionalModuleMismatch || []).map((slot) => `未选择的选填模块仍然可见 ${slot}`),
+    ...(validation.warnings || []),
     ...(validation.modulePolicy?.warnings || []),
+    ...productWarnings.map((warning) => `产品约束: ${warning}`),
   ];
 
   return {
@@ -7716,11 +8433,22 @@ function mockAiHtmlScheme(payload = {}, config = {}, providerConfig = {}) {
     faq_section: `<section class="ai-html-faq" data-ai-html-module="faq_section"><header><span>faq_section</span><strong>FAQ 常见问题</strong></header><details open><summary>如何完成开户？</summary><p>先完成 KYC，再创建真实账户并准备首次入金。</p></details><details><summary>Demo 数据是否会发布？</summary><p>预览可用 Sample 数据，正式环境绑定后台数据。</p></details></section>`,
     risk_disclosure: `<section class="ai-html-risk-strip" data-ai-html-module="risk_disclosure"><strong>风险提示</strong><p>外汇和差价合约交易涉及高风险，杠杆可能放大亏损，请确认自身风险承受能力。</p></section>`,
   };
-  const moduleMarkup = orderedBlocks.map((block) => moduleMarkupByBlock[block]).filter(Boolean).join("\n");
+  const aiHtmlSpanForBlock = (block) => {
+    if (["trading_accounts_list", "trading_account_highlight", "wallet_list", "risk_disclosure"].includes(block)) return "12";
+    if (["referral_link_card", "support_contact", "app_download", "kyc_status_card"].includes(block)) return "4";
+    return "8";
+  };
+  const moduleMarkup = orderedBlocks
+    .map((block) => {
+      const markup = moduleMarkupByBlock[block];
+      return markup ? markup.replace("<section ", `<section data-ai-html-span="${aiHtmlSpanForBlock(block)}" `) : "";
+    })
+    .filter(Boolean)
+    .join("\n");
   const html = `
     <section class="ai-html-page ${sourceClass}" data-ai-html-theme="${theme}" data-ai-html-source="mock">
       ${hero}
-      <main class="ai-html-module-flow">
+      <main class="ai-html-module-flow" data-ai-html-grid="12">
         ${moduleMarkup}
       </main>
     </section>
@@ -7754,6 +8482,7 @@ function mockAiHtmlScheme(payload = {}, config = {}, providerConfig = {}) {
       css,
       dataBindings: bindings,
       requiredModules: requiredModules.map((item) => item.label),
+      layoutContract: normalizeAiHtmlLayoutContract(),
       implementationContract: requiredModules.map((item) => ({
         module: item.component,
         label: item.label,
@@ -7784,6 +8513,22 @@ function mockAiHtmlScheme(payload = {}, config = {}, providerConfig = {}) {
 function homepageBrickPlanItemForBlock(config = {}, block = "") {
   const canonical = canonicalHomeBlock(block);
   return (Array.isArray(config.brickPlan) ? config.brickPlan : []).find((item) => canonicalHomeBlock(item?.component || item?.feature || item?.brickId) === canonical) || null;
+}
+
+function normalizeAiHtmlLayoutContract(source = {}) {
+  const raw = source && typeof source === "object" ? source : {};
+  const rowRecipes = (Array.isArray(raw.rowRecipes) ? raw.rowRecipes : [])
+    .map((item) => cleanText(item, "", 24))
+    .filter(Boolean)
+    .slice(0, 8);
+  return {
+    gridColumns: HOME_GRID_COLUMNS,
+    desktopSpans: [12, 8, 6, 4],
+    rowRecipes: rowRecipes.length ? rowRecipes : HOME_GRID_ROW_RECIPES,
+    tablet: cleanText(raw.tablet, "single-column", 40),
+    mobile: cleanText(raw.mobile, "single-column", 40),
+    dataAttributes: ["data-ai-html-grid=\"12\"", "data-ai-html-span=\"12|8|6|4\""],
+  };
 }
 
 function selectHighScoreBrickForHomepageBlock(block, payload = {}, config = {}, usedIds = new Set()) {
@@ -8184,7 +8929,8 @@ function buildFreeAiHtmlPrompt(payload) {
     "你的第一任务是先自由生成一版可预览的 HTML/CSS 首页视觉方案，而不是先生成组件配置或复用固定模板；但这个自由必须建立在模块理解、组件库参考和设计 token 之上。",
     "必须遵守 design.md 设计治理：先锁住金融 CRM 骨架、组件语义、token、暗色/移动端和禁用项，再在信息层级、模块比例、状态细节和响应式上做美化。",
     "只输出一个能被 JSON.parse 解析的紧凑 JSON object，不要 markdown、代码块或解释。",
-    "必须返回字段 name、summary、visualBrief、moduleUnderstanding、requiredModules、moduleMapping、implementationContract、componentReferences、designNotes、html、css、dataBindings、safetyNotes、correctionNotes。",
+    "必须返回字段 name、summary、visualBrief、moduleUnderstanding、requiredModules、moduleMapping、implementationContract、componentReferences、layoutContract、designNotes、html、css、dataBindings、safetyNotes、correctionNotes。",
+    "12栏布局是硬约束：HTML 必须有 data-ai-html-grid=\"12\" 的 12 栏容器，模块区域用 data-ai-html-span=\"12/8/6/4\" 标注桌面宽度；只使用 12+0、8+4、6+6、4+8 行组合，移动端单列。",
     "允许自由决定首屏骨架、栅格比例、模块排列、视觉层级和信息密度；可以使用 editorial cover、trading console、wealth desk、onboarding journey、campaign poster、ops workspace 等完全不同结构。",
     "禁止每次都使用同一套 hero + 四按钮 + 两张卡片 + 账号表的骨架；本次方案必须根据管理员需求重建页面形态。",
     "必须先理解 requiredModules，每个要求模块都要在 HTML 中有可见表达；不能把 KYC、交易账号、账户表现、推广链接等业务要求简化成普通标题或空白卡片。",
@@ -8279,7 +9025,8 @@ function buildAiHtmlPrompt(payload, configScheme = {}, options = {}) {
     "只输出一个能被 JSON.parse 解析的紧凑 JSON object，不要 markdown、代码块或解释。",
     "这条通道用于在自由 HTML 生成失败或质量门禁不通过时，基于组件化配置、组件库参考和上一版问题生成一版更美观的 HTML/CSS 修正版。",
     "必须遵守 design.md 设计治理：漂亮不是自由堆装饰，而是让信息层级、间距、状态、图表/列表、空状态和响应式更成熟，同时保持金融 CRM 的克制气质。",
-    "必须返回字段 name、summary、visualBrief、moduleUnderstanding、requiredModules、moduleMapping、implementationContract、componentReferences、designNotes、html、css、dataBindings、safetyNotes、correctionNotes。",
+    "必须返回字段 name、summary、visualBrief、moduleUnderstanding、requiredModules、moduleMapping、implementationContract、componentReferences、layoutContract、designNotes、html、css、dataBindings、safetyNotes、correctionNotes。",
+    "12栏布局是硬约束：HTML 必须有 data-ai-html-grid=\"12\" 的 12 栏容器，模块区域用 data-ai-html-span=\"12/8/6/4\" 标注桌面宽度；只使用 12+0、8+4、6+6、4+8 行组合，移动端单列。",
     "HTML 只能使用 section/header/main/div/article/nav/a/button/span/small/strong/b/em/p/ul/ol/li/table/thead/tbody/tr/th/td/svg/path 等静态标签。",
     "禁止生成 JS、script、iframe、form、input、onclick/onload 等事件属性、外链脚本、外链字体、远程图片、javascript: URL。",
     "CSS 只能写当前 HTML 草稿需要的类，类名统一用 ai-html- 前缀；不要写 body/html 全局样式，不要 position:fixed。",
@@ -8388,7 +9135,8 @@ function buildMiniMaxAiHtmlPrompt(payload, configScheme = {}, options = {}) {
     "你是 ForexCRM 的 MiniMax 紧凑 AI HTML 设计师。",
     "只输出一个能被 JSON.parse 解析的 JSON object；第一个字符是 {，最后一个字符是 }。",
     "不要 markdown、代码块、解释、注释或 <think>。",
-	    "MiniMax 输出上限很小：必须返回 html、css、qualityScore、qualityStatus、correctionNotes；可选返回短 componentReferences 和 implementationContract，服务端会补齐冗长字段。",
+	    "MiniMax 输出上限很小：必须返回 html、css、qualityScore、qualityStatus、correctionNotes；可选返回短 componentReferences、implementationContract 和 layoutContract，服务端会补齐冗长字段。",
+	    "12栏布局是硬约束：HTML 根内容必须包含 data-ai-html-grid=\"12\"，模块用 data-ai-html-span=\"12/8/6/4\"；移动端单列。",
 	    "html <= 900 字符，css <= 760 字符，整个 JSON <= 1800 中文字符。",
 	    "HTML 只能用静态 section/header/main/div/article/nav/a/span/small/strong/b/p/ol/li；CSS 类名用 ai-html- 前缀，使用 var(--home-bg)、var(--home-card-bg)、var(--home-primary)、var(--home-text)、var(--home-border)、var(--home-radius-sm)。",
 	    "遵守 design.md 设计治理：金融 CRM、克制专业、信息层级清楚；不要营销式大 hero、随机渐变、厚重阴影或卡片套卡片。",
@@ -8470,7 +9218,7 @@ function buildMiniMaxAiHtmlPrompt(payload, configScheme = {}, options = {}) {
           "",
         ].join("\n")
       : "",
-    "返回示例形状:{\"html\":\"<section class=\\\"ai-html-page\\\"><header><strong>标题</strong></header><main><article data-ai-html-module=\\\"asset_overview\\\"><b>Sample</b></article></main></section>\",\"css\":\".ai-html-page{display:grid;gap:12px;background:var(--home-bg);color:var(--home-text)}@media(max-width:860px){.ai-html-page{grid-template-columns:1fr}}\",\"qualityScore\":74,\"qualityStatus\":\"needs-polish\",\"correctionNotes\":[\"MiniMax compact\"]}",
+    "返回示例形状:{\"html\":\"<section class=\\\"ai-html-page\\\"><header><strong>标题</strong></header><main data-ai-html-grid=\\\"12\\\"><article data-ai-html-module=\\\"asset_overview\\\" data-ai-html-span=\\\"12\\\"><b>Sample</b></article></main></section>\",\"css\":\".ai-html-page{display:grid;gap:12px;background:var(--home-bg);color:var(--home-text)}@media(max-width:860px){.ai-html-page{grid-template-columns:1fr}}\",\"layoutContract\":{\"gridColumns\":12,\"rowRecipes\":[\"12+0\",\"8+4\",\"6+6\",\"4+8\"]},\"qualityScore\":74,\"qualityStatus\":\"needs-polish\",\"correctionNotes\":[\"MiniMax compact\"]}",
     "现在只返回最终短 JSON。html 用一个 ai-html-page 根 section，并严格按 repairedConfig.sections 输出模块；css 必须包含 @media(max-width:860px)。",
   ].join("\n");
 
@@ -8501,7 +9249,8 @@ function buildCompactAiHtmlPrompt(payload, configScheme = {}, options = {}) {
 	  const system = [
 	    "你是 ForexCRM 的 AI HTML 页面设计师。",
 	    "只输出一个能被 JSON.parse 解析的 JSON object，不要 markdown、代码块、解释或 <think>。",
-	    "这是 Kimi/DeepSeek/Gemini 短输出通道：必须返回 html、css、qualityScore、qualityStatus、correctionNotes，可选 name、summary、componentReferences、implementationContract；服务端会补齐冗长字段。",
+	    "这是 Kimi/DeepSeek/Gemini 短输出通道：必须返回 html、css、qualityScore、qualityStatus、correctionNotes，可选 name、summary、componentReferences、implementationContract、layoutContract；服务端会补齐冗长字段。",
+	    "12栏布局是硬约束：HTML 根内容必须包含 data-ai-html-grid=\"12\"，模块用 data-ai-html-span=\"12/8/6/4\"；移动端单列。",
 	    "html <= 1800 字符，css <= 1500 字符，整个 JSON <= 3800 中文字符；宁可少写，也不要截断。",
 	    "必须遵守 design.md 设计治理：把漂亮控制在金融 CRM 规范内，先保证骨架、token、组件语义、暗色/移动端，再做细节美化。",
 	    "html/css 要短而完整：桌面端有清晰首屏和模块层级，移动端能单列降级；不要生成 JS、script、iframe、form、input、onclick/onload、远程图片或 javascript: URL。",
@@ -8601,7 +9350,7 @@ function buildCompactAiHtmlPrompt(payload, configScheme = {}, options = {}) {
           "",
         ].join("\n")
       : "",
-    "返回示例形状:{\"html\":\"<section class=\\\"ai-html-page\\\"><header><strong>新客开户</strong><a data-home-action=\\\"openAccount\\\" href=\\\"#open\\\">立即开户</a></header><main><article data-ai-html-module=\\\"onboarding_guide\\\"><b>KYC</b><span>Sample</span></article></main></section>\",\"css\":\".ai-html-page{display:grid;gap:14px;background:var(--home-bg);color:var(--home-text)}.ai-html-page a{display:inline-grid;place-items:center;padding:0 14px;border:1px solid var(--home-primary);border-radius:var(--home-radius-sm);background:var(--home-primary);color:#fff}@media(max-width:860px){.ai-html-page{grid-template-columns:1fr}}\",\"qualityScore\":78,\"qualityStatus\":\"needs-polish\",\"correctionNotes\":[\"compact html\"]}",
+    "返回示例形状:{\"html\":\"<section class=\\\"ai-html-page\\\"><header><strong>新客开户</strong><a data-home-action=\\\"openAccount\\\" href=\\\"#open\\\">立即开户</a></header><main data-ai-html-grid=\\\"12\\\"><article data-ai-html-module=\\\"onboarding_guide\\\" data-ai-html-span=\\\"8\\\"><b>KYC</b><span>Sample</span></article></main></section>\",\"css\":\".ai-html-page{display:grid;gap:14px;background:var(--home-bg);color:var(--home-text)}.ai-html-page a{display:inline-grid;place-items:center;padding:0 14px;border:1px solid var(--home-primary);border-radius:var(--home-radius-sm);background:var(--home-primary);color:#fff}@media(max-width:860px){.ai-html-page{grid-template-columns:1fr}}\",\"layoutContract\":{\"gridColumns\":12,\"rowRecipes\":[\"12+0\",\"8+4\",\"6+6\",\"4+8\"]},\"qualityScore\":78,\"qualityStatus\":\"needs-polish\",\"correctionNotes\":[\"compact html\"]}",
     "现在只返回最终短 JSON object。",
   ].join("\n");
 
@@ -8760,12 +9509,21 @@ function normalizeComposition(composition, payload = {}) {
   const now = new Date().toISOString();
   const layoutSource = Array.isArray(source.layout) ? source.layout : [];
   const layout = layoutSource
-    .map((item) => ({
-      componentId: cleanText(item?.componentId, "", 80),
-      size: normalizeComponentSize(item?.size, "2x1"),
-      zone: oneOfList(item?.zone, ["hero", "main", "rail", "full"], "main"),
-      reason: cleanText(item?.reason, "用于承接当前首页目标。", 180),
-    }))
+    .map((item) => {
+      const size = normalizeComponentSize(item?.size, "2x1");
+      const zone = oneOfList(item?.zone, ["hero", "main", "rail", "full"], "main");
+      const contract = normalizeComponentGridContract(item, size, { zone });
+      return {
+        componentId: cleanText(item?.componentId, "", 80),
+        size,
+        gridColumns: HOME_GRID_COLUMNS,
+        layoutSpan: contract.desktopSpan,
+        rowSpan: contract.rowSpan,
+        rowRecipe: contract.rowRecipe,
+        zone,
+        reason: cleanText(item?.reason, "用于承接当前首页目标。", 180),
+      };
+    })
     .filter((item) => item.componentId && (!validIds.size || validIds.has(item.componentId)))
     .slice(0, 12);
 
@@ -8926,6 +9684,7 @@ function buildComponentPrompt(payload) {
     "HTML 根元素必须使用 class，并且 CSS 必须只作用于该 class 范围，避免污染其他页面。",
     "圆角控制在 8px 或以下，避免营销式大圆角和装饰性渐变球。",
     "组件必须能作为积木参与首页布局，明确 size、layoutHints 和 dataRequirements。",
+    "组件必须同时返回 layoutContract，且 layoutContract.gridColumns=12；desktopSpan 必须按 1x=4、2x=8、3x+=12 映射，tabletSpan/mobileSpan=12，rowRecipe 使用 12+0/8+4/6+6/4+8。",
     `尺寸规则: ${COMPONENT_SIZE_GUIDE}`,
     "当推荐尺寸为 AI 自行选择时，必须结合“页面宽度/尺寸决策上下文”决定 size；功能越复杂、当前页面越宽，可把组件放大到 3x2、4x2、4x3、5x3 或合理 NxM，简单侧栏组件不要强行变大。",
     "组件布局必须能自适应容器宽度，避免固定大空白、空占位或依赖不可控高度撑开。",
@@ -8971,7 +9730,7 @@ function buildComponentPrompt(payload) {
     "需求:",
     prompt || "生成一个适合默认首页的专业金融组件。",
     "",
-    "请返回字段: name, family, size, description, tags, html, css, layoutHints, dataRequirements。",
+    "请返回字段: name, family, size, description, tags, html, css, layoutContract, layoutHints, dataRequirements。",
   ].join("\n");
 
   return { system, user, images: componentVisualReferenceImages(payload) };
@@ -9042,12 +9801,13 @@ function buildMiniMaxComponentPrompt(payload, config = {}) {
     "只输出一个严格 JSON object；第一个字符必须是 {，最后一个字符必须是 }。",
     "不要 markdown、代码块、解释、注释、<think> 或多余文本。",
     `这是 ${compactModeLabel} 短输出模式：必须输出短 JSON，避免截断。`,
-    "必须返回字段: name, family, size, description, tags, html, css, layoutHints, dataRequirements。",
+    "必须返回字段: name, family, size, description, tags, html, css, layoutContract, layoutHints, dataRequirements。",
     "html 和 css 必须是 JSON 字符串；请压缩为单行并正确转义双引号，禁止字符串内裸换行。",
     "html <= 1800 字符，css <= 2400 字符，description <= 80 字符，layoutHints/dataRequirements 各最多 4 项。",
     "HTML 根元素必须有稳定 class；CSS 只能写根 class 作用域；禁止 script、外链、iframe、图片 URL、表单提交和不安全属性。",
     "组件必须体现一种真实工艺：指标带、状态条、步骤连接、趋势图容器、操作坞、表格/列表、左右分栏或紧凑信息流。",
     "如果目标 size 是 AI 自行选择，必须按 layoutContext 的 pageWidth、maxColumns、functionalComplexity 和 recommendedSize 选最终 size。",
+    "layoutContract 是硬字段：gridColumns=12，desktopSpan 按 1x=4、2x=8、3x+=12，tabletSpan/mobileSpan=12。",
     "若紧凑参考里有 skeletonContract，只按其中的 pageDesign/slotContract 生成当前组件，不读取或补全整页结构。",
     "若 skeletonContract 含 pagePlan/parentGroup/role/visualWeight，按父级业务组生成内容片段；support/decision 或低权重组件降噪，禁止重卡片外壳和重复大标题。",
     "若紧凑参考里有 visualReference，按它的构图、密度、主色和控件层级做 ForexCRM 积木变体，不要复制图片原文和品牌。",
@@ -9074,6 +9834,7 @@ function buildMiniMaxComponentPrompt(payload, config = {}) {
       tags: [family, normalizeComponentSize(size, "2x1")],
       html: '<section class="fx-referral-card"><strong>推广链接</strong><p>开户链接来自后台配置</p><button type="button">复制链接</button></section>',
       css: ".fx-referral-card{display:grid;gap:12px;padding:16px;border:1px solid var(--home-border);border-radius:8px;background:var(--home-card-bg);color:var(--home-text)}.fx-referral-card button{min-height:36px;border-radius:8px}",
+      layoutContract: componentGridContractForSize(normalizeComponentSize(size, "2x1")),
       layoutHints: ["桌面紧凑填充", "移动端单列"],
       dataRequirements: ["inviteUrl", "inviteCode"],
     }),
@@ -9110,6 +9871,7 @@ function buildComponentEditPrompt(payload, component) {
     tags: component.tags,
     html: component.html,
     css: component.css,
+    layoutContract: component.layoutContract || componentGridContractForSize(component.size),
     layoutHints: component.layoutHints,
     dataRequirements: component.dataRequirements,
   };
@@ -9130,6 +9892,7 @@ function buildComponentEditPrompt(payload, component) {
     rootClass ? `HTML 根 class 必须继续使用 ${rootClass}，CSS 也必须继续限定在 .${rootClass} 下。` : "HTML 根元素必须继续使用一个稳定 class，CSS 必须限定在该 class 下。",
     "默认保留当前 family 和 size；只有用户明确要求改变尺寸或归属时才调整。",
     `如需调整尺寸，遵守尺寸规则: ${COMPONENT_SIZE_GUIDE}`,
+    "必须保留或返回 layoutContract；全部组件统一支持 12 栏首页栅格，desktopSpan 按 1x=4、2x=8、3x+=12 映射。",
     "默认保留当前组件里没有被用户点名修改的字段、按钮、业务信息和视觉层级。",
     "如果用户说“名字/名称/标题改成 X”，必须同时更新 name 和组件里最主要的可见标题为 X。",
     "组件内部只保留一个可见主标题；如果已有 strong/h1-h4 标题，移除上方 span/small/label 类 eyebrow 或分类小标题，数据行字段标签除外。",
@@ -9142,7 +9905,7 @@ function buildComponentEditPrompt(payload, component) {
     "HTML 根元素必须使用 class，并且 CSS 必须只作用于该 class 范围，避免污染其他页面。",
     "圆角控制在 8px 或以下，避免营销式大圆角和装饰性渐变球。",
     "不要使用 Primary Action、AI 样式、Sample、Lorem ipsum 这类无业务含义文案。",
-    "请返回字段: name, family, size, description, tags, html, css, layoutHints, dataRequirements, changeSummary。",
+    "请返回字段: name, family, size, description, tags, html, css, layoutContract, layoutHints, dataRequirements, changeSummary。",
   ].join("\n");
 
   const user = [
@@ -9194,6 +9957,7 @@ function buildMiniMaxComponentEditPrompt(payload, component, config = {}) {
     visibleText: cleanText(stripHtmlTags(component.html), "", 220),
     html: sanitizeGeneratedHtml(component.html).slice(0, 1800),
     css: sanitizeGeneratedCss(component.css).slice(0, 2200),
+    layoutContract: component.layoutContract || componentGridContractForSize(size),
     layoutHints: Array.isArray(component.layoutHints) ? component.layoutHints.slice(0, 4) : [],
     dataRequirements: Array.isArray(component.dataRequirements) ? component.dataRequirements.slice(0, 4) : [],
   };
@@ -9203,10 +9967,11 @@ function buildMiniMaxComponentEditPrompt(payload, component, config = {}) {
     "只输出一个严格 JSON object；第一个字符必须是 {，最后一个字符必须是 }。",
     "不要 markdown、代码块、解释、注释、<think> 或多余文本。",
     "这是 MiniMax 2048 completion token 短输出模式：返回完整替换版组件，但 html/css 要短。",
-    "必须返回字段: name, family, size, description, tags, html, css, layoutHints, dataRequirements, changeSummary。",
+    "必须返回字段: name, family, size, description, tags, html, css, layoutContract, layoutHints, dataRequirements, changeSummary。",
     "html 和 css 必须是 JSON 字符串；请压缩为单行并正确转义双引号，禁止字符串内裸换行。",
     rootClass ? `HTML 根 class 必须继续使用 ${rootClass}，CSS 也必须限定在 .${rootClass} 下。` : "HTML 根元素必须使用一个稳定 class，CSS 必须限定在该 class 下。",
     "保留当前业务能力，只调整用户点名的视觉层级、排版、密度或结构。",
+    "保留或返回 layoutContract：gridColumns=12，desktopSpan 按 1x=4、2x=8、3x+=12，移动端单列。",
     "若紧凑参考里有 skeletonContract，以原始 slot prompt 为基线叠加最新修改要求；不要补全整页结构。",
     "若 skeletonContract 含 pagePlan/parentGroup/role/visualWeight，继续作为父级业务组里的内容片段；support/decision 或低权重组件禁止新增重卡片外壳。",
     "禁止 script、外链、iframe、图片 URL、表单提交和不安全属性。",
@@ -9247,6 +10012,7 @@ function buildCompositionPrompt(payload) {
     "必须保证 asset_overview、quick_actions、trading_account_highlight、trading_accounts_list 或 onboarding_guide 至少有一条清晰路径。",
     "必须遵守 design.md 设计治理：组合美化只能通过骨架、比例、密度、状态和模块顺序完成，不靠随机装饰。",
     "组合必须按 auto layout 思路填满可用区域，避免孤立小积木单独占整行、空白区块或东缺一块西缺一块的拼版。",
+    "组合必须统一使用 12 栏桌面栅格；每个 layout item 返回 gridColumns=12、layoutSpan、rowSpan、rowRecipe，layoutSpan 按 1x=4、2x=8、3x+=12 映射。",
     `组合尺寸规则: ${COMPONENT_SIZE_GUIDE}`,
   ].join("\n");
 
@@ -9261,6 +10027,7 @@ function buildCompositionPrompt(payload) {
         name: item.name,
         family: item.family,
         size: item.size,
+        layoutContract: item.layoutContract || componentGridContractForSize(item.size),
         score: normalizeComponentScore(item.score, 5),
         description: item.description,
         tags: item.tags,
@@ -9279,7 +10046,7 @@ function buildCompositionPrompt(payload) {
       usePolicy: designGovernance.usePolicy,
     }),
     "",
-    "请返回字段: name, summary, layout[{componentId,size,zone,reason}], themeAdvice, polishInstructions。",
+    "请返回字段: name, summary, layout[{componentId,size,gridColumns,layoutSpan,rowSpan,rowRecipe,zone,reason}], themeAdvice, polishInstructions。",
   ].join("\n");
 
   return { system, user };
@@ -9835,7 +10602,7 @@ function buildHomepageModulePolicy(payload = {}) {
 
   if (hasGuidedSelection) {
     GUIDED_EXPLICIT_ONLY_BLOCKS.forEach((slot) => {
-      if (!explicitBlocks.has(slot) && !requiredSlots.has(slot) && !homepagePromptRequestsOptionalModule(slot, prompt)) {
+      if (!explicitBlocks.has(slot) && !requiredSlots.has(slot)) {
         block(slot, "未在引导式表单选择，禁止模型自动补入。");
       }
     });
@@ -9847,7 +10614,9 @@ function buildHomepageModulePolicy(payload = {}) {
     }
   });
 
-  if (pageGoal.id === "openAccount" && !homepageIsAgentRole(payload) && !homepagePromptRequestsOptionalModule("referral_link_card", prompt)) {
+  const guidedSelectedReferral = explicitBlocks.has("referral_link_card") || requiredSlots.has("referral_link_card");
+  const promptSelectedReferral = !hasGuidedSelection && homepagePromptRequestsOptionalModule("referral_link_card", prompt);
+  if (pageGoal.id === "openAccount" && !homepageIsAgentRole(payload) && !guidedSelectedReferral && !promptSelectedReferral) {
     block("referral_link_card", "pageGoal=openAccount 且 userRole 非 agent，且提示词未显式要求推广链接卡。");
   }
 
@@ -10382,11 +11151,19 @@ function applyHomepagePagePlan(config, payload = {}, actions = []) {
     mainVisual: pagePlan.mainVisual,
     visualHierarchy: pagePlan.visualHierarchy,
   };
-  const currentHeroFocus = canonicalHomeBlock(next.heroFocus);
-  const remainingBlocks = collectHomepageBlocks(next);
-  next.heroFocus = currentHeroFocus && remainingBlocks.includes(currentHeroFocus) ? currentHeroFocus : pagePlan.mainVisual;
-  return next;
-}
+	  const currentHeroFocus = canonicalHomeBlock(next.heroFocus);
+	  const remainingBlocks = collectHomepageBlocks(next);
+	  next.heroFocus = currentHeroFocus && remainingBlocks.includes(currentHeroFocus) ? currentHeroFocus : pagePlan.mainVisual;
+	  if (Array.isArray(next.sections) && homepageSectionsContainSlot(next.sections, "welcome_header")) {
+	    const beforeWelcomeFirst = next.sections.map(homepageSectionSignature).join("|");
+	    next.sections = enforceWelcomeFirstSection(next.sections, next.heroFocus);
+	    next.sections = enforceAssetOverviewHeroFocusSections(next.sections, next.heroFocus);
+	    if (next.sections.map(homepageSectionSignature).join("|") !== beforeWelcomeFirst && actions) {
+	      actions.push("已将欢迎模块固定到第一栏，并保持 heroFocus 在首屏核心区。");
+	    }
+	  }
+	  return next;
+	}
 
 function guidedIntakePromptLines(guidedIntake) {
   if (!guidedIntake) return [];
@@ -15109,9 +15886,9 @@ function mockGeneratedComponent(payload, providerConfig) {
   };
   const template = templates[family] || templates.ClientHomeAtoms;
 
-  return normalizeGeneratedComponent(
-    {
-      name: template.name,
+	  return normalizeGeneratedComponent(
+	    {
+	      name: template.name,
       family,
       size,
       description: `${template.description} 通过 ${providerConfig.name} / ${providerConfig.model} 生成。`,
@@ -15119,10 +15896,11 @@ function mockGeneratedComponent(payload, providerConfig) {
       html: template.html,
       css: template.css,
       layoutHints: [size, "可直接参与首页 hero/main/rail/full 编排", componentFamilySpec(family).purpose],
-      dataRequirements: template.dataRequirements,
-    },
-    payload,
-  );
+	      dataRequirements: template.dataRequirements,
+	    },
+	    payload,
+	    FRESH_GENERATED_COMPONENT_OPTIONS,
+	  );
 }
 
 function escapeHtmlText(value) {
@@ -15244,9 +16022,9 @@ function progressiveOnboardingComponent(payload, component, title, instruction) 
 	    @media(max-width:720px){.${rootClass} .onboarding-progress-steps{grid-template-columns:1fr}.${rootClass} .onboarding-progress-steps li:first-child{min-height:130px}}
 	  `;
 
-  return normalizeGeneratedComponent(
-    {
-      ...component,
+	  return normalizeGeneratedComponent(
+	    {
+	      ...component,
       id: component.id,
       name: title || component.name,
       description: cleanText(`${stripEditorArtifactsFromText(component.description) || "新客路径组件"} 已改为带编号、状态和连接线的渐进式开户路径。`, "", 260),
@@ -15261,9 +16039,10 @@ function progressiveOnboardingComponent(payload, component, title, instruction) 
       ...payload,
       family: component.family,
       size: component.size,
-      prompt: "",
-    },
-	  );
+	      prompt: "",
+	    },
+	    FRESH_GENERATED_COMPONENT_OPTIONS,
+		  );
 }
 
 function instructionRequestsComponentRestyle(instruction, payload = {}) {
@@ -15326,9 +16105,9 @@ function mockRestyledComponent(payload, component, title, instruction) {
     layoutHints = [...layoutHints, "restyled module blocks"];
   }
 
-  return normalizeGeneratedComponent(
-    {
-      ...component,
+	  return normalizeGeneratedComponent(
+	    {
+	      ...component,
       id: component.id,
       name: title || component.name,
       description: cleanText(`${stripEditorArtifactsFromText(component.description) || "首页积木组件"} 已按单模块补充 prompt 调整结构。`, "", 260),
@@ -15344,9 +16123,10 @@ function mockRestyledComponent(payload, component, title, instruction) {
       ...payload,
       family,
       size: component.size,
-      prompt: "",
-    },
-  );
+	      prompt: "",
+	    },
+	    FRESH_GENERATED_COMPONENT_OPTIONS,
+	  );
 }
 
 function mockEditedComponent(payload, component, providerConfig) {
@@ -15364,9 +16144,9 @@ function mockEditedComponent(payload, component, providerConfig) {
   const html = replacePrimaryTitle(component.html, nextName);
   const css = stripEditorArtifactsFromCss(component.css || "");
 
-  return normalizeGeneratedComponent(
-    {
-      ...component,
+	  return normalizeGeneratedComponent(
+	    {
+	      ...component,
       id: component.id,
       name: nextName || component.name,
       description: cleanText(
@@ -15384,9 +16164,10 @@ function mockEditedComponent(payload, component, providerConfig) {
       ...payload,
       family: component.family,
       size: component.size,
-      prompt: "",
-    },
-  );
+	      prompt: "",
+	    },
+	    FRESH_GENERATED_COMPONENT_OPTIONS,
+	  );
 }
 
 function mockComposition(payload, providerConfig) {
@@ -17171,9 +17952,9 @@ function strictWelcomeHeaderFallbackComponent(payload = {}, providerConfig = {})
   const family = "WelcomeHeader";
   const size = normalizeComponentSize(payload.size, autoComponentSizeForPayload(payload, family));
   const root = safeId(`WelcomeHeader-strict-${Date.now().toString(36)}`, "ai-brick");
-  return normalizeGeneratedComponent(
-    {
-      name: "极简欢迎登录条",
+	  return normalizeGeneratedComponent(
+	    {
+	      name: "极简欢迎登录条",
       family,
       size,
       description: `只展示客户姓名、问候语和最近登录时间的欢迎头部。通过 ${providerConfig.name || "local"} / ${providerConfig.model || "fallback"} 兜底生成。`,
@@ -17181,10 +17962,11 @@ function strictWelcomeHeaderFallbackComponent(payload = {}, providerConfig = {})
       html: `<section class="${root}" aria-label="欢迎头部"><div><strong>早安，张明</strong><span>欢迎回来</span></div><p><small>最近登录时间</small><b>2026-05-20 09:41</b></p></section>`,
       css: `.${root}{min-height:128px;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:18px;border:1px solid var(--home-border);border-radius:var(--home-radius-sm,8px);background:var(--home-card-bg);color:var(--home-text);font-family:Inter,system-ui,sans-serif}.${root} *{box-sizing:border-box}.${root} div{display:grid;gap:6px}.${root} strong{color:var(--home-text-strong);font-size:26px;font-weight:950;letter-spacing:0}.${root} span,.${root} small{color:var(--home-text-muted);font-size:13px;font-weight:850}.${root} p{display:grid;gap:5px;min-width:220px;margin:0;padding:12px 14px;border:1px solid var(--home-border);border-radius:var(--home-radius-sm,8px);background:var(--home-surface-soft)}.${root} b{color:var(--home-text-strong);font-size:15px;font-weight:950}@media(max-width:720px){.${root}{align-items:stretch;flex-direction:column}.${root} p{min-width:0;width:100%}}`,
       layoutHints: [size, "轻量整行欢迎头部", "只展示姓名、问候和最近登录时间"],
-      dataRequirements: ["customerName", "greeting", "lastLoginAt"],
-    },
-    payload,
-  );
+	      dataRequirements: ["customerName", "greeting", "lastLoginAt"],
+	    },
+	    payload,
+	    FRESH_GENERATED_COMPONENT_OPTIONS,
+	  );
 }
 
 function componentProviderFallbackComponent(payload, config, reason, options = {}) {
@@ -17243,34 +18025,39 @@ async function callComponentProvider(payload) {
       fallbackSource: component.sourceType === "brick-fallback" ? "brick-library" : "local-template",
       fallbackReason: reason,
     };
-  }
-  const normalized = normalizeGeneratedComponent(result.json, payload);
-  if (generatedComponentTooGeneric(normalized) || generatedComponentViolatesFamily(normalized, payload)) {
-    const reason = `${config.name} 已返回组件，但内容不符合当前 family 或业务字段要求，已引用积木库兜底。`;
-    const component = componentProviderFallbackComponent(payload, config, reason, { persist });
-    return {
-      component,
+	  }
+		  const normalized = normalizeGeneratedComponent(result.json, payload, FRESH_GENERATED_COMPONENT_OPTIONS);
+  const qualityIssues = generatedComponentQualityIssues(normalized, payload);
+	  if (generatedComponentTooGeneric(normalized) || generatedComponentViolatesFamily(normalized, payload) || qualityIssues.length) {
+	    const reason = qualityIssues.length
+      ? `${config.name} 已返回组件，但质量门禁未通过：${qualityIssues[0]} 已引用积木库兜底。`
+      : `${config.name} 已返回组件，但内容不符合当前 family 或业务字段要求，已引用积木库兜底。`;
+	    const component = componentProviderFallbackComponent(payload, config, reason, { persist });
+	    return {
+	      component,
       provider: result.provider,
       model: result.model,
       rawText: result.rawText,
       usage: result.usage,
       localFallback: true,
-      saved: persist && component.sourceType !== "brick-fallback",
-      draft: !persist,
-      fallbackSource: component.sourceType === "brick-fallback" ? "brick-library" : "local-template",
-      fallbackReason: reason,
-    };
-  }
-  const component = persist ? saveComponent(normalized) : normalized;
-  return {
-    component,
+	      saved: persist && component.sourceType !== "brick-fallback",
+	      draft: !persist,
+	      fallbackSource: component.sourceType === "brick-fallback" ? "brick-library" : "local-template",
+	      fallbackReason: reason,
+      qualityIssues,
+	    };
+	  }
+	  const component = persist ? saveComponent(normalized) : normalized;
+	  return {
+	    component,
     provider: result.provider,
     model: result.model,
-    rawText: result.rawText,
-    usage: result.usage,
-    saved: persist,
-    draft: !persist,
-  };
+	    rawText: result.rawText,
+	    usage: result.usage,
+    qualityIssues: [],
+	    saved: persist,
+	    draft: !persist,
+	  };
 }
 
 async function callComponentEditProvider(payload) {
@@ -17313,9 +18100,9 @@ async function callComponentEditProvider(payload) {
     };
   }
   const sourcePrompt = cleanText(currentComponent.sourcePrompt, "", 500);
-  const normalized = normalizeGeneratedComponent(
-    {
-      ...currentComponent,
+	  const normalized = normalizeGeneratedComponent(
+	    {
+	      ...currentComponent,
       ...result.json,
       id: currentComponent.id,
       createdAt: currentComponent.createdAt,
@@ -17323,18 +18110,22 @@ async function callComponentEditProvider(payload) {
     {
       ...payload,
       family: result.json.family || currentComponent.family,
-      size: result.json.size || currentComponent.size,
-      prompt: sourcePrompt,
-    },
-  );
-  const violatesFamily = generatedComponentViolatesFamily(normalized, { ...payload, family: currentComponent.family });
-  if (generatedComponentTooGeneric(normalized) || violatesFamily) {
-    const reason = violatesFamily
-      ? `${config.name} 已返回编辑结果，但偏离原组件 family，已引用同类积木兜底。`
-      : `${config.name} 已返回编辑结果，但内容过于通用，已引用组件库积木兜底。`;
-    const fallbackPayload = {
-      ...payload,
-      prompt: payload.instruction || currentComponent.sourcePrompt || currentComponent.description,
+	      size: result.json.size || currentComponent.size,
+	      prompt: sourcePrompt,
+	    },
+	    FRESH_GENERATED_COMPONENT_OPTIONS,
+		  );
+	  const violatesFamily = generatedComponentViolatesFamily(normalized, { ...payload, family: currentComponent.family });
+  const qualityIssues = generatedComponentQualityIssues(normalized, { ...payload, family: currentComponent.family });
+	  if (generatedComponentTooGeneric(normalized) || violatesFamily || qualityIssues.length) {
+	    const reason = violatesFamily
+	      ? `${config.name} 已返回编辑结果，但偏离原组件 family，已引用同类积木兜底。`
+	      : qualityIssues.length
+          ? `${config.name} 已返回编辑结果，但质量门禁未通过：${qualityIssues[0]} 已引用组件库积木兜底。`
+          : `${config.name} 已返回编辑结果，但内容过于通用，已引用组件库积木兜底。`;
+	    const fallbackPayload = {
+	      ...payload,
+	      prompt: payload.instruction || currentComponent.sourcePrompt || currentComponent.description,
       family: currentComponent.family,
       size: currentComponent.size,
     };
@@ -17345,20 +18136,22 @@ async function callComponentEditProvider(payload) {
       model: result.model,
       rawText: result.rawText,
       usage: result.usage,
-      localFallback: true,
-      fallbackSource: component.sourceType === "brick-fallback" ? "brick-library" : "local-template",
-      fallbackReason: reason,
-    };
-  }
-  const component = saveComponent(normalized);
+	      localFallback: true,
+	      fallbackSource: component.sourceType === "brick-fallback" ? "brick-library" : "local-template",
+	      fallbackReason: reason,
+      qualityIssues,
+	    };
+	  }
+	  const component = saveComponent(normalized);
   return {
     component,
     provider: result.provider,
-    model: result.model,
-    rawText: result.rawText,
-    usage: result.usage,
-  };
-}
+	    model: result.model,
+	    rawText: result.rawText,
+	    usage: result.usage,
+    qualityIssues: [],
+	  };
+	}
 
 async function callCompositionProvider(payload) {
   const config = normalizeProviderConfig(payload.modelConfig);
@@ -17778,10 +18571,15 @@ async function handleComponentGenerate(req, res) {
       status: result.localFallback ? "fallback" : "success",
       mock: Boolean(result.mock),
       durationMs: Date.now() - startedAt,
-      prompt: safeRecordText(payload.prompt),
-      message: result.localFallback ? result.fallbackReason || result.component?.name || "组件生成已回退" : result.component?.name || "组件生成成功",
-      usage: result.usage || null,
-    });
+	      prompt: safeRecordText(payload.prompt),
+	      message: result.localFallback ? result.fallbackReason || result.component?.name || "组件生成已回退" : result.component?.name || "组件生成成功",
+	      usage: result.usage || null,
+      qualityIssues: Array.isArray(result.qualityIssues) ? result.qualityIssues.slice(0, 6) : [],
+      responseJson: {
+        component: safeRecordJsonValue(result.component, { stringLimit: 30000, arrayLimit: 80, maxDepth: 7 }),
+        slotPromptContract: safeRecordJsonValue(payload.slotPromptContract, { stringLimit: 30000, arrayLimit: 80, maxDepth: 8 }),
+      },
+	    });
     sendJson(res, 200, { ok: true, ...result, library: readComponentLibrary(), callRecord });
   } catch (error) {
     if (payload) {
@@ -17837,10 +18635,15 @@ async function handleComponentEdit(req, res) {
       status: result.localFallback ? "fallback" : "success",
       mock: Boolean(result.mock),
       durationMs: Date.now() - startedAt,
-      prompt: safeRecordText(payload.instruction || payload.prompt),
-      message: result.localFallback ? result.fallbackReason || result.component?.name || "组件编辑已回退" : result.component?.name || "组件编辑成功",
-      usage: result.usage || null,
-    });
+	      prompt: safeRecordText(payload.instruction || payload.prompt),
+	      message: result.localFallback ? result.fallbackReason || result.component?.name || "组件编辑已回退" : result.component?.name || "组件编辑成功",
+	      usage: result.usage || null,
+      qualityIssues: Array.isArray(result.qualityIssues) ? result.qualityIssues.slice(0, 6) : [],
+      responseJson: {
+        component: safeRecordJsonValue(result.component, { stringLimit: 30000, arrayLimit: 80, maxDepth: 7 }),
+        slotPromptContract: safeRecordJsonValue(payload.slotPromptContract, { stringLimit: 30000, arrayLimit: 80, maxDepth: 8 }),
+      },
+	    });
     sendJson(res, 200, { ok: true, ...result, library: readComponentLibrary(), callRecord });
   } catch (error) {
     if (payload) {
@@ -18168,6 +18971,18 @@ const requestHandler = async (req, res) => {
       ok: true,
       records: [],
     });
+    return;
+  }
+
+  if (req.method === "POST" && requestUrl.pathname === "/api/home-ai/golden-sample/analyze") {
+    try {
+      const payload = await readJsonBody(req);
+      const analysis = buildGoldenSampleAnalysis(payload);
+      sendJson(res, 200, { ok: true, analysis });
+    } catch (error) {
+      const status = error.statusCode && error.statusCode >= 400 && error.statusCode < 600 ? error.statusCode : 500;
+      sendJson(res, status, { ok: false, error: error.message || "Golden sample analysis failed" });
+    }
     return;
   }
 

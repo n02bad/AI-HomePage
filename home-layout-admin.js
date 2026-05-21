@@ -1036,15 +1036,26 @@
     );
   }
 
-  function aestheticPreferenceSignals(score, decision, evidence) {
-    const categories = Array.isArray(aestheticScoreState.report?.categories) ? aestheticScoreState.report.categories : [];
-    return [
-      `人工审美分 ${score}/100`,
-      decision === "approve" ? "保留类似首页结构和视觉层级" : "",
-      decision === "reject" ? "避免类似首页结构和视觉层级" : "",
-      evidence?.code?.renderedHtml ? "评分证据包含当前首页 DOM 代码快照" : "评分证据包含当前首页配置代码",
-      ...categories.slice(0, 4).map((category) => `${category.label || category.key} 机器参考 ${normalizeAestheticManualScore(category.score)}/100`),
-    ]
+	  function aestheticPreferenceSignals(score, decision, evidence) {
+	    const categories = Array.isArray(aestheticScoreState.report?.categories) ? aestheticScoreState.report.categories : [];
+    const reportIssues = Array.isArray(aestheticScoreState.report?.issues) ? aestheticScoreState.report.issues : [];
+    const machineSignals =
+      decision === "reject"
+        ? [
+            ...categories
+              .filter((category) => Number(category.score) < 70)
+              .slice(0, 3)
+              .map((category) => `${category.label || category.key} 机器发现偏弱 ${normalizeAestheticManualScore(category.score)}/100`),
+            ...reportIssues.slice(0, 3).map((issue) => `机器问题：${issue}`),
+          ]
+        : categories.slice(0, 4).map((category) => `${category.label || category.key} 机器参考 ${normalizeAestheticManualScore(category.score)}/100`);
+	    return [
+	      `人工审美分 ${score}/100`,
+	      decision === "approve" ? "保留类似首页结构和视觉层级" : "",
+	      decision === "reject" ? "避免类似首页结构和视觉层级" : "",
+	      evidence?.code?.renderedHtml ? "评分证据包含当前首页 DOM 代码快照" : "评分证据包含当前首页配置代码",
+	      ...machineSignals,
+	    ]
       .filter(Boolean)
       .slice(0, 10);
   }
@@ -1365,6 +1376,32 @@
     if (slot.sectionType === "hero" || slot.sectionType === "full") return "3x1";
     if (slot.sectionType === "rail") return "1x1";
     return "2x1";
+  }
+
+  function skeletonSlotLayoutContract(slot = {}) {
+    const size = skeletonSlotSize(slot);
+    if (typeof home.homeGridContractForSize === "function") {
+      return home.homeGridContractForSize(size, {
+        slot: slot.id || slot.slot || "",
+        zone: slot.sectionType || "",
+        sectionType: slot.sectionType || "",
+      });
+    }
+    const columns = Number(String(size).split("x")[0]) || 2;
+    const rows = Number(String(size).split("x")[1]) || 1;
+    const desktopSpan = columns >= 3 ? 12 : columns >= 2 ? 8 : 4;
+    return {
+      gridColumns: 12,
+      size,
+      desktopSpan,
+      tabletSpan: 12,
+      mobileSpan: 12,
+      rowSpan: rows,
+      rowRecipe: desktopSpan >= 12 ? "12+0" : desktopSpan === 8 ? "8+4" : "4+8",
+      zone: slot.sectionType || "",
+      slot: slot.id || slot.slot || "",
+      sectionType: slot.sectionType || "",
+    };
   }
 
   function skeletonComponentMatchesSlotFamily(component, family) {
@@ -2146,6 +2183,7 @@
       "不要重复 sectionTitle 或 parentGroup 标题；除非 slot 是 primary/featured，否则组件标题保持短小、低干扰。",
       "生成 HTML 时优先把 title、metrics、actions、list/chart 当作当前 slot 的内容片段；不要每个 slot 都重复大标题区、厚边框、白卡片和强阴影。",
       "组件库评分规则：8-10 分强参考，6-7 分适度参考，5 分及以下禁止参考。",
+      "12栏布局硬约束：当前组件必须能嵌入 ForexCRM 首页 12 栏桌面栅格；1x=4/12 栏、2x=8/12 栏、3x及以上=12/12 栏，移动端统一单列。",
       "结构要求：至少体现一种明确组件工艺，例如指标带、状态条、步骤连接、趋势图容器、操作坞、表格/列表、左右分栏或紧凑信息流。",
       slot.id === "risk_disclosure" || slot.id === "risk_notice"
         ? "风险提示硬性要求：只能生成风险披露、杠杆风险、保证金风险、亏损风险、合规说明；不要生成资产概览、账户余额、入金、开户或营销活动组件。"
@@ -2192,12 +2230,20 @@
         heroFocus: normalized.heroFocus ? home.featureLabel(normalized.heroFocus) : "",
         designContract,
         pagePlan,
+        layoutContract: {
+          gridColumns: 12,
+          desktopRows: ["12+0", "8+4", "6+6", "4+8"],
+          tablet: "single-column",
+          mobile: "single-column",
+          sizeMapping: "1x=4/12, 2x=8/12, 3x+=12/12",
+        },
       },
       slotContract: {
         id: slot.id,
         label: slot.label || home.featureLabel(slot.id),
         family: skeletonSlotFamily(slot.id),
         size: skeletonSlotSize(slot),
+        layoutContract: skeletonSlotLayoutContract(slot),
         sectionTitle: slot.sectionTitle || slot.sectionId || "首页区域",
         sectionType: slot.sectionType || "full",
         variant: slot.variant || "",
@@ -2226,6 +2272,7 @@
     return [
       "骨架 HTML 单 slot 生成契约 v2:",
       "只填充当前 slot。全页一致性来自 pageDesign.designContract；当前组件要求来自 slotContract。",
+      "布局硬约束：所有组件和 AI 首页都统一使用 12 栏桌面栅格；slotContract.layoutContract.desktopSpan 是当前组件在桌面容器内的宽度，移动端必须单列。",
       "全局设计契约:",
       compactPromptJson(contract.pageDesign, 1200),
       "",
@@ -2332,6 +2379,7 @@
               .filter(Boolean)
               .join("\n"),
             originalSlotPrompt: slotPromptContract.originalSlotPrompt,
+            layoutContext: slotPromptContract.slotContract.layoutContract,
             pageDesignContract: slotPromptContract.pageDesign,
             slotContract: slotPromptContract.slotContract,
             slotPromptContract,
@@ -2354,6 +2402,7 @@
             family,
             size,
             originalSlotPrompt: slotPromptContract.originalSlotPrompt,
+            layoutContext: slotPromptContract.slotContract.layoutContract,
             pageDesignContract: slotPromptContract.pageDesign,
             slotContract: slotPromptContract.slotContract,
             slotPromptContract,
@@ -2550,7 +2599,7 @@
     level: {
       basic: "基础版，保留首屏和核心说明",
       growth: "增长版，在基础能力上加入活动权益、按钮和转化承接",
-      pro: "专业版，加入账号、资产、推广链接、数据指标或更完整的运营模块",
+      pro: "专业版，加入账号、资产、数据指标或更完整的运营模块",
     },
     layoutDensity: {
       compact: "紧凑布局：压缩模块高度、留白和说明文字，提高首屏信息密度，适合高频操作和移动端优先首页",
@@ -2564,21 +2613,21 @@
       refinedPolish: "运营高亮：突出 Banner、活动、CTA 和关键运营模块，使用更高对比的强调色、权益标签和视觉焦点，但不编造活动数据或下载/联系方式",
     },
     modules: {
-      welcomeModule: "欢迎模块：必须在页面的第一栏，展示见客户姓名、问候",
-      heroBanner: "首页 Banner / 广告轮播：多张广告轮播图，需要具备自动切换和下一张控制；用 promo_banner 作为首页积木承接",
-      accountOverview: "账户概览：使用 asset_overview 展示账户摘要，包含账户余额，钱包余额，交易账号余额，单位：USD，可以参考积木块",
-      quickActions: "快捷入口：展示操作入口，4-10个快捷入口位置，icon或者icon+文字，样式可自行发挥",
-      openingFlow: "新手 Onboarding 引导：KYC -> 开真实账户 -> 首次入金 -> 首次交易，帮助新用户完成基础流程，其中首次交易可要可不要",
-      accountBenefits: "交易表现：说明真实账户的交易表现，左右结构。左侧展示真实交易账号的基础信息，右侧展示净值折线图(7d、30d)",
+      welcomeModule: "欢迎模块：必须在页面的第一栏，展示客户姓名、问候语、最近登录时间",
+      heroBanner: "广告轮播图：多张广告轮播图，整体组件需要支持轮播及切换下一张；用 promo_banner 作为首页积木承接",
+      accountOverview: "账户概览：使用 asset_overview 展示账户摘要，包含账户余额，钱包余额，交易账号余额，单位：USD",
+      quickActions: "快捷入口：展示操作入口，4-10个快捷入口位置，icon或者icon+文字",
+      openingFlow: "新手 Onboarding 引导：KYC -> 开真实账户 -> 首次入金 -> 首次交易，帮助新用户完成基础流程，其中首次交易可选；需要有进度的风格，营销的感觉",
+      accountBenefits: "交易表现：说明Live交易账户的交易表现，左右结构；栏目左侧显示交易账号信息：账号、平台、服务器，余额、净值、信用金、已用保证金、保证金比例、杠杆信息。右侧展示净值面积图echart图表(7D/30D),PnL面积图Echart图表组件。(7D/30D)；这两个面积图优先展示净值面积图，可以点击tab切换至PnL面积图。底部走势摘要条与操作入口形成闭环；在12栏的布局中，必须8+4或者12+0的布局",
       walletList: "钱包列表/卡片：使用 wallet_list 独立模块展示多币种钱包卡片，只展示钱包货币、币种图标和钱包余额，不把多币种明细塞到账户概览",
-      kycGuide: "CRM 账户 KYC 状态：未提交、待审、通过、拒绝；只展示当前状态,未提交时补充展示去提交按钮，拒绝是展示再次提交",
-      pammProducts: "PAMM 产品推荐区，独立的 pamm_products 模块，，展示PAMM产品名称、收益率、收益率折线图。仅在租户开启 PAMM 且接口返回产品时展示,演示界面可制造数据，风格可参考币安",
-      copyTrading: "CopyTrading 信号源推荐区，使用独立的 copytrading_signals 模块，展示信号源名称、收益率、总收益(USD)、最大回撤、收益率折线图仅在租户开启 CopyTrading 且接口返回信号源时展示，演示界面可制造数据，风格可参考币安",
+      kycGuide: "KYC状态：未提交、待审、通过、拒绝；只展示当前状态,未提交时补充展示去提交按钮，拒绝是展示再次提交；可以是小卡片，如果展示此项，可以塞进欢迎模块一起展示",
+      pammProducts: "PAMM 产品推荐区，独立的 pamm_products 模块，展示3个PAMM产品卡片，展示PAMM产品名称、收益率、收益率折线图。仅在租户开启 PAMM 且接口返回产品时展示，缺少数据时隐藏对应指标或显示占位",
+      copyTrading: "热门信号源：宽松布局，在12栏的布局中，必须8+4或者12+0的布局，展示3个推荐的跟单信号源卡片，至少需要展示信号源名称、收益率、收益率面积图Echarts(30d)，模拟的面积图要看起来真实，吸引人，扁平化",
       rewardActivity: "奖励活动专题区，使用活动 Banner、奖励权益、参与步骤和活动 CTA 承接转化",
-      referralLink: "推广链接：参考 ReferralLinkCard 积木字段，链接、邀请码优先展示、二维码，数据统计可要可不要",
+      referralLink: "推广链接：展示推广链接信息：链接名称、链接地址(必须)、邀请码(可选)；链接地址与邀请码栏目中有复制按钮，可以复制。统计信息(可选展示)：点击数、注册数、开户数；可以参考 ReferralLinkCard 积木字段",
       tradingAccounts: "交易账号列表：必须同时包含真实交易账号和模拟交易账号的列表，列表可参考交易账号积木块，列表或卡片形式皆可",
-      faq: "FAQ 常见问题：展示一些平台设置的常见问题，demo 可以放 4-10 条",
-      riskDisclosure: "风险提示：展示一段风险解释的文案",
+      faq: "FAQ 常见问题：展示4-10条一些外汇平台的常见问题,通用样式;这个模块是弱化模块，放到倒数的栏目",
+      riskDisclosure: "风险提示：展示一段风险解释的文案，这个模块是弱化模块，放到最后一栏",
     },
     theme: {
       blueFinance: "蓝色金融，清爽专业",

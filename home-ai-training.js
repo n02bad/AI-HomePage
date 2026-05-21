@@ -71,6 +71,9 @@
     sampleFilterTheme: document.querySelector("[data-sample-filter-theme]"),
     sampleLibraryList: document.querySelector("[data-sample-library-list]"),
     goldenFile: document.querySelector("[data-golden-file]"),
+    analyzeGoldenFiles: document.querySelector("[data-analyze-golden-files]"),
+    goldenAnalysisStatus: document.querySelector("[data-golden-analysis-status]"),
+    goldenAnalysisSummary: document.querySelector("[data-golden-analysis-summary]"),
     goldenName: document.querySelector("[data-golden-name]"),
     referenceUpgradeSelect: document.querySelector("[data-reference-upgrade-select]"),
     goldenPrompt: document.querySelector("[data-golden-prompt]"),
@@ -128,6 +131,8 @@
     references: [],
     pendingFiles: [],
     goldenPendingFile: null,
+    goldenPendingFiles: [],
+    goldenAnalysis: null,
     editingSampleId: "",
     sampleFilters: {
       scenario: "",
@@ -1125,19 +1130,114 @@
     showToast("人工评分和反馈已保存，后续生成会参考");
   }
 
+  function inferredMimeForFile(file) {
+    const name = String(file?.name || "");
+    if (file?.type) return file.type;
+    if (/\.html?$/i.test(name)) return "text/html";
+    if (/\.css$/i.test(name)) return "text/css";
+    if (/\.(mjs|cjs|js)$/i.test(name)) return "text/javascript";
+    if (/\.txt$/i.test(name)) return "text/plain";
+    return "application/octet-stream";
+  }
+
+  function isTextDesignFile(file) {
+    const source = `${file?.type || ""} ${file?.name || ""}`;
+    return /html|css|javascript|ecmascript|text|json|xml|\.html?$|\.css$|\.mjs$|\.cjs$|\.js$|\.txt$/i.test(source);
+  }
+
+  function imageElementFromDataUrl(dataUrl) {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.addEventListener("load", () => resolve(image));
+      image.addEventListener("error", () => reject(new Error("图片无法解析")));
+      image.src = dataUrl;
+    });
+  }
+
+  function rgbToHex(r, g, b) {
+    return `#${[r, g, b].map((value) => Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, "0")).join("")}`;
+  }
+
+  function analyzeImageColors(image) {
+    const canvas = document.createElement("canvas");
+    const maxSide = 72;
+    const scale = Math.min(1, maxSide / Math.max(image.naturalWidth || image.width, image.naturalHeight || image.height, 1));
+    canvas.width = Math.max(1, Math.round((image.naturalWidth || image.width || 1) * scale));
+    canvas.height = Math.max(1, Math.round((image.naturalHeight || image.height || 1) * scale));
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) return { dominantColors: [], brightness: "unknown" };
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    const buckets = new Map();
+    let lightness = 0;
+    let counted = 0;
+    for (let index = 0; index < pixels.length; index += 16) {
+      const alpha = pixels[index + 3];
+      if (alpha < 180) continue;
+      const r = pixels[index];
+      const g = pixels[index + 1];
+      const b = pixels[index + 2];
+      const key = [r, g, b].map((value) => Math.round(value / 32) * 32).join(",");
+      buckets.set(key, (buckets.get(key) || 0) + 1);
+      lightness += (r + g + b) / 3;
+      counted += 1;
+    }
+    const dominantColors = [...buckets.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([key]) => rgbToHex(...key.split(",").map(Number)));
+    const averageLightness = counted ? lightness / counted : 128;
+    return {
+      dominantColors,
+      brightness: averageLightness >= 190 ? "light" : averageLightness <= 80 ? "dark" : "balanced",
+    };
+  }
+
+  function layoutHintForImage(width, height) {
+    if (!width || !height) return "未知比例";
+    const ratio = width / height;
+    if (ratio >= 2.4) return "超宽横幅，适合首屏条幅、指标带或横向工作台";
+    if (ratio >= 1.35) return "横向界面，适合左右分栏、宽卡片和仪表盘首屏";
+    if (ratio <= 0.72) return "竖向界面，适合移动端、侧栏或表单型结构";
+    return "接近方形，适合信息卡、状态面板或局部功能组件";
+  }
+
+  async function enrichImagePayload(payload) {
+    if (!/^image\//i.test(payload.mime || "") || !payload.dataUrl) return payload;
+    try {
+      const image = await imageElementFromDataUrl(payload.dataUrl);
+      const width = image.naturalWidth || image.width || 0;
+      const height = image.naturalHeight || image.height || 0;
+      const colors = analyzeImageColors(image);
+      return {
+        ...payload,
+        width,
+        height,
+        aspectRatio: width && height ? `${(width / height).toFixed(2)}:1` : "",
+        layoutHint: layoutHintForImage(width, height),
+        dominantColors: colors.dominantColors,
+        brightness: colors.brightness,
+      };
+    } catch (error) {
+      return payload;
+    }
+  }
+
   function readFilePayload(file) {
-    const isText = /html|text/i.test(file.type) || /\.html?$/i.test(file.name);
+    const isText = isTextDesignFile(file);
+    const mime = inferredMimeForFile(file);
     const reader = new FileReader();
     return new Promise((resolve, reject) => {
       reader.onerror = () => reject(new Error(`读取 ${file.name} 失败`));
-      reader.onload = () => {
-        resolve({
+      reader.onload = async () => {
+        const payload = {
           name: file.name,
-          mime: file.type || (isText ? "text/html" : "application/octet-stream"),
+          mime,
           size: file.size,
           dataUrl: isText ? "" : String(reader.result || ""),
           textContent: isText ? String(reader.result || "") : "",
-        });
+        };
+        resolve(await enrichImagePayload(payload));
       };
       if (isText) reader.readAsText(file);
       else reader.readAsDataURL(file);
@@ -1205,15 +1305,113 @@
     };
   }
 
+  function selectedGoldenFiles() {
+    return (state.goldenPendingFiles.length ? state.goldenPendingFiles : [...(els.goldenFile?.files || [])]).slice(0, 3);
+  }
+
+  function setGoldenAnalysisStatus(message) {
+    if (els.goldenAnalysisStatus) els.goldenAnalysisStatus.textContent = message;
+  }
+
+  function fillFieldIfEmpty(input, value) {
+    if (!input || !value) return;
+    if (!String(input.value || "").trim()) input.value = value;
+  }
+
+  function applyGoldenAnalysisToForm(analysis) {
+    if (!analysis) return;
+    fillFieldIfEmpty(els.goldenName, analysis.name);
+    fillFieldIfEmpty(els.goldenPrompt, analysis.prompt);
+    fillFieldIfEmpty(els.goldenPageIntent, analysis.pageIntent);
+    fillFieldIfEmpty(els.goldenThemePreset, analysis.themePreset);
+    fillFieldIfEmpty(els.goldenVisualStyle, analysis.visualStyle);
+    fillFieldIfEmpty(els.goldenApplicable, (analysis.applicableScenarios || []).join(", "));
+    fillFieldIfEmpty(els.goldenWhyGood, analysis.whyGood);
+    fillFieldIfEmpty(els.goldenWhyBad, analysis.whyBad);
+    fillFieldIfEmpty(els.goldenForbiddenReuse, analysis.forbiddenReuse);
+    if (els.goldenHumanScore && analysis.humanScore) {
+      els.goldenHumanScore.value = String(analysis.humanScore);
+      if (els.goldenHumanScoreOutput) els.goldenHumanScoreOutput.textContent = els.goldenHumanScore.value;
+    }
+    const mergedTags = [...new Set([...readScenarioCheckboxes(els.goldenScenarioTags), ...(analysis.scenarioTags || [])])];
+    renderScenarioCheckboxes(els.goldenScenarioTags, mergedTags);
+    if (els.goldenDimensions && analysis.scoreDimensions) {
+      els.goldenDimensions.innerHTML = dimensionInputsHtml(analysis.scoreDimensions, "data-golden-dimension");
+      bindRangeOutputs(els.goldenDimensions);
+    }
+  }
+
+  function renderGoldenAnalysisSummary(analysis) {
+    if (!els.goldenAnalysisSummary) return;
+    if (!analysis) {
+      els.goldenAnalysisSummary.hidden = true;
+      els.goldenAnalysisSummary.innerHTML = "";
+      return;
+    }
+    const files = (analysis.sourceFileSummary || []).slice(0, 3);
+    const patterns = (analysis.goodPatterns || []).slice(0, 5);
+    const functions = (analysis.functions || []).map((item) => item.name).filter(Boolean).slice(0, 6);
+    els.goldenAnalysisSummary.hidden = false;
+    els.goldenAnalysisSummary.innerHTML = `
+      <h4>${escapeHtml(analysis.name || "自动提取结果")}</h4>
+      <p>${escapeHtml(analysis.page?.layout || analysis.whyGood || "已提取可学习的视觉黄金样本内容。")}</p>
+      ${chipRow([analysis.pageIntent, analysis.themePreset, analysis.visualStyle, ...(analysis.scenarioTags || [])].filter(Boolean), "context-tags")}
+      ${files.length ? `<p>文件：${escapeHtml(files.join("；"))}</p>` : ""}
+      ${functions.length ? `<p>功能组件：${escapeHtml(functions.join("、"))}</p>` : ""}
+      ${patterns.length ? `<ul>${patterns.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}
+    `;
+  }
+
+  async function analyzeGoldenFiles() {
+    const files = selectedGoldenFiles();
+    if (!files.length) {
+      showToast("请先选择 1-3 个黄金样本文件");
+      setGoldenAnalysisStatus("还没有文件可分析。");
+      return;
+    }
+    if (files.length > 3) {
+      showToast("一次最多分析 3 个文件");
+      return;
+    }
+    if (els.analyzeGoldenFiles) els.analyzeGoldenFiles.disabled = true;
+    setGoldenAnalysisStatus(`正在读取并提取 ${files.length} 个文件...`);
+    try {
+      const payloadFiles = await Promise.all(files.map(readFilePayload));
+      const data = await requestJson("/api/home-ai/golden-sample/analyze", {
+        method: "POST",
+        body: JSON.stringify({
+          files: payloadFiles,
+          metadata: visualSampleMetadata(),
+        }),
+      });
+      state.goldenAnalysis = data.analysis || null;
+      applyGoldenAnalysisToForm(state.goldenAnalysis);
+      renderGoldenAnalysisSummary(state.goldenAnalysis);
+      setGoldenAnalysisStatus("已完成本地自动提取，字段已填充，可继续人工微调后保存。");
+      showToast("黄金样本内容已自动提取");
+    } finally {
+      if (els.analyzeGoldenFiles) els.analyzeGoldenFiles.disabled = false;
+    }
+  }
+
   async function saveReferenceAssetFromFile(file, metadata) {
     const payload = await readFilePayload(file);
+    const analysis = metadata.analysis && typeof metadata.analysis === "object" ? metadata.analysis : null;
+    const note = [
+      metadata.whyGood || metadata.prompt || "外部设计稿 visual-only 黄金样本来源。",
+      analysis?.page?.layout ? `自动提取：${analysis.page.layout}` : "",
+      analysis?.themeTokens?.colorPalette?.length ? `主色：${analysis.themeTokens.colorPalette.slice(0, 6).join(", ")}` : "",
+      payload.layoutHint ? `布局线索：${payload.layoutHint}` : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
     const latest = await requestJson("/api/home-ai/reference-assets", {
       method: "POST",
       body: JSON.stringify({
         asset: {
           ...payload,
           tags: metadata.tags,
-          note: metadata.whyGood || metadata.prompt || "外部设计稿 visual-only 黄金样本来源。",
+          note,
         },
       }),
     });
@@ -1221,9 +1419,21 @@
     return state.references[0] || null;
   }
 
-  function visualOnlySampleFromAsset(asset, metadata) {
-    const name = metadata.name || `${asset.name || "外部设计稿"} visual-only 黄金样本`;
-    const isImage = asset.type === "image" || /^image\//i.test(asset.mime || "");
+  function visualOnlySampleFromAsset(asset, metadata, options = {}) {
+    const analysis = options.analysis && typeof options.analysis === "object" ? options.analysis : null;
+    const assets = Array.isArray(options.assets) ? options.assets.filter(Boolean) : [asset].filter(Boolean);
+    const imageAsset = assets.find((item) => item.type === "image" || /^image\//i.test(item.mime || ""));
+    const primaryAsset = asset || imageAsset || assets[0] || {};
+    const name = metadata.name || analysis?.name || `${primaryAsset.name || "外部设计稿"} visual-only 黄金样本`;
+    const isImage = primaryAsset.type === "image" || /^image\//i.test(primaryAsset.mime || "");
+    const cssSummary = {
+      ...(analysis?.cssSummary || {}),
+      referenceAssetId: primaryAsset.id,
+      referenceType: primaryAsset.type,
+      sourceAssetIds: assets.map((item) => item.id).filter(Boolean),
+      sourceAssetNames: assets.map((item) => item.name).filter(Boolean),
+      textExcerpt: primaryAsset.textExcerpt || analysis?.domSnapshot || "",
+    };
     return {
       id: `visual-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 7)}`,
       sampleKind: "golden-page",
@@ -1232,64 +1442,63 @@
       isGolden: true,
       isAntiExample: false,
       name,
-      scenario: metadata.prompt || metadata.applicableScenarios.join("、") || "外部设计稿视觉黄金样本。",
-      pageIntent: metadata.pageIntent,
-      themePreset: metadata.themePreset,
-      visualStyle: metadata.visualStyle,
-      prompt: metadata.prompt,
+      scenario: metadata.prompt || analysis?.prompt || metadata.applicableScenarios.join("、") || "外部设计稿视觉黄金样本。",
+      pageIntent: metadata.pageIntent || analysis?.pageIntent || "",
+      themePreset: metadata.themePreset || analysis?.themePreset || "",
+      visualStyle: metadata.visualStyle || analysis?.visualStyle || "",
+      prompt: metadata.prompt || analysis?.prompt || "",
       aestheticScore: metadata.humanScore,
       humanScore: metadata.humanScore,
-      scoreDimensions: metadata.scoreDimensions,
-      tags: metadata.tags,
-      scenarioTags: metadata.scenarioTags,
+      scoreDimensions: analysis?.scoreDimensions || metadata.scoreDimensions,
+      tags: [...new Set([...(metadata.tags || []), analysis?.themePreset, analysis?.pageIntent, analysis?.visualStyle].filter(Boolean))].slice(0, 12),
+      scenarioTags: [...new Set([...(metadata.scenarioTags || []), ...(analysis?.scenarioTags || [])])].slice(0, 12),
       page: {
         name,
-        layout: "visual-only：仅学习外部设计稿的构图、层级、密度和 token 气质。",
-        hero: metadata.whyGood,
-        navigation: "",
-        mobile: metadata.scenarioTags.includes("移动端优先") ? "移动端优先参考。" : "",
+        layout: analysis?.page?.layout || "visual-only：仅学习外部设计稿的构图、层级、密度和 token 气质。",
+        hero: analysis?.page?.hero || metadata.whyGood,
+        navigation: analysis?.page?.navigation || "",
+        mobile: analysis?.page?.mobile || (metadata.scenarioTags.includes("移动端优先") ? "移动端优先参考。" : ""),
       },
-      functions: [],
-      sampleBlocks: [],
+      functions: analysis?.functions || [],
+      sampleBlocks: analysis?.sampleBlocks || [],
       componentRefs: [],
-      goodPatterns: [metadata.whyGood].filter(Boolean),
-      avoidPatterns: [metadata.whyBad].filter(Boolean),
-      whyGood: metadata.whyGood,
-      whyBad: metadata.whyBad,
-      applicableScenarios: metadata.applicableScenarios.length ? metadata.applicableScenarios : metadata.scenarioTags,
+      goodPatterns: [...new Set([metadata.whyGood, ...(analysis?.goodPatterns || [])].filter(Boolean))].slice(0, 10),
+      avoidPatterns: [...new Set([metadata.whyBad, ...(analysis?.avoidPatterns || [])].filter(Boolean))].slice(0, 10),
+      whyGood: metadata.whyGood || analysis?.whyGood || "",
+      whyBad: metadata.whyBad || analysis?.whyBad || "",
+      applicableScenarios: metadata.applicableScenarios.length ? metadata.applicableScenarios : analysis?.applicableScenarios?.length ? analysis.applicableScenarios : metadata.scenarioTags,
       forbiddenReuse: metadata.forbiddenReuse,
       homepageConfig: null,
       configSnapshot: null,
-      referenceAssetId: asset.id,
-      sourceAssetType: asset.type,
+      referenceAssetId: primaryAsset.id,
+      sourceAssetType: primaryAsset.type,
       renderEvidence: {
         capturedAt: new Date().toISOString(),
-        screenshotPath: isImage ? asset.storagePath || "" : "",
-        screenshotUrl: isImage ? asset.url || "" : "",
-        sourceUrl: asset.url || "",
-        cssSummary: {
-          referenceAssetId: asset.id,
-          referenceType: asset.type,
-          textExcerpt: asset.textExcerpt || "",
-        },
+        screenshotPath: imageAsset ? imageAsset.storagePath || "" : isImage ? primaryAsset.storagePath || "" : "",
+        screenshotUrl: imageAsset ? imageAsset.url || "" : isImage ? primaryAsset.url || "" : "",
+        sourceUrl: primaryAsset.url || "",
+        domSnapshot: analysis?.domSnapshot || "",
+        cssSummary,
         themeTokens: {
-          themePreset: metadata.themePreset,
-          visualStyle: metadata.visualStyle,
+          ...(analysis?.themeTokens || {}),
+          themePreset: metadata.themePreset || analysis?.themePreset || "",
+          visualStyle: metadata.visualStyle || analysis?.visualStyle || "",
         },
       },
-      promptSeeds: [metadata.prompt].filter(Boolean),
+      promptSeeds: [metadata.prompt, ...(analysis?.promptSeeds || [])].filter(Boolean).slice(0, 8),
     };
   }
 
-  async function saveVisualOnlyGoldenFromAsset(asset) {
+  async function saveVisualOnlyGoldenFromAsset(asset, options = {}) {
     if (!asset) {
       showToast("请先选择或上传一个设计稿");
       return;
     }
     const metadata = visualSampleMetadata();
+    const analysis = options.analysis || state.goldenAnalysis || null;
     const data = await requestJson("/api/home-ai/design-samples", {
       method: "POST",
-      body: JSON.stringify({ sample: visualOnlySampleFromAsset(asset, metadata) }),
+      body: JSON.stringify({ sample: visualOnlySampleFromAsset(asset, metadata, { analysis, assets: options.assets || [asset] }) }),
     });
     syncSamplesFromLibrary(data.library?.samples);
     renderAll();
@@ -1299,13 +1508,25 @@
   }
 
   async function saveUploadedVisualGolden() {
-    const file = state.goldenPendingFile || els.goldenFile?.files?.[0];
-    const metadata = visualSampleMetadata();
+    const files = selectedGoldenFiles();
+    const metadata = { ...visualSampleMetadata(), analysis: state.goldenAnalysis };
     const selectedReference = state.references.find((asset) => asset.id === els.referenceUpgradeSelect?.value);
-    const asset = file ? await saveReferenceAssetFromFile(file, metadata) : selectedReference;
-    await saveVisualOnlyGoldenFromAsset(asset);
+    const savedAssets = [];
+    if (files.length) {
+      for (const file of files) {
+        const saved = await saveReferenceAssetFromFile(file, metadata);
+        if (saved) savedAssets.push(saved);
+      }
+    }
+    const assets = savedAssets.length ? savedAssets : selectedReference ? [selectedReference] : [];
+    const primaryAsset = assets.find((asset) => asset.type === "image" || /^image\//i.test(asset.mime || "")) || assets[0] || null;
+    await saveVisualOnlyGoldenFromAsset(primaryAsset, { analysis: state.goldenAnalysis, assets });
     state.goldenPendingFile = null;
+    state.goldenPendingFiles = [];
+    state.goldenAnalysis = null;
     if (els.goldenFile) els.goldenFile.value = "";
+    renderGoldenAnalysisSummary(null);
+    setGoldenAnalysisStatus("等待选择文件。会提取界面骨架、结构、间距、留白、功能组件和视觉 token。");
   }
 
   async function upgradeSelectedReferenceGolden() {
@@ -1492,8 +1713,17 @@
       if (els.editHumanScoreOutput) els.editHumanScoreOutput.textContent = els.editHumanScore.value;
     });
     els.goldenFile?.addEventListener("change", () => {
-      state.goldenPendingFile = els.goldenFile.files?.[0] || null;
+      state.goldenPendingFiles = [...(els.goldenFile.files || [])].slice(0, 3);
+      state.goldenPendingFile = state.goldenPendingFiles[0] || null;
+      state.goldenAnalysis = null;
+      renderGoldenAnalysisSummary(null);
       if (state.goldenPendingFile && els.goldenName && !els.goldenName.value) els.goldenName.value = state.goldenPendingFile.name.replace(/\.[^.]+$/, "");
+      setGoldenAnalysisStatus(
+        state.goldenPendingFiles.length
+          ? `已选择 ${state.goldenPendingFiles.length} 个文件，点击自动提取生成黄金样本内容。`
+          : "等待选择文件。会提取界面骨架、结构、间距、留白、功能组件和视觉 token。",
+      );
+      if ((els.goldenFile.files || []).length > 3) showToast("一次最多分析并保存前 3 个文件");
     });
     [
       els.sampleFilterScenario,
@@ -1507,6 +1737,10 @@
       control?.addEventListener("change", syncSampleFiltersFromControls);
     });
     els.goldenLibraryReset?.addEventListener("click", resetSampleFilters);
+    els.analyzeGoldenFiles?.addEventListener("click", () => analyzeGoldenFiles().catch((error) => {
+      setGoldenAnalysisStatus(error.message);
+      showToast(error.message);
+    }));
     els.saveVisualGolden?.addEventListener("click", () => saveUploadedVisualGolden().catch((error) => showToast(error.message)));
     els.upgradeReferenceGolden?.addEventListener("click", () => upgradeSelectedReferenceGolden().catch((error) => showToast(error.message)));
     els.saveCurrentGoldenSecondary?.addEventListener("click", () => saveCurrentGoldenSample().catch((error) => showToast(error.message)));

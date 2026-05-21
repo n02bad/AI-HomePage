@@ -5,6 +5,7 @@
   const COMPONENT_DELETED_KEY = "forexcrm.home.ai.component.deleted";
   const COMPOSITION_CACHE_KEY = "forexcrm.home.ai.component.composition";
   const MAX_COMPONENT_REFERENCE_BYTES = 4_500_000;
+  const HOME_GRID_COLUMNS = 12;
   const MINIMAX_CN_BASE_URL = "https://api.minimaxi.com/v1";
   const MINIMAX_CN_TYPED_ALIAS_BASE_URL = "https://api.minimaxi.cn/v1";
   const MINIMAX_GLOBAL_BASE_URL = "https://api.minimax.io/v1";
@@ -515,12 +516,27 @@
     return Math.round(window.innerWidth || 0);
   }
 
-  function maxComponentColumnsForWidth(width) {
+  function maxComponentSizeUnitsForWidth(width) {
     if (width >= 1420) return 5;
     if (width >= 1160) return 4;
     if (width >= 900) return 3;
     if (width >= 680) return 2;
     return 1;
+  }
+
+  function componentHomeSpanForSize(size, fallback = 8) {
+    const columns = componentSizeParts(size, "2x1").columns;
+    if (columns >= 3) return HOME_GRID_COLUMNS;
+    if (columns >= 2) return 8;
+    if (columns >= 1) return 4;
+    return fallback;
+  }
+
+  function componentRowRecipeForSpan(span) {
+    if (span >= HOME_GRID_COLUMNS) return "12+0";
+    if (span === 8) return "8+4";
+    if (span === 6) return "6+6";
+    return "4+8";
   }
 
   function countMatches(source, patterns) {
@@ -552,8 +568,8 @@
     return "compact";
   }
 
-  function sizeForAutoContext({ family, complexity, maxColumns }) {
-    const columns = clampNumber(maxColumns, 1, 5);
+  function sizeForAutoContext({ family, complexity, maxSizeUnits }) {
+    const columns = clampNumber(maxSizeUnits, 1, 5);
     if (columns <= 1) return COMPONENT_COMPLEX_FAMILIES.has(family) || complexity === "workbench" ? "1x3" : "1x2";
     if (complexity === "workbench") return `${Math.min(columns, 5)}x${family === "CreateAccountForm" ? 3 : 2}`;
     if (complexity === "rich") return `${Math.min(columns, COMPONENT_COMPLEX_FAMILIES.has(family) ? 4 : 3)}x2`;
@@ -561,8 +577,8 @@
     return COMPONENT_COMPACT_FAMILIES.has(family) ? "1x1" : `${Math.min(columns, 2)}x1`;
   }
 
-  function allowedSizesForContext({ maxColumns, complexity }) {
-    const columns = clampNumber(maxColumns, 1, 5);
+  function allowedSizesForContext({ maxSizeUnits, complexity }) {
+    const columns = clampNumber(maxSizeUnits, 1, 5);
     const maxRows = complexity === "workbench" ? 3 : complexity === "rich" ? 2 : 1;
     const sizes = COMPONENT_SIZE_OPTIONS.filter((size) => {
       const parts = componentSizeParts(size, "1x1");
@@ -573,34 +589,42 @@
 
   function componentLayoutContextForRequest({ family, prompt, selectedSize, visualReference } = {}) {
     const pageWidth = currentPageCanvasWidth();
-    const maxColumns = maxComponentColumnsForWidth(pageWidth);
+    const maxSizeUnits = maxComponentSizeUnitsForWidth(pageWidth);
     const complexity = inferComponentComplexity({ family, prompt, visualReference });
-    const recommendedSize = sizeForAutoContext({ family, complexity, maxColumns });
-    const allowedSizes = allowedSizesForContext({ maxColumns, complexity });
+    const recommendedSize = sizeForAutoContext({ family, complexity, maxSizeUnits });
+    const allowedSizes = allowedSizesForContext({ maxSizeUnits, complexity });
     if (!allowedSizes.includes(recommendedSize)) allowedSizes.push(recommendedSize);
     const selectedMode = isAutoComponentSize(selectedSize) ? "auto" : "manual";
+    const selectedSpan = componentHomeSpanForSize(selectedMode === "manual" ? selectedSize : recommendedSize);
+    const recommendedSpan = componentHomeSpanForSize(recommendedSize);
+    const allowedSpans = [...new Set(allowedSizes.map((size) => componentHomeSpanForSize(size)))].sort((a, b) => b - a);
     return {
       pageWidth,
-      maxColumns,
-      gridUnit: "首页积木宽度单位，1x 侧栏/小卡，2x 主栏，3x+ 宽幅或整行工作台",
+      gridColumns: HOME_GRID_COLUMNS,
+      maxColumns: HOME_GRID_COLUMNS,
+      maxSizeUnits,
+      gridUnit: "12栏首页栅格：1x=4/12栏，2x=8/12栏，3x及以上=12/12栏；移动端单列。",
       selectedMode,
       selectedSize: selectedMode === "manual" ? normalizeComponentSizeValue(selectedSize, "2x1") : "auto",
+      selectedSpan,
       recommendedSize,
+      recommendedSpan,
       allowedSizes,
+      allowedSpans,
+      rowRecipes: ["12+0", "8+4", "6+6", "4+8"],
       functionalComplexity: complexity,
       sizingPolicy:
         selectedMode === "auto"
-          ? "按当前页面宽度与功能复杂度决定 size；复杂列表、图表、表单和多步骤工作台可以放大。"
-          : "用户手动选了尺寸；除非需求明确要求放大，否则优先尊重手动尺寸。",
+          ? "按当前页面宽度与功能复杂度决定 size，并同步映射到 12 栏 desktopSpan；复杂列表、图表、表单和多步骤工作台可以放大。"
+          : "用户手动选了尺寸；除非需求明确要求放大，否则优先尊重手动尺寸，并按 1x/2x/3x+ 映射 4/8/12 栏。",
     };
   }
 
   function generatedCardLayoutAttrs(size) {
     const parts = componentSizeParts(size, "2x1");
-    const gridSpan = parts.columns >= 5 ? 3 : parts.columns >= 3 ? 2 : 1;
-    const tabletSpan = Math.min(gridSpan, 2);
+    const homeSpan = componentHomeSpanForSize(parts.size);
     const previewMinHeight = parts.rows >= 3 ? 360 : parts.rows >= 2 ? 280 : 210;
-    return ` data-component-size="${escapeHtml(parts.size)}" style="--component-grid-span:${gridSpan};--component-grid-span-tablet:${tabletSpan};--component-preview-min:${previewMinHeight}px;"`;
+    return ` data-component-size="${escapeHtml(parts.size)}" data-component-grid-columns="${HOME_GRID_COLUMNS}" data-component-home-span="${homeSpan}" data-component-row-recipe="${escapeHtml(componentRowRecipeForSpan(homeSpan))}" style="--component-grid-span:${homeSpan};--component-home-span:${homeSpan};--component-preview-min:${previewMinHeight}px;"`;
   }
 
   function groupForFamily(family) {
@@ -638,10 +662,15 @@
     card.dataset.brickTitle = title;
     card.dataset.brickSize = sizeParts.size;
     card.dataset.componentSize = sizeParts.size;
+    const homeSpan = componentHomeSpanForSize(sizeParts.size);
+    card.dataset.componentGridColumns = String(HOME_GRID_COLUMNS);
+    card.dataset.componentHomeSpan = String(homeSpan);
+    card.dataset.componentRowRecipe = componentRowRecipeForSpan(homeSpan);
     card.dataset.brickGroup = group;
     card.dataset.brickScoreKey = scoreKey;
     card.dataset.brickScore = String(score);
-    card.style.setProperty("--component-grid-span", String(sizeParts.columns >= 3 ? 2 : 1));
+    card.style.setProperty("--component-grid-span", String(homeSpan));
+    card.style.setProperty("--component-home-span", String(homeSpan));
     card.style.setProperty("--component-preview-min", `${sizeParts.rows >= 3 ? 340 : sizeParts.rows >= 2 ? 270 : 210}px`);
     card.dataset.brickSearchText = [title, family, size, group, previewTextFromCard(card)].join(" ").toLowerCase();
     card.querySelector(".brick-score-control")?.setAttribute("data-score-tier", scoreTier(score));
@@ -1524,11 +1553,12 @@
     const family = familyFromCard(card);
     const title = titleFromCard(card);
     const size = sizeFromCard(card);
+    const span = componentHomeSpanForSize(size);
     const previewText = previewTextFromCard(card);
 
     return [
       `基于组件库里的「${title}」生成一个真实可用的 ForexCRM 首页积木组件。`,
-      `模块归属 ${family}，推荐尺寸 ${size}。`,
+      `模块归属 ${family}，推荐尺寸 ${size}，在 12 栏首页中对应 ${span}/12 栏。`,
       previewText ? `参考现有业务字段：${previewText}。` : "",
       "不要生成通用卡片，不要出现 Primary Action 或 AI 样式；必须保留真实业务字段、真实按钮文案和可嵌入首页的布局。",
     ]
@@ -1550,6 +1580,9 @@
           family: meta.family,
           name: meta.title,
           size: meta.size,
+          gridColumns: HOME_GRID_COLUMNS,
+          desktopSpan: componentHomeSpanForSize(meta.size),
+          rowRecipe: componentRowRecipeForSpan(componentHomeSpanForSize(meta.size)),
           score: meta.score,
           visibleText: previewTextFromCard(card).slice(0, 220),
           description: card.querySelector(".generated-meta p")?.textContent.trim() || "",
@@ -1610,7 +1643,7 @@
         <header>
           <span>${escapeHtml(component.name)}</span>
           <div class="brick-card-tools">
-            <b>${escapeHtml(component.size)}</b>
+            <b>${escapeHtml(component.size)} · ${componentHomeSpanForSize(component.size)}/12</b>
             ${scoreControl(scoreKey, score)}
             <button class="brick-ai-inline-generate" type="button" data-ai-regenerate-component="${escapeHtml(component.id)}">再生成</button>
             <button class="brick-ai-secondary-action" type="button" data-ai-edit-component="${escapeHtml(component.id)}">编辑</button>
@@ -2076,7 +2109,7 @@
 
     const visualReference = visualReferenceForRequest();
     const layoutContext = componentLayoutContextForRequest({ family, prompt, selectedSize: size, visualReference });
-    const autoSizeHint = size === "auto" ? `，页面宽度建议 ${layoutContext.recommendedSize}` : "";
+    const autoSizeHint = size === "auto" ? `，页面宽度建议 ${layoutContext.recommendedSize}（${layoutContext.recommendedSpan}/12 栏）` : "";
     setStatus(`正在通过 ${modelLabel()} 生成组件${visualReference ? "，并仿照图片/截图参考" : ""}${autoSizeHint}...`);
     if (trigger) trigger.disabled = true;
     if (trigger !== els.generate && els.generate) els.generate.disabled = true;

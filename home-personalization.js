@@ -381,6 +381,35 @@
     rail: 4,
     full: 12,
   };
+  const HOME_GRID_COLUMNS = 12;
+
+  function homeGridSpanForSize(size, fallback = 12) {
+    const span = spanFromBrickSize(size);
+    return span || fallback;
+  }
+
+  function homeGridRowsForSize(size, fallback = 1) {
+    const rows = rowUnitsFromBrickSize(size);
+    return rows || fallback;
+  }
+
+  function homeGridContractForSize(size, options = {}) {
+    const normalizedSize = String(size || options.fallbackSize || "3x1").trim().toLowerCase().replace(/[×*]/g, "x");
+    const desktopSpan = Math.min(HOME_GRID_COLUMNS, Math.max(1, Number(options.desktopSpan) || homeGridSpanForSize(normalizedSize, 12)));
+    const rowSpan = Math.max(1, Number(options.rowSpan) || homeGridRowsForSize(normalizedSize, 1));
+    return {
+      gridColumns: HOME_GRID_COLUMNS,
+      size: normalizedSize,
+      desktopSpan,
+      tabletSpan: HOME_GRID_COLUMNS,
+      mobileSpan: HOME_GRID_COLUMNS,
+      rowSpan,
+      rowRecipe: desktopSpan >= 12 ? "12+0" : desktopSpan === 8 ? "8+4" : desktopSpan === 6 ? "6+6" : "4+8",
+      zone: options.zone || "",
+      slot: options.slot || "",
+      sectionType: options.sectionType || "",
+    };
+  }
 
   const AUTO_LAYOUT_STRATEGIES = ["responsive-grid", "mobile-first-stack"];
   const AUTO_LAYOUT_BREAKPOINTS = ["desktop", "tablet", "mobile"];
@@ -5469,6 +5498,20 @@
         })
         .filter((item) => item && (item.module || item.label || item.family))
         .slice(0, 12);
+    const normalizeLayoutContract = (value) => {
+      const source = value && typeof value === "object" ? value : {};
+      const rowRecipes = Array.isArray(source.rowRecipes)
+        ? source.rowRecipes.map((item) => cleanMetaText(item, "", 20)).filter(Boolean).slice(0, 6)
+        : [];
+      return {
+        gridColumns: HOME_GRID_COLUMNS,
+        desktopSpans: [12, 8, 6, 4],
+        rowRecipes: rowRecipes.length ? rowRecipes : ["12+0", "8+4", "6+6", "4+8"],
+        tablet: cleanMetaText(source.tablet, "single-column", 40),
+        mobile: cleanMetaText(source.mobile, "single-column", 40),
+        dataAttributes: ["data-ai-html-grid=\"12\"", "data-ai-html-span=\"12|8|6|4\""],
+      };
+    };
     return {
       enabled: Boolean(enabled || scheme.enabled) && hasHtml,
       name: cleanMetaText(scheme.name, "AI HTML 视觉方案", 56),
@@ -5487,6 +5530,7 @@
       moduleMapping: normalizeTextMap(scheme.moduleMapping),
       implementationContract: normalizeImplementationContract(scheme.implementationContract || scheme.moduleImplementation || scheme.capabilityContract),
       componentReferences: normalizeReferences(scheme.componentReferences),
+      layoutContract: normalizeLayoutContract(scheme.layoutContract),
       designNotes: normalizeTextList(scheme.designNotes, 8, 180),
       html,
       css,
@@ -5548,7 +5592,7 @@
     return ["group", "connected", "band", "workbench", "hero", "plain"].includes(raw) ? raw : fallback;
   }
 
-  function normalizeSkeletonChromePolicy(source, fallback = {}) {
+	  function normalizeSkeletonChromePolicy(source, fallback = {}) {
     const policy = source && typeof source === "object" ? source : {};
     const fallbackPolicy = fallback && typeof fallback === "object" ? fallback : {};
     const mode = normalizeSkeletonChromeMode(policy.mode || fallbackPolicy.mode);
@@ -5594,18 +5638,37 @@
             : "slot 可以保留轻量卡片外壳，但圆角、边框、阴影和按钮必须继承页面契约。",
         180,
       ),
-    };
+	    };
+	  }
+
+  function normalizeSkeletonComponentScore(value) {
+    if (value === null || value === undefined || value === "") return null;
+    const score = Number(value);
+    if (!Number.isFinite(score)) return null;
+    return Math.max(1, Math.min(10, Math.round(score)));
   }
 
-  function normalizeSkeletonSlotComponent(component, slot) {
-    const source = component && typeof component === "object" ? component.component || component : {};
-    const slotKey = skeletonSlotKey(component?.slot || slot);
-    const html = sanitizeAiHtmlMarkup(source.html || component?.html);
-    const css = sanitizeAiHtmlCss(source.css || component?.css);
-    const id = cleanMetaText(source.id || source.componentId || component?.componentId || `${slotKey}-component`, "", 90);
-    if (!slotKey || (!id && !html && !css)) return null;
-    if (slotKey === "support_contact") {
-      const supportSource = `${source.name || ""} ${source.description || ""} ${html}`;
+  function skeletonComponentReferenceTier(score, fallback = "") {
+    const normalized = normalizeSkeletonComponentScore(score);
+    if (normalized == null) return cleanMetaText(fallback, "", 24);
+    if (normalized >= 8) return "strong";
+    if (normalized >= 6) return "moderate";
+    return "blocked";
+  }
+
+	  function normalizeSkeletonSlotComponent(component, slot) {
+	    const source = component && typeof component === "object" ? component.component || component : {};
+	    const slotKey = skeletonSlotKey(component?.slot || slot);
+	    const html = sanitizeAiHtmlMarkup(source.html || component?.html);
+	    const css = sanitizeAiHtmlCss(source.css || component?.css);
+	    const id = cleanMetaText(source.id || source.componentId || component?.componentId || `${slotKey}-component`, "", 90);
+	    if (!slotKey || (!id && !html && !css)) return null;
+    const score = normalizeSkeletonComponentScore(source.score ?? component?.score);
+    const referenceScore = normalizeSkeletonComponentScore(source.referenceScore ?? component?.referenceScore);
+    const referenceTier = skeletonComponentReferenceTier(score ?? referenceScore, source.referenceTier || component?.referenceTier);
+    if (referenceTier === "blocked" || (score != null && score <= 5)) return null;
+	    if (slotKey === "support_contact") {
+	      const supportSource = `${source.name || ""} ${source.description || ""} ${html}`;
       const leaksAdminPrompt = /首页目标|当前步骤|slot：|模块名称：|Client Home Atom/i.test(supportSource);
       const looksLikeWrongModule = /KYC Verified|Wallet\s+\d|Open Account|账户余额|钱包余额|开真实账户/i.test(supportSource);
       const hasSupportSemantics = /在线客服|联系客服|客服|客户经理|服务时间|帮助中心|工单|实时对话|Support|Contact|Ticket|Live Chat/i.test(supportSource);
@@ -5629,9 +5692,12 @@
       sourceType: cleanMetaText(source.sourceType || component?.sourceType, "component-ai", 48),
       fallbackReason: cleanMetaText(source.fallbackReason || component?.fallbackReason, "", 220),
       referenceComponentId: cleanMetaText(source.referenceComponentId || component?.referenceComponentId, "", 90),
-      referenceComponentName: cleanMetaText(source.referenceComponentName || component?.referenceComponentName, "", 90),
-      referenceFamily: cleanMetaText(source.referenceFamily || component?.referenceFamily, "", 80),
-      requestedSize: cleanMetaText(source.requestedSize || component?.requestedSize, "", 24),
+	      referenceComponentName: cleanMetaText(source.referenceComponentName || component?.referenceComponentName, "", 90),
+	      referenceFamily: cleanMetaText(source.referenceFamily || component?.referenceFamily, "", 80),
+      score,
+      referenceScore,
+      referenceTier,
+	      requestedSize: cleanMetaText(source.requestedSize || component?.requestedSize, "", 24),
       sourcePrompt: cleanMetaText(source.sourcePrompt || component?.sourcePrompt, "", 1200),
       originalSlotPrompt: cleanMetaText(source.originalSlotPrompt || component?.originalSlotPrompt, "", 1200),
       slotPromptContractSummary: cleanMetaText(source.slotPromptContractSummary || component?.slotPromptContractSummary, "", 1800),
@@ -5661,6 +5727,12 @@
     const variant = moduleId ? config?.modules?.[moduleId]?.variant || MODULE_VARIANT_DEFAULTS[moduleId] || "" : "";
     const morph = moduleId ? config?.componentMorphs?.[moduleId]?.morphId || "" : "";
     const slotKey = skeletonSlotKey(slot);
+    const size = skeletonSlotSizeForGrid(slotKey, section);
+    const layoutContract = homeGridContractForSize(size, {
+      slot: slotKey,
+      sectionType: section?.type || "full",
+      zone: section?.type || "",
+    });
     return {
       id: slotKey,
       slot: slotKey,
@@ -5671,11 +5743,23 @@
       moduleId,
       variant,
       morph,
+      size,
+      layoutContract,
       chrome: skeletonSlotChrome(slotKey, config, section, designContract),
       status: "pending-fill",
       filledAt: "",
       index,
     };
+  }
+
+  function skeletonSlotSizeForGrid(slotId, section = {}) {
+    const key = skeletonSlotKey(slotId);
+    if (["trading_accounts_list", "wallet_list", "copytrading_signals", "trading_account_highlight", "account_performance"].includes(key)) return "3x2";
+    if (["asset_overview", "promo_banner", "ad_carousel", "risk_disclosure"].includes(key)) return "3x1";
+    if (section?.type === "rail") return "1x1";
+    if (section?.type === "split") return "2x1";
+    if (section?.type === "hero" || section?.type === "full") return "3x1";
+    return "2x1";
   }
 
   function skeletonContractArray(value, fallback = []) {
@@ -5815,17 +5899,20 @@
                   </header>
                   <div class="home-skeleton-slot-grid" data-home-skeleton-section-slots>
                     ${sectionSlots
-                      .map(
-                        (slot, slotIndex) => `
-                          <article class="home-skeleton-slot" data-home-skeleton-slot="${escapeHtml(slot.id)}" data-home-skeleton-module="${escapeHtml(slot.moduleId)}" data-home-skeleton-variant="${escapeHtml(slot.variant)}" data-home-skeleton-chrome="${escapeHtml(slot.chrome || contract.chromePolicy.defaultSlotChrome)}" data-home-skeleton-slot-index="${slotIndex}">
+                      .map((slot, slotIndex) => {
+                        const slotContract = slot.layoutContract || homeGridContractForSize(slot.size || "3x1");
+                        const desktopSpan = Math.min(HOME_GRID_COLUMNS, Math.max(1, Number(slotContract.desktopSpan) || 12));
+                        const rowSpan = Math.max(1, Number(slotContract.rowSpan) || 1);
+                        return `
+                          <article class="home-skeleton-slot" data-home-skeleton-slot="${escapeHtml(slot.id)}" data-home-skeleton-module="${escapeHtml(slot.moduleId)}" data-home-skeleton-variant="${escapeHtml(slot.variant)}" data-home-skeleton-chrome="${escapeHtml(slot.chrome || contract.chromePolicy.defaultSlotChrome)}" data-home-skeleton-slot-index="${slotIndex}" data-home-skeleton-size="${escapeHtml(slot.size || "3x1")}" data-home-skeleton-grid-columns="${HOME_GRID_COLUMNS}" data-home-skeleton-slot-span="${desktopSpan}" style="--home-skeleton-slot-span:${desktopSpan};--home-skeleton-row-span:${rowSpan};">
                             <div class="home-skeleton-placeholder" data-home-skeleton-placeholder>
                               <span>slot ${String(slotIndex + 1).padStart(2, "0")}</span>
                               <strong>${escapeHtml(slot.label)}</strong>
-                              <small>${escapeHtml(slot.id)} · ${escapeHtml(slot.chrome || "contained")} · 等待填充</small>
+                              <small>${escapeHtml(slot.id)} · ${desktopSpan}/12 栏 · ${escapeHtml(slot.chrome || "contained")} · 等待填充</small>
                             </div>
                           </article>
-                        `,
-                      )
+                        `;
+                      })
                       .join("")}
                   </div>
                 </section>
@@ -9042,8 +9129,161 @@
 	    return next;
 	  }
 
-  function normalizeConfig(config) {
-    const source = config && typeof config === "object" ? config : {};
+  function runtimePagePlanText(value, fallback = "", limit = 80) {
+    if (value && typeof value === "object") return cleanMetaText(value.label || value.title || value.action || fallback, fallback, limit);
+    return cleanMetaText(value, fallback, limit);
+  }
+
+  function homepageRuntimePlanWeight(slot, mainVisual = "") {
+    const key = canonicalHomeBlock(slot) || cleanMetaText(slot, "", 80);
+    if (key && key === mainVisual) return 100;
+    return {
+      welcome_header: 25,
+      asset_overview: 80,
+      onboarding_guide: 78,
+      trading_account_highlight: 76,
+      trading_accounts_list: 68,
+      quick_actions: 56,
+      wallet_list: 50,
+      promo_banner: 52,
+      pamm_products: 48,
+      copytrading_signals: 58,
+      referral_link_card: 42,
+      kyc_status_card: 46,
+      announcements: 34,
+      market_news: 34,
+      faq_section: 30,
+      support_contact: 32,
+      app_download: 32,
+      risk_disclosure: 24,
+    }[key] || 40;
+  }
+
+  function homepageRuntimePlanGroups(visibleModules = [], mainVisual = "", pageGoal = "") {
+    const visibleSet = new Set((Array.isArray(visibleModules) ? visibleModules : []).map(canonicalHomeBlock).filter(Boolean));
+    const pick = (items) => items.map(canonicalHomeBlock).filter((slot) => slot && visibleSet.has(slot));
+    const groups = [
+      {
+        id: "activation_overview",
+        title: "账户启动区",
+        role: "primary",
+        surface: "connected-panel",
+        guidance: "欢迎、开户进度、资产状态和下一步动作共享首屏表面，不拆成孤立白卡。",
+        modules: pick(["welcome_header", "onboarding_guide", "asset_overview", "quick_actions", "kyc_status_card"]),
+      },
+      {
+        id: "opportunities",
+        title: "交易机会区",
+        role: "support",
+        surface: "light-section",
+        guidance: "活动、跟单、PAMM、公告和推广链接降低权重，作为增长辅助内容。",
+        modules: pick(["promo_banner", "copytrading_signals", "pamm_products", "announcements", "market_news", "referral_link_card"]),
+      },
+      {
+        id: "account_workspace",
+        title: "账户与交易区",
+        role: "proof",
+        surface: "shared-workbench",
+        guidance: "账号列表、账号表现和钱包信息使用统一工作台语言。",
+        modules: pick(["trading_account_highlight", "trading_accounts_list", "wallet_list"]),
+      },
+      {
+        id: "support_compliance",
+        title: "帮助与合规区",
+        role: "decision",
+        surface: "minimal",
+        guidance: "FAQ、客服、下载和风险披露只做低干扰收口。",
+        modules: pick(["faq_section", "support_contact", "app_download", "risk_disclosure"]),
+      },
+    ].filter((group) => group.modules.length);
+    const goalOrder = {
+      deposit: ["activation_overview", "opportunities", "account_workspace", "support_compliance"],
+      copytrading: ["opportunities", "activation_overview", "account_workspace", "support_compliance"],
+      pamm: ["opportunities", "activation_overview", "account_workspace", "support_compliance"],
+      trading: ["account_workspace", "activation_overview", "opportunities", "support_compliance"],
+      startTrading: ["account_workspace", "activation_overview", "opportunities", "support_compliance"],
+      contactSupport: ["activation_overview", "support_compliance", "account_workspace", "opportunities"],
+      downloadApp: ["activation_overview", "support_compliance", "account_workspace", "opportunities"],
+    }[pageGoal] || ["activation_overview", "account_workspace", "opportunities", "support_compliance"];
+    return groups
+      .map((group) => ({
+        ...group,
+        visualWeight: Math.max(...group.modules.map((slot) => homepageRuntimePlanWeight(slot, mainVisual))),
+      }))
+      .sort((first, second) => {
+        const firstHasMain = first.modules.includes(mainVisual);
+        const secondHasMain = second.modules.includes(mainVisual);
+        if (firstHasMain !== secondHasMain) return firstHasMain ? -1 : 1;
+        return goalOrder.indexOf(first.id) - goalOrder.indexOf(second.id);
+      })
+      .slice(0, 4);
+  }
+
+  function homepageRuntimePlanLooksUsable(plan = {}) {
+    if (!plan || typeof plan !== "object") return false;
+    return Boolean(
+      runtimePagePlanText(plan.pageGoal, "", 40) ||
+        runtimePagePlanText(plan.mainVisual, "", 48) ||
+        Object.keys(plan.visualHierarchy || {}).length ||
+        Object.keys(plan.moduleRoles || {}).length ||
+        (Array.isArray(plan.compositionGroups) && plan.compositionGroups.length),
+    );
+  }
+
+  function normalizeHomepageRuntimePagePlan(plan, source = {}, sections = [], heroFocus = "") {
+    const sourcePlan = plan && typeof plan === "object" ? plan : {};
+    if (homepageRuntimePlanLooksUsable(sourcePlan)) {
+      return {
+        ...clone(sourcePlan),
+        pageGoal: runtimePagePlanText(sourcePlan.pageGoal, "", 40),
+        primaryCta: runtimePagePlanText(sourcePlan.primaryCta || sourcePlan.primaryAction, "", 80),
+        mainVisual: canonicalHomeBlock(sourcePlan.mainVisual) || cleanMetaText(sourcePlan.mainVisual, "", 48),
+      };
+    }
+    const visibleModules = [
+      ...new Set(
+        (Array.isArray(sections) ? sections : [])
+          .flatMap((section) => (Array.isArray(section?.slots) ? section.slots : []))
+          .map(canonicalHomeBlock)
+          .filter(Boolean),
+      ),
+    ];
+    if (!visibleModules.length) return null;
+    const pageIntent = source.pageIntent && typeof source.pageIntent === "object" ? source.pageIntent : {};
+    const mainVisual = visibleModules.includes(heroFocus) ? heroFocus : visibleModules[0] || heroFocus || "";
+    const pageGoal = runtimePagePlanText(source.pageGoal || pageIntent.pageGoal || pageIntent.primaryIntent || "", "", 40);
+    const primaryCta = runtimePagePlanText(source.primaryCta || pageIntent.primaryCta || pageIntent.primaryAction || "", "", 80);
+    const visualHierarchy = Object.fromEntries(visibleModules.map((slot) => [slot, homepageRuntimePlanWeight(slot, mainVisual)]));
+    const compositionGroups = homepageRuntimePlanGroups(visibleModules, mainVisual, pageGoal);
+    return {
+      planVersion: 1,
+      inferred: true,
+      pageGoal,
+      primaryCta,
+      mainVisual,
+      layoutStrategy: "grouped-workbench",
+      compositionGroups,
+      visualHierarchy,
+      moduleRoles: Object.fromEntries(
+        visibleModules.map((slot) => [
+          slot,
+          {
+            role: slot === mainVisual ? "primary" : visualHierarchy[slot] >= 70 ? "proof" : visualHierarchy[slot] >= 50 ? "support" : "decision",
+            weight: visualHierarchy[slot],
+          },
+        ]),
+      ),
+      compositionRules: [
+        "全页只能有一个最高视觉权重模块。",
+        "页面优先组织成 3-4 个业务组，不要把每个 slot 拆成独立 section。",
+        "同一业务组共享父级表面，子模块用分割线、留白、指标行或工具栏衔接。",
+        "FAQ、风险、客服、活动等低权重模块必须低干扰收口。",
+      ],
+    };
+  }
+
+	  function normalizeConfig(config) {
+	    const source = config && typeof config === "object" ? config : {};
     const emphasis = source.emphasis && typeof source.emphasis === "object" ? source.emphasis : {};
     const moduleSettings = normalizeModuleSettings(source.moduleSettings);
     const legacySections = !source.sections && source.moduleOrder ? sectionsFromLegacyOrder(source.moduleOrder) : null;
@@ -9085,14 +9325,16 @@
       source.renderMode,
       source.skeletonHtmlEnabled ? "skeletonHtml" : source.htmlGenerationEnabled ? "compare" : "config",
     );
-    const htmlScheme = normalizeAiHtmlScheme(source.htmlScheme, renderModeWantsAiHtml(renderMode) || Boolean(source.htmlGenerationEnabled));
-    const skeletonHtmlScheme = normalizeSkeletonHtmlScheme(source.skeletonHtmlScheme, renderModeWantsSkeletonHtml(renderMode) || Boolean(source.skeletonHtmlEnabled));
-    const requestedActiveRenderMode = source.activeRenderMode || (renderMode === "aiHtml" ? "aiHtml" : renderMode === "skeletonHtml" ? "skeletonHtml" : "config");
-    let activeRenderMode = "config";
-    if (requestedActiveRenderMode === "aiHtml" && htmlScheme.enabled) activeRenderMode = "aiHtml";
-    if (requestedActiveRenderMode === "skeletonHtml" && (skeletonHtmlScheme.enabled || renderModeWantsSkeletonHtml(renderMode))) activeRenderMode = "skeletonHtml";
+	    const htmlScheme = normalizeAiHtmlScheme(source.htmlScheme, renderModeWantsAiHtml(renderMode) || Boolean(source.htmlGenerationEnabled));
+	    const skeletonHtmlScheme = normalizeSkeletonHtmlScheme(source.skeletonHtmlScheme, renderModeWantsSkeletonHtml(renderMode) || Boolean(source.skeletonHtmlEnabled));
+	    const requestedActiveRenderMode = source.activeRenderMode || (renderMode === "aiHtml" ? "aiHtml" : renderMode === "skeletonHtml" ? "skeletonHtml" : "config");
+	    let activeRenderMode = "config";
+	    if (requestedActiveRenderMode === "aiHtml" && htmlScheme.enabled) activeRenderMode = "aiHtml";
+	    if (requestedActiveRenderMode === "skeletonHtml" && (skeletonHtmlScheme.enabled || renderModeWantsSkeletonHtml(renderMode))) activeRenderMode = "skeletonHtml";
+    const heroFocus = componentFromFeature(source.heroFocus || DEFAULT_CONFIG.heroFocus);
+    const pagePlan = normalizeHomepageRuntimePagePlan(source.pagePlan, source, sections, heroFocus);
 
-    const normalized = {
+	    const normalized = {
       schemaVersion: 4,
       blueprintVersion: Number(source.blueprintVersion) >= 5 ? 5 : 4,
       generationMode:
@@ -9117,7 +9359,7 @@
         return variants;
       }, {}),
       density: ["compact", "comfortable", "balanced", "spacious"].includes(source.density) ? source.density : DEFAULT_CONFIG.density,
-      heroFocus: componentFromFeature(source.heroFocus || DEFAULT_CONFIG.heroFocus),
+	      heroFocus,
       moduleStyles,
       componentMorphs: normalizeComponentMorphs(source.componentMorphs, modules, moduleStyles, componentReferences),
       moduleSettings,
@@ -9138,7 +9380,7 @@
       brickTrace: normalizeBrickTrace(source.brickTrace),
       dataContract: normalizeDataContract(source.dataContract),
       pageIntent: source.pageIntent && typeof source.pageIntent === "object" ? clone(source.pageIntent) : null,
-      pagePlan: source.pagePlan && typeof source.pagePlan === "object" ? clone(source.pagePlan) : null,
+	      pagePlan,
       compositionStrategy: cleanMetaText(source.compositionStrategy, "", 260),
       annotations: Array.isArray(source.annotations) ? source.annotations.slice(0, 24) : [],
       renderMode,
@@ -11212,21 +11454,27 @@
     const feature = wrapFeature(doc, "referral_link_card", "ai-referral-feature ai-referral-card-feature", config);
     const safeProps = sanitizeComponentProps("referral_link_card", props, []);
     const settings = config.moduleSettings.referralLinkCard || DEFAULT_MODULE_SETTINGS.referralLinkCard;
-    const promoLink = "http://user-1.hcs55.com:38080/regist-real?invitid=555555690-123";
-    const inviteCode = "555555690-123";
+    const referralData =
+      (config.referralData && typeof config.referralData === "object" ? config.referralData : null) ||
+      (config.data?.referral && typeof config.data.referral === "object" ? config.data.referral : null) ||
+      {};
+    const promoLink = String(referralData.promoLink || referralData.link || referralData.url || "").trim();
+    const inviteCode = String(referralData.inviteCode || referralData.code || "").trim();
+    const promoDisplay = promoLink || "--";
+    const inviteDisplay = inviteCode || "--";
     const copyButton = (labelKey, value) => `
-      <button type="button" aria-label="${escapeHtml(t(labelKey))}" data-copy-value="${escapeHtml(value)}">
+      <button type="button" aria-label="${escapeHtml(t(labelKey))}" ${value ? `data-copy-value="${escapeHtml(value)}"` : "disabled aria-disabled=\"true\""}>
         ${actionIcon("copy")}
       </button>
     `;
     const core = [
       settings.showPromoLink
-        ? `<div class="ai-referral-line wide"><small>${escapeHtml(t(safeProps.promoLinkLabelKey))}</small><span>${escapeHtml(promoLink)}</span>${copyButton(safeProps.copyLinkKey, promoLink)}</div>`
+        ? `<div class="ai-referral-line wide"><small>${escapeHtml(t(safeProps.promoLinkLabelKey))}</small><span>${escapeHtml(promoDisplay)}</span>${copyButton(safeProps.copyLinkKey, promoLink)}</div>`
         : "",
       settings.showInviteCode
-        ? `<div class="ai-referral-line"><small>${escapeHtml(t(safeProps.inviteCodeLabelKey))}</small><span>${escapeHtml(inviteCode)}</span>${copyButton(safeProps.copyCodeKey, inviteCode)}</div>`
+        ? `<div class="ai-referral-line"><small>${escapeHtml(t(safeProps.inviteCodeLabelKey))}</small><span>${escapeHtml(inviteDisplay)}</span>${copyButton(safeProps.copyCodeKey, inviteCode)}</div>`
         : "",
-      settings.showShare ? `<button class="ai-referral-qr" type="button" data-copy-value="${escapeHtml(promoLink)}">${actionIcon("copy")}<span>${escapeHtml(t(safeProps.shareKey))}</span></button>` : "",
+      settings.showShare ? `<button class="ai-referral-qr" type="button" ${promoLink ? `data-copy-value="${escapeHtml(promoLink)}"` : "disabled aria-disabled=\"true\""}>${actionIcon("copy")}<span>${escapeHtml(t(safeProps.shareKey))}</span></button>` : "",
     ]
       .filter(Boolean)
       .join("");
@@ -11251,7 +11499,7 @@
       {
         inviteCodeCard: `
           ${titleMarkup}
-          <div class="ai-referral-code-card"><small>${escapeHtml(t(safeProps.inviteCodeLabelKey))}</small><strong>${escapeHtml(inviteCode)}</strong>${copyButton(safeProps.copyCodeKey, inviteCode)}</div>
+          <div class="ai-referral-code-card"><small>${escapeHtml(t(safeProps.inviteCodeLabelKey))}</small><strong>${escapeHtml(inviteDisplay)}</strong>${copyButton(safeProps.copyCodeKey, inviteCode)}</div>
         `,
         linkFirstPanel: `
           ${titleMarkup}
@@ -11269,7 +11517,7 @@
         `,
         shareToolbar: `
           ${titleMarkup}
-          <div class="ai-referral-share-toolbar">${core}${settings.showShare ? "" : `<button type="button" data-copy-value="${escapeHtml(promoLink)}">${actionIcon("copy")}<span>分享</span></button>`}</div>
+          <div class="ai-referral-share-toolbar">${core}${settings.showShare ? "" : `<button type="button" ${promoLink ? `data-copy-value="${escapeHtml(promoLink)}"` : "disabled aria-disabled=\"true\""}>${actionIcon("copy")}<span>分享</span></button>`}</div>
         `,
         stepCards: `
           ${titleMarkup}
@@ -11305,19 +11553,27 @@
   function renderReferralLink(doc, config) {
     const feature = wrapFeature(doc, "referralLink", "ai-referral-feature", config);
     const settings = config.moduleSettings.referral;
+    const referralData =
+      (config.referralData && typeof config.referralData === "object" ? config.referralData : null) ||
+      (config.data?.referral && typeof config.data.referral === "object" ? config.data.referral : null) ||
+      {};
+    const promoLink = String(referralData.promoLink || referralData.link || referralData.url || "").trim();
+    const inviteCode = String(referralData.inviteCode || referralData.code || "").trim();
+    const promoDisplay = promoLink || "--";
+    const inviteDisplay = inviteCode || "--";
     const stats = [
-      settings.showClicks ? "<span><small>打开</small><b>123</b></span>" : "",
-      settings.showRegistrations ? "<span><small>邀请注册</small><b>123</b></span>" : "",
-      settings.showTradingAccounts ? "<span><small>交易账号</small><b>50</b></span>" : "",
+      settings.showClicks ? "<span><small>打开</small><b>--</b></span>" : "",
+      settings.showRegistrations ? "<span><small>邀请注册</small><b>--</b></span>" : "",
+      settings.showTradingAccounts ? "<span><small>交易账号</small><b>--</b></span>" : "",
     ]
       .filter(Boolean)
       .join("");
     const core = [
       settings.showInviteCode
-        ? `<div class="ai-referral-line"><span>555555690-123</span><button type="button" aria-label="复制邀请码" data-copy-value="555555690-123">${actionIcon("copy")}</button></div>`
+        ? `<div class="ai-referral-line"><span>${escapeHtml(inviteDisplay)}</span><button type="button" aria-label="复制邀请码" ${inviteCode ? `data-copy-value="${escapeHtml(inviteCode)}"` : "disabled aria-disabled=\"true\""}>${actionIcon("copy")}</button></div>`
         : "",
       settings.showPromoLink
-        ? `<div class="ai-referral-line wide"><span>http://user-1.hcs55.com:38080/regist-real?invitid=555555690-123</span><button type="button" aria-label="复制注册链接" data-copy-value="http://user-1.hcs55.com:38080/regist-real?invitid=555555690-123">${actionIcon("copy")}</button></div>`
+        ? `<div class="ai-referral-line wide"><span>${escapeHtml(promoDisplay)}</span><button type="button" aria-label="复制注册链接" ${promoLink ? `data-copy-value="${escapeHtml(promoLink)}"` : "disabled aria-disabled=\"true\""}>${actionIcon("copy")}</button></div>`
         : "",
       settings.showQrCode
         ? `<button class="ai-referral-qr" type="button" aria-label="打开邀请二维码">${actionIcon("copy")}<span>二维码</span></button>`
@@ -11345,12 +11601,12 @@
 	    const demoViewMode = accountSettings.demoViewMode || (accountSettings.viewMode === "card" ? "card" : "list");
 	    const realOrder = accountSettings.demoFirst ? 2 : 1;
 	    const demoOrder = accountSettings.demoFirst ? 1 : 2;
-	    const accountCardSamples = [
-	      { kind: "real", label: "Live", platform: "MT5", server: "HCHoldings-Live2", account: "2000281", balance: "99,999.99", equity: "101,280.60", credit: "500.00", accountType: "ECN Standard", leverage: "1:100", marginRatio: "528%" },
-	      { kind: "real", label: "Live", platform: "MT4", server: "HCHoldings-Live3", account: "400009", balance: "52,306.00", equity: "52,880.20", credit: "0.00", accountType: "Pro Raw", leverage: "1:200", marginRatio: "612%" },
-	      { kind: "demo", label: "Demo", platform: "MT5", server: "HCHoldings-Demo", account: "1000008", balance: "50,000.00", equity: "51,280.60", credit: "0.00", accountType: "Demo ECN", leverage: "1:500", marginRatio: "4345%" },
-	      { kind: "demo", label: "Demo", platform: "XOH", server: "XOH-Demo-02", account: "910025", balance: "20,000.00", equity: "20,240.15", credit: "0.00", accountType: "Demo Standard", leverage: "1:400", marginRatio: "1880%" },
-	    ];
+		    const accountCardSamples = [
+		      { kind: "real", label: "Live", platform: "MT5", server: "后台绑定", account: "--", balance: "--", equity: "--", credit: "--", accountType: "真实账号", leverage: "--", marginRatio: "--" },
+		      { kind: "real", label: "Live", platform: "MT4", server: "后台绑定", account: "--", balance: "--", equity: "--", credit: "--", accountType: "真实账号", leverage: "--", marginRatio: "--" },
+		      { kind: "demo", label: "Demo", platform: "MT5", server: "后台绑定", account: "--", balance: "--", equity: "--", credit: "--", accountType: "模拟账号", leverage: "--", marginRatio: "--" },
+		      { kind: "demo", label: "Demo", platform: "XOH", server: "后台绑定", account: "--", balance: "--", equity: "--", credit: "--", accountType: "模拟账号", leverage: "--", marginRatio: "--" },
+		    ];
 	    const accountCardMarkup = (account) => {
 	      const environment = `${account.platform} · ${account.server}`;
 	      return `
@@ -11377,10 +11633,10 @@
     const previewRealCards = accountCardSamples.filter((account) => account.kind === "real").map(accountCardMarkup).join("");
     const previewDemoCards = accountCardSamples.filter((account) => account.kind === "demo").map(accountCardMarkup).join("");
     const morphId = moduleMorphId(config, "TradingAccounts") || "statusBoard";
-	    const accountRowsMarkup = `
-	      <div class="ai-account-morph-row" data-kind="real"><b>Live</b><span>80010</span><span>MT5 · HCHoldings-Live2</span><strong>12,480.50</strong><strong>12,726.40</strong><span>500.00</span><span>ECN Standard</span><span>1:100</span><span>528%</span></div>
-	      <div class="ai-account-morph-row" data-kind="demo"><b>Demo</b><span>90021</span><span>MT5 · HCHoldings-Demo</span><strong>50,000.00</strong><strong>51,280.60</strong><span>0.00</span><span>Demo ECN</span><span>1:500</span><span>4345%</span></div>
-	    `;
+		    const accountRowsMarkup = `
+		      <div class="ai-account-morph-row" data-kind="real"><b>Live</b><span>--</span><span>MT5 · 后台绑定</span><strong>--</strong><strong>--</strong><span>--</span><span>真实账号</span><span>--</span><span>--</span></div>
+		      <div class="ai-account-morph-row" data-kind="demo"><b>Demo</b><span>--</span><span>MT5 · 后台绑定</span><strong>--</strong><strong>--</strong><span>--</span><span>模拟账号</span><span>--</span><span>--</span></div>
+		    `;
 
     if (isSeparated) {
       feature.id = "accounts";
@@ -11623,31 +11879,31 @@
     const feature = wrapFeature(doc, "trading_account_highlight", "ai-performance-feature", config);
     const safeProps = sanitizeComponentProps("trading_account_highlight", props, []);
 
-    if (isTradingCostWorkbenchConfig(config)) {
-      feature.innerHTML = `
-        <div class="ai-trader-cost-head">
-          <div>
-            <strong>交易成本与执行效率</strong>
-          </div>
-          <b>MT5 Live2 · ECN</b>
-        </div>
-        <div class="ai-cost-strip" aria-label="交易成本指标">
-          <span><small>EURUSD 点差</small><b>0.2 起</b></span>
-          <span><small>佣金</small><b>$7/手</b></span>
-          <span><small>平均执行</small><b>38ms</b></span>
-          <span><small>MT5 快捷操作</small><b>已就绪</b></span>
-        </div>
-        <div class="ai-cost-position-grid">
-          <article>
-            <small>持仓 PnL</small>
-            <strong>+$1,280.60</strong>
-            <span>EURUSD 多单 · 3 笔持仓</span>
-          </article>
-          <article>
-            <small>保证金占用</small>
-            <strong>$2,410.00</strong>
-            <span>可用保证金 81.1%</span>
-          </article>
+	    if (isTradingCostWorkbenchConfig(config)) {
+	      feature.innerHTML = `
+	        <div class="ai-trader-cost-head">
+	          <div>
+	            <strong>交易成本与执行效率</strong>
+	          </div>
+	          <b>MT5 · 后台绑定</b>
+	        </div>
+	        <div class="ai-cost-strip" aria-label="交易成本指标">
+	          <span><small>EURUSD 点差</small><b>--</b></span>
+	          <span><small>佣金</small><b>--</b></span>
+	          <span><small>平均执行</small><b>--</b></span>
+	          <span><small>MT5 快捷操作</small><b>接口绑定</b></span>
+	        </div>
+	        <div class="ai-cost-position-grid">
+	          <article>
+	            <small>持仓 PnL</small>
+	            <strong>--</strong>
+	            <span>持仓接口返回后展示</span>
+	          </article>
+	          <article>
+	            <small>保证金占用</small>
+	            <strong>--</strong>
+	            <span>保证金接口返回后展示</span>
+	          </article>
         </div>
         <div class="ai-cost-curve" aria-label="持仓 PnL 曲线">
           <div class="ai-chart-stage">
@@ -11677,19 +11933,18 @@
 
     feature.dataset.accountPerformance = "";
 
-    const accountOptions = [
-      { id: "80010", label: "80010-HCHoldings-Live2" },
-      { id: "80011", label: "80011-HCHoldings-Live2" },
-      { id: "90021", label: "90021-HCHoldings-Demo" },
-    ]
+	    const accountOptions = [
+	      { id: "live-account", label: "Live 账号 · 后台绑定" },
+	      { id: "demo-account", label: "Demo 账号 · 后台绑定" },
+	    ]
       .map((account) => `<option value="${escapeHtml(account.id)}">${escapeHtml(account.label)}</option>`)
       .join("");
 
-    const accountMetrics = [
-      { key: "pnl", label: "Floating P/L", value: "+$1,280.60", tone: "positive" },
-      { key: "margin", label: "Margin Ratio", value: "81.1%", tone: "" },
-      { key: "credit", label: "Credit", value: "$500.00", tone: "" },
-      { key: "leverage", label: "Leverage", value: "1:100", tone: "" },
+	    const accountMetrics = [
+	      { key: "pnl", label: "Floating P/L", value: "--", tone: "" },
+	      { key: "margin", label: "Margin Ratio", value: "--", tone: "" },
+	      { key: "credit", label: "Credit", value: "--", tone: "" },
+	      { key: "leverage", label: "Leverage", value: "--", tone: "" },
     ]
       .map(
         (metric) => `
@@ -11715,24 +11970,24 @@
     if (!["proChart", "summaryChart"].includes(morphId)) {
       feature.innerHTML =
         {
-          sparklineBoard: `
-            <div class="ai-performance-spark-board">
-              <header><strong>${escapeHtml(t(safeProps.titleKey))}</strong><span>7D</span></header>
-              <div class="ai-performance-spark-grid">
-                <article><small>Equity</small><b>12,726.40</b>${chartPanel("account-performance")}</article>
-                <article><small>PnL</small><b class="positive">+$1,280.60</b>${chartPanel("trading-cost-pnl", "ECharts 持仓 PnL 日期走势")}</article>
-              </div>
-            </div>
-          `,
-          costBoard: `
-            <div class="ai-cost-strip" aria-label="交易成本指标">
-              <span><small>EURUSD 点差</small><b>0.2 起</b></span>
-              <span><small>佣金</small><b>$7/手</b></span>
-              <span><small>平均执行</small><b>38ms</b></span>
-              <span><small>MT5 快捷操作</small><b>已就绪</b></span>
-            </div>
-            <div class="ai-cost-curve">${chartPanel("trading-cost-pnl", "ECharts 持仓 PnL 日期走势")}</div>
-          `,
+	          sparklineBoard: `
+	            <div class="ai-performance-spark-board">
+	              <header><strong>${escapeHtml(t(safeProps.titleKey))}</strong><span>7D</span></header>
+	              <div class="ai-performance-spark-grid">
+	                <article><small>Equity</small><b>--</b>${chartPanel("account-performance")}</article>
+	                <article><small>PnL</small><b>--</b>${chartPanel("trading-cost-pnl", "ECharts 持仓 PnL 日期走势")}</article>
+	              </div>
+	            </div>
+	          `,
+	          costBoard: `
+	            <div class="ai-cost-strip" aria-label="交易成本指标">
+	              <span><small>EURUSD 点差</small><b>--</b></span>
+	              <span><small>佣金</small><b>--</b></span>
+	              <span><small>平均执行</small><b>--</b></span>
+	              <span><small>MT5 快捷操作</small><b>接口绑定</b></span>
+	            </div>
+	            <div class="ai-cost-curve">${chartPanel("trading-cost-pnl", "ECharts 持仓 PnL 日期走势")}</div>
+	          `,
           dualChart: `
             <div class="ai-performance-dual-chart">
               <header><strong>${escapeHtml(t(safeProps.titleKey))}</strong><span>Equity / PnL</span></header>
@@ -11746,18 +12001,18 @@
               ${chartPanel("account-performance")}
             </div>
           `,
-          riskPanel: `
-            <div class="ai-performance-risk-panel">
-              <aside><strong>Risk Check</strong><span>保证金 81.1%</span><span>最大回撤 -3.2%</span></aside>
-              ${chartPanel("account-performance")}
-            </div>
-          `,
-          positionPanel: `
-            <div class="ai-performance-position-panel">
-              <section><b>EURUSD 多单</b><strong>+$1,280.60</strong><small>3 笔持仓</small></section>
-              ${chartPanel("trading-cost-pnl", "ECharts 持仓 PnL 日期走势")}
-            </div>
-          `,
+	          riskPanel: `
+	            <div class="ai-performance-risk-panel">
+	              <aside><strong>Risk Check</strong><span>保证金 --</span><span>最大回撤 --</span></aside>
+	              ${chartPanel("account-performance")}
+	            </div>
+	          `,
+	          positionPanel: `
+	            <div class="ai-performance-position-panel">
+	              <section><b>持仓接口</b><strong>--</strong><small>返回后展示</small></section>
+	              ${chartPanel("trading-cost-pnl", "ECharts 持仓 PnL 日期走势")}
+	            </div>
+	          `,
           terminalChart: `
             <div class="ai-performance-terminal-chart">
               <header><span>MT5 LIVE2</span><b>ACCOUNT_PERFORMANCE</b></header>
@@ -11765,12 +12020,12 @@
               <footer>${accountMetrics}</footer>
             </div>
           `,
-          cleanSnapshot: `
-            <div class="ai-performance-clean-snapshot">
-              <div><small>Equity (USD)</small><strong data-performance-equity>12,726.40</strong><b data-performance-balance>Balance 12,480.50</b></div>
-              ${chartPanel("account-performance")}
-              <div class="ai-performance-account-metrics">${accountMetrics}</div>
-            </div>
+	          cleanSnapshot: `
+	            <div class="ai-performance-clean-snapshot">
+	              <div><small>Equity (USD)</small><strong data-performance-equity>--</strong><b data-performance-balance>Balance --</b></div>
+	              ${chartPanel("account-performance")}
+	              <div class="ai-performance-account-metrics">${accountMetrics}</div>
+	            </div>
           `,
         }[morphId] ||
         `
@@ -11812,16 +12067,16 @@
               <i aria-hidden="true"></i>
             </label>
           </div>
-          <div class="ai-performance-primary">
-            <span>Equity (USD)</span>
-            <strong data-performance-equity>12,726.40</strong>
-            <b data-performance-balance>Balance 12,480.50</b>
-            <small data-performance-account-meta>MT5 · ECN Standard</small>
-          </div>
+	          <div class="ai-performance-primary">
+	            <span>Equity (USD)</span>
+	            <strong data-performance-equity>--</strong>
+	            <b data-performance-balance>Balance --</b>
+	            <small data-performance-account-meta>MT5 · 后台绑定</small>
+	          </div>
           <div class="ai-performance-account-metrics" aria-label="账号关键指标">
             ${accountMetrics}
           </div>
-          <p>演示数据用于预览真实账号的净值、浮动盈亏和保证金状态。</p>
+	          <p>数据由交易账号接口返回，缺失时保持占位状态。</p>
         </div>
         <div class="ai-performance-chart" aria-label="7日或30日账号净值和PnL折线图">
           <div class="ai-chart-meta">
@@ -11844,11 +12099,11 @@
             <span>05/08</span>
             <span>05/11</span>
           </div>
-          <div class="ai-chart-insights" aria-label="账号表现摘要">
-            <span><small data-performance-delta-label>7D Equity</small><b data-performance-delta>+16.8%</b></span>
-            <span><small>Peak Equity</small><b data-performance-peak>13,120.00</b></span>
-            <span><small>Max Drawdown</small><b data-performance-drawdown>-3.2%</b></span>
-          </div>
+	          <div class="ai-chart-insights" aria-label="账号表现摘要">
+	            <span><small data-performance-delta-label>7D Equity</small><b data-performance-delta>--</b></span>
+	            <span><small>Peak Equity</small><b data-performance-peak>--</b></span>
+	            <span><small>Max Drawdown</small><b data-performance-drawdown>--</b></span>
+	          </div>
         </div>
       </div>
     `;
@@ -12479,6 +12734,7 @@
 	    host.dataset.aiHtmlSourceLabel = aiHtmlSourceLabel(scheme);
 	    host.dataset.aiHtmlFallback = scheme.isFallback ? "true" : "false";
 	    host.dataset.aiHtmlMock = scheme.mock ? "true" : "false";
+	    host.dataset.aiHtmlGridColumns = String(HOME_GRID_COLUMNS);
 	    host.title = [aiHtmlSourceLabel(scheme), scheme.fallbackReason].filter(Boolean).join("：");
 	    host.setAttribute("aria-label", scheme.name || "AI HTML 首页预览");
 
@@ -12494,6 +12750,23 @@
         *, *::before, *::after { box-sizing: border-box; }
         a { color: inherit; text-decoration: none; }
         button, a { font: inherit; }
+        .ai-html-page { --ai-html-grid-columns: ${HOME_GRID_COLUMNS}; }
+        .ai-html-grid-12,
+        .ai-html-page [data-ai-html-grid="12"] {
+          display: grid;
+          grid-template-columns: repeat(${HOME_GRID_COLUMNS}, minmax(0, 1fr));
+          gap: var(--home-grid-gap, 14px);
+          min-width: 0;
+        }
+        .ai-html-page [data-ai-html-span="12"] { grid-column: span 12; }
+        .ai-html-page [data-ai-html-span="8"] { grid-column: span 8; }
+        .ai-html-page [data-ai-html-span="6"] { grid-column: span 6; }
+        .ai-html-page [data-ai-html-span="4"] { grid-column: span 4; }
+        @media (max-width: 860px) {
+          .ai-html-grid-12,
+          .ai-html-page [data-ai-html-grid="12"] { grid-template-columns: 1fr; }
+          .ai-html-page [data-ai-html-span] { grid-column: 1 / -1; }
+        }
         ${scheme.css}
       </style>
       ${scheme.html}
@@ -12783,6 +13056,7 @@
       const rowNode = doc.createElement("div");
       rowNode.className = "ai-home-row";
       rowNode.dataset.homeRow = row.id;
+      rowNode.dataset.homeGridColumns = String(HOME_GRID_COLUMNS);
       rowNode.dataset.rowItems = String(row.items.length);
       rowNode.dataset.rowKind = row.items.length > 1 ? "paired" : "single";
       rowNode.dataset.rowCollapse = row.items.length > 1 ? config.autoLayout?.tablet?.rowMode || "stack-paired-rows" : "none";
@@ -12797,11 +13071,13 @@
         const node = renderComponent(doc, config, block.props);
         node.classList.add("ai-home-block", `ai-home-block-${block.slot}`, `ai-component-${block.component}`);
         node.dataset.homeComponent = block.component;
+        node.dataset.homeGridColumns = String(HOME_GRID_COLUMNS);
         if (block.brickId) node.dataset.homeBrick = block.brickId;
         if (block.brickName) node.dataset.homeBrickName = block.brickName;
         if (block.brickReason) node.dataset.homeBrickReason = block.brickReason;
         node.dataset.homeSlot = block.slot;
         node.dataset.homeSpan = String(item.span);
+        node.dataset.homeLayoutRecipe = item.span >= 12 ? "12+0" : item.span === 8 ? "8+4" : item.span === 6 ? "6+6" : "4+8";
         const responsiveRule = config.autoLayout?.moduleRules?.[block.component];
         if (responsiveRule) {
           node.dataset.autoLayoutDesktop = responsiveRule.desktop;
@@ -13234,6 +13510,7 @@
     DEFAULT_MODULE_SETTINGS: clone(DEFAULT_MODULE_SETTINGS),
     DESIGN_GENOMES: clone(DESIGN_GENOMES),
     FEATURES,
+    HOME_GRID_COLUMNS,
     HOME_BRICKS: clone(HOME_BRICKS),
     HOMEPAGE_CONFIG_JSON_SCHEMA: clone(HOMEPAGE_CONFIG_JSON_SCHEMA),
     PAGE_GOVERNANCE_CONTRACTS: clone(PAGE_GOVERNANCE_CONTRACTS),
@@ -13258,6 +13535,8 @@
     layoutLabel,
     loadConfig,
     loadDraft,
+    homeGridContractForSize,
+    homeGridSpanForSize,
     moduleLabel,
     moduleVariantLabel,
     moduleVariantSummary,

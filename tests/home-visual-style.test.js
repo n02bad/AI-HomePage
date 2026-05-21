@@ -143,6 +143,7 @@ class CdpClient {
     this.url = new URL(wsUrl);
     this.nextId = 1;
     this.pending = new Map();
+    this.timers = new Map();
     this.buffer = Buffer.alloc(0);
     this.handshaken = false;
     this.socket = null;
@@ -250,6 +251,11 @@ class CdpClient {
     const pending = this.pending.get(data.id);
     if (!pending) return;
     this.pending.delete(data.id);
+    const timer = this.timers.get(data.id);
+    if (timer) {
+      clearTimeout(timer);
+      this.timers.delete(data.id);
+    }
     if (data.error) {
       pending.reject(new Error(`${pending.method} failed: ${data.error.message}`));
     } else {
@@ -264,16 +270,25 @@ class CdpClient {
     this.socket.write(encodeClientFrame(payload));
     return new Promise((resolve, reject) => {
       this.pending.set(id, { method, resolve, reject });
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         if (!this.pending.has(id)) return;
         this.pending.delete(id);
+        this.timers.delete(id);
         reject(new Error(`${method} timed out`));
       }, 10000);
+      if (typeof timer.unref === "function") timer.unref();
+      this.timers.set(id, timer);
     });
   }
 
   close() {
-    if (this.socket) this.socket.end();
+    for (const timer of this.timers.values()) clearTimeout(timer);
+    this.timers.clear();
+    if (this.socket) {
+      this.socket.end();
+      this.socket.destroy();
+      this.socket = null;
+    }
   }
 }
 

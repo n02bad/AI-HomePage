@@ -723,11 +723,12 @@
 
 .brick-preview-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(280px, 1fr));
+  grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 14px;
 }
 
 .brick-card {
+  grid-column: span 4;
   min-height: 294px;
   display: flex;
   flex-direction: column;
@@ -738,7 +739,11 @@
 }
 
 .brick-card.wide {
-  grid-column: span 2;
+  grid-column: span 8;
+}
+
+.brick-card[data-component-size] {
+  grid-column: span var(--component-home-span, var(--component-grid-span, 4));
 }
 
 .brick-card > header {
@@ -2363,15 +2368,15 @@
 
 @media (max-width: 1240px) {
   .brick-card.wide {
-    grid-column: span 1;
+    grid-column: span 8;
   }
 
   .brick-card[data-component-size] {
-    grid-column: span var(--component-grid-span-tablet, 1);
+    grid-column: span var(--component-home-span, var(--component-grid-span, 4));
   }
 
   .brick-preview-grid {
-    grid-template-columns: repeat(2, minmax(280px, 1fr));
+    grid-template-columns: repeat(12, minmax(0, 1fr));
   }
 
   .performance-preview {
@@ -2439,8 +2444,10 @@
     height: 120px;
   }
 
+  .brick-card,
+  .brick-card.wide,
   .brick-card[data-component-size] {
-    grid-column: span 1;
+    grid-column: 1 / -1;
   }
 
   .brick-filter-panel {

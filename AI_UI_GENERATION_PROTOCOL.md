@@ -96,7 +96,8 @@ Component-library freedom rule:
 Responsive auto layout rule:
 
 - Every generated blueprint should include `autoLayout` with `desktop`, `tablet`, `mobile`, and `moduleRules`.
-- `desktop` uses a 12-column grid and equal-height paired rows. Stable row recipes are `3x` full row, `2x+1x`, and `2x+2x`.
+- `desktop` uses a 12-column grid and equal-height paired rows. Stable row recipes are `3x` full row = `12+0`, `2x+1x` = `8+4`, and `2x+2x` = `6+6`; component and AI HTML output must keep this same mapping.
+- AI component generation, skeleton slot generation, component composition, and AI HTML must all carry a layout contract: `gridColumns=12`, desktop span `1x=4/12`, `2x=8/12`, `3x+ = 12/12`, and mobile/tablet single-column fallback. AI HTML regions should expose `data-ai-html-grid="12"` on the grid container and `data-ai-html-span="12|8|6|4"` on module regions.
 - `tablet` collapses paired rows when the content container is narrow, not only when the browser viewport is narrow. Default collapse threshold is `1040px`.
 - `mobile` is single column. Internal module layouts must stack: promotion ladders become copy above tiers, onboarding steps become a vertical journey or checklist, quick actions become two or one columns, and account-performance summary/chart stack vertically.
 - If a module would be cramped in a half-width row, prefer internal wrapping or a different compact presentation before letting text overflow or creating a fake empty area.

@@ -507,8 +507,32 @@ async function run() {
     normalizedSkeletonHtml.skeletonHtmlScheme.slots.every((slot) => typeof slot.chrome === "string" && slot.chrome.length > 0),
     "skeleton scheme must expose per-slot chrome roles",
   );
+  assert(normalizedSkeletonHtml.pagePlan?.compositionGroups?.length > 0, "skeleton mode must infer a pagePlan when model output loses it");
+  assert(normalizedSkeletonHtml.pagePlan?.visualHierarchy?.asset_overview > 0, "inferred skeleton pagePlan must carry visual weights into slot prompts");
   assert.strictEqual(typeof home.buildSkeletonHtmlScheme, "function", "skeleton builder must be exported for admin slot refresh");
   assert.strictEqual(typeof home.buildSkeletonDesignContract, "function", "skeleton style contract builder must be exported for slot prompts");
+
+  const normalizedBlockedSlotComponent = home.normalizeConfig({
+    schemaVersion: 4,
+    renderMode: "skeletonHtml",
+    activeRenderMode: "skeletonHtml",
+    sections: [{ id: "skeleton-actions", type: "full", title: "快捷入口", slots: ["quick_actions"] }],
+    skeletonHtmlScheme: {
+      enabled: true,
+      slots: [{ id: "quick_actions", slot: "quick_actions", label: "快捷入口", status: "filled" }],
+      slotComponents: {
+        quick_actions: {
+          id: "blocked-quick-actions",
+          slot: "quick_actions",
+          family: "QuickActions",
+          score: 5,
+          html: '<section class="blocked-quick-actions">快捷入口</section>',
+          css: ".blocked-quick-actions{display:block}",
+        },
+      },
+    },
+  });
+  assert(!normalizedBlockedSlotComponent.skeletonHtmlScheme.slotComponents.quick_actions, "skeleton renderer must drop score<=5 slot components");
 
   const assetSkeletonA = home.buildSkeletonHtmlScheme(home.promptToConfig("生成一个资产管理首页", 0));
   const assetSkeletonB = home.buildSkeletonHtmlScheme(home.promptToConfig("生成一个资产管理首页", 1));
@@ -935,6 +959,16 @@ async function run() {
 	  const modelSettingsSource = fs.readFileSync(path.join(ROOT, "ai-model-settings.js"), "utf8");
 	  const modulePreviewSource = fs.readFileSync(path.join(ROOT, "home-module-preview.js"), "utf8");
 	  const modulePreviewHtmlSource = fs.readFileSync(path.join(ROOT, "home-module-preview.html"), "utf8");
+  assert(personalizationSource.includes("HOME_GRID_COLUMNS = 12"), "homepage runtime must centralize the 12-column grid contract");
+  assert(personalizationSource.includes("homeGridContractForSize"), "homepage runtime must expose 12-column size/span contracts");
+  assert(personalizationSource.includes("data-ai-html-grid=\"12\""), "AI HTML renderer must provide a 12-column grid utility contract");
+  assert(personalizationCss.includes("--home-skeleton-slot-span"), "skeleton HTML slots must use explicit 12-column span variables");
+  assert(adminSource.includes("skeletonSlotLayoutContract"), "skeleton slot component generation must pass the 12-column layout contract");
+  assert(modulePreviewSource.includes("componentHomeSpanForSize"), "component workbench must map component sizes onto 12-column homepage spans");
+  assert(modulePreviewSource.includes("gridColumns: HOME_GRID_COLUMNS"), "component generation context must send gridColumns=12");
+  assert(serverSource.includes("componentGridContractForSize"), "server must normalize generated components with a 12-column layout contract");
+  assert(serverSource.includes("layoutContract.gridColumns=12"), "component prompts must require layoutContract.gridColumns=12");
+  assert(serverSource.includes("data-ai-html-grid=\\\"12\\\""), "AI HTML prompts must require a 12-column grid data attribute");
   assert(serverSource.includes("空间利用是硬约束"), "AI prompt must treat space utilization as a hard constraint");
   assert(serverSource.includes("同一组账号数据不得在同一个模块里同时渲染上方摘要卡/摘要行和下方列表/表格"), "AI prompt must forbid duplicate account card plus table views");
   assert(serverSource.includes("账号类型(accountKind=Live/Demo)和账户类型(accountType=ECN Standard/Demo ECN)"), "AI prompt must distinguish account kind and account type");
@@ -977,8 +1011,12 @@ async function run() {
 		  assert(serverSource.includes("shouldPersistGeneratedComponent"), "component generation API must support draft-only generation before confirmed save");
 		  assert(serverSource.includes("componentVisualReferencePromptReference"), "component generation prompts must include image/screenshot visual references");
 		  assert(serverSource.includes("input_image"), "OpenAI Responses component generation should forward uploaded image references");
-	  assert(serverSource.includes("productWarnings"), "homepage responses should expose productWarnings separately from HTML quality");
-	  assert(serverSource.includes("质量门禁"), "AI HTML generation must include an aesthetic quality gate");
+		  assert(serverSource.includes("productWarnings"), "homepage responses should expose productWarnings separately from HTML quality");
+		  assert(!adminSource.includes("专业版，加入账号、资产、推广链接"), "guided pro level copy must not pollute optional referral selection");
+		  assert(serverSource.includes("未在引导式表单选择，禁止模型自动补入。"), "guided module policy must enforce structured module selections");
+		  assert(serverSource.includes("optionalModuleMismatch"), "homepage validation must flag unselected optional modules rendered by the model");
+		  assert(serverSource.includes("heroFocusMismatch"), "homepage validation must flag heroFocus placement mismatches");
+		  assert(serverSource.includes("质量门禁"), "AI HTML generation must include an aesthetic quality gate");
 	  assert(serverSource.includes("designRulesPromptReference"), "AI generation must load design.md as prompt governance");
 	  assert(serverSource.includes("design.md 设计治理"), "AI prompts must explicitly reference design.md governance");
 	  assert(serverSource.includes("硬编码颜色过多"), "AI HTML quality gate must penalize hard-coded color drift");
@@ -1048,8 +1086,12 @@ async function run() {
 	  assert(serverSource.includes("在线客服、客户经理、服务时间和帮助入口"), "SupportContact generation must have a dedicated family contract");
 		  assert(serverSource.includes("在线客服服务卡"), "SupportContact mock fallback must render a real support card");
 		  assert(!serverSource.includes("<strong>${prompt}</strong>"), "component fallbacks must not paste the administrator prompt into the customer UI");
-		  assert(serverSource.includes("generatedComponentViolatesFamily"), "component generation must reject family-mismatched RiskDisclosure output");
-		  assert(serverSource.includes('"CopytradingSignals"'), "CopyTrading signal slots must be a dedicated component family");
+			  assert(serverSource.includes("generatedComponentViolatesFamily"), "component generation must reject family-mismatched RiskDisclosure output");
+			  assert(serverSource.includes("generatedComponentQualityIssues"), "component generation must reject visually empty or broken slot components");
+			  assert(serverSource.includes("generatedComponentHasVisiblePlaceholder"), "component quality gate must detect blank chart placeholders");
+			  assert(serverSource.includes("generatedComponentUsesBrokenIconFont"), "component quality gate must reject empty iconfont quick-action icons");
+			  assert(serverSource.includes("evaluateSkeletonSlotQuality"), "homepage aesthetic score must inspect skeleton slot component quality");
+			  assert(serverSource.includes('"CopytradingSignals"'), "CopyTrading signal slots must be a dedicated component family");
 		  assert(serverSource.includes('family === "CopytradingSignals"'), "component generation must reject onboarding/PAMM output for CopyTrading slots");
 		  assert(adminSource.includes('copytrading_signals: "CopytradingSignals"'), "skeleton slot generation must request the CopyTrading family for signal slots");
 		  assert(modulePreviewHtmlSource.includes('value="CopytradingSignals"'), "component workbench family selector must expose saved CopyTrading signal bricks");
@@ -1070,6 +1112,9 @@ async function run() {
 			  assert(serverSource.includes("componentDesignContractPromptReference"), "component providers must receive compact page design contracts");
 			  assert(serverSource.includes("骨架 slot 契约"), "component prompts must expose the structured skeleton slot contract");
 			  assert(personalizationSource.includes("slotPromptContractSummary"), "skeleton slot prompt metadata must survive config normalization");
+			  assert(personalizationSource.includes("normalizeHomepageRuntimePagePlan"), "runtime normalization must repair missing skeleton pagePlan contracts");
+			  assert(personalizationSource.includes('referenceTier === "blocked"'), "runtime must refuse blocked skeleton slot components");
+			  assert(adminSource.includes("机器发现偏弱"), "manual reject feedback must not turn high machine category scores into positive preference signals");
 			  assert(adminSource.includes("isRealModelAiHtmlScheme"), "admin distinct-generation guard must preserve real model AI HTML");
 	  assert(adminSource.includes("serverHtmlLooksModelGenerated"), "admin history must not mislabel model/free-html as fallback when server metadata is older");
 		  assert(adminSource.includes("积木保底"), "admin history must label brick-backed AI HTML as a fallback source");
@@ -1316,8 +1361,8 @@ async function run() {
 	          { id: "heroBanner", label: "首屏 Banner", canonicalTargets: ["welcome_header", "promo_banner"] },
 	          { id: "openingFlow", label: "新手引导", canonicalTargets: ["onboarding_guide"] },
 	          { id: "accountBenefits", label: "账户类型与优势", canonicalTargets: ["onboarding_guide", "trading_accounts_list"] },
-	          { id: "tradingAccounts", label: "交易账号", canonicalTargets: ["trading_accounts_list"] },
-	        ],
+		          { id: "tradingAccounts", label: "交易账号", canonicalTargets: ["trading_accounts_list"] },
+		        ],
 	      },
 	      modelConfig: { provider: "openai" },
 	    });
@@ -1352,45 +1397,90 @@ async function run() {
 		          heroFocus: "onboarding_guide",
 		          mustHave: ["asset_overview", "quick_actions", "onboarding_guide", "trading_accounts_list", "support_contact"],
 		        },
-		        modules: [
-		          { id: "accountOverview", label: "账户概览", canonicalTargets: ["asset_overview"] },
-		          { id: "quickActions", label: "快捷入口", canonicalTargets: ["quick_actions"] },
-		          { id: "openingFlow", label: "新手引导", canonicalTargets: ["onboarding_guide"] },
-		          { id: "tradingAccounts", label: "交易账号", canonicalTargets: ["trading_accounts_list"] },
-		        ],
-		      },
+			        modules: [
+			          { id: "accountOverview", label: "账户概览", canonicalTargets: ["asset_overview"] },
+			          { id: "quickActions", label: "快捷入口", canonicalTargets: ["quick_actions"] },
+			          { id: "openingFlow", label: "新手引导", canonicalTargets: ["onboarding_guide"] },
+			          { id: "tradingAccounts", label: "交易账号", canonicalTargets: ["trading_accounts_list"] },
+			        ],
+			      },
 		      modelConfig: { provider: "openai" },
 		    });
 		    assert.strictEqual(guidedPollutionResponse.ok, true);
 		    assertOnlyAllowedBlocks(guidedPollutionResponse.config);
 		    assert.strictEqual(hasBlock(guidedPollutionResponse.config, "support_contact"), false);
 		    assert.strictEqual(guidedPollutionResponse.config.moduleSettings.supportContact.enabled, false);
-		    assert.deepStrictEqual(guidedPollutionResponse.config.moduleSettings.quickActions.actions, []);
-		    assert.strictEqual(guidedPollutionResponse.config.themePreset, "blueFinance");
-		    assert.strictEqual(guidedPollutionResponse.config.theme, "blueFinance");
+			    assert.deepStrictEqual(guidedPollutionResponse.config.moduleSettings.quickActions.actions, []);
+			    assert.strictEqual(guidedPollutionResponse.config.themePreset, "blueFinance");
+			    assert.strictEqual(guidedPollutionResponse.config.theme, "blueFinance");
 
-			    const guidedExplicitOptionalResponse = await postJson(port, {
+		    const guidedProCopyReferralResponse = await postJson(port, {
+		      inputMode: "guided",
+		      prompt:
+		        "宽松布局：增加留白和模块呼吸感。专业版，加入账号、资产、推广链接、数据指标或更完整的运营模块。必选模块：账户概览、快捷入口、交易账号、新手 Onboarding；选填模块：欢迎模块、钱包列表、FAQ、风险提示。不要编造收益、下载链接、后台未提供的数据或未选择的辅助模块。",
+		      context: { userRole: "client" },
+		      guidedIntake: {
+		        source: "guided-builder",
+		        level: { id: "pro", label: "专业版" },
+		        layoutDensity: { id: "spacious", label: "宽松布局" },
+		        canonical: {
+		          primaryIntent: "onboarding",
+		          layoutPreset: "onboardingJourney",
+		          heroFocus: "asset_overview",
+		          mustHave: ["asset_overview", "quick_actions", "onboarding_guide", "trading_accounts_list"],
+		        },
+		        modules: [
+		          { id: "welcomeModule", label: "欢迎模块", canonicalTargets: ["welcome_header"] },
+		          { id: "accountOverview", label: "账户概览", canonicalTargets: ["asset_overview"] },
+		          { id: "quickActions", label: "快捷入口", canonicalTargets: ["quick_actions"] },
+		          { id: "openingFlow", label: "新手 Onboarding", canonicalTargets: ["onboarding_guide"] },
+		          { id: "tradingAccounts", label: "交易账号", canonicalTargets: ["trading_accounts_list"] },
+		          { id: "walletList", label: "钱包列表", canonicalTargets: ["wallet_list"] },
+		          { id: "faq", label: "FAQ", canonicalTargets: ["faq_section"] },
+		          { id: "riskDisclosure", label: "风险提示", canonicalTargets: ["risk_disclosure"] },
+		        ],
+		      },
+		      modelConfig: { provider: "openai" },
+		    });
+		    assert.strictEqual(guidedProCopyReferralResponse.ok, true);
+		    assertOnlyAllowedBlocks(guidedProCopyReferralResponse.config);
+		    assert.strictEqual(hasBlock(guidedProCopyReferralResponse.config, "referral_link_card"), false);
+		    assert.strictEqual(hasBlock(guidedProCopyReferralResponse.config, "wallet_list"), true);
+		    assert.strictEqual(hasBlock(guidedProCopyReferralResponse.config, "faq_section"), true);
+		    assert.strictEqual(hasBlock(guidedProCopyReferralResponse.config, "risk_disclosure"), true);
+		    assert(guidedProCopyReferralResponse.modulePolicy.blockedModules.includes("referral_link_card"));
+		    assert.strictEqual(guidedProCopyReferralResponse.config.moduleSettings.referralLinkCard.enabled, false);
+		    assert.strictEqual((guidedProCopyReferralResponse.config.sections?.[0]?.slots || [])[0], "welcome_header");
+		    assert((guidedProCopyReferralResponse.config.sections?.[0]?.slots || []).includes("asset_overview"));
+		    assert.strictEqual(guidedProCopyReferralResponse.productWarnings.includes("referral_link_card was mentioned but not selected"), false);
+
+					    const guidedExplicitOptionalResponse = await postJson(port, {
 		      inputMode: "guided",
 		      prompt:
 		        "请生成开户首页；首页 Banner / 广告轮播需要展示；CopyTrading 信号源、推广链接、FAQ 和风险提示都要保留。交易账号卡片宽度适中，不要过大，希望一行至少能放4个卡片。",
 		      context: { userRole: "client" },
-			      guidedIntake: {
-			        source: "guided-builder",
-			        pageGoal: { id: "openAccount", label: "开真实账户" },
-			        primaryAction: { action: "openAccount", label: "立即开户" },
-			        canonical: {
-			          primaryIntent: "onboarding",
-			          layoutPreset: "onboardingJourney",
+		      guidedIntake: {
+		        source: "guided-builder",
+		        pageGoal: { id: "openAccount", label: "开真实账户" },
+		        primaryAction: { action: "openAccount", label: "立即开户" },
+		        canonical: {
+		          primaryIntent: "onboarding",
+		          layoutPreset: "onboardingJourney",
 		          heroFocus: "onboarding_guide",
 		          mustHave: ["asset_overview", "quick_actions", "onboarding_guide", "trading_accounts_list"],
 		        },
 		        modules: [
 		          { id: "accountOverview", label: "账户概览", canonicalTargets: ["asset_overview"] },
-			          { id: "quickActions", label: "快捷入口", canonicalTargets: ["quick_actions"] },
-			          { id: "openingFlow", label: "新手引导", canonicalTargets: ["onboarding_guide"] },
-			          { id: "tradingAccounts", label: "交易账号", canonicalTargets: ["trading_accounts_list"] },
-			        ],
-			      },
+		          { id: "quickActions", label: "快捷入口", canonicalTargets: ["quick_actions"] },
+		          { id: "openingFlow", label: "新手引导", canonicalTargets: ["onboarding_guide"] },
+		          { id: "tradingAccounts", label: "交易账号", canonicalTargets: ["trading_accounts_list"] },
+		          { id: "heroBanner", label: "广告轮播", canonicalTargets: ["promo_banner"] },
+		          { id: "copyTrading", label: "CopyTrading 信号源", canonicalTargets: ["copytrading_signals"] },
+		          { id: "referralLink", label: "推广链接", canonicalTargets: ["referral_link_card"] },
+		          { id: "faq", label: "FAQ", canonicalTargets: ["faq_section"] },
+		          { id: "riskDisclosure", label: "风险提示", canonicalTargets: ["risk_disclosure"] },
+		        ],
+		      },
 		      modelConfig: { provider: "openai" },
 		    });
 		    assert.strictEqual(guidedExplicitOptionalResponse.ok, true);

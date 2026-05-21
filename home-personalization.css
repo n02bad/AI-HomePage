@@ -10301,11 +10301,11 @@ body[data-home-render-mode="aiHtml"] .dashboard-customize-link {
 
 .home-skeleton-section-hero .home-skeleton-slot,
 .home-skeleton-section-full .home-skeleton-slot {
-  grid-column: 1 / -1;
+  grid-column: span var(--home-skeleton-slot-span, 12);
 }
 
 .home-skeleton-section-split .home-skeleton-slot {
-  grid-column: span 6;
+  grid-column: span var(--home-skeleton-slot-span, 6);
 }
 
 .home-skeleton-section-split .home-skeleton-slot:only-child {
@@ -10313,11 +10313,11 @@ body[data-home-render-mode="aiHtml"] .dashboard-customize-link {
 }
 
 .home-skeleton-section-rail .home-skeleton-slot:first-child {
-  grid-column: span 8;
+  grid-column: span var(--home-skeleton-slot-span, 8);
 }
 
 .home-skeleton-section-rail .home-skeleton-slot {
-  grid-column: span 4;
+  grid-column: span var(--home-skeleton-slot-span, 4);
 }
 
 .home-skeleton-section-rail .home-skeleton-slot:only-child {
@@ -10329,6 +10329,7 @@ body[data-home-render-mode="aiHtml"] .dashboard-customize-link {
   overflow: hidden;
   min-width: 0;
   display: grid;
+  grid-column: span var(--home-skeleton-slot-span, 12);
   gap: 8px;
   padding: 8px;
   border: 1px dashed var(--home-border, #dbe4ef);
