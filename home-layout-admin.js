@@ -2538,40 +2538,8 @@
   ];
 
   const GUIDED_REQUIRED_MODULE_IDS = ["accountOverview", "quickActions", "tradingAccounts", "openingFlow"];
-  const GUIDED_PAGE_GOAL_TO_INTENT = {
-    openAccount: "onboarding",
-    deposit: "deposit",
-    startTrading: "trader",
-    contactSupport: "brand",
-    downloadApp: "mobile",
-    learnMore: "standard",
-  };
-  const GUIDED_PAGE_GOAL_TO_ACTION = {
-    openAccount: { action: "openAccount", label: "立即开户" },
-    deposit: { action: "deposit", label: "立即入金" },
-    startTrading: { action: "accounts", label: "查看交易账号" },
-    contactSupport: { action: "contactSupport", label: "联系客服" },
-    downloadApp: { action: "downloadApp", label: "下载 APP / MT5" },
-    learnMore: { action: "learnMore", label: "了解更多" },
-  };
-  const GUIDED_PAGE_GOAL_HERO_FOCUS = {
-    openAccount: "onboarding_guide",
-    deposit: "asset_overview",
-    startTrading: "trading_accounts_list",
-    contactSupport: "asset_overview",
-    downloadApp: "app_download",
-    learnMore: "asset_overview",
-  };
   function isGuidedRequiredModule(value) {
     return GUIDED_REQUIRED_MODULE_IDS.includes(value);
-  }
-
-  function guidedPrimaryActionForGoal(goal) {
-    return GUIDED_PAGE_GOAL_TO_ACTION[goal] || GUIDED_PAGE_GOAL_TO_ACTION.openAccount;
-  }
-
-  function guidedCanonicalIntentForGoal(goal) {
-    return GUIDED_PAGE_GOAL_TO_INTENT[goal] || "onboarding";
   }
 
   function ensureGuidedRequiredModules(values) {
@@ -2579,24 +2547,21 @@
   }
 
   const GUIDED_PROMPT_COPY = {
-    pageGoal: {
-      openAccount: "页面目标：推动客户开真实账户；全页主 CTA 统一为“立即开户”",
-      deposit: "页面目标：推动首次入金；全页主 CTA 统一为“立即入金”",
-      startTrading: "页面目标：让客户进入交易账号和交易操作；主 CTA 指向交易账号或持仓/订单入口",
-      contactSupport: "页面目标：建立信任并引导客户联系人工协助；主 CTA 指向客服或客户经理",
-      downloadApp: "页面目标：引导下载 APP 或 MT5；主 CTA 指向下载入口，不能编造真实链接",
-      learnMore: "页面目标：让客户理解首页价值和下一步路径；主 CTA 保持低干扰",
+    level: {
+      basic: "基础版，保留首屏和核心说明",
+      growth: "增长版，在基础能力上加入活动权益、按钮和转化承接",
+      pro: "专业版，加入账号、资产、推广链接、数据指标或更完整的运营模块",
     },
-	    level: {
-	      basic: "基础版，保留首屏、主 CTA 和核心说明",
-	      growth: "增长版，在基础能力上加入活动权益、按钮和转化承接",
-	      pro: "专业版，加入账号、资产、推广链接、数据指标或更完整的运营模块",
-	    },
+    layoutDensity: {
+      compact: "紧凑布局：压缩模块高度、留白和说明文字，提高首屏信息密度，适合高频操作和移动端优先首页",
+      balanced: "均衡布局：模块间距适中，兼顾信息完整和阅读舒适，适合默认客户端首页",
+      spacious: "宽松布局：增加留白和模块呼吸感，降低同屏信息密度，适合品牌感、高净值或需要高级感的首页",
+    },
     designStyle: {
-      minimalClean: "简约留白：减少装饰和干扰，使用清晰留白、克制卡片和明确层级，让页面更轻、更安静",
-      colorfulEnergy: "色彩活力：使用更鲜明但有节制的色块、标签和强调态，整体有活力但不杂乱",
-      flatFresh: "扁平清爽：弱化阴影和厚重边框，用平面分区、浅色块和直接的信息排布塑造现代感",
-      refinedPolish: "精致美观：强调细腻层次、精致图标感、柔和过渡和成熟金融产品质感",
+      minimalClean: "克制清爽：使用 1 个品牌主色加中性色，少量状态色，卡片边界轻，留白和信息层级优先，避免装饰性背景和过多色块",
+      colorfulEnergy: "标准丰富：使用品牌主色、1-2 个辅助色和清晰状态色，允许轻量色块、图标底色和模块分区，让首页更有层次但仍保持金融专业感",
+      flatFresh: "丰富层次：增加色彩层级、模块背景、标签和数据强调，允许重点模块使用更明显的图形化区域，适合需要更强视觉识别的首页",
+      refinedPolish: "运营高亮：突出 Banner、活动、CTA 和关键运营模块，使用更高对比的强调色、权益标签和视觉焦点，但不编造活动数据或下载/联系方式",
     },
     modules: {
       welcomeModule: "欢迎模块：必须在页面的第一栏，展示见客户姓名、问候",
@@ -2607,15 +2572,11 @@
       accountBenefits: "交易表现：说明真实账户的交易表现，左右结构。左侧展示真实交易账号的基础信息，右侧展示净值折线图(7d、30d)",
       walletList: "钱包列表/卡片：使用 wallet_list 独立模块展示多币种钱包卡片，只展示钱包货币、币种图标和钱包余额，不把多币种明细塞到账户概览",
       kycGuide: "CRM 账户 KYC 状态：未提交、待审、通过、拒绝；只展示当前状态,未提交时补充展示去提交按钮，拒绝是展示再次提交",
-      depositBonus: "入金奖励、首存门槛和赠金梯度",
-      rewardRules: "展示活动信息：活动名称、奖励金额、活动日期、简易活动规则说明、倒计时和权益说明。需要有营销的风格",
       pammProducts: "PAMM 产品推荐区，独立的 pamm_products 模块，，展示PAMM产品名称、收益率、收益率折线图。仅在租户开启 PAMM 且接口返回产品时展示,演示界面可制造数据，风格可参考币安",
       copyTrading: "CopyTrading 信号源推荐区，使用独立的 copytrading_signals 模块，展示信号源名称、收益率、总收益(USD)、最大回撤、收益率折线图仅在租户开启 CopyTrading 且接口返回信号源时展示，演示界面可制造数据，风格可参考币安",
       rewardActivity: "奖励活动专题区，使用活动 Banner、奖励权益、参与步骤和活动 CTA 承接转化",
       referralLink: "推广链接：参考 ReferralLinkCard 积木字段，链接、邀请码优先展示、二维码，数据统计可要可不要",
-      appDownload: "APP 下载、MT5 下载或移动端交易入口",
       tradingAccounts: "交易账号列表：必须同时包含真实交易账号和模拟交易账号的列表，列表可参考交易账号积木块，列表或卡片形式皆可",
-      customerService: "在线客服、客户经理或一对一协助入口",
       faq: "FAQ 常见问题：展示一些平台设置的常见问题，demo 可以放 4-10 条",
       riskDisclosure: "风险提示：展示一段风险解释的文案",
     },
@@ -2649,15 +2610,11 @@
     accountBenefits: ["trading_account_highlight"],
     walletList: ["wallet_list"],
     kycGuide: ["onboarding_guide"],
-    depositBonus: ["promo_banner", "asset_overview"],
-    rewardRules: ["promo_banner", "announcements"],
     pammProducts: ["pamm_products"],
     copyTrading: ["copytrading_signals"],
     rewardActivity: ["promo_banner"],
     referralLink: ["referral_link_card"],
-    appDownload: ["app_download"],
     tradingAccounts: ["trading_accounts_list"],
-    customerService: ["support_contact"],
     faq: ["faq_section"],
     riskDisclosure: ["risk_disclosure"],
   };
@@ -2737,7 +2694,7 @@
     const state = {
       audience: selectedGuidedValues("audience"),
       level: selectedGuidedValue("level"),
-      pageGoal: selectedGuidedValue("pageGoal"),
+      layoutDensity: selectedGuidedValue("layoutDensity"),
       modules: selectedGuidedValues("modules"),
       assetFields: selectedGuidedValues("assetFields"),
       designStyle: selectedGuidedValue("designStyle"),
@@ -2748,8 +2705,8 @@
     };
 
     if (!state.audience.length) state.audience = [guidedButtonsFor("audience")[0]?.dataset.guidedValue].filter(Boolean);
+    if (!state.layoutDensity) state.layoutDensity = "balanced";
     if (!state.modules.length) state.modules = [guidedButtonsFor("modules")[0]?.dataset.guidedValue].filter(Boolean);
-    if (!state.pageGoal) state.pageGoal = "openAccount";
     if (!state.assetFields.length) state.assetFields = ["total", "wallet", "tradingAccount"];
     return state;
   }
@@ -2764,8 +2721,6 @@
 
   function buildGuidedAiIntake() {
     const state = readGuidedState();
-    const pageGoal = guidedChoiceDescriptor("pageGoal", state.pageGoal);
-    const primaryAction = guidedPrimaryActionForGoal(state.pageGoal);
     const allModules = state.modules.map((value) => {
       return {
         ...guidedChoiceDescriptor("modules", value),
@@ -2778,14 +2733,14 @@
     ]);
     const accountOverviewEnabled = hasGuidedAccountOverview(state.modules);
     const visibleAssetFields = accountOverviewEnabled ? state.assetFields : [];
-    const heroFocus = GUIDED_PAGE_GOAL_HERO_FOCUS[state.pageGoal] || canonicalMustHave[0] || "";
+    const heroFocus = canonicalMustHave[0] || "";
 
     return {
       source: "guided-builder",
-      pageGoal,
-      primaryAction,
       audience: state.audience.map((value) => guidedChoiceDescriptor("audience", value)),
       level: guidedChoiceDescriptor("level", state.level),
+      layoutDensity: guidedChoiceDescriptor("layoutDensity", state.layoutDensity),
+      density: state.layoutDensity,
       designStyle: guidedChoiceDescriptor("designStyle", state.designStyle),
       modules,
       theme: {
@@ -2803,7 +2758,7 @@
         },
       },
       canonical: {
-        primaryIntent: guidedCanonicalIntentForGoal(state.pageGoal),
+        primaryIntent: "",
         layoutPreset: "",
         heroFocus: heroFocus && canonicalMustHave.includes(heroFocus) ? heroFocus : canonicalMustHave[0] || heroFocus,
         mustHave: canonicalMustHave,
@@ -2822,17 +2777,16 @@
     const requiredModules = GUIDED_REQUIRED_MODULE_IDS.map((value) => guidedPromptCopy("modules", value));
     const optionalModuleIds = state.modules.filter((value) => !isGuidedRequiredModule(value));
     const optionalModules = optionalModuleIds.map((value) => guidedPromptCopy("modules", value));
-    const primaryAction = guidedPrimaryActionForGoal(state.pageGoal);
     const designInstruction = guidedPromptCopy("designStyle", state.designStyle);
+    const layoutInstruction = guidedPromptCopy("layoutDensity", state.layoutDensity);
     const visualInstruction = state.themeCustom
       ? `${guidedPromptCopy("theme", state.theme)}；自定义色值或风格文案：${state.themeCustom}`
       : guidedPromptCopy("theme", state.theme);
     const parts = [
       "请为 ForexCRM 用户端首页生成可发布的首页方案",
-      guidedPromptCopy("pageGoal", state.pageGoal),
-      `主 CTA：${primaryAction.label}（data-home-action=${primaryAction.action}）`,
       `分级：${guidedPromptCopy("level", state.level)}`,
-      `设计风格：${designInstruction}`,
+      `页面布局：${layoutInstruction}`,
+      `首页样式丰富度：${designInstruction}`,
       `视觉：${visualInstruction}`,
       `语气：${guidedPromptCopy("tone", state.tone)}`,
       `必选模块（不可撤销）：${requiredModules.join("、")}`,
@@ -2884,11 +2838,6 @@
     riskNotice: "risk_disclosure",
     faq: "faq_section",
     faqSection: "faq_section",
-    support_help: "support_contact",
-    customerService: "support_contact",
-    supportContact: "support_contact",
-    appDownload: "app_download",
-    app_download: "app_download",
   };
 
   const GUIDED_EXPLICIT_SLOT_SETTINGS = {
@@ -3225,6 +3174,7 @@
     const accountOverviewEnabled = Boolean(guidedIntake?.moduleSettings?.assets?.enabled || guidedIntakeHasModule(guidedIntake, "accountOverview"));
     const customThemeInput = String(guidedIntake?.theme?.customInput || "").trim();
     const themePreset = String(guidedIntake?.theme?.themePreset || guidedIntake?.theme?.id || "").trim();
+    const density = String(guidedIntake?.density || guidedIntake?.layoutDensity?.id || "").trim();
     const requiredSlots = guidedRequiredSlots(guidedIntake);
 
     if (home.THEMES?.[themePreset]) {
@@ -3233,6 +3183,9 @@
     }
     if (customThemeInput) {
       next.themeCustom = { input: customThemeInput };
+    }
+    if (["compact", "balanced", "spacious"].includes(density)) {
+      next.density = density;
     }
 
     if (accountOverviewEnabled && assetFields.length) {
@@ -3288,14 +3241,14 @@
     const optionalModules = state.modules.filter((value) => !isGuidedRequiredModule(value));
     const themeLabel = state.themeCustom || guidedLabel("theme", state.theme);
     const rows = [
-      ["目标", guidedLabel("pageGoal", state.pageGoal)],
       ["分级", guidedLabel("level", state.level)],
-      ["设计", guidedLabel("designStyle", state.designStyle)],
+      ["布局", guidedLabel("layoutDensity", state.layoutDensity)],
+      ["样式", guidedLabel("designStyle", state.designStyle)],
       ["风格", `${themeLabel} · ${guidedLabel("tone", state.tone)}`],
       ["模块", guidedModuleCountText(optionalModules)],
     ];
 
-    if (els.guidedSummaryTitle) els.guidedSummaryTitle.textContent = `${guidedLabel("pageGoal", state.pageGoal)}方案`;
+    if (els.guidedSummaryTitle) els.guidedSummaryTitle.textContent = "首页配置方案";
     els.guidedSummary.innerHTML = rows
       .map(
         ([label, value]) => `

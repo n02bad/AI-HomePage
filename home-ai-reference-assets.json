@@ -1,7 +1,26 @@
 {
   "version": 1,
-  "updatedAt": "2026-05-19T06:39:22.527Z",
+  "updatedAt": "2026-05-20T07:41:37.836Z",
   "records": [
+    {
+      "id": "reference-1779262897831-f073f026a34c",
+      "at": "2026-05-20T07:41:37.831Z",
+      "name": "image.png",
+      "type": "image",
+      "mime": "image/png",
+      "size": 338977,
+      "fileName": "reference-1779262897831-f073f026a34c-image.png",
+      "storagePath": "artifacts/home-ai-reference-assets/reference-1779262897831-f073f026a34c-image.png",
+      "url": "/artifacts/home-ai-reference-assets/reference-1779262897831-f073f026a34c-image.png",
+      "note": "AI 组件生成上传的图片/截图参考。 用于 AI 生成积木时仿照版式、密度、控件层级和主色关系。 布局线索：超宽横幅，适合 4x1/5x1 或首屏条幅积木 主色：#ffffff, #e0ffff, #e0e0e0, #e0e0ff, #c0e0ff",
+      "tags": [
+        "component-brick",
+        "visual-reference",
+        "OnboardingProgress"
+      ],
+      "textExcerpt": "",
+      "createdAt": "2026-05-20T07:41:37.831Z"
+    },
     {
       "id": "reference-1779172762524-4ff90c1052a35",
       "at": "2026-05-19T06:39:22.523Z",

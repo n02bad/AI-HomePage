@@ -6,6 +6,48 @@ const path = require("path");
 const { URL } = require("url");
 
 const ROOT_DIR = __dirname;
+const IS_VERCEL = Boolean(process.env.VERCEL);
+const RUNTIME_DATA_DIR = IS_VERCEL ? path.join(os.tmpdir(), "forexcrm-home-ai-prototype") : ROOT_DIR;
+
+function runtimePath(...segments) {
+  return path.join(RUNTIME_DATA_DIR, ...segments);
+}
+
+function sourcePath(...segments) {
+  return path.join(ROOT_DIR, ...segments);
+}
+
+function ensureRuntimeSeedFile(runtimeFile, sourceFile) {
+  if (!IS_VERCEL || fs.existsSync(runtimeFile) || !fs.existsSync(sourceFile)) return;
+  fs.mkdirSync(path.dirname(runtimeFile), { recursive: true });
+  fs.copyFileSync(sourceFile, runtimeFile);
+}
+
+function mutableFile(filename) {
+  if (!IS_VERCEL) return sourcePath(filename);
+  const runtimeFile = runtimePath(filename);
+  ensureRuntimeSeedFile(runtimeFile, sourcePath(filename));
+  return runtimeFile;
+}
+
+function mutableDir(...segments) {
+  return IS_VERCEL ? runtimePath(...segments) : sourcePath(...segments);
+}
+
+function mutableStoragePath(relativePath = "") {
+  const safePath = String(relativePath || "");
+  return IS_VERCEL ? path.join(RUNTIME_DATA_DIR, safePath) : path.join(ROOT_DIR, safePath);
+}
+
+function mutableRelativePath(filePath) {
+  return path.relative(IS_VERCEL ? RUNTIME_DATA_DIR : ROOT_DIR, filePath);
+}
+
+function canAccessMutablePath(filePath, expectedDir) {
+  const resolvedFile = path.resolve(filePath);
+  const resolvedDir = path.resolve(expectedDir);
+  return resolvedFile === resolvedDir || resolvedFile.startsWith(`${resolvedDir}${path.sep}`);
+}
 
 function loadLocalEnvFile(filename) {
   const envPath = path.join(ROOT_DIR, filename);
@@ -38,22 +80,22 @@ loadLocalEnvFile(".env.local");
 
 const PORT = Number(process.env.PORT || 5174);
 const MAX_BODY_BYTES = 8_000_000;
-const COMPONENT_LIBRARY_FILE = path.join(ROOT_DIR, "home-component-library.json");
-const COMPONENT_SCORE_FILE = path.join(ROOT_DIR, "home-component-scores.json");
-const COMPOSITION_LIBRARY_FILE = path.join(ROOT_DIR, "home-component-compositions.json");
-const CALL_HISTORY_FILE = path.join(ROOT_DIR, "home-ai-call-history.json");
-const AUTH_CALL_HISTORY_FILE = path.join(ROOT_DIR, "auth-ai-call-history.json");
-const AUTH_REFERENCE_ASSET_FILE = path.join(ROOT_DIR, "auth-ai-reference-assets.json");
-const DESIGN_RULES_FILE = path.join(ROOT_DIR, "design.md");
-const UI_GENERATION_PROTOCOL_FILE = path.join(ROOT_DIR, "AI_UI_GENERATION_PROTOCOL.md");
-const HOME_MODULE_BRICKS_FILE = path.join(ROOT_DIR, "home-module-bricks.md");
-const DESIGN_SAMPLE_FILE = path.join(ROOT_DIR, "home-design-samples.json");
-const AESTHETIC_SCORE_FILE = path.join(ROOT_DIR, "home-ai-score-records.json");
-const FEEDBACK_MEMORY_FILE = path.join(ROOT_DIR, "home-ai-feedback-memory.json");
-const REFERENCE_ASSET_FILE = path.join(ROOT_DIR, "home-ai-reference-assets.json");
-const REFERENCE_ASSET_DIR = path.join(ROOT_DIR, "artifacts", "home-ai-reference-assets");
-const GOLDEN_SAMPLE_ASSET_DIR = path.join(ROOT_DIR, "artifacts", "home-golden-samples");
-const AUTH_REFERENCE_ASSET_DIR = path.join(ROOT_DIR, "artifacts", "auth-ai-reference-assets");
+const COMPONENT_LIBRARY_FILE = mutableFile("home-component-library.json");
+const COMPONENT_SCORE_FILE = mutableFile("home-component-scores.json");
+const COMPOSITION_LIBRARY_FILE = mutableFile("home-component-compositions.json");
+const CALL_HISTORY_FILE = mutableFile("home-ai-call-history.json");
+const AUTH_CALL_HISTORY_FILE = mutableFile("auth-ai-call-history.json");
+const AUTH_REFERENCE_ASSET_FILE = mutableFile("auth-ai-reference-assets.json");
+const DESIGN_RULES_FILE = sourcePath("design.md");
+const UI_GENERATION_PROTOCOL_FILE = sourcePath("AI_UI_GENERATION_PROTOCOL.md");
+const HOME_MODULE_BRICKS_FILE = sourcePath("home-module-bricks.md");
+const DESIGN_SAMPLE_FILE = mutableFile("home-design-samples.json");
+const AESTHETIC_SCORE_FILE = mutableFile("home-ai-score-records.json");
+const FEEDBACK_MEMORY_FILE = mutableFile("home-ai-feedback-memory.json");
+const REFERENCE_ASSET_FILE = mutableFile("home-ai-reference-assets.json");
+const REFERENCE_ASSET_DIR = mutableDir("artifacts", "home-ai-reference-assets");
+const GOLDEN_SAMPLE_ASSET_DIR = mutableDir("artifacts", "home-golden-samples");
+const AUTH_REFERENCE_ASSET_DIR = mutableDir("artifacts", "auth-ai-reference-assets");
 const MAX_CALL_HISTORY = 200;
 const MAX_AUTH_CALL_HISTORY = 160;
 const MAX_AESTHETIC_SCORE_RECORDS = 300;
@@ -2512,6 +2554,7 @@ function readJsonFile(filePath, fallback) {
 }
 
 function writeJsonFile(filePath, payload) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
 }
 
@@ -4967,7 +5010,7 @@ function saveGoldenSampleScreenshotAsset(sample = {}) {
   fs.writeFileSync(filePath, decoded.buffer);
   delete evidence.screenshotDataUrl;
   delete evidence.screenshot;
-  evidence.screenshotPath = path.relative(ROOT_DIR, filePath);
+  evidence.screenshotPath = mutableRelativePath(filePath);
   evidence.screenshotUrl = `/artifacts/home-golden-samples/${fileName}`;
   draft.renderEvidence = evidence;
   return draft;
@@ -5009,9 +5052,8 @@ function updateDesignSample(id, updates = {}) {
 function cleanupGoldenSampleFiles(sample = {}) {
   const screenshotPath = sample.renderEvidence?.screenshotPath || "";
   if (!screenshotPath) return;
-  const absolutePath = path.resolve(ROOT_DIR, screenshotPath);
-  const goldenDir = path.resolve(GOLDEN_SAMPLE_ASSET_DIR);
-  if (!absolutePath.startsWith(goldenDir) || !fs.existsSync(absolutePath)) return;
+  const absolutePath = path.resolve(mutableStoragePath(screenshotPath));
+  if (!canAccessMutablePath(absolutePath, GOLDEN_SAMPLE_ASSET_DIR) || !fs.existsSync(absolutePath)) return;
   try {
     fs.unlinkSync(absolutePath);
   } catch (error) {
@@ -5380,8 +5422,8 @@ function deleteComponentReferenceAsset(assetId) {
   if (!asset || !(asset.tags || []).includes("component-brick")) return null;
 
   if (asset.storagePath) {
-    const filePath = path.join(ROOT_DIR, asset.storagePath);
-    if (filePath.startsWith(ROOT_DIR) && fs.existsSync(filePath)) {
+    const filePath = mutableStoragePath(asset.storagePath);
+    if (canAccessMutablePath(filePath, REFERENCE_ASSET_DIR) && fs.existsSync(filePath)) {
       try {
         fs.unlinkSync(filePath);
       } catch (error) {
@@ -5450,7 +5492,7 @@ function saveReferenceAsset(asset = {}) {
     mime,
     size: Number(asset.size) || buffer.length,
     fileName,
-    storagePath: path.relative(ROOT_DIR, filePath),
+    storagePath: mutableRelativePath(filePath),
     url: `/artifacts/home-ai-reference-assets/${fileName}`,
     note: asset.note,
     tags: asset.tags,
@@ -5764,7 +5806,7 @@ function saveAuthReferenceAsset(asset = {}) {
     mime,
     size: Number(asset.size) || buffer.length,
     fileName,
-    storagePath: path.relative(ROOT_DIR, filePath),
+    storagePath: mutableRelativePath(filePath),
     url: `/artifacts/auth-ai-reference-assets/${fileName}`,
     flow: asset.flow,
     note: asset.note,
@@ -9326,6 +9368,33 @@ function guidedAssetVisibleFields(source) {
   return normalizeAssetVisibleFields(fields);
 }
 
+function guidedDensityChoice(source) {
+  const allowed = new Set(["compact", "comfortable", "balanced", "spacious"]);
+  const rawChoice = source?.layoutDensity && typeof source.layoutDensity === "object"
+    ? source.layoutDensity
+    : source?.density && typeof source.density === "object"
+      ? source.density
+      : null;
+  const rawId = cleanText(
+    rawChoice?.id ||
+      (typeof source?.layoutDensity === "string" ? source.layoutDensity : "") ||
+      (typeof source?.density === "string" ? source.density : ""),
+    "",
+    32,
+  );
+  const id = allowed.has(rawId) ? rawId : "";
+  const choice = compactGuidedChoice(rawChoice);
+  if (choice || id) {
+    return {
+      ...(choice || {}),
+      id: id || choice?.id || "",
+      label: choice?.label || id,
+      instruction: choice?.instruction || "",
+    };
+  }
+  return null;
+}
+
 function normalizeAssetVisibleFields(fields, fallback = []) {
   const source = Array.isArray(fields) ? fields : fallback;
   const requested = source
@@ -9347,6 +9416,7 @@ function guidedAiIntakeFromPayload(payload) {
   const sourceAssets = source.moduleSettings?.assets && typeof source.moduleSettings.assets === "object" ? source.moduleSettings.assets : {};
   const themeChoice = compactGuidedChoice(source.theme) || null;
   const themeCustomInput = cleanText(source.theme?.customInput || source.themeCustom || "", "", 120);
+  const densityChoice = guidedDensityChoice(source);
   const visibleFields = guidedAssetVisibleFields(source);
   const mustHave = Array.isArray(canonical.mustHave)
     ? canonical.mustHave.map(canonicalHomeBlock).filter((item) => CANONICAL_HOME_BLOCKS.includes(item)).slice(0, 12)
@@ -9354,17 +9424,11 @@ function guidedAiIntakeFromPayload(payload) {
 
   return {
     source: cleanText(source.source, "guided-builder", 48),
-    pageGoal: compactGuidedChoice(source.pageGoal),
-    primaryAction:
-      source.primaryAction && typeof source.primaryAction === "object"
-        ? {
-            action: cleanText(source.primaryAction.action, "", 48),
-            label: cleanText(source.primaryAction.label, "", 80),
-          }
-        : null,
     intent: compactGuidedChoice(source.intent),
     audience: Array.isArray(source.audience) ? source.audience.map(compactGuidedChoice).filter(Boolean).slice(0, 8) : [],
     level: compactGuidedChoice(source.level),
+    layoutDensity: densityChoice,
+    density: densityChoice?.id || "",
     designStyle: compactGuidedChoice(source.designStyle),
     modules: Array.isArray(source.modules) ? source.modules.map(compactGuidedChoice).filter(Boolean).slice(0, 16) : [],
     theme: themeChoice ? { ...themeChoice, customInput: themeCustomInput } : null,
@@ -9406,8 +9470,6 @@ function guidedExplicitlyRequestsOnboarding(guidedIntake) {
     guidedIntake?.intent?.id,
     guidedIntake?.intent?.label,
     guidedIntake?.intent?.instruction,
-    guidedIntake?.pageGoal?.id,
-    guidedIntake?.pageGoal?.label,
     guidedIntake?.canonical?.primaryIntent,
     guidedIntake?.canonical?.layoutPreset,
   ]
@@ -9439,6 +9501,7 @@ function applyGuidedIntentProfile(profile, guidedIntake) {
   const professionalHeroFocus = profile.heroFocus && profile.heroFocus !== "onboarding_guide" ? profile.heroFocus : "asset_overview";
   const heroFocus = guidedIntake.canonical.heroFocus || (professionalLayout ? professionalHeroFocus : preset.heroFocus);
   const proMustHave = professionalLayout ? ["asset_overview", "trading_account_highlight", "trading_accounts_list"] : [];
+  const guidedDensity = oneOfList(guidedIntake.density || guidedIntake.layoutDensity?.id, ["compact", "comfortable", "balanced", "spacious"], "");
   return {
     ...profile,
     primaryIntent: canonicalIntent,
@@ -9447,7 +9510,7 @@ function applyGuidedIntentProfile(profile, guidedIntake) {
     label: preset.label,
     layoutPreset,
     themePreset: guidedIntake.theme?.id || preset.themePreset,
-    density: professionalLayout && preset.density === "compact" ? "balanced" : preset.density,
+    density: guidedDensity || (professionalLayout && preset.density === "compact" ? "balanced" : preset.density),
     heroFocus,
     primaryGoal: preset.primaryGoal,
     mustHave: mergeUnique([preset.mustHave || [], guidedIntake.canonical.mustHave || [], proMustHave]).filter((item) => CANONICAL_HOME_BLOCKS.includes(item)),
@@ -9575,9 +9638,6 @@ const HOMEPAGE_OPTIONAL_BLOCK_REQUEST_PATTERNS = {
 };
 
 function homepageGoalPresetFromPayload(payload = {}, intentProfile = {}) {
-  const guidedIntake = guidedAiIntakeFromPayload(payload);
-  const guidedGoal = cleanText(guidedIntake?.pageGoal?.id, "", 48);
-  if (HOMEPAGE_PAGE_GOAL_PRESETS[guidedGoal]) return { id: guidedGoal, ...HOMEPAGE_PAGE_GOAL_PRESETS[guidedGoal] };
   const intent = intentProfile.primaryIntent || homepageIntentFromPrompt(payload.prompt);
   const inferred = Object.entries(HOMEPAGE_PAGE_GOAL_PRESETS).find(([, preset]) => preset.primaryIntent === intent);
   if (inferred) return { id: inferred[0], ...inferred[1] };
@@ -10143,8 +10203,8 @@ function buildHomepagePagePlan(payload = {}, config = {}) {
     pageGoal: goal.id,
     pageGoalLabel: goal.label,
     primaryIntent: intentProfile.primaryIntent,
-    primaryAction: { action: guidedIntake?.primaryAction?.action || goal.primaryAction, label: guidedIntake?.primaryAction?.label || goal.primaryCta },
-    primaryCta: guidedIntake?.primaryAction?.label || goal.primaryCta,
+    primaryAction: { action: goal.primaryAction, label: goal.primaryCta },
+    primaryCta: goal.primaryCta,
     mainVisual,
     requiredModules,
     optionalModules,
@@ -10324,12 +10384,7 @@ function applyHomepagePagePlan(config, payload = {}, actions = []) {
   };
   const currentHeroFocus = canonicalHomeBlock(next.heroFocus);
   const remainingBlocks = collectHomepageBlocks(next);
-  const guidedIntake = guidedAiIntakeFromPayload(payload);
-  next.heroFocus = guidedIntake?.pageGoal?.id
-    ? pagePlan.mainVisual
-    : currentHeroFocus && remainingBlocks.includes(currentHeroFocus)
-      ? currentHeroFocus
-      : pagePlan.mainVisual;
+  next.heroFocus = currentHeroFocus && remainingBlocks.includes(currentHeroFocus) ? currentHeroFocus : pagePlan.mainVisual;
   return next;
 }
 
@@ -10348,7 +10403,10 @@ function guidedIntakePromptLines(guidedIntake) {
       : "",
   ].filter(Boolean).join(" ");
   const designLine = guidedIntake.designStyle?.instruction
-    ? `设计风格硬约束: ${guidedIntake.designStyle.label || guidedIntake.designStyle.id}；${guidedIntake.designStyle.instruction}`
+    ? `首页样式丰富度硬约束: ${guidedIntake.designStyle.label || guidedIntake.designStyle.id}；${guidedIntake.designStyle.instruction}`
+    : "";
+  const layoutDensityLine = guidedIntake.layoutDensity?.id
+    ? `页面布局硬约束: density=${guidedIntake.layoutDensity.id}；${guidedIntake.layoutDensity.label || ""}；${guidedIntake.layoutDensity.instruction || ""}`
     : "";
   const bannerLine = selectedModuleIds.has("heroBanner")
     ? "首页 Banner 硬约束: 该选项按广告轮播图理解，使用 promo_banner 承接，生成多张 slide 的信息结构，并明确具备自动切换、分页和下一张交互；不要返回旧 adCarousel 模块 ID。"
@@ -10362,16 +10420,16 @@ function guidedIntakePromptLines(guidedIntake) {
     "",
     "引导式硬约束:",
     `这是管理员通过引导式表单选择的结构化输入，优先级高于自然语言拼接文案。`,
-    guidedIntake.pageGoal?.label ? `页面目标硬约束: ${guidedIntake.pageGoal.label}；主 CTA=${guidedIntake.primaryAction?.label || "未指定"}，data-home-action=${guidedIntake.primaryAction?.action || "未指定"}。` : "",
     `canonical.primaryIntent=${guidedIntake.canonical.primaryIntent || "未指定"}、layoutPreset=${guidedIntake.canonical.layoutPreset || "未指定"}、heroFocus=${guidedIntake.canonical.heroFocus || "未指定"}。`,
     `canonical.mustHave=${guidedIntake.canonical.mustHave.join(",") || "未指定"} 必须可见或由同类首页积木明确承接。`,
     assetLine,
+    layoutDensityLine,
     designLine,
     themeLine,
     bannerLine,
     riskLine,
-    "modules[].canonicalTargets 是每个表单模块映射后的首页积木；客服、FAQ、风险提示、APP 下载如被选择，必须分别用 support_contact、faq_section、risk_disclosure、app_download 可见承接。",
-    "modules[].canonicalTargets 没有选择的可选模块不得为了补齐常见页面而自行出现，尤其是 support_contact、faq_section、app_download 和 risk_disclosure。",
+    "modules[].canonicalTargets 是每个表单模块映射后的首页积木；FAQ、风险提示如被选择，必须分别用 faq_section、risk_disclosure 可见承接。",
+    "modules[].canonicalTargets 没有选择的可选模块不得为了补齐常见页面而自行出现，尤其是 faq_section 和 risk_disclosure。",
     "如果表单模块和首页白名单冲突，用 canonicalTargets 或最接近的 allowedBlocks 承接；不要输出 kyc_risk_notice、ib_dashboard 或旧 userKycRail，可见 KYC 当前状态只能用 kyc_status_card。",
     "",
   ];
@@ -10391,6 +10449,7 @@ function guidedRecordSnapshot(payload) {
     canonicalIntent: cleanText(guidedIntake.canonical.primaryIntent, "", 40),
     heroFocus: cleanText(guidedIntake.canonical.heroFocus, "", 40),
     level: cleanText(guidedIntake.level?.id || guidedIntake.level?.label, "", 40),
+    density: cleanText(guidedIntake.density || guidedIntake.layoutDensity?.id, "", 32),
     modules: guidedIntake.modules.map((module) => cleanText(module.label || module.id, "", 60)).filter(Boolean).slice(0, 12),
     mustHave: guidedIntake.canonical.mustHave.slice(0, 12),
     explicitBlocks: [...guidedExplicitBlockSet(guidedIntake)].slice(0, 12),
@@ -10445,8 +10504,8 @@ function buildMiniMaxPrompt(payload) {
     "referral_link_card 只能在代理/IB/合作伙伴用户或租户开启推广链接功能时展示；用户端标题写“推广链接”，它只是轻量推广链接模块，不是 ib_dashboard。",
     "referral_link_card 可以展示推广链接、邀请码、复制按钮、分享按钮和基础统计；样式应参考 ReferralLinkCard 积木字段、按钮和密度后再引申，不得生成返佣、团队业绩、下级客户或层级关系。",
     "announcements 可以是栏目列表、重点公告、紧凑信息流，也可以在管理员明确要求跑马灯/滚动公告/首页第一栏时使用 ticker-strip；公告标题、时间、内容均来自接口或后台配置。",
-    "risk_disclosure、faq_section、support_contact、app_download 是正式可见模块；当管理员在引导中选择风险提示、FAQ、在线客服或 APP 下载时必须用这些模块承接。",
-    "support_contact 必须轻量化，不得占据大篇幅；只展示服务时间、客户经理/状态和一个联系按钮，不得编造在线状态或联系方式；app_download 不得编造下载链接或二维码；faq_section 内容应来自后台配置；risk_disclosure 正式内容应来自合规接口，Demo 缺数据时可生成清晰标注的参考风险提示文案。",
+    "risk_disclosure、faq_section 是正式可见模块；当管理员在引导中选择风险提示或 FAQ 时必须用这些模块承接。",
+    "faq_section 内容应来自后台配置；risk_disclosure 正式内容应来自合规接口，Demo 缺数据时可生成清晰标注的参考风险提示文案。",
     "首页必须按响应式 auto layout 思路编排：首屏、主内容、侧栏和整行模块要自然填满栅格，移动端能降级单列。",
     "必须返回 autoLayout：说明 desktop/tablet/mobile 三档行策略、折叠断点、同行等高和模块内部自适应；它是生成契约，不是给客户看的配置。",
     "autoLayout.tablet.collapseAt 默认 1040，mobile.collapseAt 默认 720；内容区低于 tablet 断点时，两栏模块自动变一栏一个模块。",
@@ -10464,7 +10523,7 @@ function buildMiniMaxPrompt(payload) {
     "低权重 support/decision 模块必须服从 pagePlan.moduleRoles，不得独占强背景、强标题或强 CTA。",
     "如果请求包含引导式结构化选择 guidedIntake，它是管理员显式选择，优先级高于拼接后的自然语言 prompt。",
     "guidedIntake 中的 canonical.primaryIntent、heroFocus、layoutPreset、mustHave 是硬约束；modules[].canonicalTargets 是可用首页积木承接方式。",
-    "引导式生成时，modules[].canonicalTargets 未选择的可选模块不得出现；不要自动补客服、FAQ、APP 下载、风险提示、公告、资讯、PAMM、CopyTrading 或推广链接。",
+    "引导式生成时，modules[].canonicalTargets 未选择的可选模块不得出现；不要自动补 FAQ、风险提示、公告、资讯、PAMM、CopyTrading 或推广链接。",
     "pageIntent.primaryIntent 决定首页主目标。",
     "secondaryIntents 只能作为辅助模块，不能抢首屏。",
     "pageIntent.mustHave 必须尽量出现在 sections 或由同类模块承接。",
@@ -10585,7 +10644,7 @@ function buildMiniMaxPrompt(payload) {
       "moduleSettings.assets.visibleFields 必须是 total、wallet、tradingAccount 中的 1 到 3 个；当包含 total 和 tradingAccount 时必须同时包含 wallet。",
       "referral_link_card 只有代理/IB/合作伙伴或推广链接功能开启时才能出现；普通客户首页不得出现。",
       "referral_link_card 可只展示推广链接和邀请码，也可展示打开数、注册数、开户数、注册转化率、开户转化率；这些数据必须来自接口或后台配置，不得展示返佣、团队层级或完整代理业绩。",
-      "不要主动生成奖励任务、KYC 风控提醒或完整代理数据模块；客服、FAQ、风险提示、APP 下载必须使用 support_contact、faq_section、risk_disclosure、app_download。",
+      "不要主动生成奖励任务、KYC 风控提醒或完整代理数据模块；FAQ、风险提示必须使用 faq_section、risk_disclosure。",
       "brickPlan 返回 4 到 8 个，字段为 {brickId,brickName,family,feature,component,size,zone,reason}，brickId 必须来自 brickReference.bricks。",
       "不要返回 layout；前端会根据 brickPlan 和 sections 自动映射到积木布局。",
       "按 auto layout 组织 sections：hero/main/rail/full 要能被 12 栅格紧凑填充，小积木必须和相关业务积木成组出现。",
@@ -10623,12 +10682,12 @@ function buildMiniMaxPrompt(payload) {
       "不要绑定账号入口时，moduleSettings.openAccount.bind 必须为 false。",
       "入金/出金按钮只允许作为 asset_overview 的可选操作或后台配置的 quick_actions 入口出现；不要为了入金转化新增固定资金操作模块。",
       "入金转化或活动增长页也必须保持 quickActions.actions=[]，除非请求上下文给出后台已配置入口；AI 只设置 quick_actions 的 count、display、size、zone 和样式。",
-      "不要根据 KYC 关键词生成 kyc_risk_notice 或旧 userKycRail；如果管理员明确要求 CRM 账户 KYC 状态，使用 kyc_status_card，只展示当前状态和 Submit KYC/Pending Review/Verified/Resubmit 动作；风控/风险提示用 risk_disclosure，客服用 support_contact，FAQ 用 faq_section，APP 下载用 app_download。",
+      "不要根据 KYC 关键词生成 kyc_risk_notice 或旧 userKycRail；如果管理员明确要求 CRM 账户 KYC 状态，使用 kyc_status_card，只展示当前状态和 Submit KYC/Pending Review/Verified/Resubmit 动作；风控/风险提示用 risk_disclosure，FAQ 用 faq_section。",
       "quick_actions 不得写死 openAccount、openReal、deposit、withdraw、transfer、orders、positions、eventSignup、referral、contactService、kyc、risk 等入口；这些只能由后台配置或接口返回。",
       "IB/代理/渠道增长相关诉求不得生成 ib_dashboard；如需展示推广链接，只能使用 referral_link_card。",
       "多币种钱包或钱包列表诉求必须拆成两层：asset_overview 只展示 wallet 汇总值，wallet_list 才展示 USD/EUR/USDT 等币种卡片。",
       "资产管理首页必须使用 asset_overview、trading_account_highlight、trading_accounts_list 和可选 quick_actions/wallet_list/risk_disclosure 组合；不要输出旧 riskNotice、fundActions、walletList 或 referralLink。",
-      "白标资金可信首页必须使用 designGenome=accountOpsConsole、layoutPreset=accountOpsConsole、themePreset=blueFinance、heroFocus=asset_overview；sections 推荐为 asset_overview+quick_actions、trading_account_highlight 单独整横栏、trading_accounts_list 单独整横栏，可按租户能力追加 promo_banner、announcements、market_news、risk_disclosure、support_contact、faq_section、app_download。",
+      "白标资金可信首页必须使用 designGenome=accountOpsConsole、layoutPreset=accountOpsConsole、themePreset=blueFinance、heroFocus=asset_overview；sections 推荐为 asset_overview+quick_actions、trading_account_highlight 单独整横栏、trading_accounts_list 单独整横栏，可按租户能力追加 promo_banner、announcements、market_news、risk_disclosure、faq_section。",
       `必须按 pageIntent.primaryIntent=${intentProfile.primaryIntent} 生成首屏；pageIntent.mustHave 至少出现为可见模块或明确承接路径；pageIntent.avoid 中的模块不得出现在 sections、brickPlan 或启用的 moduleSettings 中。`,
       `secondaryIntents=${intentProfile.secondaryIntents.join(",") || "无"} 只能做辅助，不允许改变 layoutPreset=${intentProfile.layoutPreset}、heroFocus=${intentProfile.heroFocus} 或首屏主模块。`,
       "aiSummary 不超过 80 个中文字符。",
@@ -11130,7 +11189,7 @@ function buildPrompt(payload, config = {}) {
     "只能返回一个 JSON object，不要 markdown，不要解释，不要生成 HTML/CSS/JS。",
     "必须遵守 design.md 设计治理：先用规范锁住页面骨架、组件语义、视觉 token、暗色/移动端和禁用项，再允许 AI 在结构、层级和模块细节上做漂亮变化。",
     `配置只能围绕这些首页内容块: ${CANONICAL_HOME_BLOCKS.join(", ")}。`,
-    "不要输出奖励/任务区、KYC 风控提醒区或完整代理数据区；客服、FAQ、风险提示、APP 下载要用 support_contact、faq_section、risk_disclosure、app_download，旧 riskNotice/support_help 仅作兼容输入。",
+    "不要输出奖励/任务区、KYC 风控提醒区或完整代理数据区；FAQ、风险提示要用 faq_section、risk_disclosure，旧 riskNotice 仅作兼容输入。",
     "快捷操作区 quick_actions 只负责占位、渲染和适配后台返回入口；不要写死具体快捷功能，也不要假设入金、出金、开户一定存在。",
     "quick_actions 的每个入口都必须有独立视觉容器，例如卡片、边框按钮、磁贴或背景色模块；不要输出裸排图标+文字。根据意图选风格：交易工作台用 command-bar/segmented-panel，活动增长用 accent-cards/tile-board，新客旅程用 task-rail/accent-cards，资产/品牌用 tile-board/segmented-panel，移动端用 compact-menu。",
     "资产概览区 asset_overview 标题统一用“资产概览”，可展示 total、wallet、tradingAccount 中任意 1-3 个字段；total=wallet+tradingAccount，如果出现 total+tradingAccount 必须同时出现 wallet；可选展示入金/出金按钮，但不得新增资产字段或编造资金数据。",
@@ -11149,8 +11208,8 @@ function buildPrompt(payload, config = {}) {
     "交易账号模块标题区使用干净工具栏，不要额外蓝色背景条块。",
     "不要输出无业务增益的英文 eyebrow，例如 AI Copytrading Match；标题能说明模块时直接展示标题。",
     "推广链接 referral_link_card 仅代理、IB、合作伙伴或租户开启推广链接功能时展示；它只展示推广链接、邀请码、复制/分享和基础统计，样式需要参考 ReferralLinkCard 积木内容后引申，不得变成完整代理中心。",
-    "risk_disclosure、faq_section、support_contact、app_download 是正式可见模块；当管理员在引导中选择风险提示、FAQ、在线客服或 APP 下载时必须用这些模块承接。",
-    "support_contact 必须轻量化，不得占据大篇幅；只展示服务时间、客户经理/状态和一个联系按钮，不得编造在线状态或联系方式；app_download 不得编造下载链接或二维码；faq_section 内容应来自后台配置；risk_disclosure 正式内容应来自合规接口，Demo 缺数据时可生成清晰标注的参考风险提示文案。",
+    "risk_disclosure、faq_section 是正式可见模块；当管理员在引导中选择风险提示或 FAQ 时必须用这些模块承接。",
+    "faq_section 内容应来自后台配置；risk_disclosure 正式内容应来自合规接口，Demo 缺数据时可生成清晰标注的参考风险提示文案。",
     "必须参考首页积木编排规则，把需求映射到 brickPlan、sections、layout、moduleStyles 和 moduleSettings。",
     "必须返回 generationMode=\"brick-v2\"、blueprintVersion=5、brickPlan 和 brickTrace。",
     "首页布局必须自适应 auto layout：桌面按 12 栅格紧凑填充，移动端降级单列；不要依赖空白占位、固定大高度或孤立小模块撑出空区块。",
@@ -13767,6 +13826,7 @@ function applyGuidedIntakeOverrides(config, guidedIntake) {
   const fields = normalizeAssetVisibleFields(guidedIntake.moduleSettings?.assets?.visibleFields || []);
   const wantsAccountOverview = Boolean(guidedIntake.moduleSettings?.assets?.enabled || guidedIntakeHasModule(guidedIntake, "accountOverview"));
   const themePreset = oneOfList(guidedIntake.theme?.themePreset || guidedIntake.theme?.id, HOMEPAGE_THEME_PRESETS, "");
+  const density = oneOfList(guidedIntake.density || guidedIntake.layoutDensity?.id, ["compact", "comfortable", "balanced", "spacious"], "");
 
   if (themePreset) {
     config.themePreset = themePreset;
@@ -13774,6 +13834,9 @@ function applyGuidedIntakeOverrides(config, guidedIntake) {
   }
   if (guidedIntake.theme?.customInput) {
     config.themeCustom = { input: guidedIntake.theme.customInput };
+  }
+  if (density) {
+    config.density = density;
   }
 
   const requiredSlots = guidedRequiredHomepageSlots(guidedIntake);
@@ -17930,29 +17993,36 @@ function handleStatic(req, res, pathname) {
     return;
   }
 
-  const filePath = path.normalize(path.join(ROOT_DIR, safePath));
+  const runtimeFilePath = path.normalize(path.join(RUNTIME_DATA_DIR, safePath));
+  const sourceFilePath = path.normalize(path.join(ROOT_DIR, safePath));
 
-  if (!filePath.startsWith(ROOT_DIR)) {
+  if (!canAccessMutablePath(runtimeFilePath, RUNTIME_DATA_DIR) || !canAccessMutablePath(sourceFilePath, ROOT_DIR)) {
     sendText(res, 403, "Forbidden");
     return;
   }
 
-  fs.stat(filePath, (statError, stat) => {
-    if (statError || !stat.isFile()) {
-      sendText(res, 404, "Not found");
-      return;
+  const filePath = [runtimeFilePath, sourceFilePath].find((candidate) => {
+    try {
+      return fs.statSync(candidate).isFile();
+    } catch (error) {
+      return false;
     }
-
-    const ext = path.extname(filePath).toLowerCase();
-    res.writeHead(200, {
-      "content-type": MIME_TYPES[ext] || "application/octet-stream",
-      "cache-control": "no-cache",
-    });
-    fs.createReadStream(filePath).pipe(res);
   });
+
+  if (!filePath) {
+    sendText(res, 404, "Not found");
+    return;
+  }
+
+  const ext = path.extname(filePath).toLowerCase();
+  res.writeHead(200, {
+    "content-type": MIME_TYPES[ext] || "application/octet-stream",
+    "cache-control": "no-cache",
+  });
+  fs.createReadStream(filePath).pipe(res);
 }
 
-const server = http.createServer(async (req, res) => {
+const requestHandler = async (req, res) => {
   const requestUrl = new URL(req.url, `http://${req.headers.host || `127.0.0.1:${PORT}`}`);
 
   if (req.method === "OPTIONS") {
@@ -18013,8 +18083,8 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === "DELETE" && requestUrl.pathname === "/api/auth-ai/reference-assets") {
     readAuthReferenceAssets().forEach((asset) => {
-      const filePath = path.join(ROOT_DIR, asset.storagePath || "");
-      if (asset.storagePath && filePath.startsWith(ROOT_DIR) && fs.existsSync(filePath)) {
+      const filePath = mutableStoragePath(asset.storagePath || "");
+      if (asset.storagePath && canAccessMutablePath(filePath, AUTH_REFERENCE_ASSET_DIR) && fs.existsSync(filePath)) {
         try {
           fs.unlinkSync(filePath);
         } catch (error) {
@@ -18195,8 +18265,8 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === "DELETE" && requestUrl.pathname === "/api/home-ai/reference-assets") {
     readReferenceAssets().forEach((asset) => {
-      const filePath = path.join(ROOT_DIR, asset.storagePath || "");
-      if (asset.storagePath && filePath.startsWith(ROOT_DIR) && fs.existsSync(filePath)) {
+      const filePath = mutableStoragePath(asset.storagePath || "");
+      if (asset.storagePath && canAccessMutablePath(filePath, REFERENCE_ASSET_DIR) && fs.existsSync(filePath)) {
         try {
           fs.unlinkSync(filePath);
         } catch (error) {
@@ -18302,11 +18372,17 @@ const server = http.createServer(async (req, res) => {
   }
 
   handleStatic(req, res, requestUrl.pathname);
-});
+};
 
-server.listen(PORT, "0.0.0.0", () => {
-  const mockText = process.env.HOME_AI_MOCK === "true" ? " with HOME_AI_MOCK=true" : "";
-  const lanUrls = getLanUrls(PORT);
-  console.log(`ForexCRM home AI server running at http://127.0.0.1:${PORT}/${mockText}`);
-  lanUrls.forEach((url) => console.log(`LAN access: ${url}`));
-});
+if (require.main === module) {
+  const server = http.createServer(requestHandler);
+
+  server.listen(PORT, "0.0.0.0", () => {
+    const mockText = process.env.HOME_AI_MOCK === "true" ? " with HOME_AI_MOCK=true" : "";
+    const lanUrls = getLanUrls(PORT);
+    console.log(`ForexCRM home AI server running at http://127.0.0.1:${PORT}/${mockText}`);
+    lanUrls.forEach((url) => console.log(`LAN access: ${url}`));
+  });
+}
+
+module.exports = requestHandler;
