@@ -331,15 +331,13 @@ body[data-tenant-theme="lightGold"] {
 
 :root[data-tenant-theme="blueFinance"],
 body[data-tenant-theme="blueFinance"] {
-  --tenant-primaryColor: #1d4ed8;
-  --tenant-accentColor: #14b8a6;
-  --tenant-backgroundStyle:
-    radial-gradient(circle at 75% 8%, rgba(20, 184, 166, 0.12), transparent 30%),
-    linear-gradient(180deg, #f7fdff 0%, #eef9f8 100%);
-  --tenant-cardStyle: rgba(255, 255, 255, 0.98);
+  --tenant-primaryColor: #2f66e8;
+  --tenant-accentColor: #275bd5;
+  --tenant-backgroundStyle: linear-gradient(180deg, #f8fbff 0%, #eef4ff 52%, #f7faff 100%);
+  --tenant-cardStyle: #ffffff;
   --tenant-cardRadius: 10px;
-  --tenant-cardShadow: 0 16px 36px rgba(15, 72, 118, 0.075);
-  --tenant-buttonStyle: linear-gradient(135deg, #0f766e 0%, #2563eb 100%);
+  --tenant-cardShadow: 0 10px 24px rgba(15, 23, 42, 0.07);
+  --tenant-buttonStyle: linear-gradient(135deg, #2f66e8 0%, #275bd5 100%);
   --tenant-fontDensity: 1;
   --tenant-numberStyle: financial;
   --tenant-bannerStyle: linear-gradient(135deg, rgba(15, 118, 110, 0.94), rgba(30, 64, 175, 0.92));
@@ -353,26 +351,26 @@ body[data-tenant-theme="blueFinance"] {
   --tenant-font-density: var(--tenant-fontDensity);
   --tenant-number-style: var(--tenant-numberStyle);
   --tenant-banner-style: var(--tenant-bannerStyle);
-  --home-primary-strong: #0f3ea8;
-  --home-primary-text: #0f2f75;
-  --home-primary-soft: #e6f6ff;
-  --home-primary-faint: #dff9f6;
-  --home-primary-border: #a7e8df;
-  --home-primary-border-strong: #73d9cc;
-  --home-primary-surface: linear-gradient(135deg, #eff6ff 0%, #ccfbf1 100%);
-  --home-button-icon-muted-text: #0f766e;
-  --home-button-shadow: 0 14px 24px rgba(20, 118, 110, 0.18);
-  --home-button-hover-shadow: 0 14px 26px rgba(20, 118, 110, 0.24);
-  --home-filter-shadow: 0 8px 15px rgba(20, 118, 110, 0.16);
-  --home-banner-border: #14b8a6;
-  --home-banner-cta-text: #0f766e;
-  --home-progress-border: #a7e8df;
-  --home-progress-card-bg: linear-gradient(180deg, #ffffff 0%, #f0fdfa 100%);
+  --home-primary-strong: #275bd5;
+  --home-primary-text: #1d4fb8;
+  --home-primary-soft: #eef4ff;
+  --home-primary-faint: #f7faff;
+  --home-primary-border: #d8e1ef;
+  --home-primary-border-strong: #9fb8f1;
+  --home-primary-surface: linear-gradient(135deg, #f7faff 0%, #eef4ff 100%);
+  --home-button-icon-muted-text: #275bd5;
+  --home-button-shadow: 0 12px 22px rgba(47, 102, 232, 0.16);
+  --home-button-hover-shadow: 0 14px 26px rgba(47, 102, 232, 0.22);
+  --home-filter-shadow: 0 8px 15px rgba(47, 102, 232, 0.14);
+  --home-banner-border: #9fb8f1;
+  --home-banner-cta-text: #275bd5;
+  --home-progress-border: #d8e1ef;
+  --home-progress-card-bg: linear-gradient(180deg, #ffffff 0%, #f7faff 100%);
   --home-gradient-hero-bg:
-    radial-gradient(circle at 78% 12%, rgba(20, 184, 166, 0.22), transparent 28%),
-    linear-gradient(135deg, #0f766e, #1d4ed8);
-  --home-split-visual-bg: linear-gradient(135deg, #ffffff 0%, #e6f6ff 100%);
-  --home-action-priority-bg: linear-gradient(135deg, #eff6ff 0%, #ccfbf1 100%);
+    radial-gradient(circle at 78% 12%, rgba(47, 102, 232, 0.16), transparent 28%),
+    linear-gradient(135deg, #2f66e8, #275bd5);
+  --home-split-visual-bg: linear-gradient(135deg, #ffffff 0%, #eef4ff 100%);
+  --home-action-priority-bg: linear-gradient(135deg, #f7faff 0%, #eef4ff 100%);
 }
 
 :root[data-tenant-theme="emeraldTrust"],

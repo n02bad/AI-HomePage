@@ -353,10 +353,44 @@ async function run() {
   assert.deepStrictEqual(JSON.parse(JSON.stringify(home.DEFAULT_CONFIG.moduleSettings.quickActions.actions)), []);
   assert.deepStrictEqual(JSON.parse(JSON.stringify(home.DEFAULT_CONFIG.moduleSettings.assets.visibleFields)), ["total", "wallet", "tradingAccount"]);
   assert.strictEqual(home.DEFAULT_CONFIG.moduleSettings.referralLinkCard.enabled, false);
-  assert.strictEqual(home.t("home.asset.title"), "资产概览");
-  assert.strictEqual(home.t("home.asset.totalLabel"), "余额合计");
-  assert.strictEqual(
-    modelSettings.sanitizeModelConfig({
+	  assert.strictEqual(home.t("home.asset.title"), "资产概览");
+	  assert.strictEqual(home.t("home.asset.totalLabel"), "余额合计");
+	  const goldenStyledConfig = home.normalizeConfig({
+	    schemaVersion: 4,
+	    styleContract: {
+	      id: "golden-fintech",
+	      label: "黄金样式执行契约",
+	      theme: "blueFinance",
+	      tokens: {
+	        pageMaxWidth: "1280px",
+	        background: "linear-gradient(180deg, #f8fbff 0%, #eef4ff 52%, #f7faff 100%)",
+	        rowGap: "14px",
+	        cardBorder: "#d8e1ef",
+	        primaryColor: "#2f66e8",
+	      },
+	      chromePolicy: {
+	        mode: "flatConnected",
+	        sectionChrome: "connected",
+	        defaultSlotChrome: "flat",
+	        slotOverrides: { trading_accounts_list: "tableSurface" },
+	      },
+	      layoutRules: {
+	        maxWidth: "1280px",
+	        blockRelation: "同组模块通过共享父级、分隔线、等高和统一 padding 衔接。",
+	      },
+	      themeCustom: {
+	        input: "黄金样式 蓝灰金融",
+	        primaryColor: "#2f66e8",
+	      },
+	    },
+	  });
+	  assert.strictEqual(goldenStyledConfig.styleContract.id, "golden-fintech");
+	  assert.strictEqual(goldenStyledConfig.themeCustom.primaryColor, "#2f66e8");
+	  const goldenDesignContract = home.buildSkeletonDesignContract(goldenStyledConfig);
+	  assert.strictEqual(goldenDesignContract.tokens.background.includes("#eef4ff"), true);
+	  assert.strictEqual(goldenDesignContract.chromePolicy.sectionChrome, "connected");
+	  assert.strictEqual(
+	    modelSettings.sanitizeModelConfig({
       provider: "openai",
       model: "gemini-2.5-flash",
       baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
@@ -606,17 +640,62 @@ async function run() {
   const normalizedLargeRows = home.normalizeConfig({
     schemaVersion: 4,
     sections: [
-      { id: "dense-accounts", type: "full", title: "账号与表现", slots: ["trading_account_highlight", "trading_accounts_list"] },
+      {
+        id: "dense-large-modules",
+        type: "full",
+        title: "大模块混排",
+        slots: [
+          "promo_banner",
+          "asset_overview",
+          "copytrading_signals",
+          "onboarding_guide",
+          "pamm_products",
+          "trading_account_highlight",
+          "trading_accounts_list",
+        ],
+      },
     ],
     moduleSettings: {
       tradingAccounts: { enabled: true },
+      copytrading: { enabled: true },
+      pamm: { enabled: true },
     },
+    brickPlan: [
+      { brickId: "promo.small", brickName: "小 Banner", family: "PromotionBanner", feature: "promo_banner", component: "promo_banner", size: "1x1", zone: "rail" },
+      { brickId: "copy.small", brickName: "小信号源", family: "CopytradingSignals", feature: "copytrading_signals", component: "copytrading_signals", size: "2x1", zone: "main" },
+      { brickId: "onboarding.small", brickName: "小 Onboarding", family: "OnboardingProgress", feature: "onboarding_guide", component: "onboarding_guide", size: "1x1", zone: "rail" },
+      { brickId: "pamm.small", brickName: "小 PAMM", family: "PammProducts", feature: "pamm_products", component: "pamm_products", size: "2x1", zone: "main" },
+      { brickId: "performance.small", brickName: "小账号表现", family: "AccountPerformance", feature: "trading_account_highlight", component: "trading_account_highlight", size: "2x2", zone: "main" },
+      { brickId: "accounts.small", brickName: "小账号列表", family: "TradingAccounts", feature: "trading_accounts_list", component: "trading_accounts_list", size: "1x1", zone: "rail" },
+    ],
   });
-  assert.strictEqual(sectionForSlot(normalizedLargeRows, "trading_account_highlight").type, "full");
-  assert.strictEqual(sectionForSlot(normalizedLargeRows, "trading_accounts_list").type, "full");
+  const largeFullRowBlocks = ["promo_banner", "copytrading_signals", "onboarding_guide", "pamm_products", "trading_account_highlight", "trading_accounts_list"];
+  largeFullRowBlocks.forEach((blockId) => {
+    const section = sectionForSlot(normalizedLargeRows, blockId);
+    assert.strictEqual(section.type, "full", `${blockId} must be split into a full section`);
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(section.slots)), [blockId], `${blockId} must not share a row: ${JSON.stringify(normalizedLargeRows.sections)}`);
+    const layoutBlock = normalizedLargeRows.layout.find((block) => block.component === blockId);
+    assert.strictEqual(layoutBlock.slot, "full", `${blockId} layout slot must be full`);
+    const brick = brickForComponent(normalizedLargeRows, blockId);
+    assert.strictEqual(brick.zone, "full", `${blockId} brick zone must be full`);
+    assert(/^3x/.test(brick.size), `${blockId} brick size must be 3x+`);
+  });
   assert.notStrictEqual(sectionForSlot(normalizedLargeRows, "trading_account_highlight").id, sectionForSlot(normalizedLargeRows, "trading_accounts_list").id);
-  assert.strictEqual(normalizedLargeRows.layout.find((block) => block.component === "trading_account_highlight").slot, "full");
-  assert.strictEqual(normalizedLargeRows.layout.find((block) => block.component === "trading_accounts_list").slot, "full");
+  const normalizedLargeSkeleton = home.normalizeConfig({
+    schemaVersion: 4,
+    renderMode: "skeletonHtml",
+    activeRenderMode: "skeletonHtml",
+    sections: normalizedLargeRows.sections,
+    moduleSettings: {
+      copytrading: { enabled: true },
+      pamm: { enabled: true },
+    },
+  }).skeletonHtmlScheme;
+  largeFullRowBlocks.forEach((blockId) => {
+    const slot = normalizedLargeSkeleton.slots.find((item) => item.id === blockId);
+    assert.strictEqual(slot.layoutContract.desktopSpan, 12, `${blockId} skeleton span must be full width`);
+    assert(/^3x/.test(slot.size), `${blockId} skeleton size must be 3x+`);
+  });
 
   const normalized = home.normalizeConfig({
     schemaVersion: 4,
@@ -700,6 +779,10 @@ async function run() {
   assert.strictEqual(hasBlock(guidedStaleLayout, "quick_actions"), true);
   assert.strictEqual(hasBlock(guidedStaleLayout, "trading_accounts_list"), true);
   assert(guidedStaleLayout.layout.some((block) => block.component === "copytrading_signals"), "stale explicit layout must not hide guided sections");
+  ["copytrading_signals", "onboarding_guide", "pamm_products"].forEach((blockId) => {
+    assert.strictEqual(sectionForSlot(guidedStaleLayout, blockId).type, "full", `${blockId} guided stale section must be promoted to full`);
+    assert.strictEqual(guidedStaleLayout.layout.find((block) => block.component === blockId).slot, "full", `${blockId} guided stale layout must be full`);
+  });
 
   const localOrdinary = home.promptToConfig("普通客户首页，展示资产概览、快捷入口和交易账号列表，不要代理数据、KYC 风控或客服帮助。");
   assertOnlyAllowedBlocks(localOrdinary);
@@ -1024,8 +1107,16 @@ async function run() {
 	  assert(serverSource.includes("按钮仍像原生控件"), "AI HTML quality gate must penalize native-looking browser controls");
 	  assert(serverSource.includes("组件库参考是硬约束"), "AI HTML prompts must treat component-library references as a hard constraint");
 	  assert(serverSource.includes("componentReferences 至少覆盖 3 个 requiredModules"), "AI HTML prompts must require broad component-library reference coverage");
-	  assert(serverSource.includes("goldenSamplePages 是整页黄金样本 primary reference"), "AI generation must treat whole-page golden samples as primary references");
-	  assert(serverSource.includes("lowScoreAntiExamples"), "AI generation must retrieve low-score anti examples");
+		  assert(serverSource.includes("goldenSamplePages 是整页黄金样本 primary reference"), "AI generation must treat whole-page golden samples as primary references");
+		  assert(serverSource.includes("goldenStyleContractForPrompt"), "AI generation must compile whole-page golden samples into an executable style contract");
+		  assert(serverSource.includes("applyGoldenStyleContractToHomepageConfig"), "server repair must attach golden style contracts to generated home configs");
+		  assert(serverSource.includes("executableGoldenContractPolicy"), "golden sample prompt context must require executable style fields, not just visual advice");
+		  assert(personalizationSource.includes("data-home-blueprint-contract"), "blueprint renderer must expose executable style contracts on the page shell");
+		  assert(personalizationSource.includes("dataset.homeSlotChrome"), "blueprint slots must inherit page-owned chrome from style contracts");
+		  assert(personalizationCss.includes("--home-skeleton-contract-bg"), "runtime CSS must expose golden contract background tokens");
+		  assert(personalizationCss.includes('data-row-chrome="connected"'), "runtime CSS must support connected row chrome for golden block relationships");
+		  assert(adminSource.includes("goldenStyleContract"), "admin AI request context must pass current golden style contracts forward");
+		  assert(serverSource.includes("lowScoreAntiExamples"), "AI generation must retrieve low-score anti examples");
 	  assert(serverSource.includes("HOME_GOLDEN_SAMPLE_DIMENSIONS"), "golden samples must persist the expanded aesthetic scoring dimensions");
 	  assert(serverSource.includes("saveGoldenSampleScreenshotAsset"), "golden sample saves must support persisted screenshot evidence");
 		  assert(serverSource.includes("componentReferenceHints"), "AI HTML generation must use component-library reference hints");
@@ -1158,8 +1249,44 @@ async function run() {
 	    assert(!/身份认证|真实账户|首次入金|总资产|钱包余额|去完成|入金/.test(strictWelcomeText), "strict WelcomeHeader generation must not leak onboarding, asset, or deposit content");
 
 	    const designSamplesPath = path.join(ROOT, "home-design-samples.json");
+    const referenceAssetsPath = path.join(ROOT, "home-ai-reference-assets.json");
     const originalDesignSamples = fs.readFileSync(designSamplesPath, "utf8");
+    const originalReferenceAssets = fs.readFileSync(referenceAssetsPath, "utf8");
+    const savedReferenceAssetPaths = [];
     try {
+      const longContentHtml = `<html><head><style>.client-home-page{padding:24px}.late-marker{color:#2563eb}${"x".repeat(12000)}</style></head><body><div class="sidebar"><nav><h2>导航标题</h2></nav></div><main class="app" data-layout-main><div class="topbar">顶部搜索栏</div><div class="common-tabbar"><div data-tab-id="client-home">原首页</div></div><div class="page client-home-page"><section><h2>账户总览</h2><p>资产内容区</p></section><section><h2>交易账号</h2><p class="late-marker">${"内容区末尾标记".repeat(400)}</p></section></div></main></body></html>`;
+      const savedReference = await requestJson(port, "/api/home-ai/reference-assets", {
+        asset: {
+          name: "long-client-home-reference.html",
+          mime: "text/html",
+          size: Buffer.byteLength(longContentHtml, "utf8"),
+          textContent: longContentHtml,
+          tags: ["新客开户"],
+        },
+      });
+      const longReferenceAsset = savedReference.records[0];
+      savedReferenceAssetPaths.push(path.join(ROOT, longReferenceAsset.storagePath));
+      assert(longReferenceAsset.size > 9000, "full-page HTML reference assets must not be truncated to generated-snippet length");
+      assert(longReferenceAsset.textExcerpt.includes("账户总览"), "reference asset excerpt must prefer content area text");
+      assert(!longReferenceAsset.textExcerpt.includes("导航标题"), "reference asset excerpt must ignore sidebar/navigation chrome");
+      const storedReferenceHtml = fs.readFileSync(path.join(ROOT, longReferenceAsset.storagePath), "utf8");
+      assert(storedReferenceHtml.length > 9000, "stored full-page HTML must preserve content past 9000 chars");
+      assert(storedReferenceHtml.includes("内容区末尾标记"), "stored full-page HTML must keep late content sections");
+
+      const analyzedReference = await requestJson(port, "/api/home-ai/golden-sample/analyze", {
+        files: [
+          {
+            name: "long-client-home-reference.html",
+            mime: "text/html",
+            size: Buffer.byteLength(longContentHtml, "utf8"),
+            textContent: longContentHtml,
+          },
+        ],
+      });
+      assert(analyzedReference.analysis.cssSummary.htmlStructure.textExcerpt.includes("账户总览"));
+      assert(!analyzedReference.analysis.cssSummary.htmlStructure.textExcerpt.includes("导航标题"));
+      assert(analyzedReference.analysis.cssSummary.htmlStructure.headings.includes("交易账号"));
+
       const savedGolden = await requestJson(port, "/api/home-ai/design-samples", {
         sample: {
           id: "test-blackgold-vip-golden-page",
@@ -1292,6 +1419,14 @@ async function run() {
       assert(!afterDelete.lowScoreAntiExamples.some((sample) => sample.id === visualOnlyId), "deleted sample must not remain in anti-example retrieval");
     } finally {
       fs.writeFileSync(designSamplesPath, originalDesignSamples, "utf8");
+      fs.writeFileSync(referenceAssetsPath, originalReferenceAssets, "utf8");
+      savedReferenceAssetPaths.forEach((filePath) => {
+        try {
+          fs.unlinkSync(filePath);
+        } catch (error) {
+          // Best effort cleanup for generated reference-asset fixtures.
+        }
+      });
     }
 
     const response = await postJson(port, {

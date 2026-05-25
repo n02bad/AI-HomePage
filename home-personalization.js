@@ -1,6 +1,7 @@
 (function () {
   const STORAGE_KEY = "forexcrm.home.personalization";
   const DRAFT_STORAGE_KEY = "forexcrm.home.personalization.draft";
+  const VOLATILE_STORAGE_KEYS = ["forexcrm.home.ai.call.history", "forexcrm.home.ai.suggestion.history"];
   const ECHARTS_RUNTIME_URL = "https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js";
   let chartRuntimePromise = null;
   const chartInstances = new WeakMap();
@@ -72,7 +73,25 @@
     "app_download",
   ];
 
-  const LARGE_FULL_ROW_HOME_BLOCKS = new Set(["trading_account_highlight", "trading_accounts_list", "wallet_list"]);
+  const LARGE_FULL_ROW_HOME_BLOCKS = new Set([
+    "trading_accounts_list",
+    "copytrading_signals",
+    "trading_account_highlight",
+    "onboarding_guide",
+    "promo_banner",
+    "pamm_products",
+    "wallet_list",
+  ]);
+
+  const LARGE_FULL_ROW_HOME_BLOCK_SIZES = {
+    trading_accounts_list: "3x2",
+    copytrading_signals: "3x2",
+    trading_account_highlight: "3x2",
+    onboarding_guide: "3x1",
+    promo_banner: "3x1",
+    pamm_products: "3x2",
+    wallet_list: "3x2",
+  };
 
   const FORBIDDEN_HOME_BLOCKS = [
     "reward_tasks",
@@ -416,6 +435,8 @@
   const AUTO_LAYOUT_MODULES = [
     "promo_banner",
     "onboarding_guide",
+    "pamm_products",
+    "copytrading_signals",
     "quick_actions",
     "trading_account_highlight",
     "trading_accounts_list",
@@ -1224,13 +1245,15 @@
       themePreset: { enum: Object.keys(THEMES) },
       theme: { enum: Object.keys(THEMES) },
       colorMode: { enum: ["auto", "light", "dark"] },
-      themeCustom: {
-        type: "object",
-        properties: {
-          input: { type: "string" },
-          primaryColor: { type: "string" },
-        },
-      },
+	      themeCustom: {
+	        type: "object",
+	        properties: {
+	          input: { type: "string" },
+	          primaryColor: { type: "string" },
+	        },
+	      },
+	      styleContract: { type: "object" },
+	      goldenStyleContract: { type: "object" },
       personalizationStrength: { enum: ["subtle", "medium", "strong"] },
       modules: {
         type: "object",
@@ -2126,9 +2149,11 @@
     layoutPreset: "onboardingJourney",
     designGenome: "onboardingJourney",
     pageStory: "accountActivation",
-    themePreset: "blueFinance",
-    theme: "blueFinance",
-    themeCustom: null,
+	    themePreset: "blueFinance",
+	    theme: "blueFinance",
+	    themeCustom: null,
+	    styleContract: null,
+	    goldenStyleContract: null,
     personalizationStrength: "strong",
     density: "balanced",
     heroFocus: "copytrading_signals",
@@ -2181,15 +2206,16 @@
       adCarousel: { ...DEFAULT_MODULE_SETTINGS.adCarousel, enabled: false },
     },
     sections: [
-      { id: "activation-hero", type: "split", title: "新客启动", slots: ["copytrading_signals", "onboarding_guide"] },
-      { id: "ai-products", type: "split", title: "AI 推荐与快捷入口", slots: ["pamm_products", "quick_actions"] },
-      { id: "asset-context", type: "split", title: "账户资产", slots: ["asset_overview"] },
+      { id: "activation-copytrading", type: "full", title: "CopyTrading 推荐", slots: ["copytrading_signals"] },
+      { id: "activation-onboarding", type: "full", title: "新客启动", slots: ["onboarding_guide"] },
+      { id: "ai-products", type: "full", title: "PAMM 推荐", slots: ["pamm_products"] },
+      { id: "activation-actions", type: "split", title: "下一步操作", slots: ["quick_actions", "asset_overview"] },
       { id: "activation-accounts", type: "full", title: "真实与模拟账号", slots: ["trading_accounts_list"] },
     ],
     brickPlan: [
-      { brickId: "copytradingSignals.curveCards", brickName: "AI 跟单信号源推荐", family: "CopytradingSignals", feature: "copytrading_signals", component: "copytrading_signals", size: "2x2", zone: "main", reason: "CopyTrading 作为首屏视觉亮点。" },
-      { brickId: "onboardingProgress.missionBoard", brickName: "账户开通进度面板", family: "OnboardingProgress", feature: "onboardingProgress", component: "onboarding_guide", size: "2x1", zone: "main", reason: "用进度数、步骤卡和下一步 CTA 承接 KYC、创建真实账户、首次入金三步旅程。" },
-      { brickId: "pammProducts.recommendations", brickName: "AI PAMM 产品推荐", family: "PammProducts", feature: "pamm_products", component: "pamm_products", size: "2x1", zone: "main", reason: "PAMM 作为独立 AI 推荐模块，不与 CopyTrading 合并。" },
+      { brickId: "copytradingSignals.curveCards", brickName: "AI 跟单信号源推荐", family: "CopytradingSignals", feature: "copytrading_signals", component: "copytrading_signals", size: "3x2", zone: "full", reason: "CopyTrading 作为首屏视觉亮点，用整横栏承载信号源、收益和曲线。" },
+      { brickId: "onboardingProgress.missionBoard", brickName: "账户开通进度面板", family: "OnboardingProgress", feature: "onboardingProgress", component: "onboarding_guide", size: "3x1", zone: "full", reason: "用整横栏承接 KYC、创建真实账户、首次入金三步旅程。" },
+      { brickId: "pammProducts.recommendations", brickName: "AI PAMM 产品推荐", family: "PammProducts", feature: "pamm_products", component: "pamm_products", size: "3x2", zone: "full", reason: "PAMM 作为独立 AI 推荐模块，用整横栏展示产品、收益、风险和曲线。" },
       { brickId: "quickActions.taskRail", brickName: "五项快捷入口", family: "QuickActions", feature: "quickActions", component: "quick_actions", size: "2x1", zone: "main", reason: "固定 5 个新客高频操作入口。" },
       { brickId: "assetOverview.compactMetrics", brickName: "轻量资产指标条", family: "AssetOverview", feature: "balanceTotal", component: "asset_overview", size: "3x1", zone: "main", reason: "资产降级为辅助指标，不抢新客引导和跟单推荐。" },
       { brickId: "tradingAccounts.separatedList", brickName: "真实与模拟账号卡片", family: "TradingAccounts", feature: "tradingAccounts", component: "trading_accounts_list", size: "3x2", zone: "full", reason: "真实账号和模拟账号都用卡片，分区展示形成明显区分。" },
@@ -3359,8 +3385,8 @@
       family: "PromotionBanner",
       feature: "promoHighlight",
       component: "promo_banner",
-      size: "2x1",
-      defaultZone: "main",
+      size: "3x1",
+      defaultZone: "full",
       intents: ["growth", "partner"],
       tags: ["活动", "比赛", "大赛", "奖池", "营销"],
       moduleId: "PromotionBanner",
@@ -3376,7 +3402,7 @@
       family: "PromotionBanner",
       feature: "promoHighlight",
       component: "promo_banner",
-      size: "2x2",
+      size: "3x1",
       defaultZone: "hero",
       intents: ["deposit"],
       tags: ["入金", "首存", "奖励", "赠金", "500", "2000", "10000"],
@@ -3427,8 +3453,8 @@
       family: "CopytradingSignals",
       feature: "copytrading_signals",
       component: "copytrading_signals",
-      size: "2x2",
-      defaultZone: "main",
+      size: "3x2",
+      defaultZone: "full",
       intents: ["copytrading", "onboarding", "standard"],
       tags: ["copytrading", "跟单", "信号源", "推荐", "收益率", "收益曲线"],
       moduleId: "CopytradingSignals",
@@ -3444,8 +3470,8 @@
       family: "OnboardingProgress",
       feature: "onboardingProgress",
       component: "onboarding_progress",
-      size: "2x1",
-      defaultZone: "hero",
+      size: "3x1",
+      defaultZone: "full",
       intents: ["onboarding"],
       tags: ["新手", "新客", "开户", "注册", "kyc", "首次", "交易大师", "三步"],
       moduleId: "OnboardingProgress",
@@ -3461,8 +3487,8 @@
       family: "OnboardingProgress",
       feature: "onboardingProgress",
       component: "onboarding_progress",
-      size: "2x1",
-      defaultZone: "hero",
+      size: "3x1",
+      defaultZone: "full",
       intents: ["onboarding", "deposit", "retention"],
       tags: ["新手", "新客", "开户", "卡片", "图标", "美观", "有欲望", "下一步"],
       moduleId: "OnboardingProgress",
@@ -3478,8 +3504,8 @@
       family: "OnboardingProgress",
       feature: "onboardingProgress",
       component: "onboarding_progress",
-      size: "2x1",
-      defaultZone: "hero",
+      size: "3x1",
+      defaultZone: "full",
       intents: ["onboarding", "deposit", "retention"],
       tags: ["新客", "开户", "旅程", "时间线", "下一步", "交易大师", "三步"],
       moduleId: "OnboardingProgress",
@@ -3495,8 +3521,8 @@
       family: "OnboardingProgress",
       feature: "onboardingProgress",
       component: "onboarding_progress",
-      size: "2x1",
-      defaultZone: "hero",
+      size: "3x1",
+      defaultZone: "full",
       intents: ["onboarding", "copytrading", "deposit", "retention"],
       tags: ["新手", "新客", "开户", "账户开通", "进度", "0/3", "下一步", "任务面板"],
       moduleId: "OnboardingProgress",
@@ -3512,8 +3538,8 @@
       family: "OnboardingProgress",
       feature: "onboardingProgress",
       component: "onboarding_progress",
-      size: "2x1",
-      defaultZone: "hero",
+      size: "3x1",
+      defaultZone: "full",
       intents: ["onboarding", "copytrading", "retention"],
       tags: ["开户", "里程碑", "票据", "横向", "紧凑", "路径"],
       moduleId: "OnboardingProgress",
@@ -3529,8 +3555,8 @@
       family: "OnboardingProgress",
       feature: "onboardingProgress",
       component: "onboarding_progress",
-      size: "2x1",
-      defaultZone: "hero",
+      size: "3x1",
+      defaultZone: "full",
       intents: ["onboarding", "deposit", "retention"],
       tags: ["下一步", "主按钮", "CTA", "开户", "KYC", "入金"],
       moduleId: "OnboardingProgress",
@@ -3673,8 +3699,8 @@
       family: "TradingAccounts",
       feature: "tradingAccounts",
       component: "account_list",
-      size: "2x2",
-      defaultZone: "main",
+      size: "3x2",
+      defaultZone: "full",
       intents: ["growth", "partner"],
       tags: ["交易账号", "活动", "卡片", "证明"],
       moduleId: "TradingAccounts",
@@ -4671,7 +4697,7 @@
         { brickId: "assetOverview.tickerStrip", brickName: "三项资产汇总", family: "AssetOverview", feature: "asset_overview", component: "asset_overview", size: "2x1", zone: "main", reason: "首屏只展示余额合计、交易账号余额和钱包余额汇总。" },
         { brickId: "quickActions.taskRail", brickName: "五项快捷入口", family: "QuickActions", feature: "quick_actions", component: "quick_actions", size: "1x1", zone: "rail", reason: "与资产概览同行，避免右侧快捷入口下方大面积留白。" },
         { brickId: "walletList.tiles", brickName: "钱包磁贴组", family: "WalletList", feature: "wallet_list", component: "wallet_list", size: "3x2", zone: "full", reason: "多币种钱包卡片只在钱包列表模块展示。" },
-        { brickId: "promoBanner.scoreboard", brickName: "主推活动看板", family: "PromotionBanner", feature: "promoHighlight", component: "promo_banner", size: "2x1", zone: "main", reason: "主推活动降为业务推动卡，不抢资金安全首屏。" },
+        { brickId: "promoBanner.scoreboard", brickName: "主推活动看板", family: "PromotionBanner", feature: "promoHighlight", component: "promo_banner", size: "3x1", zone: "full", reason: "主推活动作为 Banner 大模块整横栏承接，不挤入侧栏。" },
         { brickId: "tradingAccounts.separatedList", brickName: "合并账号工作台", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "3x2", zone: "full", reason: "真实和模拟账号在同一列表，用胶囊筛选区分。" },
       ];
       config.brickTrace = { ...(config.brickTrace || {}), intent: "brand", pageIntent: "brand", strategy: "券商可信契约", score: 96, selectedCount: config.brickPlan.length };
@@ -4682,7 +4708,7 @@
       mergeModuleVariants(config, { CopytradingSignals: "curveCards" });
       mergeModuleStyles(config, { copytrading_signals: "curve-cards" });
       mergeModuleSettings(config, { copytrading: { enabled: true } });
-      ensureSectionContains(config, { id: "copytrading", type: "split", title: "CopyTrading 推荐" }, "copytrading_signals");
+      ensureSectionContains(config, { id: "copytrading", type: "full", title: "CopyTrading 推荐" }, "copytrading_signals");
 
       if (understanding.wantsNewUserJourney && !shouldProtectDepositIntent) {
         config.name = "AI 新客跟单驾驶舱";
@@ -4696,9 +4722,10 @@
         config.heroFocus = "copytrading_signals";
         config.pageIntent = normalizePageIntent({ ...(config.pageIntent || {}), primaryIntent: "copytrading" }, "copytrading");
         config.sections = [
-          { id: "activation-hero", type: "split", title: "新客启动", slots: ["copytrading_signals", "onboarding_guide"] },
-          { id: "activation-actions", type: "split", title: "下一步操作", slots: understanding.wantsPamm ? ["pamm_products", "quick_actions"] : ["quick_actions", "asset_overview"] },
-          ...(understanding.wantsPamm ? [{ id: "activation-assets", type: "split", title: "账户资产", slots: ["asset_overview"] }] : []),
+          { id: "activation-copytrading", type: "full", title: "CopyTrading 推荐", slots: ["copytrading_signals"] },
+          { id: "activation-onboarding", type: "full", title: "新客启动", slots: ["onboarding_guide"] },
+          ...(understanding.wantsPamm ? [{ id: "activation-pamm", type: "full", title: "PAMM 推荐", slots: ["pamm_products"] }] : []),
+          { id: "activation-actions", type: "split", title: "下一步操作", slots: ["quick_actions", "asset_overview"] },
           { id: "activation-accounts", type: "full", title: "真实与模拟账号", slots: ["trading_accounts_list"] },
         ];
         mergeModuleVariants(config, {
@@ -4746,10 +4773,10 @@
           promoHighlight: { enabled: false },
         });
         config.brickPlan = [
-          { brickId: "copytradingSignals.curveCards", brickName: "AI 跟单信号源推荐", family: "CopytradingSignals", feature: "copytrading_signals", component: "copytrading_signals", size: "2x2", zone: "hero", reason: "CopyTrading 进入首屏，展示信号源、收益、总收益和曲线。" },
-          { brickId: onboardingPresentation.brickId, brickName: onboardingPresentation.brickName, family: "OnboardingProgress", feature: "onboardingProgress", component: "onboarding_progress", size: "2x1", zone: "main", reason: onboardingPresentation.reason },
+          { brickId: "copytradingSignals.curveCards", brickName: "AI 跟单信号源推荐", family: "CopytradingSignals", feature: "copytrading_signals", component: "copytrading_signals", size: "3x2", zone: "hero", reason: "CopyTrading 进入首屏，用整横栏展示信号源、收益、总收益和曲线。" },
+          { brickId: onboardingPresentation.brickId, brickName: onboardingPresentation.brickName, family: "OnboardingProgress", feature: "onboardingProgress", component: "onboarding_guide", size: "3x1", zone: "full", reason: onboardingPresentation.reason },
           ...(understanding.wantsPamm
-            ? [{ brickId: "pammProducts.recommendations", brickName: "AI PAMM 产品推荐", family: "PammProducts", feature: "pamm_products", component: "pamm_products", size: "2x1", zone: "main", reason: "PAMM 作为独立 AI 推荐模块，不与 CopyTrading 合并。" }]
+            ? [{ brickId: "pammProducts.recommendations", brickName: "AI PAMM 产品推荐", family: "PammProducts", feature: "pamm_products", component: "pamm_products", size: "3x2", zone: "full", reason: "PAMM 作为独立 AI 推荐模块，用整横栏展示产品、收益、风险和曲线。" }]
             : []),
           { brickId: "quickActions.taskRail", brickName: "五项快捷入口", family: "QuickActions", feature: "quickActions", component: "quick_actions", size: "2x1", zone: "main", reason: "入口作为下一步任务组，避免空白快捷框。" },
           { brickId: "assetOverview.compactMetrics", brickName: "轻量资产指标条", family: "AssetOverview", feature: "balanceTotal", component: "asset_summary", size: "3x1", zone: "main", reason: "资产降级为辅助指标，不抢新客引导和跟单推荐。" },
@@ -4811,7 +4838,7 @@
       mergeModuleVariants(config, { PammProducts: "yieldChartCards" });
       mergeModuleStyles(config, { pamm_products: "yield-chart-cards" });
       mergeModuleSettings(config, { pamm: { enabled: true } });
-      ensureSectionContains(config, { id: "pamm-products", type: "split", title: "PAMM 推荐" }, "pamm_products");
+      ensureSectionContains(config, { id: "pamm-products", type: "full", title: "PAMM 推荐" }, "pamm_products");
     }
 
     if (understanding.visibleMetricCount >= 3 && !shouldProtectDepositIntent) {
@@ -5104,9 +5131,9 @@
   function depositGovernedBrickPlan(variant = 0) {
     const mode = variantMode(variant);
     const base = [
-      { brickId: "promoBanner.depositLadder", brickName: "入金奖励阶梯", family: "PromotionBanner", feature: "promo_banner", component: "promo_banner", size: "2x2", zone: "hero", reason: "首屏用三档入金奖励和唯一主 CTA 承接首次入金目标。" },
+      { brickId: "promoBanner.depositLadder", brickName: "入金奖励阶梯", family: "PromotionBanner", feature: "promo_banner", component: "promo_banner", size: "3x1", zone: "hero", reason: "首屏用整横栏三档入金奖励和唯一主 CTA 承接首次入金目标。" },
       { brickId: "assetOverview.tickerStrip", brickName: "账户摘要指标带", family: "AssetOverview", feature: "asset_overview", component: "asset_overview", size: "1x1", zone: "hero", reason: "在同屏展示账户余额、钱包余额和交易账号余额，给入金前资金上下文。" },
-      { brickId: "onboardingProgress.nextStepHero", brickName: "新手下一步引导", family: "OnboardingProgress", feature: "onboarding_guide", component: "onboarding_guide", size: "2x1", zone: "main", reason: "KYC、开真实账户和首次入金形成连续路径，避免旧开户面板散落。" },
+      { brickId: "onboardingProgress.nextStepHero", brickName: "新手下一步引导", family: "OnboardingProgress", feature: "onboarding_guide", component: "onboarding_guide", size: "3x1", zone: "full", reason: "KYC、开真实账户和首次入金形成连续路径，用整横栏避免旧开户面板散落。" },
       { brickId: "quickActions.accentCards", brickName: "强调快捷入口卡", family: "QuickActions", feature: "quick_actions", component: "quick_actions", size: "1x1", zone: "rail", reason: "4-10 个常用入口用精致图标卡承接交易、转账、跟单和账号动作。" },
       { brickId: "accountPerformance.proChart", brickName: "账号表现双趋势", family: "AccountPerformance", feature: "trading_account_highlight", component: "trading_account_highlight", size: "3x2", zone: "full", reason: "账号表现整横栏呈现账号上下文、净值/PnL 趋势和操作闭环。" },
       { brickId: "tradingAccounts.separatedList", brickName: "真实/模拟账号双列表", family: "TradingAccounts", feature: "trading_accounts_list", component: "trading_accounts_list", size: "3x2", zone: "full", reason: "真实交易账号和模拟交易账号必须同时出现，并用分组列表提升扫描效率。" },
@@ -5214,8 +5241,9 @@
       }));
 		      next.sections = [
 		        ...(wantsWelcomeHeader ? [{ id: "welcome-header", type: "full", title: "欢迎", slots: ["welcome_header"] }] : []),
-		        { id: "deposit-hero", type: "hero", title: "首次入金", slots: ["promo_banner", "asset_overview"] },
-		        { id: "deposit-activation", type: "split", title: "开户与快捷入口", slots: ["onboarding_guide", "quick_actions"] },
+		        { id: "deposit-hero", type: "full", title: "首次入金", slots: ["promo_banner"] },
+		        { id: "deposit-actions", type: "split", title: "账户与快捷入口", slots: ["asset_overview", "quick_actions"] },
+		        { id: "deposit-activation", type: "full", title: "开户引导", slots: ["onboarding_guide"] },
 		        ...(slotVisibleInConfig(next, "kyc_status_card") ? [{ id: "deposit-kyc-status", type: "rail", title: "KYC 状态", slots: ["kyc_status_card"] }] : []),
 		        ...(slotVisibleInConfig(next, "copytrading_signals") ? [{ id: "deposit-copytrading", type: "full", title: "CopyTrading", slots: ["copytrading_signals"] }] : []),
 		        ...(slotVisibleInConfig(next, "referral_link_card") || slotVisibleInConfig(next, "faq_section")
@@ -5301,7 +5329,7 @@
         { brickId: "assetOverview.tickerStrip", brickName: "三项资产汇总", family: "AssetOverview", feature: "asset_overview", component: "asset_overview", size: "2x1", zone: "main", reason: "首屏只展示余额合计、交易账号余额和钱包余额汇总。" },
         { brickId: "quickActions.taskRail", brickName: "五项快捷入口", family: "QuickActions", feature: "quick_actions", component: "quick_actions", size: "1x1", zone: "rail", reason: "与资产概览同行，避免右侧快捷入口下方大面积留白。" },
         { brickId: "walletList.tiles", brickName: "钱包磁贴组", family: "WalletList", feature: "wallet_list", component: "wallet_list", size: "3x2", zone: "full", reason: "多币种钱包卡片只在钱包列表模块展示。" },
-        { brickId: "promoBanner.scoreboard", brickName: "主推活动看板", family: "PromotionBanner", feature: "promoHighlight", component: "promo_banner", size: "2x1", zone: "main", reason: "主推活动降为业务推动卡，不抢资金安全首屏。" },
+        { brickId: "promoBanner.scoreboard", brickName: "主推活动看板", family: "PromotionBanner", feature: "promoHighlight", component: "promo_banner", size: "3x1", zone: "full", reason: "主推活动作为 Banner 大模块整横栏承接，不抢资金安全首屏。" },
         { brickId: "tradingAccounts.separatedList", brickName: "合并账号工作台", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "3x2", zone: "full", reason: "真实和模拟账号在同一列表，用胶囊筛选区分。" },
       ];
       next.brickTrace = { ...next.brickTrace, intent: "brand", pageIntent: "brand", strategy: "券商可信契约", score: 96, selectedCount: next.brickPlan.length };
@@ -5754,77 +5782,188 @@
 
   function skeletonSlotSizeForGrid(slotId, section = {}) {
     const key = skeletonSlotKey(slotId);
-    if (["trading_accounts_list", "wallet_list", "copytrading_signals", "trading_account_highlight", "account_performance"].includes(key)) return "3x2";
-    if (["asset_overview", "promo_banner", "ad_carousel", "risk_disclosure"].includes(key)) return "3x1";
+    const largeSize = largeFullRowHomeBlockSize(key);
+    if (largeSize) return largeSize;
+    if (["asset_overview", "risk_disclosure"].includes(key)) return "3x1";
     if (section?.type === "rail") return "1x1";
     if (section?.type === "split") return "2x1";
     if (section?.type === "hero" || section?.type === "full") return "3x1";
     return "2x1";
   }
 
-  function skeletonContractArray(value, fallback = []) {
-    const source = Array.isArray(value) ? value : fallback;
-    return source.map((item) => cleanMetaText(item, "", 180)).filter(Boolean).slice(0, 8);
-  }
+	  function skeletonContractArray(value, fallback = []) {
+	    const source = Array.isArray(value) ? value : fallback;
+	    return source.map((item) => cleanMetaText(item, "", 180)).filter(Boolean).slice(0, 8);
+	  }
 
-  function normalizeSkeletonDesignContract(source, fallback = {}) {
-    const contract = source && typeof source === "object" ? source : fallback && typeof fallback === "object" ? fallback : {};
-    const fallbackTokens = fallback.tokens && typeof fallback.tokens === "object" ? fallback.tokens : {};
-    const tokens = contract.tokens && typeof contract.tokens === "object" ? contract.tokens : fallbackTokens;
-    const chromePolicy = normalizeSkeletonChromePolicy(contract.chromePolicy, fallback.chromePolicy);
-    return {
-      id: cleanMetaText(contract.id || fallback.id, "ops-console", 48),
-      label: cleanMetaText(contract.label || fallback.label, "账户运营控制台契约", 80),
-      personality: cleanMetaText(contract.personality || fallback.personality, "ops-console", 48),
-      tone: cleanMetaText(contract.tone || fallback.tone, "冷静、清晰、可扫描", 120),
-      surface: cleanMetaText(contract.surface || fallback.surface, "薄边框白底模块，浅蓝灰背景，只用一套主色强调状态和主操作。", 180),
-      narrative: cleanMetaText(contract.narrative || fallback.narrative, "先决定整页叙事，再按 slot 填充模块。", 180),
-      density: cleanMetaText(contract.density || fallback.density, "balanced", 32),
-      theme: cleanMetaText(contract.theme || fallback.theme, "blueFinance", 48),
-      tokens: {
-        cardRadius: cleanMetaText(tokens.cardRadius, "8px", 24),
-        buttonRadius: cleanMetaText(tokens.buttonRadius, "8px", 24),
-        sectionGap: cleanMetaText(tokens.sectionGap, "14px", 24),
-        cardPadding: cleanMetaText(tokens.cardPadding, "16px", 24),
-        cardShadow: cleanMetaText(tokens.cardShadow, "none", 80),
-      },
-      componentRules: skeletonContractArray(contract.componentRules, fallback.componentRules),
-      ctaRules: skeletonContractArray(contract.ctaRules, fallback.ctaRules),
-      moduleGrammar: cleanMetaText(contract.moduleGrammar || fallback.moduleGrammar, "用统一模块语法组织整页。", 220),
-      differenceRule: cleanMetaText(contract.differenceRule || fallback.differenceRule, "差异来自整页叙事和结构分叉，不靠随机换色。", 220),
-      chromePolicy,
-    };
-  }
+	  function skeletonContractToken(value, fallback = "", limit = 120) {
+	    return cleanMetaText(value, fallback, limit);
+	  }
 
-  function buildSkeletonDesignContract(config = {}) {
-    const source = config && typeof config === "object" ? config : {};
-    const layoutPreset = normalizeLayoutPreset(source.layoutPreset || (typeof source.layout === "string" ? source.layout : ""));
-    const designGenome = normalizeDesignGenome(source.designGenome || source.layoutGene || source.genome, designGenomeForLayout(layoutPreset));
-    const genome = DESIGN_GENOMES[designGenome] || DESIGN_GENOMES.accountOpsConsole;
-    const storyId = normalizePageStory(source.pageStory || source.heroNarrative || source.story, genome.story || "opsClarity");
-    const story = PAGE_STORIES[storyId] || PAGE_STORIES.opsClarity;
-    const template = SKELETON_STYLE_CONTRACTS[designGenome] || SKELETON_STYLE_CONTRACTS[genome.id] || SKELETON_STYLE_CONTRACTS.accountOpsConsole;
-    const density = ["compact", "comfortable", "balanced", "spacious"].includes(source.density) ? source.density : genome.density || DEFAULT_CONFIG.density;
-    const theme = normalizeThemeId(source.themePreset || source.theme || genome.themePreset || DEFAULT_CONFIG.themePreset);
-    return normalizeSkeletonDesignContract(
-      {
-        ...template,
-        narrative: `${story.label || storyId}：${story.summary || template.differenceRule}`,
-        density,
-        theme,
-      },
-      SKELETON_STYLE_CONTRACTS.accountOpsConsole,
-    );
-  }
+	  function normalizeSkeletonLayoutRules(source = {}, fallback = {}) {
+	    const rules = source && typeof source === "object" ? source : {};
+	    const fallbackRules = fallback && typeof fallback === "object" ? fallback : {};
+	    return {
+	      maxWidth: cleanMetaText(rules.maxWidth || fallbackRules.maxWidth, "1280px", 24),
+	      gridColumns: Number(rules.gridColumns || fallbackRules.gridColumns || HOME_GRID_COLUMNS) || HOME_GRID_COLUMNS,
+	      rowRecipes: (Array.isArray(rules.rowRecipes) ? rules.rowRecipes : fallbackRules.rowRecipes || [])
+	        .map((item) => cleanMetaText(item, "", 24))
+	        .filter(Boolean)
+	        .slice(0, 6),
+	      sectionGrouping: cleanMetaText(rules.sectionGrouping || fallbackRules.sectionGrouping, "", 180),
+	      backgroundRule: cleanMetaText(rules.backgroundRule || fallbackRules.backgroundRule, "", 180),
+	      blockRelation: cleanMetaText(rules.blockRelation || fallbackRules.blockRelation, "", 180),
+	    };
+	  }
+
+	  function compactSkeletonThemeCustom(source = {}, fallback = {}) {
+	    const theme = source && typeof source === "object" ? source : {};
+	    const fallbackTheme = fallback && typeof fallback === "object" ? fallback : {};
+	    return compactThemeObject({
+	      input: cleanMetaText(theme.input || fallbackTheme.input, "", 96),
+	      primaryColor: cleanMetaText(theme.primaryColor || fallbackTheme.primaryColor, "", 40),
+	      primaryStrong: cleanMetaText(theme.primaryStrong || fallbackTheme.primaryStrong, "", 40),
+	      primaryText: cleanMetaText(theme.primaryText || fallbackTheme.primaryText, "", 40),
+	      accentColor: cleanMetaText(theme.accentColor || fallbackTheme.accentColor, "", 40),
+	      backgroundStyle: cleanMetaText(theme.backgroundStyle || fallbackTheme.backgroundStyle, "", 180),
+	      cardStyle: cleanMetaText(theme.cardStyle || fallbackTheme.cardStyle, "", 80),
+	      surfaceColor: cleanMetaText(theme.surfaceColor || fallbackTheme.surfaceColor, "", 80),
+	      surfaceSoft: cleanMetaText(theme.surfaceSoft || fallbackTheme.surfaceSoft, "", 80),
+	      surfaceMuted: cleanMetaText(theme.surfaceMuted || fallbackTheme.surfaceMuted, "", 80),
+	      textStrong: cleanMetaText(theme.textStrong || fallbackTheme.textStrong, "", 40),
+	      textColor: cleanMetaText(theme.textColor || fallbackTheme.textColor, "", 40),
+	      textSoft: cleanMetaText(theme.textSoft || fallbackTheme.textSoft, "", 40),
+	      textMuted: cleanMetaText(theme.textMuted || fallbackTheme.textMuted, "", 40),
+	      borderColor: cleanMetaText(theme.borderColor || fallbackTheme.borderColor, "", 80),
+	      borderSoft: cleanMetaText(theme.borderSoft || fallbackTheme.borderSoft, "", 80),
+	      buttonStyle: cleanMetaText(theme.buttonStyle || fallbackTheme.buttonStyle, "", 160),
+	      buttonText: cleanMetaText(theme.buttonText || fallbackTheme.buttonText, "", 40),
+	      cardShadow: cleanMetaText(theme.cardShadow || fallbackTheme.cardShadow, "", 120),
+	    });
+	  }
+
+	  function mergeSkeletonDesignContracts(base = {}, override = {}) {
+	    const source = base && typeof base === "object" ? base : {};
+	    const patch = override && typeof override === "object" ? override : {};
+	    return {
+	      ...source,
+	      ...patch,
+	      tokens: {
+	        ...(source.tokens && typeof source.tokens === "object" ? source.tokens : {}),
+	        ...(patch.tokens && typeof patch.tokens === "object" ? patch.tokens : {}),
+	      },
+	      chromePolicy: {
+	        ...(source.chromePolicy && typeof source.chromePolicy === "object" ? source.chromePolicy : {}),
+	        ...(patch.chromePolicy && typeof patch.chromePolicy === "object" ? patch.chromePolicy : {}),
+	        slotOverrides: {
+	          ...(source.chromePolicy?.slotOverrides && typeof source.chromePolicy.slotOverrides === "object" ? source.chromePolicy.slotOverrides : {}),
+	          ...(patch.chromePolicy?.slotOverrides && typeof patch.chromePolicy.slotOverrides === "object" ? patch.chromePolicy.slotOverrides : {}),
+	        },
+	        sectionOverrides: {
+	          ...(source.chromePolicy?.sectionOverrides && typeof source.chromePolicy.sectionOverrides === "object" ? source.chromePolicy.sectionOverrides : {}),
+	          ...(patch.chromePolicy?.sectionOverrides && typeof patch.chromePolicy.sectionOverrides === "object" ? patch.chromePolicy.sectionOverrides : {}),
+	        },
+	      },
+	      layoutRules: {
+	        ...(source.layoutRules && typeof source.layoutRules === "object" ? source.layoutRules : {}),
+	        ...(patch.layoutRules && typeof patch.layoutRules === "object" ? patch.layoutRules : {}),
+	      },
+	      themeCustom: {
+	        ...(source.themeCustom && typeof source.themeCustom === "object" ? source.themeCustom : {}),
+	        ...(patch.themeCustom && typeof patch.themeCustom === "object" ? patch.themeCustom : {}),
+	      },
+	    };
+	  }
+
+	  function normalizeSkeletonDesignContract(source, fallback = {}) {
+	    const contract = source && typeof source === "object" ? source : fallback && typeof fallback === "object" ? fallback : {};
+	    const fallbackTokens = fallback.tokens && typeof fallback.tokens === "object" ? fallback.tokens : {};
+	    const tokens = contract.tokens && typeof contract.tokens === "object" ? contract.tokens : fallbackTokens;
+	    const chromePolicy = normalizeSkeletonChromePolicy(contract.chromePolicy, fallback.chromePolicy);
+	    const layoutRules = normalizeSkeletonLayoutRules(contract.layoutRules, fallback.layoutRules);
+	    return {
+	      id: cleanMetaText(contract.id || fallback.id, "ops-console", 48),
+	      label: cleanMetaText(contract.label || fallback.label, "账户运营控制台契约", 80),
+	      sourceSampleId: cleanMetaText(contract.sourceSampleId || fallback.sourceSampleId, "", 80),
+	      sourceSampleName: cleanMetaText(contract.sourceSampleName || fallback.sourceSampleName, "", 100),
+	      sourceSampleIds: (Array.isArray(contract.sourceSampleIds) ? contract.sourceSampleIds : fallback.sourceSampleIds || [])
+	        .map((item) => cleanMetaText(item, "", 80))
+	        .filter(Boolean)
+	        .slice(0, 5),
+	      sourceSampleNames: (Array.isArray(contract.sourceSampleNames) ? contract.sourceSampleNames : fallback.sourceSampleNames || [])
+	        .map((item) => cleanMetaText(item, "", 100))
+	        .filter(Boolean)
+	        .slice(0, 5),
+	      personality: cleanMetaText(contract.personality || fallback.personality, "ops-console", 48),
+	      tone: cleanMetaText(contract.tone || fallback.tone, "冷静、清晰、可扫描", 120),
+	      surface: cleanMetaText(contract.surface || fallback.surface, "薄边框白底模块，浅蓝灰背景，只用一套主色强调状态和主操作。", 180),
+	      narrative: cleanMetaText(contract.narrative || fallback.narrative, "先决定整页叙事，再按 slot 填充模块。", 180),
+	      density: cleanMetaText(contract.density || fallback.density, "balanced", 32),
+	      theme: cleanMetaText(contract.theme || fallback.theme, "blueFinance", 48),
+	      tokens: {
+	        pageMaxWidth: skeletonContractToken(tokens.pageMaxWidth || layoutRules.maxWidth, "1320px", 24),
+	        pageGutter: skeletonContractToken(tokens.pageGutter, "16px", 24),
+	        cardRadius: skeletonContractToken(tokens.cardRadius, "8px", 24),
+	        buttonRadius: skeletonContractToken(tokens.buttonRadius, "8px", 24),
+	        sectionGap: skeletonContractToken(tokens.sectionGap, "14px", 24),
+	        rowGap: skeletonContractToken(tokens.rowGap || tokens.sectionGap, "14px", 24),
+	        cardPadding: skeletonContractToken(tokens.cardPadding, "16px", 24),
+	        cardShadow: skeletonContractToken(tokens.cardShadow, "none", 100),
+	        cardBorder: skeletonContractToken(tokens.cardBorder, "var(--home-border-soft)", 80),
+	        background: skeletonContractToken(tokens.background, "var(--home-bg)", 180),
+	        surface: skeletonContractToken(tokens.surface, "var(--home-card-bg)", 80),
+	        surfaceSoft: skeletonContractToken(tokens.surfaceSoft, "var(--home-surface-soft)", 80),
+	        surfaceMuted: skeletonContractToken(tokens.surfaceMuted, "var(--home-surface-muted)", 80),
+	        primaryColor: skeletonContractToken(tokens.primaryColor, "var(--home-primary)", 40),
+	        primaryStrong: skeletonContractToken(tokens.primaryStrong, "var(--home-primary-strong)", 40),
+	        accentColor: skeletonContractToken(tokens.accentColor, "var(--home-accent)", 40),
+	        textStrong: skeletonContractToken(tokens.textStrong, "var(--home-text-strong)", 40),
+	        textMuted: skeletonContractToken(tokens.textMuted, "var(--home-text-muted)", 40),
+	      },
+	      componentRules: skeletonContractArray(contract.componentRules, fallback.componentRules),
+	      ctaRules: skeletonContractArray(contract.ctaRules, fallback.ctaRules),
+	      moduleGrammar: cleanMetaText(contract.moduleGrammar || fallback.moduleGrammar, "用统一模块语法组织整页。", 220),
+	      differenceRule: cleanMetaText(contract.differenceRule || fallback.differenceRule, "差异来自整页叙事和结构分叉，不靠随机换色。", 220),
+	      layoutRules,
+	      themeCustom: compactSkeletonThemeCustom(contract.themeCustom, fallback.themeCustom),
+	      chromePolicy,
+	    };
+	  }
+
+	  function buildSkeletonDesignContract(config = {}) {
+	    const source = config && typeof config === "object" ? config : {};
+	    const layoutPreset = normalizeLayoutPreset(source.layoutPreset || (typeof source.layout === "string" ? source.layout : ""));
+	    const designGenome = normalizeDesignGenome(source.designGenome || source.layoutGene || source.genome, designGenomeForLayout(layoutPreset));
+	    const genome = DESIGN_GENOMES[designGenome] || DESIGN_GENOMES.accountOpsConsole;
+	    const storyId = normalizePageStory(source.pageStory || source.heroNarrative || source.story, genome.story || "opsClarity");
+	    const story = PAGE_STORIES[storyId] || PAGE_STORIES.opsClarity;
+	    const template = SKELETON_STYLE_CONTRACTS[designGenome] || SKELETON_STYLE_CONTRACTS[genome.id] || SKELETON_STYLE_CONTRACTS.accountOpsConsole;
+	    const density = ["compact", "comfortable", "balanced", "spacious"].includes(source.density) ? source.density : genome.density || DEFAULT_CONFIG.density;
+	    const theme = normalizeThemeId(source.themePreset || source.theme || genome.themePreset || DEFAULT_CONFIG.themePreset);
+	    const explicitContract =
+	      (source.styleContract && typeof source.styleContract === "object" ? source.styleContract : null) ||
+	      (source.goldenStyleContract && typeof source.goldenStyleContract === "object" ? source.goldenStyleContract : null);
+	    const baseContract = explicitContract ? mergeSkeletonDesignContracts(template, explicitContract) : template;
+	    return normalizeSkeletonDesignContract(
+	      {
+	        ...baseContract,
+	        narrative: explicitContract?.narrative || `${story.label || storyId}：${story.summary || baseContract.differenceRule || template.differenceRule}`,
+	        density: explicitContract?.density || density,
+	        theme: explicitContract?.theme || theme,
+	      },
+	      SKELETON_STYLE_CONTRACTS.accountOpsConsole,
+	    );
+	  }
 
   function skeletonDesignContractPrompt(contract = {}) {
     const normalized = normalizeSkeletonDesignContract(contract, SKELETON_STYLE_CONTRACTS.accountOpsConsole);
     return [
-      `整页风格契约：${normalized.label} / ${normalized.tone}`,
-      `叙事规则：${normalized.narrative}`,
-      `视觉表面：${normalized.surface}`,
-      `全局 token：圆角 ${normalized.tokens.cardRadius}，按钮圆角 ${normalized.tokens.buttonRadius}，区块间距 ${normalized.tokens.sectionGap}，卡片内距 ${normalized.tokens.cardPadding}，阴影 ${normalized.tokens.cardShadow}`,
-      normalized.componentRules.length ? `组件统一规则：${normalized.componentRules.join("；")}` : "",
+	      `整页风格契约：${normalized.label} / ${normalized.tone}`,
+	      `叙事规则：${normalized.narrative}`,
+	      `视觉表面：${normalized.surface}`,
+	      `全局 token：页面宽度 ${normalized.tokens.pageMaxWidth}，背景 ${normalized.tokens.background}，圆角 ${normalized.tokens.cardRadius}，按钮圆角 ${normalized.tokens.buttonRadius}，区块间距 ${normalized.tokens.sectionGap}，行间距 ${normalized.tokens.rowGap}，卡片内距 ${normalized.tokens.cardPadding}，边框 ${normalized.tokens.cardBorder}，阴影 ${normalized.tokens.cardShadow}`,
+	      normalized.layoutRules.blockRelation ? `块关系：${normalized.layoutRules.blockRelation}` : "",
+	      normalized.componentRules.length ? `组件统一规则：${normalized.componentRules.join("；")}` : "",
       normalized.ctaRules.length ? `CTA 统一规则：${normalized.ctaRules.join("；")}` : "",
       `模块语法：${normalized.moduleGrammar}`,
       `外壳策略：${normalized.chromePolicy.mode} / ${normalized.chromePolicy.componentBoundary}。${normalized.chromePolicy.promptRule}`,
@@ -5834,20 +5973,31 @@
       .join("\n");
   }
 
-  function skeletonContractCssValue(value, fallback) {
-    const source = String(value || fallback || "").trim();
-    return /^[#\w\s.,:%()+-]+$/.test(source) ? source.slice(0, 90) : fallback;
-  }
+	  function skeletonContractCssValue(value, fallback) {
+	    const source = String(value || fallback || "").trim();
+	    return /^[#\w\s.,:%()+-]+$/.test(source) ? source.slice(0, 180) : fallback;
+	  }
 
-  function applySkeletonContractStyleVars(node, contract = {}) {
-    if (!node?.style) return;
-    const normalized = normalizeSkeletonDesignContract(contract, SKELETON_STYLE_CONTRACTS.accountOpsConsole);
-    node.style.setProperty("--home-skeleton-contract-radius", skeletonContractCssValue(normalized.tokens.cardRadius, "8px"));
-    node.style.setProperty("--home-skeleton-contract-button-radius", skeletonContractCssValue(normalized.tokens.buttonRadius, "8px"));
-    node.style.setProperty("--home-skeleton-contract-gap", skeletonContractCssValue(normalized.tokens.sectionGap, "14px"));
-    node.style.setProperty("--home-skeleton-contract-padding", skeletonContractCssValue(normalized.tokens.cardPadding, "16px"));
-    node.style.setProperty("--home-skeleton-contract-shadow", skeletonContractCssValue(normalized.tokens.cardShadow, "none"));
-  }
+	  function applySkeletonContractStyleVars(node, contract = {}) {
+	    if (!node?.style) return;
+	    const normalized = normalizeSkeletonDesignContract(contract, SKELETON_STYLE_CONTRACTS.accountOpsConsole);
+	    node.style.setProperty("--home-skeleton-contract-max-width", skeletonContractCssValue(normalized.tokens.pageMaxWidth, "1320px"));
+	    node.style.setProperty("--home-skeleton-contract-page-gutter", skeletonContractCssValue(normalized.tokens.pageGutter, "16px"));
+	    node.style.setProperty("--home-skeleton-contract-radius", skeletonContractCssValue(normalized.tokens.cardRadius, "8px"));
+	    node.style.setProperty("--home-skeleton-contract-button-radius", skeletonContractCssValue(normalized.tokens.buttonRadius, "8px"));
+	    node.style.setProperty("--home-skeleton-contract-gap", skeletonContractCssValue(normalized.tokens.sectionGap, "14px"));
+	    node.style.setProperty("--home-skeleton-contract-row-gap", skeletonContractCssValue(normalized.tokens.rowGap, "14px"));
+	    node.style.setProperty("--home-skeleton-contract-padding", skeletonContractCssValue(normalized.tokens.cardPadding, "16px"));
+	    node.style.setProperty("--home-skeleton-contract-shadow", skeletonContractCssValue(normalized.tokens.cardShadow, "none"));
+	    node.style.setProperty("--home-skeleton-contract-border", skeletonContractCssValue(normalized.tokens.cardBorder, "var(--home-border-soft)"));
+	    node.style.setProperty("--home-skeleton-contract-bg", skeletonContractCssValue(normalized.tokens.background, "var(--home-bg)"));
+	    node.style.setProperty("--home-skeleton-contract-surface", skeletonContractCssValue(normalized.tokens.surface, "var(--home-card-bg)"));
+	    node.style.setProperty("--home-skeleton-contract-surface-soft", skeletonContractCssValue(normalized.tokens.surfaceSoft, "var(--home-surface-soft)"));
+	    node.style.setProperty("--home-skeleton-contract-surface-muted", skeletonContractCssValue(normalized.tokens.surfaceMuted, "var(--home-surface-muted)"));
+	    node.style.setProperty("--home-skeleton-contract-primary", skeletonContractCssValue(normalized.tokens.primaryColor, "var(--home-primary)"));
+	    node.style.setProperty("--home-skeleton-contract-primary-strong", skeletonContractCssValue(normalized.tokens.primaryStrong, "var(--home-primary-strong)"));
+	    node.style.setProperty("--home-skeleton-contract-accent", skeletonContractCssValue(normalized.tokens.accentColor, "var(--home-accent)"));
+	  }
 
   function skeletonSectionChrome(section = {}, designContract = {}) {
     const contract = normalizeSkeletonDesignContract(designContract, SKELETON_STYLE_CONTRACTS.accountOpsConsole);
@@ -5962,16 +6112,20 @@
         const component = slotComponents[id];
         const locked = Boolean(item.locked || component?.locked);
         const status = locked ? "locked" : component?.html ? "filled" : normalizeSkeletonStatus(item.status);
+        const sectionType = cleanMetaText(item.sectionType, "full", 24);
+        const size = cleanMetaText(item.size || skeletonSlotSizeForGrid(id, { type: sectionType }), "2x1", 12);
         return {
           id,
           slot: id,
           label: cleanMetaText(item.label || featureLabel(id), id, 80),
           sectionId: cleanMetaText(item.sectionId, "", 64),
           sectionTitle: cleanMetaText(item.sectionTitle, "", 80),
-          sectionType: cleanMetaText(item.sectionType, "full", 24),
+          sectionType,
           moduleId: cleanMetaText(item.moduleId, "", 80),
           variant: cleanMetaText(item.variant, "", 80),
           morph: cleanMetaText(item.morph || item.morphId, "", 80),
+          size,
+          layoutContract: homeGridContractForSize(size, { slot: id, zone: sectionType, sectionType }),
           chrome: normalizeSkeletonSlotChrome(item.chrome || item.slotChrome, "contained"),
           status,
           filledAt: cleanMetaText(item.filledAt, "", 48),
@@ -6759,6 +6913,56 @@
     };
   }
 
+  function preferredLargeFullRowBrickId(component, currentBrickId = "") {
+    const current = String(currentBrickId || "");
+    if (current && brickById(current)) return current;
+    if (component === "trading_accounts_list") return "tradingAccounts.separatedList";
+    if (component === "trading_account_highlight") return "accountPerformance.proChart";
+    if (component === "wallet_list") return "walletList.tiles";
+    if (component === "promo_banner") return "promoBanner.scoreboard";
+    if (component === "copytrading_signals") return "copytradingSignals.curveCards";
+    if (component === "onboarding_guide") return "onboardingProgress.missionBoard";
+    return "";
+  }
+
+  function enforceLargeFullRowLayoutBlock(block) {
+    const component = canonicalHomeBlock(block.component) || block.component;
+    const size = largeFullRowHomeBlockSize(component);
+    if (!size) return block;
+    const reason = largeFullRowHomeBlockReason(component);
+    const brick = brickById(preferredLargeFullRowBrickId(component, block.brickId));
+    return {
+      ...block,
+      component,
+      slot: "full",
+      brickId: brick?.id || block.brickId,
+      brickName: brick?.name || block.brickName,
+      brickFamily: brick?.family || block.brickFamily,
+      brickSize: size,
+      brickZone: "full",
+      brickReason: block.brickReason || reason,
+    };
+  }
+
+  function enforceLargeFullRowBrickPlanItem(item) {
+    const component = canonicalHomeBlock(item.component || item.feature) || item.component || item.feature;
+    const size = largeFullRowHomeBlockSize(component);
+    if (!size) return item;
+    const reason = largeFullRowHomeBlockReason(component);
+    const brick = brickById(preferredLargeFullRowBrickId(component, item.brickId));
+    return {
+      ...item,
+      brickId: brick?.id || item.brickId,
+      brickName: brick?.name || item.brickName,
+      family: brick?.family || item.family,
+      feature: component,
+      component,
+      size,
+      zone: "full",
+      reason: item.reason || reason,
+    };
+  }
+
   function enforceLayoutBlockGeometry(block, moduleSettings) {
     const component = block.component;
     const size = String(block.brickSize || "").toLowerCase();
@@ -6770,7 +6974,7 @@
       }
 
       if (/^1x/.test(size) || block.slot === "rail") {
-        return layoutBlockWithBrick(block, "tradingAccounts.cardProof", "main", "账号卡片至少使用主栏高模块，避免挤入窄侧栏。");
+        return layoutBlockWithBrick(block, "tradingAccounts.cardProof", "full", "账号卡片至少使用整横栏，避免挤入窄侧栏。");
       }
     }
 
@@ -6802,6 +7006,10 @@
       return layoutBlockWithBrick(block, "adCarousel.heroCampaign", "hero", "广告轮播至少使用主视觉宽度，避免侧栏裁切。");
     }
 
+    if (isLargeFullRowHomeBlock(component) && (block.slot !== "full" || spanFromBrickSize(size) < 12)) {
+      return enforceLargeFullRowLayoutBlock(block);
+    }
+
     return block;
   }
 
@@ -6821,7 +7029,7 @@
         }
 
         if (/^1x/.test(size) || item.zone === "rail") {
-          return brickPlanItemWithBrick(item, "tradingAccounts.cardProof", "main", "账号卡片至少使用主栏高模块，避免挤入窄侧栏。");
+          return brickPlanItemWithBrick(item, "tradingAccounts.cardProof", "full", "账号卡片至少使用整横栏，避免挤入窄侧栏。");
         }
       }
 
@@ -6855,12 +7063,17 @@
         return brickPlanItemWithBrick(item, "accountPerformance.proChart", "full", "账号表现图表属于大模块，至少使用整横栏承载趋势信息。");
       }
 
+      if (isLargeFullRowHomeBlock(item.component || item.feature) && (item.zone !== "full" || spanFromBrickSize(size) < 12)) {
+        return enforceLargeFullRowBrickPlanItem(item);
+      }
+
       return item;
     });
   }
 
   function layoutSpanForBlock(block, heroBlockCount = 0) {
     if (block.component === "welcome_header") return 12;
+    if (isLargeFullRowHomeBlock(block.component)) return 12;
 
     const sizeSpan = spanFromBrickSize(block.brickSize);
     if (block.slot === "full") return 12;
@@ -6877,12 +7090,13 @@
   function isHomepageFullRowBlock(block) {
     if (block.component === "welcome_header") return true;
     if (block.component === "risk_disclosure") return true;
-    if (block.slot === "full" && LARGE_FULL_ROW_HOME_BLOCKS.has(canonicalHomeBlock(block.component) || block.component)) return true;
-    return ["account_list", "trading_accounts_list", "account_performance", "trading_account_highlight", "wallet_list"].includes(block.component) && spanFromBrickSize(block.brickSize) >= 12;
+    if (isLargeFullRowHomeBlock(block.component)) return true;
+    return ["account_list", "account_performance"].includes(block.component) && spanFromBrickSize(block.brickSize) >= 12;
   }
 
   function isHomepageCompactBlock(block) {
-    return ["quick_actions", "onboarding_guide", "pamm_products", "copytrading_signals", "referral_link_card", "kyc_status_card", "announcements", "market_news", "risk_disclosure", "faq_section", "support_contact", "app_download", "fund_actions", "wallet_balance", "open_account_panel", "user_kyc_rail", "create_account_form", "market_insight", "risk_notice", "copytrading_summary"].includes(block.component);
+    if (isLargeFullRowHomeBlock(block.component)) return false;
+    return ["quick_actions", "referral_link_card", "kyc_status_card", "announcements", "market_news", "risk_disclosure", "faq_section", "support_contact", "app_download", "fund_actions", "wallet_balance", "open_account_panel", "user_kyc_rail", "create_account_form", "market_insight", "risk_notice", "copytrading_summary"].includes(block.component);
   }
 
   function canPairHomepageBlocks(first, second, heroBlockCount = 0) {
@@ -7389,6 +7603,28 @@
     return LEGACY_SLOT_ALIASES[value] || LEGACY_SLOT_ALIASES[value.toLowerCase()] || LEGACY_COMPONENT_ALIASES[value] || LEGACY_COMPONENT_ALIASES[value.toLowerCase()] || "";
   }
 
+  function isLargeFullRowHomeBlock(id) {
+    const component = canonicalHomeBlock(id) || String(id || "").trim();
+    return LARGE_FULL_ROW_HOME_BLOCKS.has(component);
+  }
+
+  function largeFullRowHomeBlockSize(id) {
+    const component = canonicalHomeBlock(id) || String(id || "").trim();
+    return LARGE_FULL_ROW_HOME_BLOCK_SIZES[component] || "";
+  }
+
+  function largeFullRowHomeBlockReason(id) {
+    const component = canonicalHomeBlock(id) || String(id || "").trim();
+    if (component === "copytrading_signals") return "推荐信号源属于收益、风险和曲线信息密集模块，强制整横栏展示。";
+    if (component === "pamm_products") return "PAMM 产品属于产品、收益、风险和曲线信息密集模块，强制整横栏展示。";
+    if (component === "onboarding_guide") return "新手 Onboarding 承接 KYC、开户和首次入金旅程，强制整横栏展示。";
+    if (component === "promo_banner") return "首页 Banner/轮播图属于首屏大模块，强制整横栏展示。";
+    if (component === "trading_account_highlight") return "账号表现图表属于大模块，独占整横栏展示账号上下文、趋势和指标。";
+    if (component === "trading_accounts_list") return "交易账号列表属于大模块，强制整横栏展示。";
+    if (component === "wallet_list") return "钱包列表属于多币种内容，强制整行展示。";
+    return "大型首页模块强制整横栏展示。";
+  }
+
   function isForbiddenHomeBlock(id) {
     return FORBIDDEN_HOME_BLOCKS.includes(String(id || "").trim());
   }
@@ -7490,16 +7726,17 @@
   }
 
 	  function slotFromSectionType(type, component, slotIndex = 0) {
-	    if (component === "welcome_header") return "hero";
+	    const canonicalComponent = canonicalHomeBlock(component) || component;
+	    if (canonicalComponent === "welcome_header") return "hero";
+	    if (isLargeFullRowHomeBlock(canonicalComponent)) return type === "hero" && slotIndex === 0 ? "hero" : "full";
 	    if (type === "hero" && slotIndex > 0) {
-	      return ["quick_actions", "onboarding_guide", "referral_link_card", "kyc_status_card", "announcements", "market_news", "risk_disclosure", "faq_section", "support_contact", "app_download", "pamm_products", "copytrading_signals"].includes(component) ? "rail" : "main";
+	      return ["quick_actions", "referral_link_card", "kyc_status_card", "announcements", "market_news", "risk_disclosure", "faq_section", "support_contact", "app_download"].includes(canonicalComponent) ? "rail" : "main";
 	    }
 	    if (type === "hero") return "hero";
 	    if (type === "full") return "full";
-	    if (LARGE_FULL_ROW_HOME_BLOCKS.has(component)) return "full";
-	    if (["trading_accounts_list", "asset_overview", "quick_actions", "promo_banner", "onboarding_guide", "trading_account_highlight", "pamm_products", "copytrading_signals", "referral_link_card", "kyc_status_card", "announcements", "market_news", "risk_disclosure", "faq_section", "support_contact", "app_download"].includes(component)) return "main";
+	    if (["asset_overview", "quick_actions", "referral_link_card", "kyc_status_card", "announcements", "market_news", "risk_disclosure", "faq_section", "support_contact", "app_download"].includes(canonicalComponent)) return "main";
 	    if (type === "rail") return "rail";
-	    if (["onboarding_guide", "referral_link_card", "kyc_status_card", "announcements", "market_news", "risk_disclosure", "faq_section", "support_contact", "app_download", "pamm_products", "copytrading_signals"].includes(component)) return "rail";
+	    if (["referral_link_card", "kyc_status_card", "announcements", "market_news", "risk_disclosure", "faq_section", "support_contact", "app_download"].includes(canonicalComponent)) return "rail";
 	    return "main";
   }
 
@@ -7629,44 +7866,51 @@
     if (slot === "trading_account_highlight") return "账号表现";
     if (slot === "trading_accounts_list") return "交易账号";
     if (slot === "wallet_list") return "钱包列表";
+    if (slot === "copytrading_signals") return "推荐信号源";
+    if (slot === "onboarding_guide") return "新手 Onboarding";
+    if (slot === "promo_banner") return "首页 Banner";
+    if (slot === "pamm_products") return "PAMM";
     return FEATURES[slot] || fallback || slot;
   }
 
   function splitLargeFullRowSections(sections) {
     return sections.flatMap((section) => {
-      const slots = Array.isArray(section.slots) ? section.slots : [];
-      const largeSlots = slots.filter((slot) => LARGE_FULL_ROW_HOME_BLOCKS.has(slot));
-      if (!largeSlots.length) return [section];
-      if (slots.length === 1) {
-        return [
-          {
-            ...section,
-            type: "full",
-            title: sectionTitleForSlot(largeSlots[0], section.title),
-          },
-        ];
-      }
+      const slots = Array.isArray(section.slots) ? section.slots.map((slot) => canonicalHomeBlock(slot) || slot).filter(Boolean) : [];
+      if (!slots.some(isLargeFullRowHomeBlock)) return [{ ...section, slots }];
 
       const splitSections = [];
-      const compactSlots = slots.filter((slot) => !LARGE_FULL_ROW_HOME_BLOCKS.has(slot));
-      if (compactSlots.length) {
-        splitSections.push({
-          ...section,
-          slots: compactSlots,
-          type: section.type === "full" ? "split" : section.type,
-        });
-      }
+      let compactSlots = [];
+      const flushCompactSlots = () => {
+        if (!compactSlots.length) return;
+        for (let offset = 0; offset < compactSlots.length; offset += 2) {
+          const group = compactSlots.slice(offset, offset + 2);
+          splitSections.push({
+            ...section,
+            id: splitSections.length ? `${section.id || "section"}-${splitSections.length + 1}`.slice(0, 32) : section.id,
+            slots: group,
+            type: group.length === 1 ? (section.type === "rail" ? "rail" : "full") : section.type === "hero" && !splitSections.length ? "hero" : "split",
+          });
+        }
+        compactSlots = [];
+      };
 
-      largeSlots.forEach((slot, index) => {
+      slots.forEach((slot, index) => {
+        if (!isLargeFullRowHomeBlock(slot)) {
+          compactSlots.push(slot);
+          return;
+        }
+
+        flushCompactSlots();
         splitSections.push({
           ...section,
-          id: `${section.id || "section"}-${slot}`.slice(0, 32) || `full-row-${index + 1}`,
+          id: `${section.id || "section"}-${index + 1}`.slice(0, 32) || `full-row-${index + 1}`,
           type: "full",
           title: sectionTitleForSlot(slot, section.title),
           slots: [slot],
         });
       });
 
+      flushCompactSlots();
       return splitSections;
     });
   }
@@ -7865,25 +8109,25 @@
 	            buttonText: "#06111f",
 	            cardShadow: "0 22px 52px rgba(0, 0, 0, 0.3)",
 	          }
-	        : includesAny(text, ["清爽", "科技", "高级", "国际", "金融", "蓝", "fresh", "clean", "global"])
-	        ? {
-	            primaryColor: "#0ea5e9",
-	            accentColor: "#14b8a6",
-	            backgroundStyle: "radial-gradient(circle at 78% 8%, rgba(14, 165, 233, 0.12), transparent 30%), linear-gradient(180deg, #ffffff 0%, #eef8fb 100%)",
-	            cardStyle: "rgba(255, 255, 255, 0.98)",
-	            surfaceColor: "#ffffff",
-	            surfaceSoft: "#f0f9ff",
-	            surfaceMuted: "#eaf7f6",
-	            textStrong: "#0f172a",
-	            textColor: "#172033",
-	            textSoft: "#475569",
-	            textMuted: "#64748b",
-	            borderColor: "#bde7f6",
-	            borderSoft: "#d9f0f7",
-	            buttonStyle: "linear-gradient(135deg, #0ea5e9, #14b8a6)",
-	            buttonText: "#ffffff",
-	            cardShadow: "0 16px 34px rgba(14, 165, 233, 0.1)",
-	          }
+		        : includesAny(text, ["清爽", "科技", "高级", "国际", "金融", "蓝", "fresh", "clean", "global"])
+		        ? {
+		            primaryColor: "#2f66e8",
+		            accentColor: "#275bd5",
+		            backgroundStyle: "linear-gradient(180deg, #f8fbff 0%, #eef4ff 52%, #f7faff 100%)",
+		            cardStyle: "#ffffff",
+		            surfaceColor: "#ffffff",
+		            surfaceSoft: "#f7faff",
+		            surfaceMuted: "#eef4ff",
+		            textStrong: "#0f172a",
+		            textColor: "#172033",
+		            textSoft: "#475569",
+		            textMuted: "#64748b",
+		            borderColor: "#d8e1ef",
+		            borderSoft: "#e8edf5",
+		            buttonStyle: "linear-gradient(135deg, #2f66e8, #275bd5)",
+		            buttonText: "#ffffff",
+		            cardShadow: "0 10px 24px rgba(15, 23, 42, 0.07)",
+		          }
 	        : includesAny(text, ["极简", "minimal", "白", "留白", "克制"])
 	        ? {
 	            primaryColor: "#475569",
@@ -7942,10 +8186,10 @@
 	  function normalizeThemeCustom(value) {
 	    const source = typeof value === "string" ? { input: value } : value && typeof value === "object" ? value : null;
 	    const input = String(source?.input || source?.value || "").trim().slice(0, 96);
-	    const primaryColor = normalizeHexColor(source?.primaryColor || input);
-	    const palette = themeCustomPaletteForText(input, primaryColor);
-	    return input ? compactThemeObject({ input, ...palette, primaryColor: primaryColor || palette?.primaryColor || "" }) : null;
-	  }
+		    const primaryColor = normalizeHexColor(source?.primaryColor || input);
+		    const palette = themeCustomPaletteForText(input, primaryColor);
+		    return input ? compactThemeObject({ ...palette, ...source, input, primaryColor: primaryColor || palette?.primaryColor || source?.primaryColor || "" }) : null;
+		  }
 
   function normalizeLayoutPreset(value) {
     const layout = LEGACY_LAYOUT_MAP[value] || value;
@@ -8582,9 +8826,9 @@
         family: "OnboardingGuide",
         component: "onboarding_guide",
         feature: "onboarding_guide",
-        size: "2x1",
-        defaultZone: "main",
-        reason: "仅在新用户或关键流程未完成时展示下一步引导。",
+        size: "3x1",
+        defaultZone: "full",
+        reason: "仅在新用户或关键流程未完成时，用整横栏展示下一步引导。",
       },
       trading_account_highlight: {
         id: "tradingAccount.highlight",
@@ -8592,9 +8836,9 @@
         family: "TradingAccountHighlight",
         component: "trading_account_highlight",
         feature: "trading_account_highlight",
-        size: "2x2",
-        defaultZone: "main",
-        reason: "突出一个交易账号的余额、净值、收益率和盈亏趋势。",
+        size: "3x2",
+        defaultZone: "full",
+        reason: "突出一个交易账号的余额、净值、收益率和盈亏趋势，用整横栏承载图表。",
       },
       trading_accounts_list: {
         id: "tradingAccounts.list",
@@ -8613,8 +8857,8 @@
         component: "promo_banner",
         feature: "promo_banner",
         size: "3x1",
-        defaultZone: "main",
-        reason: "仅在租户配置活动时展示活动 Banner。",
+        defaultZone: "full",
+        reason: "仅在租户配置活动时，用整横栏展示活动 Banner。",
       },
       pamm_products: {
         id: "pammProducts.recommendations",
@@ -8622,9 +8866,9 @@
         family: "PammProducts",
         component: "pamm_products",
         feature: "pamm_products",
-        size: "2x1",
-        defaultZone: "main",
-        reason: "仅在 PAMM 功能开启且接口返回产品时展示。",
+        size: "3x2",
+        defaultZone: "full",
+        reason: "仅在 PAMM 功能开启且接口返回产品时，用整横栏展示产品、收益和曲线。",
       },
       copytrading_signals: {
         id: "copytradingSignals.recommendations",
@@ -8632,9 +8876,9 @@
         family: "CopytradingSignals",
         component: "copytrading_signals",
         feature: "copytrading_signals",
-        size: "2x1",
-        defaultZone: "main",
-        reason: "仅在 CopyTrading 功能开启且接口返回信号源时展示。",
+        size: "3x2",
+        defaultZone: "full",
+        reason: "仅在 CopyTrading 功能开启且接口返回信号源时，用整横栏展示收益、风险和曲线。",
       },
       referral_link_card: {
         id: "referralLinkCard.compact",
@@ -8943,7 +9187,12 @@
 	    }
 
 	    if (hadQuick && hadOnboarding) {
-	      config.sections.splice(Math.min(1, config.sections.length), 0, { id: "quick-onboarding", type: "split", title: "快捷操作", slots: ["quick_actions", "onboarding_guide"] });
+	      config.sections.splice(
+	        Math.min(1, config.sections.length),
+	        0,
+	        { id: "quick-actions", type: "full", title: "快捷操作", slots: ["quick_actions"] },
+	        { id: "onboarding-journey", type: "full", title: "开户引导", slots: ["onboarding_guide"] },
+	      );
 	    }
 	    config.sections = normalizeSections(config.sections);
 	    config.layout = layoutFromSections(config.sections);
@@ -9307,11 +9556,16 @@
       (!source.sections || explicitLayoutCoversSections);
     const normalizedLayout = normalizeHomepageLayout(shouldUseExplicitLayout ? source.layout : null, sections);
     const moduleStyles = normalizeModuleStyles(source.moduleStyles, modules, componentReferences);
-    const themePreset = normalizeThemeId(source.themePreset || source.theme);
-    const personalizationStrength = normalizePersonalizationStrength(source.personalizationStrength);
-    const designGenome = normalizeDesignGenome(source.designGenome || source.layoutGene || source.genome, designGenomeForLayout(layoutPreset));
-    const pageStory = normalizePageStory(source.pageStory || source.heroNarrative || source.story, DESIGN_GENOMES[designGenome]?.story || "opsClarity");
-    const shouldHydrateBricks =
+	    const themePreset = normalizeThemeId(source.themePreset || source.theme);
+	    const personalizationStrength = normalizePersonalizationStrength(source.personalizationStrength);
+	    const designGenome = normalizeDesignGenome(source.designGenome || source.layoutGene || source.genome, designGenomeForLayout(layoutPreset));
+	    const pageStory = normalizePageStory(source.pageStory || source.heroNarrative || source.story, DESIGN_GENOMES[designGenome]?.story || "opsClarity");
+	    const rawStyleContract =
+	      (source.styleContract && typeof source.styleContract === "object" ? source.styleContract : null) ||
+	      (source.goldenStyleContract && typeof source.goldenStyleContract === "object" ? source.goldenStyleContract : null);
+	    const styleContract = rawStyleContract ? normalizeSkeletonDesignContract(rawStyleContract, SKELETON_STYLE_CONTRACTS.accountOpsConsole) : null;
+	    const themeCustomSource = source.themeCustom || source.customTheme || source.themeCustomInput || styleContract?.themeCustom;
+	    const shouldHydrateBricks =
       source.generationMode === "brick-v2" ||
       Number(source.blueprintVersion) >= 5 ||
       sourceBrickPlan.length > 0 ||
@@ -9347,11 +9601,13 @@
       layoutPreset,
       designGenome,
       pageStory,
-      layout: layout.map((block) => attachModuleMetadata(block, modules)),
-      themePreset,
-      theme: themePreset,
-      themeCustom: normalizeThemeCustom(source.themeCustom || source.customTheme || source.themeCustomInput),
-      colorMode: normalizeHomeColorMode(source.colorMode || source.themeMode || source.appearanceMode || source.homeColorMode),
+	      layout: layout.map((block) => attachModuleMetadata(block, modules)),
+	      themePreset,
+	      theme: themePreset,
+	      themeCustom: normalizeThemeCustom(themeCustomSource),
+	      styleContract,
+	      goldenStyleContract: source.goldenStyleContract && typeof source.goldenStyleContract === "object" ? styleContract : null,
+	      colorMode: normalizeHomeColorMode(source.colorMode || source.themeMode || source.appearanceMode || source.homeColorMode),
       personalizationStrength,
       modules,
       moduleVariants: Object.keys(modules).reduce((variants, moduleId) => {
@@ -9392,10 +9648,20 @@
       publishedRenderMode: normalizeHomepageRenderMode(source.publishedRenderMode, ""),
       publishedRenderModeLabel: cleanMetaText(source.publishedRenderModeLabel, "", 32),
       publishedAt: cleanMetaText(source.publishedAt, "", 48),
-      validationErrors: normalizedLayout.validationErrors,
-    };
+	      validationErrors: normalizedLayout.validationErrors,
+	    };
 
-    if (renderModeWantsSkeletonHtml(renderMode) && !normalized.skeletonHtmlScheme.enabled) {
+	    if (normalized.styleContract && normalized.skeletonHtmlScheme?.enabled) {
+	      normalized.skeletonHtmlScheme = {
+	        ...normalized.skeletonHtmlScheme,
+	        designContract: normalizeSkeletonDesignContract(
+	          mergeSkeletonDesignContracts(normalized.skeletonHtmlScheme.designContract, normalized.styleContract),
+	          normalized.styleContract,
+	        ),
+	      };
+	    }
+
+	    if (renderModeWantsSkeletonHtml(renderMode) && !normalized.skeletonHtmlScheme.enabled) {
       normalized.skeletonHtmlScheme = buildSkeletonHtmlScheme(normalized, {
         reason: "按当前首页配置生成整页 slot 骨架。",
         sourceType: "local-skeleton",
@@ -10130,6 +10396,25 @@
     }
   }
 
+  function writeStoredConfig(key, config) {
+    const payload = JSON.stringify(config);
+    try {
+      window.localStorage.setItem(key, payload);
+      return;
+    } catch (error) {
+      VOLATILE_STORAGE_KEYS.forEach((storageKey) => {
+        if (storageKey !== key) {
+          try {
+            window.localStorage.removeItem(storageKey);
+          } catch (removeError) {
+            // Continue clearing the remaining volatile caches.
+          }
+        }
+      });
+      window.localStorage.setItem(key, payload);
+    }
+  }
+
   function loadConfig() {
     return readStoredConfig(STORAGE_KEY, DEFAULT_CONFIG);
   }
@@ -10137,7 +10422,7 @@
   function saveConfig(config) {
     const candidate = normalizeConfig(config);
     const normalized = candidate.validationErrors.length ? normalizeConfig(DEFAULT_CONFIG) : candidate;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+    writeStoredConfig(STORAGE_KEY, normalized);
     return normalized;
   }
 
@@ -10148,7 +10433,7 @@
   function saveDraft(config) {
     const candidate = normalizeConfig(config);
     const normalized = candidate.validationErrors.length ? normalizeConfig(DEFAULT_CONFIG) : candidate;
-    window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(normalized));
+    writeStoredConfig(DRAFT_STORAGE_KEY, normalized);
     return normalized;
   }
 
@@ -12997,7 +13282,7 @@
     shell.appendChild(host);
   }
 
-  function componentEnabled(component, config) {
+	  function componentEnabled(component, config) {
     const settings = config.moduleSettings;
     if (component === "welcome_header") return true;
     if (component === "asset_overview") return settings.assets.enabled;
@@ -13030,22 +13315,61 @@
     if (component === "create_account_form") return openAccountChoices(config).length > 0;
     if (component === "account_performance") return settings.tradingAccounts.enabled || settings.assets.enabled;
     if (component === "risk_notice") return settings.riskDisclosure?.enabled || settings.riskNotice.enabled;
-    return true;
-  }
+	    return true;
+	  }
 
-  function renderBlueprint(config, target) {
-    const shell = target.querySelector("[data-home-shell]");
-    if (!shell) return;
+	  function hasExecutableStyleContract(config = {}) {
+	    return Boolean(config?.styleContract || config?.goldenStyleContract);
+	  }
 
-    const doc = target;
-    const renderableBlocks = config.layout.filter((block) => COMPONENT_MAP[block.component] && componentEnabled(block.component, config));
-    const heroBlocks = renderableBlocks.filter((block) => block.slot === "hero" && block.component !== "welcome_header");
+	  function blueprintSectionForBlock(block = {}) {
+	    if (block.slot === "hero") return { type: "hero", id: "blueprint-hero" };
+	    if (block.slot === "rail") return { type: "rail", id: "blueprint-rail" };
+	    if (block.slot === "full") return { type: "full", id: "blueprint-full" };
+	    return { type: "split", id: "blueprint-split" };
+	  }
+
+	  function blueprintRowChrome(row = {}, config = {}, designContract = null) {
+	    if (!designContract) return "";
+	    const items = Array.isArray(row.items) ? row.items : [];
+	    const policy = designContract.chromePolicy || {};
+	    const slotChromes = items.map((item) => skeletonSlotChrome(item.block?.component, config, blueprintSectionForBlock(item.block), designContract));
+	    if (slotChromes.includes("featured")) return "band";
+	    if (slotChromes.every((chrome) => chrome === "tableSurface")) return "workbench";
+	    if (slotChromes.every((chrome) => chrome === "legalStrip" || chrome === "bare" || chrome === "inline")) return "plain";
+	    if (items.length > 1 && policy.mode === "flatConnected") return "connected";
+	    if (policy.mode === "sectionBand" || policy.mode === "heroProof") return "band";
+	    if (policy.mode === "workbench") return "workbench";
+	    return normalizeSkeletonSectionChrome(policy.sectionChrome, "group");
+	  }
+
+	  function renderBlueprint(config, target) {
+	    const shell = target.querySelector("[data-home-shell]");
+	    if (!shell) return;
+
+	    const doc = target;
+	    const designContract = hasExecutableStyleContract(config) ? buildSkeletonDesignContract(config) : null;
+	    const renderableBlocks = config.layout.filter((block) => COMPONENT_MAP[block.component] && componentEnabled(block.component, config));
+	    const heroBlocks = renderableBlocks.filter((block) => block.slot === "hero" && block.component !== "welcome_header");
 
     shell.querySelectorAll(".client-welcome, [data-home-row], [data-home-module], [data-layout-section], [data-home-feature], [data-ai-html-render-host], [data-home-skeleton-render-host]").forEach((node) => node.remove());
     shell.classList.add("is-blueprint-home");
-    shell.classList.remove("is-ai-html-home");
-    shell.classList.remove("is-skeleton-html-home");
-    shell.className = shell.className
+	    shell.classList.remove("is-ai-html-home");
+	    shell.classList.remove("is-skeleton-html-home");
+	    shell.toggleAttribute("data-home-blueprint-contract", Boolean(designContract));
+	    if (designContract) {
+	      shell.dataset.homeBlueprintContract = designContract.id;
+	      shell.dataset.homeBlueprintChromeMode = designContract.chromePolicy?.mode || "";
+	      shell.dataset.homeBlueprintComponentBoundary = designContract.chromePolicy?.componentBoundary || "";
+	      shell.dataset.homeBlueprintPersonality = designContract.personality || "";
+	      applySkeletonContractStyleVars(shell, designContract);
+	    } else {
+	      delete shell.dataset.homeBlueprintContract;
+	      delete shell.dataset.homeBlueprintChromeMode;
+	      delete shell.dataset.homeBlueprintComponentBoundary;
+	      delete shell.dataset.homeBlueprintPersonality;
+	    }
+	    shell.className = shell.className
       .split(/\s+/)
       .filter((className) => className && !className.startsWith("ai-blueprint-layout-"))
       .concat(`ai-blueprint-layout-${config.layoutPreset}`)
@@ -13059,9 +13383,11 @@
       rowNode.dataset.homeGridColumns = String(HOME_GRID_COLUMNS);
       rowNode.dataset.rowItems = String(row.items.length);
       rowNode.dataset.rowKind = row.items.length > 1 ? "paired" : "single";
-      rowNode.dataset.rowCollapse = row.items.length > 1 ? config.autoLayout?.tablet?.rowMode || "stack-paired-rows" : "none";
-      rowNode.dataset.rowEqualHeight = String(config.autoLayout?.desktop?.equalHeight !== false);
-      rowNode.style.setProperty("--home-row-min-height", `${row.minHeight}px`);
+	      rowNode.dataset.rowCollapse = row.items.length > 1 ? config.autoLayout?.tablet?.rowMode || "stack-paired-rows" : "none";
+	      rowNode.dataset.rowEqualHeight = String(config.autoLayout?.desktop?.equalHeight !== false);
+	      const rowChrome = blueprintRowChrome(row, config, designContract);
+	      if (rowChrome) rowNode.dataset.rowChrome = rowChrome;
+	      rowNode.style.setProperty("--home-row-min-height", `${row.minHeight}px`);
 
       row.items.forEach((item) => {
         const block = item.block;
@@ -13074,9 +13400,14 @@
         node.dataset.homeGridColumns = String(HOME_GRID_COLUMNS);
         if (block.brickId) node.dataset.homeBrick = block.brickId;
         if (block.brickName) node.dataset.homeBrickName = block.brickName;
-        if (block.brickReason) node.dataset.homeBrickReason = block.brickReason;
-        node.dataset.homeSlot = block.slot;
-        node.dataset.homeSpan = String(item.span);
+	        if (block.brickReason) node.dataset.homeBrickReason = block.brickReason;
+	        node.dataset.homeSlot = block.slot;
+	        if (designContract) {
+	          const slotChrome = skeletonSlotChrome(block.component, config, blueprintSectionForBlock(block), designContract);
+	          node.dataset.homeSlotChrome = slotChrome;
+	          node.classList.add(`ai-home-slot-chrome-${slotChrome}`);
+	        }
+	        node.dataset.homeSpan = String(item.span);
         node.dataset.homeLayoutRecipe = item.span >= 12 ? "12+0" : item.span === 8 ? "8+4" : item.span === 6 ? "6+6" : "4+8";
         const responsiveRule = config.autoLayout?.moduleRules?.[block.component];
         if (responsiveRule) {
@@ -13273,11 +13604,14 @@
     body.dataset.homeColorMode = effectiveHomeColorMode(target, normalized.colorMode);
     body.dataset.homeDensity = normalized.density;
     body.dataset.homeLayout = normalized.layoutPreset;
-    body.dataset.homeRenderMode = normalized.activeRenderMode || "config";
-    body.dataset.homeHtmlEnabled = normalized.htmlScheme?.enabled ? "true" : "false";
-    body.dataset.homeSkeletonEnabled = normalized.skeletonHtmlScheme?.enabled ? "true" : "false";
-    body.dataset.homeSkeletonContract = normalized.skeletonHtmlScheme?.designContract?.id || "";
-    body.dataset.homePublished = normalized.publishedAt ? "true" : "false";
+	    body.dataset.homeRenderMode = normalized.activeRenderMode || "config";
+	    body.dataset.homeHtmlEnabled = normalized.htmlScheme?.enabled ? "true" : "false";
+	    body.dataset.homeSkeletonEnabled = normalized.skeletonHtmlScheme?.enabled ? "true" : "false";
+	    body.dataset.homeSkeletonContract = normalized.skeletonHtmlScheme?.designContract?.id || "";
+	    const homeStyleContractId = normalized.styleContract?.id || normalized.goldenStyleContract?.id || "";
+	    if (homeStyleContractId) body.dataset.homeStyleContract = homeStyleContractId;
+	    else delete body.dataset.homeStyleContract;
+	    body.dataset.homePublished = normalized.publishedAt ? "true" : "false";
     body.dataset.homeGenome = normalized.designGenome;
     body.dataset.homeStory = normalized.pageStory;
     body.dataset.homeHero = normalized.heroFocus;
@@ -13305,10 +13639,15 @@
       view.NXBrokerTheme.applyTenantTheme(normalized.themePreset);
     } else if (target.documentElement) {
       target.documentElement.dataset.tenantTheme = normalized.themePreset;
-    }
-    applyThemeCustomVars(target, normalized.themeCustom);
+	    }
+	    applyThemeCustomVars(target, normalized.themeCustom);
+	    if (hasExecutableStyleContract(normalized)) {
+	      const designContract = buildSkeletonDesignContract(normalized);
+	      applySkeletonContractStyleVars(body, designContract);
+	      if (target.documentElement) applySkeletonContractStyleVars(target.documentElement, designContract);
+	    }
 
-    if (body.dataset.layoutPage === "client-home") {
+	    if (body.dataset.layoutPage === "client-home") {
       if (normalized.activeRenderMode === "aiHtml" && normalized.htmlScheme?.enabled) {
         renderAiHtmlScheme(normalized, target);
       } else if (normalized.activeRenderMode === "skeletonHtml" && normalized.skeletonHtmlScheme?.enabled) {

@@ -1,9 +1,10 @@
 const fs = require("fs");
+const childProcess = require("child_process");
 const http = require("http");
 const https = require("https");
 const os = require("os");
 const path = require("path");
-const { URL } = require("url");
+const { URL, pathToFileURL } = require("url");
 
 const ROOT_DIR = __dirname;
 const IS_VERCEL = Boolean(process.env.VERCEL);
@@ -750,14 +751,58 @@ function canonicalHomeBlock(id) {
   return HOME_BLOCK_ALIASES[value] || HOME_BLOCK_ALIASES[value.toLowerCase()] || "";
 }
 
-const LARGE_FULL_ROW_HOME_BLOCKS = new Set(["trading_account_highlight", "trading_accounts_list", "wallet_list"]);
+const LARGE_FULL_ROW_HOME_BLOCKS = new Set([
+  "trading_accounts_list",
+  "copytrading_signals",
+  "trading_account_highlight",
+  "onboarding_guide",
+  "promo_banner",
+  "pamm_products",
+  "wallet_list",
+]);
+
+const LARGE_FULL_ROW_HOME_BLOCK_SIZES = {
+  trading_accounts_list: "3x2",
+  copytrading_signals: "3x2",
+  trading_account_highlight: "3x2",
+  onboarding_guide: "3x1",
+  promo_banner: "3x1",
+  pamm_products: "3x2",
+  wallet_list: "3x2",
+};
+
+function homepageLargeBlockSize(slot) {
+  const canonical = canonicalHomeBlock(slot);
+  return LARGE_FULL_ROW_HOME_BLOCK_SIZES[canonical] || "";
+}
 
 function homepageSectionTitleForSlot(slot, fallback = "") {
   if (slot === "trading_account_highlight") return "账号表现";
   if (slot === "trading_accounts_list") return "交易账号";
   if (slot === "wallet_list") return "钱包列表";
+  if (slot === "copytrading_signals") return "推荐信号源";
+  if (slot === "onboarding_guide") return "新手 Onboarding";
+  if (slot === "promo_banner") return "首页 Banner";
+  if (slot === "pamm_products") return "PAMM 产品";
   if (slot === "kyc_status_card") return "KYC 状态";
   return fallback || slot;
+}
+
+function homepageSectionIdForSlot(baseId, slot, fallback = "section", index = 0) {
+  const suffix =
+    {
+      trading_account_highlight: "performance",
+      trading_accounts_list: "accounts",
+      copytrading_signals: "copytrading",
+      onboarding_guide: "onboarding",
+      promo_banner: "promo",
+      pamm_products: "pamm",
+      wallet_list: "wallets",
+      risk_disclosure: "risk",
+    }[slot] || safeId(slot, "slot").slice(0, 18);
+  const base = safeId(baseId || fallback, "section").slice(0, 24);
+  const marker = index ? `-${index}` : "";
+  return cleanText(`${base}-${suffix}${marker}`, `${fallback}-${suffix}${marker}`, 48);
 }
 
 function splitLargeHomepageSections(sections = []) {
@@ -765,40 +810,40 @@ function splitLargeHomepageSections(sections = []) {
     const slots = (Array.isArray(section?.slots) ? section.slots : [])
       .map((slot) => canonicalHomeBlock(slot) || slot)
       .filter(Boolean);
-    const largeSlots = slots.filter((slot) => LARGE_FULL_ROW_HOME_BLOCKS.has(slot));
-    if (!largeSlots.length) return [{ ...section, slots }];
-    if (slots.length === 1) {
-      return [
-        {
+    if (!slots.some((slot) => LARGE_FULL_ROW_HOME_BLOCKS.has(slot))) return [{ ...section, slots }];
+
+    const splitSections = [];
+    let compactSlots = [];
+    const flushCompactSlots = () => {
+      if (!compactSlots.length) return;
+      for (let offset = 0; offset < compactSlots.length; offset += 2) {
+        const group = compactSlots.slice(offset, offset + 2);
+        splitSections.push({
           ...section,
-          type: "full",
-          title: homepageSectionTitleForSlot(largeSlots[0], section.title),
-          slots,
-        },
-      ];
-    }
+          id: splitSections.length ? cleanText(`${section.id || `section-${sectionIndex + 1}`}-${splitSections.length + 1}`, `section-${sectionIndex + 1}-${splitSections.length + 1}`, 32) : section.id,
+          type: group.length === 1 ? (section.type === "rail" ? "rail" : "full") : section.type === "hero" && !splitSections.length ? "hero" : "split",
+          slots: group,
+        });
+      }
+      compactSlots = [];
+    };
 
-    const compactSlots = slots.filter((slot) => !LARGE_FULL_ROW_HOME_BLOCKS.has(slot));
-    const splitSections = compactSlots.length
-      ? [
-          {
-            ...section,
-            type: section.type === "full" ? "split" : section.type,
-            slots: compactSlots,
-          },
-        ]
-      : [];
-
-    largeSlots.forEach((slot, index) => {
+    slots.forEach((slot, index) => {
+      if (!LARGE_FULL_ROW_HOME_BLOCKS.has(slot)) {
+        compactSlots.push(slot);
+        return;
+      }
+      flushCompactSlots();
       splitSections.push({
         ...section,
-        id: cleanText(`${section.id || `section-${sectionIndex + 1}`}-${slot}`, `full-row-${sectionIndex + 1}-${index + 1}`, 32),
+        id: homepageSectionIdForSlot(section.id, slot, `full-row-${sectionIndex + 1}`, index + 1),
         type: "full",
         title: homepageSectionTitleForSlot(slot, section.title),
         slots: [slot],
       });
     });
 
+    flushCompactSlots();
     return splitSections;
   });
 }
@@ -808,12 +853,12 @@ const HOMEPAGE_BLOCK_REPAIR_META = {
   asset_overview: { brickId: "assetOverview.flexible", brickName: "账户概览", family: "AssetOverview", size: "2x1", zone: "hero", title: "资产概览" },
   wallet_list: { brickId: "walletList.tiles", brickName: "钱包列表", family: "WalletList", size: "3x2", zone: "full", title: "钱包列表" },
   quick_actions: { brickId: "quickActions.configDriven", brickName: "快捷操作", family: "QuickActions", size: "2x1", zone: "main", title: "快捷操作" },
-  onboarding_guide: { brickId: "onboardingProgress.missionBoard", brickName: "开户进度", family: "OnboardingProgress", size: "2x1", zone: "main", title: "开户进度" },
+  onboarding_guide: { brickId: "onboardingProgress.missionBoard", brickName: "开户进度", family: "OnboardingProgress", size: "3x1", zone: "full", title: "开户进度" },
   trading_account_highlight: { brickId: "accountPerformance.proChart", brickName: "账户表现", family: "AccountPerformance", size: "3x2", zone: "full", title: "账户表现" },
   trading_accounts_list: { brickId: "tradingAccounts.list", brickName: "交易账号列表", family: "TradingAccounts", size: "3x2", zone: "full", title: "交易账号" },
   promo_banner: { brickId: "promoBanner.imageHero", brickName: "活动 Banner", family: "PromotionBanner", size: "3x1", zone: "full", title: "活动权益" },
-  pamm_products: { brickId: "pammProducts.recommendations", brickName: "PAMM 产品推荐", family: "PammProducts", size: "2x1", zone: "main", title: "PAMM 产品" },
-  copytrading_signals: { brickId: "copytradingSignals.curveCards", brickName: "CopyTrading 信号源", family: "CopytradingSignals", size: "3x1", zone: "full", title: "CopyTrading" },
+  pamm_products: { brickId: "pammProducts.recommendations", brickName: "PAMM 产品推荐", family: "PammProducts", size: "3x2", zone: "full", title: "PAMM 产品" },
+  copytrading_signals: { brickId: "copytradingSignals.curveCards", brickName: "CopyTrading 信号源", family: "CopytradingSignals", size: "3x2", zone: "full", title: "CopyTrading" },
   referral_link_card: { brickId: "referralLinkCard.compact", brickName: "推广链接", family: "ReferralLinkCard", size: "1x1", zone: "rail", title: "推广链接" },
   kyc_status_card: { brickId: "kycStatus.current", brickName: "KYC 当前状态", family: "UserKycRail", size: "1x1", zone: "rail", title: "KYC 状态" },
   announcements: { brickId: "announcements.list", brickName: "公告通知", family: "Announcements", size: "2x1", zone: "main", title: "公告通知" },
@@ -1179,6 +1224,12 @@ function repairHomepageSectionLegality(section, index = 0) {
   const base = parseHomepageSectionInput(section, index);
   const slots = [...new Set(base.slots)].filter(Boolean);
   if (!slots.length) return [];
+  if (slots.length === 1 && LARGE_FULL_ROW_HOME_BLOCKS.has(slots[0])) {
+    return [{ ...base, type: "full", title: homepageSectionTitleForSlot(slots[0], base.title), slots }];
+  }
+  if (slots.some((slot) => LARGE_FULL_ROW_HOME_BLOCKS.has(slot)) && slots.length > 1) {
+    return splitLargeHomepageSections([{ ...base, slots }]).flatMap((item, itemIndex) => repairHomepageSectionLegality(item, index + itemIndex));
+  }
 
   if (base.type === "hero") {
     const heroSlots = slots.slice(0, 2);
@@ -1293,7 +1344,12 @@ function enforceAssetOverviewHeroFocusSections(sections, heroFocus) {
   }
 
   if (hadQuick && hadOnboarding) {
-    next.splice(Math.min(1, next.length), 0, { id: "quick-onboarding", type: "split", title: "快捷操作", slots: ["quick_actions", "onboarding_guide"] });
+    next.splice(
+      Math.min(1, next.length),
+      0,
+      { id: "quick-actions", type: "full", title: "快捷操作", slots: ["quick_actions"] },
+      { id: "onboarding-journey", type: "full", title: "开户引导", slots: ["onboarding_guide"] },
+    );
   }
 
   return normalizeHomepageHeroSectionCount(next);
@@ -1510,6 +1566,7 @@ function repairHomepageConfig(configSnapshot, guidedSnapshot = {}, modulePolicy 
     next.moduleStyles = { ...ensureObject(next.moduleStyles), risk_disclosure: "legal-strip" };
   }
   const policyRepairResult = policy ? applyHomepageModulePolicy(next, policy, actions) : {};
+  applyGoldenStyleContractToHomepageConfig(next, prompt, actions);
   next.autoLayout = normalizeServerAutoLayout(next.autoLayout, next.sections, next.layout);
   enforceServerComponentMorphs(next);
 
@@ -2083,17 +2140,20 @@ const HOMEPAGE_INTENT_SECTIONS = {
     { id: "trader-accounts", type: "full", title: "账号列表", slots: ["trading_accounts_list"] },
   ],
   onboarding: [
-    { id: "onboarding-hero", type: "hero", title: "新手引导", slots: ["onboarding_guide", "asset_overview"] },
-    { id: "onboarding-next", type: "split", title: "下一步", slots: ["quick_actions", "trading_accounts_list"] },
+    { id: "onboarding-hero", type: "full", title: "新手引导", slots: ["onboarding_guide"] },
+    { id: "onboarding-actions", type: "split", title: "账户与快捷入口", slots: ["asset_overview", "quick_actions"] },
+    { id: "onboarding-accounts", type: "full", title: "交易账号", slots: ["trading_accounts_list"] },
   ],
   copytrading: [
-    { id: "copytrading-hero", type: "hero", title: "跟单推荐", slots: ["copytrading_signals", "onboarding_guide"] },
+    { id: "copytrading-hero", type: "full", title: "跟单推荐", slots: ["copytrading_signals"] },
+    { id: "copytrading-onboarding", type: "full", title: "新手启动", slots: ["onboarding_guide"] },
     { id: "copytrading-actions", type: "split", title: "下一步", slots: ["quick_actions", "asset_overview"] },
     { id: "copytrading-accounts", type: "full", title: "交易账号", slots: ["trading_accounts_list"] },
   ],
   deposit: [
-    { id: "deposit-hero", type: "hero", title: "首次入金", slots: ["promo_banner", "asset_overview"] },
-    { id: "deposit-activation", type: "split", title: "开户与快捷入口", slots: ["onboarding_guide", "quick_actions"] },
+    { id: "deposit-hero", type: "full", title: "首次入金", slots: ["promo_banner"] },
+    { id: "deposit-actions", type: "split", title: "账户与快捷入口", slots: ["asset_overview", "quick_actions"] },
+    { id: "deposit-activation", type: "full", title: "开户引导", slots: ["onboarding_guide"] },
     { id: "deposit-performance", type: "full", title: "账号表现", slots: ["trading_account_highlight"] },
     { id: "deposit-accounts", type: "full", title: "交易账号", slots: ["trading_accounts_list"] },
   ],
@@ -2121,7 +2181,8 @@ const HOMEPAGE_INTENT_SECTIONS = {
   ],
   retention: [
     { id: "retention-hero", type: "hero", title: "账户唤醒", slots: ["asset_overview", "quick_actions"] },
-    { id: "retention-content", type: "split", title: "内容与活动", slots: ["promo_banner", "market_news"] },
+    { id: "retention-content", type: "full", title: "活动", slots: ["promo_banner"] },
+    { id: "retention-news", type: "full", title: "内容", slots: ["market_news"] },
     { id: "retention-accounts", type: "full", title: "交易账号", slots: ["trading_accounts_list"] },
   ],
   mobile: [
@@ -2131,7 +2192,7 @@ const HOMEPAGE_INTENT_SECTIONS = {
   brand: [
     { id: "brand-trust-hero", type: "hero", title: "资金安全", slots: ["asset_overview", "quick_actions"] },
     { id: "brand-performance", type: "full", title: "账号表现", slots: ["trading_account_highlight"] },
-    { id: "brand-campaign", type: "split", title: "品牌活动", slots: ["promo_banner"] },
+    { id: "brand-campaign", type: "full", title: "品牌活动", slots: ["promo_banner"] },
     { id: "brand-accounts", type: "full", title: "交易账号", slots: ["trading_accounts_list"] },
   ],
 };
@@ -3335,6 +3396,90 @@ function sanitizeGeneratedHtml(value) {
     .slice(0, 9000);
 }
 
+const REFERENCE_DOCUMENT_HTML_LIMIT = 1_200_000;
+
+function sanitizeReferenceDocumentHtml(value) {
+  return String(value || "")
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/\son\w+="[^"]*"/gi, "")
+    .replace(/\son\w+='[^']*'/gi, "")
+    .replace(/javascript:/gi, "")
+    .slice(0, REFERENCE_DOCUMENT_HTML_LIMIT);
+}
+
+function contentOnlyReferenceHtml(value) {
+  const source = String(value || "");
+  if (!source.trim()) return "";
+  const markers = [
+    /<div\b[^>]*class\s*=\s*["'][^"']*\bpage\b[^"']*\bclient-home-page\b[^"']*["'][^>]*>/i,
+    /<section\b[^>]*class\s*=\s*["'][^"']*\bclient-shell\b[^"']*["'][^>]*>/i,
+    /<div\b[^>]*class\s*=\s*["'][^"']*\bpage\b[^"']*["'][^>]*>/i,
+    /<main\b[^>]*(?:data-layout-main|class\s*=\s*["'][^"']*\bapp\b[^"']*["'])[^>]*>/i,
+    /<main\b[^>]*>/i,
+  ];
+  let content = source;
+  for (const marker of markers) {
+    const match = marker.exec(source);
+    if (match) {
+      content = source.slice(match.index);
+      break;
+    }
+  }
+  const endMatch = /<div\b[^>]*(?:data-client-toast|class\s*=\s*["'][^"']*\bclient-toast\b)/i.exec(content);
+  if (endMatch && endMatch.index > 0) content = content.slice(0, endMatch.index);
+  return content
+    .replace(/<nav\b[\s\S]*?<\/nav>/gi, " ")
+    .replace(/<aside\b[\s\S]*?<\/aside>/gi, " ");
+}
+
+function goldenSampleContentOnlyCaptureHtml(value) {
+  const html = sanitizeReferenceDocumentHtml(value);
+  const captureStyle = `
+<style data-home-golden-content-only-capture>
+  .sidebar,
+  [data-shared-nav],
+  #mobile-navigation,
+  .mobile-nav-backdrop,
+  .sidebar-collapse-toggle,
+  .topbar,
+  .common-tabbar,
+  [data-tab-href],
+  [data-tab-id],
+  .tab-close,
+  .app > [role="tablist"],
+  .app > .tabs,
+  .app > .tabbar,
+  .app > .app-tabs {
+    display: none !important;
+  }
+  html,
+  body {
+    margin: 0 !important;
+    min-width: 0 !important;
+    background: #fff !important;
+  }
+  .app,
+  main.app,
+  [data-layout-main] {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    margin-left: 0 !important;
+    padding-top: 0 !important;
+  }
+  .app > .page,
+  .page.client-home-page,
+  .client-home-page {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding-top: 24px !important;
+  }
+</style>`;
+  if (/<\/head>/i.test(html)) return html.replace(/<\/head>/i, `${captureStyle}\n</head>`);
+  return `${captureStyle}\n${html}`;
+}
+
 function sanitizeGeneratedCss(value) {
   return String(value || "")
     .replace(/@import[^;]+;/gi, "")
@@ -3574,25 +3719,25 @@ function serverThemePaletteForText(input, explicitPrimaryColor = "") {
         buttonText: "#06111f",
         cardShadow: "0 22px 52px rgba(0, 0, 0, 0.3)",
       }
-    : hasAny(["清爽", "科技", "高级", "国际", "金融", "蓝", "fresh", "clean", "global"])
-    ? {
-        primaryColor: "#0ea5e9",
-        accentColor: "#14b8a6",
-        backgroundStyle: "radial-gradient(circle at 78% 8%, rgba(14, 165, 233, 0.12), transparent 30%), linear-gradient(180deg, #ffffff 0%, #eef8fb 100%)",
-        cardStyle: "rgba(255, 255, 255, 0.98)",
-        surfaceColor: "#ffffff",
-        surfaceSoft: "#f0f9ff",
-        surfaceMuted: "#eaf7f6",
-        textStrong: "#0f172a",
-        textColor: "#172033",
-        textSoft: "#475569",
-        textMuted: "#64748b",
-        borderColor: "#bde7f6",
-        borderSoft: "#d9f0f7",
-        buttonStyle: "linear-gradient(135deg, #0ea5e9, #14b8a6)",
-        buttonText: "#ffffff",
-        cardShadow: "0 16px 34px rgba(14, 165, 233, 0.1)",
-      }
+	    : hasAny(["清爽", "科技", "高级", "国际", "金融", "蓝", "fresh", "clean", "global"])
+	    ? {
+	        primaryColor: "#2f66e8",
+	        accentColor: "#275bd5",
+	        backgroundStyle: "linear-gradient(180deg, #f8fbff 0%, #eef4ff 52%, #f7faff 100%)",
+	        cardStyle: "#ffffff",
+	        surfaceColor: "#ffffff",
+	        surfaceSoft: "#f7faff",
+	        surfaceMuted: "#eef4ff",
+	        textStrong: "#0f172a",
+	        textColor: "#172033",
+	        textSoft: "#475569",
+	        textMuted: "#64748b",
+	        borderColor: "#d8e1ef",
+	        borderSoft: "#e8edf5",
+	        buttonStyle: "linear-gradient(135deg, #2f66e8, #275bd5)",
+	        buttonText: "#ffffff",
+	        cardShadow: "0 10px 24px rgba(15, 23, 42, 0.07)",
+	      }
     : hasAny(["极简", "minimal", "白", "留白", "克制"])
     ? {
         primaryColor: "#475569",
@@ -3653,7 +3798,7 @@ function normalizeServerThemeCustom(value) {
   const input = cleanText(source?.input || source?.value || "", "", 96);
   const primaryColor = normalizeServerHexColor(source?.primaryColor || input);
   const palette = serverThemePaletteForText(input, primaryColor);
-  return input ? compactServerThemeObject({ input, ...palette, primaryColor: primaryColor || palette?.primaryColor || "" }) : null;
+  return input ? compactServerThemeObject({ ...palette, ...source, input, primaryColor: primaryColor || palette?.primaryColor || source?.primaryColor || "" }) : null;
 }
 
 function stripEditorArtifactsFromHtml(value) {
@@ -4964,15 +5109,26 @@ const HOME_GOLDEN_SAMPLE_DIMENSIONS = [
 
 const HOME_SCENARIO_TAGS = [
   "新客开户",
-  "专业交易",
-  "CopyTrading",
-  "IB 推广",
-  "黑金 VIP",
-  "活动增长",
-  "极简白",
-  "移动端优先",
-  "白标资金安全",
   "默认资产首页",
+  "入金转化",
+  "出金安全",
+  "专业交易",
+  "多账户管理",
+  "CopyTrading",
+  "PAMM 理财",
+  "IB 推广",
+  "返佣中心",
+  "活动增长",
+  "交易竞赛",
+  "黑金 VIP",
+  "风控合规",
+  "白标资金安全",
+  "客服帮助",
+  "行情资讯",
+  "本地化运营",
+  "极简白",
+  "暗色高端",
+  "移动端优先",
 ];
 
 const GOLDEN_SAMPLE_ANALYSIS_FILE_LIMIT = 3;
@@ -5019,7 +5175,7 @@ function normalizeGoldenAnalysisFile(file = {}) {
   const rawText = String(file.textContent || "");
   const textContent =
     type === "html"
-      ? sanitizeGeneratedHtml(rawText)
+      ? sanitizeReferenceDocumentHtml(rawText)
       : type === "css"
         ? sanitizeGeneratedCss(rawText)
         : type === "js"
@@ -5033,7 +5189,7 @@ function normalizeGoldenAnalysisFile(file = {}) {
     type,
     size: Number.isFinite(Number(file.size)) ? Math.max(0, Number(file.size)) : 0,
     textContent,
-    textExcerpt: cleanText(stripHtmlTags(textContent), "", 900),
+    textExcerpt: cleanText(stripHtmlTags(type === "html" ? contentOnlyReferenceHtml(textContent) : textContent), "", 900),
     width: Number.isFinite(width) ? Math.max(0, Math.round(width)) : 0,
     height: Number.isFinite(height) ? Math.max(0, Math.round(height)) : 0,
     aspectRatio: cleanText(file.aspectRatio, "", 24),
@@ -5059,7 +5215,7 @@ function goldenAnalysisSearchText(files = [], metadata = {}) {
 }
 
 function extractGoldenHtmlStructure(files = []) {
-  const html = files.filter((file) => file.type === "html").map((file) => file.textContent).join("\n");
+  const html = files.filter((file) => file.type === "html").map((file) => contentOnlyReferenceHtml(file.textContent)).join("\n");
   const htmlText = cleanText(stripHtmlTags(html), "", 1200);
   const tags = ["header", "nav", "main", "section", "article", "aside", "footer"].filter((tag) => new RegExp(`<${tag}\\b`, "i").test(html));
   const headings = matchCleanValues(
@@ -5099,7 +5255,7 @@ function extractGoldenCssSummary(files = [], htmlStructure = {}) {
     .flatMap((file) => matchCleanValues(file.textContent, /<style\b[^>]*>([\s\S]*?)<\/style>/gi, 20, (match) => match[1], 5000));
   const inlineStyles = files
     .filter((file) => file.type === "html")
-    .flatMap((file) => matchCleanValues(file.textContent, /\bstyle\s*=\s*["']([^"']+)["']/gi, 40, (match) => match[1], 500));
+    .flatMap((file) => matchCleanValues(contentOnlyReferenceHtml(file.textContent), /\bstyle\s*=\s*["']([^"']+)["']/gi, 40, (match) => match[1], 500));
   const css = [
     ...files.filter((file) => file.type === "css").map((file) => file.textContent),
     ...htmlCss,
@@ -5205,17 +5361,28 @@ function inferGoldenScenarioTags(searchText = "", metadata = {}) {
     [
       ...(Array.isArray(metadata.scenarioTags) ? metadata.scenarioTags : []),
       /开户进度|kyc|身份认证|onboarding|新客|完成资料|首次入金/.test(searchText) ? "新客开户" : "",
+      /资产|钱包|wallet|balance|overview|默认首页/.test(searchText) ? "默认资产首页" : "",
+      /入金|充值|deposit|fund|top up/.test(searchText) ? "入金转化" : "",
+      /出金|提现|withdraw|withdrawal/.test(searchText) ? "出金安全" : "",
       /交易|account|mt4|mt5|position|order|盈亏|performance|trader/.test(searchText) ? "专业交易" : "",
+      /多账户|账户矩阵|account switch|account list|sub-account/.test(searchText) ? "多账户管理" : "",
       /copy\s?trading|跟单|排行榜|leaderboard|signal/.test(searchText) ? "CopyTrading" : "",
+      /pamm|mam|理财|资管|wealth|managed account/.test(searchText) ? "PAMM 理财" : "",
       /ib|代理|推广|referral|refer|邀请/.test(searchText) ? "IB 推广" : "",
+      /返佣|佣金|rebate|commission/.test(searchText) ? "返佣中心" : "",
       /vip|黑金|gold|private|高净值|premium/.test(searchText) ? "黑金 VIP" : "",
       /活动|campaign|bonus|reward|奖励|promo/.test(searchText) ? "活动增长" : "",
+      /竞赛|比赛|competition|contest/.test(searchText) ? "交易竞赛" : "",
+      /风控|合规|监管|risk|compliance/.test(searchText) ? "风控合规" : "",
       /极简|minimal|white|留白|clean/.test(searchText) ? "极简白" : "",
+      /暗色|深色|dark|blackgold/.test(searchText) ? "暗色高端" : "",
       /mobile|移动端|手机|单列/.test(searchText) ? "移动端优先" : "",
       /安全|白标|资金安全|security|risk|监管/.test(searchText) ? "白标资金安全" : "",
-      /资产|钱包|wallet|balance|overview/.test(searchText) ? "默认资产首页" : "",
+      /客服|帮助|support|help|工单|ticket/.test(searchText) ? "客服帮助" : "",
+      /行情|资讯|news|calendar|财经日历/.test(searchText) ? "行情资讯" : "",
+      /本地化|多语言|language|locale|region/.test(searchText) ? "本地化运营" : "",
     ],
-    10,
+    16,
     36,
   ).filter((tag) => HOME_SCENARIO_TAGS.includes(tag));
 }
@@ -5574,7 +5741,7 @@ function normalizeDesignSample(sample = {}) {
     humanScore: normalizedHumanScore,
     scoreDimensions: normalizeScoreDimensions(sample.scoreDimensions || sample.manualDimensions || sample.dimensions),
     tags: (Array.isArray(sample.tags) ? sample.tags : []).map((tag) => cleanText(tag, "", 36)).filter(Boolean).slice(0, 12),
-    scenarioTags: [...new Set(scenarioTags)].slice(0, 12),
+    scenarioTags: [...new Set(scenarioTags)].slice(0, 16),
     page: {
       name: cleanText(page.name || sample.name, "首页页面", 80),
       layout: cleanText(page.layout, "", 180),
@@ -5622,6 +5789,139 @@ function ensureGoldenSampleAssetDir() {
   fs.mkdirSync(GOLDEN_SAMPLE_ASSET_DIR, { recursive: true });
 }
 
+function localChromeExecutablePath() {
+  const candidates = [
+    process.env.CHROME_PATH,
+    process.env.GOOGLE_CHROME_BIN,
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Chromium.app/Contents/MacOS/Chromium",
+    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+    "/usr/bin/google-chrome-stable",
+    "/usr/bin/google-chrome",
+    "/usr/bin/chromium-browser",
+    "/usr/bin/chromium",
+  ].filter(Boolean);
+  return candidates.find((candidate) => {
+    try {
+      fs.accessSync(candidate, fs.constants.X_OK);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }) || "";
+}
+
+function localAssetPathFromUrl(url = "") {
+  const source = cleanText(url, "", 260);
+  if (!source || /^https?:\/\//i.test(source) || /^data:/i.test(source)) return "";
+  let pathname = source;
+  try {
+    pathname = new URL(source, "http://local").pathname;
+  } catch (error) {
+    pathname = source.split(/[?#]/)[0];
+  }
+  const filePath = path.resolve(mutableStoragePath(decodeURIComponent(pathname).replace(/^\/+/, "")));
+  return canAccessMutablePath(filePath, REFERENCE_ASSET_DIR) || canAccessMutablePath(filePath, GOLDEN_SAMPLE_ASSET_DIR) ? filePath : "";
+}
+
+function goldenSampleNeedsSourceScreenshot(sample = {}, evidence = {}) {
+  if (evidence.screenshotPath || evidence.screenshotUrl) return false;
+  const sourceUrl = cleanText(evidence.sourceUrl || sample.sourceUrl, "", 260);
+  if (!sourceUrl) return false;
+  const sourceType = `${sample.sourceAssetType || evidence.cssSummary?.referenceType || ""} ${sourceUrl}`.toLowerCase();
+  return /html|\.html?(?:[?#]|$)/i.test(sourceType);
+}
+
+function applyGoldenSampleScreenshotFile(evidence, filePath, fileName, sourceUrl = "", options = {}) {
+  const stats = fs.existsSync(filePath) ? fs.statSync(filePath) : null;
+  if (!stats || stats.size <= 0) return false;
+  evidence.screenshotPath = mutableRelativePath(filePath);
+  evidence.screenshotUrl = `/artifacts/home-golden-samples/${fileName}`;
+  evidence.screenshotCapturedFrom = sourceUrl;
+  if (options.scope) evidence.screenshotScope = options.scope;
+  if (Array.isArray(options.excludedChrome)) evidence.screenshotExcludedChrome = options.excludedChrome;
+  evidence.capturedAt = evidence.capturedAt || new Date().toISOString();
+  return true;
+}
+
+function captureGoldenSampleSourceScreenshot(sample = {}) {
+  const draft = sample && typeof sample === "object" ? { ...sample } : {};
+  const evidence = draft.renderEvidence && typeof draft.renderEvidence === "object" ? { ...draft.renderEvidence } : {};
+  if (IS_VERCEL || process.env.HOME_GOLDEN_SCREENSHOT === "off" || !goldenSampleNeedsSourceScreenshot(draft, evidence)) {
+    draft.renderEvidence = evidence;
+    return draft;
+  }
+
+  const sourcePath = localAssetPathFromUrl(evidence.sourceUrl || draft.sourceUrl);
+  const chromePath = localChromeExecutablePath();
+  if (!sourcePath || !chromePath || !fs.existsSync(sourcePath)) {
+    draft.renderEvidence = evidence;
+    return draft;
+  }
+
+  ensureGoldenSampleAssetDir();
+  const id = safeId(draft.id || draft.name, "golden-sample");
+  const fileName = `${id}-${Date.now().toString(36)}-preview.png`;
+  const filePath = path.join(GOLDEN_SAMPLE_ASSET_DIR, fileName);
+  const tempRoot = path.join(os.tmpdir(), `home-golden-shot-${process.pid}-${Date.now().toString(36)}-${Math.random().toString(16).slice(2)}`);
+  const userDataDir = path.join(tempRoot, "profile");
+  const captureSourcePath = path.join(tempRoot, "content-only.html");
+  const screenshotOptions = {
+    scope: "content-only",
+    excludedChrome: ["sidebar", "topbar", "page-tabs"],
+  };
+  let captureUrl = pathToFileURL(sourcePath).href;
+
+  try {
+    fs.mkdirSync(tempRoot, { recursive: true });
+    const sourceHtml = fs.readFileSync(sourcePath, "utf8");
+    fs.writeFileSync(captureSourcePath, goldenSampleContentOnlyCaptureHtml(sourceHtml), "utf8");
+    captureUrl = pathToFileURL(captureSourcePath).href;
+    childProcess.execFileSync(
+      chromePath,
+      [
+        "--headless=new",
+        "--disable-gpu",
+        "--disable-dev-shm-usage",
+        "--disable-background-networking",
+        "--disable-component-update",
+        "--disable-default-apps",
+        "--disable-extensions",
+        "--disable-sync",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--hide-scrollbars",
+        "--allow-file-access-from-files",
+        "--run-all-compositor-stages-before-draw",
+        "--virtual-time-budget=2500",
+        `--user-data-dir=${userDataDir}`,
+        "--window-size=1440,1100",
+        `--screenshot=${filePath}`,
+        captureUrl,
+      ],
+      { timeout: 15000, stdio: "ignore" },
+    );
+    applyGoldenSampleScreenshotFile(evidence, filePath, fileName, evidence.sourceUrl || draft.sourceUrl || "", screenshotOptions);
+  } catch (error) {
+    if (!applyGoldenSampleScreenshotFile(evidence, filePath, fileName, evidence.sourceUrl || draft.sourceUrl || "", screenshotOptions)) {
+      try {
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      } catch (cleanupError) {
+        // Best effort cleanup; the source HTML can still be shown as a fallback.
+      }
+    }
+  } finally {
+    try {
+      fs.rmSync(tempRoot, { recursive: true, force: true });
+    } catch (cleanupError) {
+      // Ignore Chrome profile cleanup failures.
+    }
+  }
+
+  draft.renderEvidence = evidence;
+  return draft;
+}
+
 function saveGoldenSampleScreenshotAsset(sample = {}) {
   const draft = sample && typeof sample === "object" ? { ...sample } : {};
   const evidence = draft.renderEvidence && typeof draft.renderEvidence === "object" ? { ...draft.renderEvidence } : draft.evidence && typeof draft.evidence === "object" ? { ...draft.evidence } : {};
@@ -5656,9 +5956,13 @@ function saveGoldenSampleScreenshotAsset(sample = {}) {
   return draft;
 }
 
+function prepareDesignSampleForSave(sample = {}) {
+  return captureGoldenSampleSourceScreenshot(saveGoldenSampleScreenshotAsset(sample));
+}
+
 function saveDesignSample(sample) {
   const library = readDesignSamples();
-  const normalized = normalizeDesignSample(saveGoldenSampleScreenshotAsset(sample));
+  const normalized = normalizeDesignSample(prepareDesignSampleForSave(sample));
   return {
     sample: normalized,
     library: writeDesignSamples(library.samples.filter((item) => item.id !== normalized.id).concat(normalized)),
@@ -5680,7 +5984,7 @@ function updateDesignSample(id, updates = {}) {
     createdAt: existing.createdAt,
     updatedAt: new Date().toISOString(),
   };
-  const normalized = normalizeDesignSample(saveGoldenSampleScreenshotAsset(merged));
+  const normalized = normalizeDesignSample(prepareDesignSampleForSave(merged));
   const nextSamples = library.samples.slice();
   nextSamples[index] = normalized;
   return {
@@ -5832,6 +6136,247 @@ function summarizeDesignSampleForPrompt(sample) {
       configSnapshotStatus: sample.configSnapshot ? "available" : sample.visualOnly ? "empty-visual-reference-only" : "empty",
     },
   };
+}
+
+const GOLDEN_HOMEPAGE_STYLE_TOKENS = {
+  pageMaxWidth: "1280px",
+  pageGutter: "16px",
+  sectionGap: "14px",
+  rowGap: "14px",
+  cardPadding: "16px",
+  cardRadius: "12px",
+  buttonRadius: "7px",
+  cardShadow: "0 10px 24px rgba(15, 23, 42, 0.07)",
+  cardBorder: "#d8e1ef",
+  background: "linear-gradient(180deg, #f8fbff 0%, #eef4ff 52%, #f7faff 100%)",
+  surface: "#ffffff",
+  surfaceSoft: "#f7faff",
+  surfaceMuted: "#eef4ff",
+  primaryColor: "#2f66e8",
+  primaryStrong: "#275bd5",
+  accentColor: "#2f66e8",
+  textStrong: "#0f172a",
+  textMuted: "#64748b",
+};
+
+function normalizeHomepageRuntimeThemePreset(value, fallback = "blueFinance") {
+  const raw = cleanText(value, "", 48);
+  const map = {
+    trustBlue: "blueFinance",
+    balancedFintech: "blueFinance",
+    darkPro: "blueFinance",
+    blueTrust: "blueFinance",
+    darkTech: "darkTech",
+    blackGold: "blackGold",
+    minimalWhite: "minimalWhite",
+    lightGold: "lightGold",
+    emeraldTrust: "emeraldTrust",
+    cobaltTeal: "cobaltTeal",
+    crimsonPromo: "crimsonPromo",
+    graphiteSilver: "graphiteSilver",
+  };
+  return map[raw] || map[String(raw).replace(/[-_\s]+(.)/g, (_, char) => char.toUpperCase())] || fallback;
+}
+
+function cssSummaryList(value) {
+  return Array.isArray(value) ? value.map((item) => cleanText(item, "", 140)).filter(Boolean) : [];
+}
+
+function goldenSamplePalette(sample = {}) {
+  const evidence = sample.renderEvidence || {};
+  const tokens = evidence.themeTokens || {};
+  const summary = evidence.cssSummary || {};
+  return cssSummaryList(tokens.colorPalette).concat(cssSummaryList(summary.colorPalette));
+}
+
+function firstGoldenHex(values = [], fallback = "") {
+  for (const value of values) {
+    const color = normalizeServerHexColor(value);
+    if (color) return color;
+  }
+  return fallback;
+}
+
+function firstGoldenCssValue(values = [], fallback = "", pattern = /./) {
+  const match = cssSummaryList(values).find((value) => pattern.test(value));
+  return cleanText(match, fallback, 120);
+}
+
+function extractGoldenStyleContractFromSample(sample = {}) {
+  const evidence = sample.renderEvidence || {};
+  const tokens = evidence.themeTokens || {};
+  const summary = evidence.cssSummary || {};
+  const palette = goldenSamplePalette(sample);
+  const radiusScale = cssSummaryList(tokens.radiusScale).concat(cssSummaryList(summary.radiusScale));
+  const spacingScale = cssSummaryList(tokens.spacingScale).concat(cssSummaryList(summary.spacingScale));
+  const shadowStyle = cssSummaryList(tokens.shadowStyle).concat(cssSummaryList(summary.shadowStyle));
+  const primaryColor = firstGoldenHex([tokens["--home-primary"], tokens.primaryColor, palette[0]], GOLDEN_HOMEPAGE_STYLE_TOKENS.primaryColor);
+  const primaryStrong = firstGoldenHex([tokens.primaryStrong, palette[1], primaryColor], GOLDEN_HOMEPAGE_STYLE_TOKENS.primaryStrong);
+  const surfaceSoft = firstGoldenHex([tokens.surfaceSoft, palette.find((item) => /f7faff|eef4ff|f8fafc/i.test(item))], GOLDEN_HOMEPAGE_STYLE_TOKENS.surfaceSoft);
+  const borderColor = firstGoldenHex([tokens.borderColor, palette.find((item) => /d8e1ef|e8edf5/i.test(item))], GOLDEN_HOMEPAGE_STYLE_TOKENS.cardBorder);
+  const cardShadow = firstGoldenCssValue(
+    shadowStyle.filter((item) => /rgba\(/i.test(item) && !/currentColor|sidebar/i.test(item)),
+    GOLDEN_HOMEPAGE_STYLE_TOKENS.cardShadow,
+    /rgba\(/i,
+  );
+  const sectionGap = firstGoldenCssValue(spacingScale, GOLDEN_HOMEPAGE_STYLE_TOKENS.sectionGap, /^\d+(?:\.\d+)?px$/);
+  const cardPadding = firstGoldenCssValue(spacingScale, GOLDEN_HOMEPAGE_STYLE_TOKENS.cardPadding, /^\d+px\s+\d+px/);
+  const cardRadius = firstGoldenCssValue(radiusScale, GOLDEN_HOMEPAGE_STYLE_TOKENS.cardRadius, /^\d+(?:\.\d+)?px$/);
+  const themePreset = normalizeHomepageRuntimeThemePreset(sample.themePreset || tokens.themePreset || summary.themePreset);
+
+  return {
+    id: "golden-fintech",
+    label: "黄金样式执行契约",
+    sourceSampleId: sample.id || "",
+    sourceSampleName: sample.name || "",
+    sourceThemePreset: sample.themePreset || tokens.themePreset || "",
+    personality: "golden-fintech",
+    tone: "清爽、可信、结构化，贴近黄金参考稿的蓝灰金融工作台。",
+    surface: "页面使用浅蓝灰连续背景，业务模块共享白色或浅蓝表面，块与块通过父级表面、分隔线和一致间距衔接。",
+    narrative: "先按黄金参考稿确定整页节奏、首屏焦点和模块关系，再填充 ForexCRM 真实业务组件。",
+    density: "balanced",
+    theme: themePreset,
+    tokens: {
+      ...GOLDEN_HOMEPAGE_STYLE_TOKENS,
+      sectionGap,
+      rowGap: sectionGap,
+      cardPadding,
+      cardRadius,
+      buttonRadius: firstGoldenCssValue(radiusScale.filter((item) => item !== cardRadius), GOLDEN_HOMEPAGE_STYLE_TOKENS.buttonRadius, /^\d+(?:\.\d+)?px$/),
+      cardShadow,
+      cardBorder: borderColor,
+      background: GOLDEN_HOMEPAGE_STYLE_TOKENS.background,
+      surface: firstGoldenHex([tokens.surfaceColor, tokens.cardStyle, palette.find((item) => /^#fff/i.test(item))], GOLDEN_HOMEPAGE_STYLE_TOKENS.surface),
+      surfaceSoft,
+      surfaceMuted: firstGoldenHex([tokens.surfaceMuted, palette.find((item) => /eef4ff|e8edf5/i.test(item))], GOLDEN_HOMEPAGE_STYLE_TOKENS.surfaceMuted),
+      primaryColor,
+      primaryStrong,
+      accentColor: firstGoldenHex([tokens.accentColor, primaryStrong], GOLDEN_HOMEPAGE_STYLE_TOKENS.accentColor),
+      textStrong: firstGoldenHex([tokens.textStrong, palette.find((item) => /0f172a/i.test(item))], GOLDEN_HOMEPAGE_STYLE_TOKENS.textStrong),
+      textMuted: firstGoldenHex([tokens.textMuted, palette.find((item) => /64748b/i.test(item))], GOLDEN_HOMEPAGE_STYLE_TOKENS.textMuted),
+    },
+    themeCustom: {
+      input: "黄金样式 蓝灰金融 结构化工作台",
+      primaryColor,
+      primaryStrong,
+      primaryText: primaryStrong,
+      accentColor: primaryStrong,
+      backgroundStyle: GOLDEN_HOMEPAGE_STYLE_TOKENS.background,
+      cardStyle: GOLDEN_HOMEPAGE_STYLE_TOKENS.surface,
+      surfaceColor: GOLDEN_HOMEPAGE_STYLE_TOKENS.surface,
+      surfaceSoft,
+      surfaceMuted: GOLDEN_HOMEPAGE_STYLE_TOKENS.surfaceMuted,
+      textStrong: GOLDEN_HOMEPAGE_STYLE_TOKENS.textStrong,
+      textColor: "#172033",
+      textSoft: "#475569",
+      textMuted: GOLDEN_HOMEPAGE_STYLE_TOKENS.textMuted,
+      borderColor,
+      borderSoft: "#e8edf5",
+      buttonStyle: `linear-gradient(135deg, ${primaryColor}, ${primaryStrong})`,
+      buttonText: "#ffffff",
+      cardShadow,
+    },
+    chromePolicy: {
+      mode: "flatConnected",
+      sectionChrome: "connected",
+      defaultSlotChrome: "flat",
+      componentBoundary: "page-owned",
+      slotOverrides: {
+        promo_banner: "featured",
+        onboarding_guide: "featured",
+        asset_overview: "flat",
+        quick_actions: "flat",
+        wallet_list: "tableSurface",
+        trading_account_highlight: "tableSurface",
+        trading_accounts_list: "tableSurface",
+        copytrading_signals: "tableSurface",
+        pamm_products: "tableSurface",
+        referral_link_card: "rail",
+        kyc_status_card: "rail",
+        faq_section: "bare",
+        risk_disclosure: "legalStrip",
+      },
+      promptRule: "黄金样式不是普通白卡堆叠：页面父级负责共享表面、分隔线和背景，slot 组件优先输出内容片段或轻量表格表面。",
+    },
+    layoutRules: {
+      maxWidth: "1280px",
+      gridColumns: 12,
+      rowRecipes: ["12", "8+4", "6+6"],
+      sectionGrouping: "每 1-2 个相关模块组成一个业务组；避免每个模块独立漂浮成白卡。",
+      backgroundRule: "背景必须是浅蓝灰连续页面底，不使用默认蓝绿空气感背景。",
+      blockRelation: "同组模块通过共享父级、分隔线、等高和统一 padding 衔接。",
+    },
+    componentRules: [
+      "主色使用 #2f66e8 / #275bd5 一组蓝，不再混入默认青绿色作为主视觉。",
+      "卡片圆角控制在 7-12px，阴影轻，边框用 #d8e1ef / #e8edf5。",
+      "同一业务组内部不要重复厚白卡，低权重模块用分隔线、列表或浅底条收口。",
+      "图表、账号、钱包和 FAQ 使用统一表格/列表密度，避免营销式大渐变块。",
+    ],
+    ctaRules: [
+      "主 CTA 只保留一个强蓝按钮，其他操作降级为描边、文本或轻量工具按钮。",
+      "资金、开户、交易动作不能在多个模块里同时放大抢焦点。",
+    ],
+    moduleGrammar: "浅蓝灰页面底、共享业务表面、薄边框表格/列表、轻量趋势图和统一按钮层级。",
+    differenceRule: "差异来自黄金参考稿的整页节奏、背景和块关系，而不是只替换颜色或文案。",
+  };
+}
+
+function goldenStyleContractForPrompt(prompt, options = {}) {
+  const samples = rankGoldenDesignSamplesForPrompt(prompt, options.limit || 3);
+  const primary = samples.find((sample) => goldenSamplePalette(sample).length || sample.homepageConfig || sample.configSnapshot) || samples[0];
+  if (!primary) return null;
+  const contract = extractGoldenStyleContractFromSample(primary);
+  contract.sourceSampleIds = samples.map((sample) => sample.id).filter(Boolean).slice(0, 5);
+  contract.sourceSampleNames = samples.map((sample) => sample.name).filter(Boolean).slice(0, 5);
+  contract.confidence = samples.length ? 0.9 : 0.75;
+  return contract;
+}
+
+function shouldApplyGoldenStyleContract(prompt, config = {}) {
+  const text = `${String(prompt || "").toLowerCase()}${String(prompt || "")}`;
+  if (/不要参考黄金样式|不参考黄金样式|禁用黄金样式|ignore golden/i.test(text)) return false;
+  if (config?.styleContract || config?.goldenStyleContract) return true;
+  return true;
+}
+
+function applyGoldenStyleContractToHomepageConfig(config, prompt = "", actions = []) {
+  if (!config || typeof config !== "object" || !shouldApplyGoldenStyleContract(prompt, config)) return config;
+  const contract = goldenStyleContractForPrompt(prompt);
+  if (!contract) return config;
+  const existingThemeCustom = normalizeServerThemeCustom(config.themeCustom);
+  const nextThemeCustom = existingThemeCustom
+    ? compactServerThemeObject({
+        ...contract.themeCustom,
+        ...existingThemeCustom,
+        input: existingThemeCustom.input || contract.themeCustom.input,
+      })
+    : contract.themeCustom;
+  config.styleContract = contract;
+  config.goldenStyleContract = contract;
+  config.themeCustom = normalizeServerThemeCustom(nextThemeCustom) || nextThemeCustom;
+  if (!config.themePreset || config.themePreset === "default" || config.themePreset === "blueFinance") {
+    config.themePreset = contract.theme || "blueFinance";
+    config.theme = config.themePreset;
+  }
+  const pagePlan = ensureObject(config.pagePlan);
+  config.pagePlan = {
+    ...pagePlan,
+    compositionRules: [
+      ...new Set(
+        [
+          ...(Array.isArray(pagePlan.compositionRules) ? pagePlan.compositionRules : []),
+          "黄金样式契约要求同组模块共享父级表面，不要继续生成孤立白卡堆叠。",
+          "背景、边框、按钮、圆角、间距必须从 styleContract.tokens 继承。",
+        ].filter(Boolean),
+      ),
+    ].slice(0, 8),
+  };
+  if (config.skeletonHtmlScheme && typeof config.skeletonHtmlScheme === "object") {
+    config.skeletonHtmlScheme.designContract = contract;
+    config.skeletonHtmlScheme.styleContract = contract;
+  }
+  actions?.push?.("已把黄金样式抽成可执行 styleContract，并同步主题、背景和块关系渲染契约。");
+  return config;
 }
 
 function componentAestheticWeight(component = {}) {
@@ -6089,6 +6634,17 @@ function decodeReferenceDataUrl(dataUrl = "") {
   };
 }
 
+function assertReferenceTextComplete(asset = {}, ext = "", text = "") {
+  if (ext !== "html") return;
+  const declaredSize = Number(asset.size);
+  if (!Number.isFinite(declaredSize) || declaredSize <= 0) return;
+  const expectedBytes = Math.min(declaredSize, REFERENCE_DOCUMENT_HTML_LIMIT);
+  const actualBytes = Buffer.byteLength(String(text || ""), "utf8");
+  const hasDocumentEnd = /<\/html>\s*$/i.test(text) || /<\/body>[\s\S]{0,240}$/i.test(text);
+  if (actualBytes >= expectedBytes * 0.92 || hasDocumentEnd) return;
+  throw Object.assign(new Error("参考稿 HTML 读取不完整，请重新选择原始 HTML 文件后再保存"), { statusCode: 400 });
+}
+
 function saveReferenceAsset(asset = {}) {
   ensureReferenceAssetDir();
   const now = new Date().toISOString();
@@ -6106,10 +6662,11 @@ function saveReferenceAsset(asset = {}) {
 
   if (asset.textContent || type === "html") {
     const rawText = String(asset.textContent || "");
-    const text = ext === "html" ? sanitizeGeneratedHtml(rawText) : ext === "css" ? sanitizeGeneratedCss(rawText) : rawText.slice(0, 200_000);
+    const text = ext === "html" ? sanitizeReferenceDocumentHtml(rawText) : ext === "css" ? sanitizeGeneratedCss(rawText) : rawText.slice(0, 200_000);
+    assertReferenceTextComplete(asset, ext, text);
     buffer = Buffer.from(text, "utf8");
     mime = ext === "html" ? "text/html" : ext === "css" ? "text/css" : ext === "js" || ext === "mjs" || ext === "cjs" ? "text/javascript" : inputMime || "text/plain";
-    textExcerpt = cleanText(text.replace(/<[^>]+>/g, " "), "", 900);
+    textExcerpt = cleanText(stripHtmlTags(ext === "html" ? contentOnlyReferenceHtml(text) : text), "", 900);
   } else {
     const decoded = decodeReferenceDataUrl(asset.dataUrl);
     if (!decoded) {
@@ -6602,6 +7159,7 @@ function aestheticTrainingContext(payloadOrPrompt = {}, options = {}) {
   const prompt = typeof payloadOrPrompt === "string" ? payloadOrPrompt : cleanText(payloadOrPrompt.prompt, "", 1200);
   const referenceAssetIds = typeof payloadOrPrompt === "object" && Array.isArray(payloadOrPrompt.referenceAssetIds) ? payloadOrPrompt.referenceAssetIds : [];
   const goldenSamplePages = rankGoldenDesignSamplesForPrompt(prompt, options.goldenSampleLimit || 3).map(summarizeDesignSampleForPrompt);
+  const goldenStyleContract = goldenStyleContractForPrompt(prompt, { limit: options.goldenSampleLimit || 3 });
   const goldenIds = new Set(goldenSamplePages.map((sample) => sample.id));
   const samples = rankDesignSamplesForPrompt(prompt, options.sampleLimit || 4)
     .filter((sample) => !goldenIds.has(sample.id))
@@ -6611,10 +7169,12 @@ function aestheticTrainingContext(payloadOrPrompt = {}, options = {}) {
   return {
     purpose: "用于提升首页美感的训练上下文：goldenSamplePages 是整页黄金样本 primary reference，用户上传参考稿决定审美方向，普通样本页面补充功能流，组件库积木告诉模型可借鉴的视觉细节，feedbackMemory 和 lowScoreAntiExamples 告诉模型用户偏好和必须避开的反例。",
     goldenSamplePolicy: "生成前必须优先阅读最相似的 2-3 个 goldenSamplePages：学习整页构图、首屏焦点、模块比例、token 气质、响应式和业务真实边界；禁止照搬文案、假数据或 forbiddenReuse 中标记的点。",
+    executableGoldenContractPolicy: "黄金样式必须落到可执行字段：返回或保留 styleContract/goldenStyleContract，并让 themeCustom、sections、pagePlan 和 chromePolicy 共同执行背景、间距、块与块衔接方式；不能只在说明里说参考黄金样式。",
     scoringDimensions: HOME_GOLDEN_SAMPLE_DIMENSIONS,
     scenarioTagVocabulary: HOME_SCENARIO_TAGS,
     componentReferencePolicy: componentReferencePolicyPrompt(readComponentLibrary().components, { prompt }),
     referenceAssets: referenceAssetsForPrompt(prompt, { limit: options.referenceLimit || 4, referenceAssetIds }),
+    goldenStyleContract,
     goldenSamplePages,
     samplePages: samples,
     beautifulComponents: beautifulComponentReferences({ prompt, limit: options.componentLimit || 8 }),
@@ -10073,6 +10633,7 @@ function canonicalHomepageReference() {
       "promo_banner 代表首页 Banner / 广告轮播；当管理员选择首屏 Banner 或首页 Banner 时，按可多张轮播图处理，必须具备分页/下一张/自动切换的交互契约，正式内容来自后台活动或广告配置。",
       "pamm_products 仅在租户开启 PAMM 功能且接口返回产品时展示；不得虚构产品、收益率、回撤、规模、人数、风险或走势图。",
       "copytrading_signals 仅在租户开启 CopyTrading 功能且接口返回信号源时展示；不得虚构信号源、交易员、收益率、跟随人数、风险、胜率或走势图。",
+      "trading_accounts_list、copytrading_signals、trading_account_highlight、onboarding_guide、promo_banner、pamm_products 和 wallet_list 属于大模块，桌面端必须使用 full section / 3x 整横栏，不能放入 rail、1x 或半宽小卡。",
       "连续时间数据必须按趋势表达：近 N 天收益、7/30/90 日收益、净值、PnL、回撤变化或收益率曲线必须使用折线图或面积折线图，不得使用柱状图、胶囊柱或装饰性条形图。",
       "copytrading_signals 的 curveCards 必须把信号源、收益率、总收益、最大回撤、收益折线/面积曲线和 AI 推荐理由按信息层级展示；不能用大面积渐变横幅或厚重 CTA 抢走图表空间。",
       "收益率、总收益、最大回撤、风险等级等指标不必逐项套边框卡片；已有图表或推荐卡承载时，优先使用简洁指标行、分隔线或低干扰内联分组。",
@@ -10098,13 +10659,13 @@ function canonicalHomepageReference() {
       { id: "quickActions.accentCards", feature: "quick_actions", component: "quick_actions", family: "QuickActions", size: "2x1", zone: "main" },
       { id: "quickActions.compactMenu", feature: "quick_actions", component: "quick_actions", family: "QuickActions", size: "2x1", zone: "main" },
       { id: "quickActions.segmentedPanel", feature: "quick_actions", component: "quick_actions", family: "QuickActions", size: "2x1", zone: "main" },
-      { id: "onboardingGuide.flexible", feature: "onboarding_guide", component: "onboarding_guide", family: "OnboardingGuide", size: "2x1", zone: "main" },
+      { id: "onboardingGuide.flexible", feature: "onboarding_guide", component: "onboarding_guide", family: "OnboardingGuide", size: "3x1", zone: "full" },
       { id: "tradingAccount.highlight", feature: "trading_account_highlight", component: "trading_account_highlight", family: "TradingAccountHighlight", size: "3x2", zone: "full" },
       { id: "tradingAccounts.list", feature: "trading_accounts_list", component: "trading_accounts_list", family: "TradingAccountsList", size: "3x2", zone: "full" },
-      { id: "promoBanner.configured", feature: "promo_banner", component: "promo_banner", family: "PromotionBanner", size: "3x1", zone: "main" },
-      { id: "pammProducts.recommendations", feature: "pamm_products", component: "pamm_products", family: "PammProducts", size: "2x1", zone: "main" },
-      { id: "copytradingSignals.recommendations", feature: "copytrading_signals", component: "copytrading_signals", family: "CopytradingSignals", size: "2x1", zone: "main" },
-      { id: "copytradingSignals.curveCards", feature: "copytrading_signals", component: "copytrading_signals", family: "CopytradingSignals", size: "2x2", zone: "hero" },
+      { id: "promoBanner.configured", feature: "promo_banner", component: "promo_banner", family: "PromotionBanner", size: "3x1", zone: "full" },
+      { id: "pammProducts.recommendations", feature: "pamm_products", component: "pamm_products", family: "PammProducts", size: "3x2", zone: "full" },
+      { id: "copytradingSignals.recommendations", feature: "copytrading_signals", component: "copytrading_signals", family: "CopytradingSignals", size: "3x2", zone: "full" },
+      { id: "copytradingSignals.curveCards", feature: "copytrading_signals", component: "copytrading_signals", family: "CopytradingSignals", size: "3x2", zone: "full" },
       { id: "referralLinkCard.compact", feature: "referral_link_card", component: "referral_link_card", family: "ReferralLinkCard", size: "1x1", zone: "rail" },
       { id: "kycStatus.current", feature: "kyc_status_card", component: "kyc_status_card", family: "UserKycRail", size: "1x1", zone: "rail" },
       { id: "announcements.feed", feature: "announcements", component: "announcements", family: "Announcements", size: "2x1", zone: "main" },
@@ -11067,7 +11628,7 @@ function applyHomepageCompositionGroupsToSections(sections = [], pagePlan = {}) 
     pushCompactSections(group, compactSlots, groupIndex);
     largeSlots.forEach((slot) => {
       pushSection({
-        id: cleanText(`${group.id || "group"}-${slot}`, `full-row-${next.length + 1}`, 42),
+        id: homepageSectionIdForSlot(group.id, slot, `full-row-${next.length + 1}`),
         type: "full",
         title: homepageSectionTitleForSlot(slot, group.title || ""),
         slots: [slot],
@@ -11075,7 +11636,7 @@ function applyHomepageCompositionGroupsToSections(sections = [], pagePlan = {}) 
     });
     footerSlots.forEach((slot) => {
       pushSection({
-        id: cleanText(`${group.id || "group"}-${slot}`, `footer-${next.length + 1}`, 42),
+        id: homepageSectionIdForSlot(group.id, slot, `footer-${next.length + 1}`),
         type: "full",
         title: homepageSectionTitleForSlot(slot, group.title || "风险提示"),
         slots: [slot],
@@ -11286,13 +11847,13 @@ function buildMiniMaxPrompt(payload) {
     "首页必须按响应式 auto layout 思路编排：首屏、主内容、侧栏和整行模块要自然填满栅格，移动端能降级单列。",
     "必须返回 autoLayout：说明 desktop/tablet/mobile 三档行策略、折叠断点、同行等高和模块内部自适应；它是生成契约，不是给客户看的配置。",
     "autoLayout.tablet.collapseAt 默认 1040，mobile.collapseAt 默认 720；内容区低于 tablet 断点时，两栏模块自动变一栏一个模块。",
-    "autoLayout.moduleRules 必须覆盖 promo_banner、onboarding_guide、quick_actions、trading_account_highlight：入金阶梯可从左右布局改上下布局，三步引导可横排改竖排，快捷入口可 4/3 列改 2/1 列，账号表现图表桌面占整横栏并在手机上下堆叠。",
+      "autoLayout.moduleRules 必须覆盖 promo_banner、onboarding_guide、pamm_products、copytrading_signals、quick_actions、trading_account_highlight：大模块桌面占整横栏，移动端再上下堆叠；快捷入口可 4/3 列改 2/1 列。",
     "禁止空 section、空 slots、禁用模块占位、孤立小积木独占大行，不能出现东缺一块西缺一块的空白区块。",
     "空间利用是硬约束：状态、步骤、快捷入口等轻量模块必须压缩高度并把信息靠近图标/编号，禁止内容贴底、编号漂浮或用无内容卡片制造高级感。",
     "桌面端允许一行两个积木；同行两个积木必须配满 12 栅格并等高，禁止 8/12 内容右侧留空。",
     `必须遵守尺寸语法：${COMPONENT_SIZE_GUIDE} 稳定组合优先使用 3x/4x/5x 及以上独占、2x+1x、2x+2x。`,
-    "交易账号列表、账号表现图表、钱包列表属于大模块，必须单独一个 full section/整横栏；不要把 trading_accounts_list 和 trading_account_highlight 放在同一个 section 或同一行左右分栏。",
-    "账号、钱包列表、表格、8 个快捷入口、首屏轮播属于高风险模块，必须按 layoutGrammar.moduleSizing 选择 size 和 zone。",
+    "交易账号列表、推荐信号源、账号表现图表、新手 Onboarding、首页 Banner、PAMM 产品、钱包列表属于大模块，必须单独一个 full section/整横栏；不要把这些模块放在同一个 section 或同一行左右分栏。",
+    "账号、钱包列表、推荐信号源、PAMM、表格、8 个快捷入口、首屏轮播属于高风险模块，必须按 layoutGrammar.moduleSizing 选择 size 和 zone。",
     "如果布局美观度和模块数量冲突，优先保证行配方完整、同高、少空白，再减少辅助模块。",
     "必须先遵守服务端提供的 pageIntent 和 pagePlan；pagePlan.mainVisual 是唯一最高视觉权重模块，其它模块只能解释、证明或收口。",
     "页面美观规则：先按 pagePlan.compositionGroups 组织 3-4 个业务组，再决定每组 slots；不要把每个模块拆成独立 section。",
@@ -11314,7 +11875,7 @@ function buildMiniMaxPrompt(payload) {
     "生成模块表达时必须参考 componentLibraryReference：先吸收已保存积木的字段、尺寸、按钮、标签和卡片密度，再结合 pageIntent 发挥；不要脱离组件库语言空想新模块。",
     "用户原始 prompt 在发送前已经由服务端加工为 localPromptBrickContext：先识别意图和模块，再命中高分积木。brickPlan、sections、componentMorphs 必须优先服从 matchedBricks，不能只写积木名字却换成普通白卡结构。",
     "组件库评分分档是硬约束：8-10 分必须优先参考，6-7 分适度参考，5 分及以下禁止借鉴、禁止兜底、禁止进入 componentReferences 或 brickPlan 的 referenceComponentId。",
-    "生成页面审美时必须参考 aestheticTraining：goldenSamplePages 是整页黄金样本 primary reference，决定页面级构图、首屏焦点、模块比例和 token 气质；samplePages 补充功能流，beautifulComponents 决定漂亮积木块细节，feedbackMemory 和 lowScoreAntiExamples 决定用户长期偏好和必须避开的问题；不要输出平均白卡表单页。",
+    "生成页面审美时必须参考 aestheticTraining：goldenSamplePages 是整页黄金样本 primary reference，决定页面级构图、首屏焦点、模块比例和 token 气质；aestheticTraining.goldenStyleContract 是可执行契约，必须落实到 styleContract/goldenStyleContract、themeCustom、pagePlan 和 chromePolicy；samplePages 补充功能流，beautifulComponents 决定漂亮积木块细节，feedbackMemory 和 lowScoreAntiExamples 决定用户长期偏好和必须避开的问题；不要输出平均白卡表单页。",
     "componentLibraryReference 只能作为形态和灵感参考，不能授权新增 allowedBlocks 以外的业务模块，也不能把组件 HTML/CSS 直接塞进首页配置。",
     "组件形态不能都用普通卡片；componentMorphs 是渲染契约，不是展示说明。",
     "核心可见模块必须选择 componentMorphs：AssetOverview、WalletList、QuickActions、TradingAccounts、OnboardingProgress、AccountPerformance、PromotionBanner、ReferralLinkCard、RiskDisclosure 只要出现在 sections/brickPlan/layout 中，就必须从 componentMorphPool 对应 10 种 DOM morph 池里选择 morph/morphId。",
@@ -11361,6 +11922,8 @@ function buildMiniMaxPrompt(payload) {
       "moduleStyles",
       "componentMorphs",
       "moduleSettings",
+      "styleContract",
+      "goldenStyleContract",
       "dataContract",
       "emphasis",
       "aiSummary",
@@ -11425,22 +11988,22 @@ function buildMiniMaxPrompt(payload) {
       "brickPlan 返回 4 到 8 个，字段为 {brickId,brickName,family,feature,component,size,zone,reason}，brickId 必须来自 brickReference.bricks。",
       "不要返回 layout；前端会根据 brickPlan 和 sections 自动映射到积木布局。",
       "按 auto layout 组织 sections：hero/main/rail/full 要能被 12 栅格紧凑填充，小积木必须和相关业务积木成组出现。",
-      "交易账号列表 trading_accounts_list、账号表现图表 trading_account_highlight、钱包列表 wallet_list 是大模块，必须各自单独一个 full section / 3x 整横栏；不要把交易账号列表和账号表现放在同一个 section、同一行或左右分栏里。",
+      "交易账号列表 trading_accounts_list、推荐信号源 copytrading_signals、账号表现图表 trading_account_highlight、新手 Onboarding onboarding_guide、首页 Banner promo_banner、PAMM 产品 pamm_products、钱包列表 wallet_list 是大模块，必须各自单独一个 full section / 3x 整横栏；不要把这些模块放在同一个 section、同一行或左右分栏里。",
       "一行两个积木时优先使用 8+4 或 6+6，同行高度必须一致；如果没有合适搭档，模块必须自动占满整行。",
       "必须返回 autoLayout={strategy,desktop,tablet,mobile,moduleRules,notes}；desktop.equalHeight=true，tablet.rowMode=stack-paired-rows，mobile.moduleFlow=stack-module-internals。",
       "autoLayout.moduleRules 至少包含 promo_banner、onboarding_guide、quick_actions、trading_account_highlight 的 desktop/tablet/mobile 适配说明。",
       "当模块内容在半宽列中会拥挤时，AI 必须在 autoLayout 中允许该模块内部先换行、缩成两列或变成纵向列表，而不是固定横向三等分。",
-      "不要把所有模块默认做成独占整栏；没有明确独占/整栏/长模块/首屏大横幅要求时，允许 AI 把两个轻量相关模块组成一栏来优化首屏节奏，但不得包含交易账号列表、账号表现图表或钱包列表。",
+      "不要把所有模块默认做成独占整栏；没有明确独占/整栏/长模块/首屏大横幅要求时，允许 AI 把两个轻量相关模块组成一栏来优化首屏节奏，但不得包含交易账号列表、推荐信号源、账号表现图表、新手 Onboarding、首页 Banner、PAMM 产品或钱包列表。",
       "空间利用是硬约束：如果管理员提到空白、少留白、空间利用或压缩高度，density 必须是 compact 或 balanced，不得使用 spacious；onboarding_guide 优先使用 compact/checklist/ribbon-rail 或紧凑 guide-cards。",
       `size 必须遵守布局语法：${COMPONENT_SIZE_GUIDE}`,
-      "禁止 2x2+1x1、3x2+任意模块、表格/list 用 1x、8 个快捷入口用 1x、广告轮播和账号列表同行。",
+      "禁止大模块使用 rail、1x 或 2x 小尺寸；禁止 2x2+1x1、3x2+任意模块、表格/list 用 1x、8 个快捷入口用 1x、广告轮播和账号列表同行。",
       "优先选择稳定行配方：2x1+1x1、2x2+1x2、2x1+2x1、3x/4x/5x 及以上宽幅积木独占整行。",
       "禁止返回空 section、空 slots、不可渲染 slot 或明显会留下大面积空白的单模块区域。",
       "交易账号如需真实卡片、模拟列表，moduleSettings.tradingAccounts.grouping 必须为 separated，viewMode 为 card，realViewMode 为 card，demoViewMode 为 list，且不要出现账号 tab 切换。",
       "如果管理员要求 Demo 在 Live 上面、模拟账号在真实账号上面，moduleSettings.tradingAccounts.demoFirst 必须为 true。",
       "真实卡片+模拟列表、真实/模拟分区、任一账号列表视图时，TradingAccounts 的 brickPlan size 必须是 3x2 或更大宽幅尺寸且 zone=full。",
       "AccountPerformance/trading_account_highlight 的 brickPlan size 必须是 3x2 或更大宽幅尺寸且 zone=full；图表模块用整横栏换取更好的账号上下文、趋势图和指标带展示体验。",
-      "只有纯账号卡片证明且不含模拟列表时，TradingAccounts 才允许 size=2x2 zone=main，且旁边必须配 1x2 侧栏。",
+      "TradingAccounts 即使是卡片证明，也必须使用 size=3x2 或更大宽幅尺寸且 zone=full，不再允许 2x2 main 小尺寸。",
       "交易账号如需真实/模拟都用列表，moduleSettings.tradingAccounts.grouping 必须为 separated 且 viewMode/realViewMode/demoViewMode 均为 list。",
       "交易账号模块标题区使用干净工具栏，不要额外蓝色背景条块；真实/模拟账号分区时，列表标题右侧不展示账号数量徽标；真实和模拟分区都要保留同级创建账号按钮，按钮文案统一为“创建账号”。",
       "模拟账号练习卡必须作为可优化的体验模块处理：表达模拟金、平台、练习目标和开始练习/重置模拟金等动作，避免只堆账号编号、余额和普通入金按钮。",
@@ -11702,6 +12265,12 @@ function compactHomepageContract(intentProfile, prompt, modulePolicy = null) {
       announcements: ["list", "priority-notice", "compact-feed", "ticker-strip"],
       risk_disclosure: ["compact-notice", "margin-guard", "legal-strip"],
     },
+    styleContract: {
+      purpose: "黄金样式可执行契约，用来约束背景色、页面宽度、区块间距、卡片圆角、阴影、父级表面和 slot chrome。",
+      tokens: ["pageMaxWidth", "sectionGap", "rowGap", "cardPadding", "cardRadius", "buttonRadius", "cardShadow", "cardBorder", "background", "surface", "surfaceSoft", "primaryColor", "accentColor"],
+      chromePolicy: ["mode", "sectionChrome", "defaultSlotChrome", "slotOverrides", "componentBoundary"],
+      rule: "如果 aestheticTraining.goldenStyleContract 存在，输出必须保留同等语义的 styleContract/goldenStyleContract；不能只学习颜色。",
+    },
     outputFields: [
       "schemaVersion",
       "blueprintVersion",
@@ -11721,6 +12290,8 @@ function compactHomepageContract(intentProfile, prompt, modulePolicy = null) {
       "modules",
       "moduleStyles",
       "moduleSettings",
+      "styleContract",
+      "goldenStyleContract",
       "dataContract",
       "emphasis",
       "aiSummary",
@@ -11738,6 +12309,7 @@ function compactHomepageContract(intentProfile, prompt, modulePolicy = null) {
       functions: sample.functions.slice(0, 3),
       goodPatterns: sample.goodPatterns.slice(0, 4),
     })),
+    goldenStyleContract: goldenStyleContractForPrompt(prompt),
     beautifulComponents: beautifulComponentReferences({ prompt, limit: 4 }).map((component) => ({
       id: component.id,
       name: component.name,
@@ -11992,14 +12564,14 @@ function buildPrompt(payload, config = {}) {
     "首页布局必须自适应 auto layout：桌面按 12 栅格紧凑填充，移动端降级单列；不要依赖空白占位、固定大高度或孤立小模块撑出空区块。",
     "必须返回 autoLayout 字段：desktop/tablet/mobile 三档策略、折叠断点、同行等高和模块内部自适应；它只给系统执行，不会暴露为客户配置。",
     "autoLayout.tablet.collapseAt 默认 1040，mobile.collapseAt 默认 720；内容区低于 tablet 断点时，两栏模块自动变一栏一个模块。",
-    "autoLayout.moduleRules 必须覆盖 promo_banner、onboarding_guide、quick_actions、trading_account_highlight：入金阶梯可上下堆叠，三步引导可从横排变竖排，快捷入口可自动 4/3/2/1 列，账号表现图表桌面占整横栏并在手机端上下堆叠。",
+    "autoLayout.moduleRules 必须覆盖 promo_banner、onboarding_guide、pamm_products、copytrading_signals、quick_actions、trading_account_highlight：大模块桌面占整横栏，移动端再上下堆叠；快捷入口可自动 4/3/2/1 列。",
     "桌面端允许一行两个积木，推荐 8+4 或 6+6；同一行的两个积木必须等高，不能留下 8/12 内容旁边空 4/12 的区域。",
     "空间利用是硬约束：状态、步骤、快捷入口等轻量模块必须压缩高度并把信息靠近图标/编号，禁止内容贴底、编号漂浮或用无内容卡片制造高级感。",
-    "不要默认让所有模块独占一栏；除非管理员明确要求独占、整栏、长模块、首屏大横幅，或模块本身是大型列表/表格/趋势图，否则应允许两个轻量相关模块组成一栏。",
+    "不要默认让所有模块独占一栏；除非管理员明确要求独占、整栏、长模块、首屏大横幅，或模块本身是大型列表/表格/趋势图/推荐信号源/新手 Onboarding/Banner/PAMM，否则应允许两个轻量相关模块组成一栏。",
     `必须遵守首页布局语法：${COMPONENT_SIZE_GUIDE}`,
     "优先使用稳定行配方：3x/4x/5x 及以上独占整行、2x1+1x1、2x2+1x2、2x1+2x1；禁止 2x2+1x1、3x2+任何同行模块。",
-    "交易账号列表、账号表现图表、钱包列表必须各自单独一个 full section / 3x 整横栏；不要把 trading_accounts_list 与 trading_account_highlight 放进同一个 section 或同一行左右分栏。",
-    "列表/表格/钱包列表/账号表现图表/账号双列表不能使用 1x；8 个快捷入口不能使用 1x；广告轮播和交易账号列表不能同行。",
+    "交易账号列表、推荐信号源、账号表现图表、新手 Onboarding、首页 Banner、PAMM 产品、钱包列表必须各自单独一个 full section / 3x 整横栏；不要把这些模块放进同一个 section 或同一行左右分栏。",
+    "列表/表格/钱包列表/推荐信号源/账号表现图表/新手 Onboarding/首页 Banner/PAMM 产品/账号双列表不能使用 rail、1x 或 2x 小尺寸；8 个快捷入口不能使用 1x；广告轮播和交易账号列表不能同行。",
     "如果布局美观度和模块数量冲突，优先保证同一行完整、等高、少空白，再减少辅助模块。",
     "必须先遵守服务端提供的 pageIntent。",
     "如果请求包含引导式结构化选择 guidedIntake，它是管理员显式选择，优先级高于拼接后的自然语言 prompt。",
@@ -12015,6 +12587,7 @@ function buildPrompt(payload, config = {}) {
     "模型返回必须包含 pageIntent；如果 pageIntent 与管理员需求有冲突，仍以服务端识别结果为准。",
     "必须先选择 designGenome 和 pageStory，再选择积木：magazineCampaign=活动专题封面，tradingCommand=交易指挥中心，onboardingJourney=新客旅程，privateWealthDesk=私行服务台，accountOpsConsole=账户运营控制台。",
     "生成模块表达时必须参考已保存组件库积木：先吸收其字段、尺寸、按钮、标签、卡片密度和视觉层级，再结合管理员意图做新组合或新变体。",
+    "黄金样式不是提示词装饰：如果上下文提供 aestheticTraining.goldenStyleContract，必须保留 styleContract/goldenStyleContract，并用 themeCustom、pagePlan 和 chromePolicy 执行参考稿的背景、颜色、间距、块关系和父级表面。",
     "组件库只是形态和灵感参考，不能授权新增首页白名单以外的业务模块，也不能把组件 HTML/CSS 直接作为首页输出。",
     "组件形态不能都用普通卡片；componentMorphs 是渲染契约，不是展示说明。",
     "核心可见模块必须选择 componentMorphs：AssetOverview、WalletList、QuickActions、TradingAccounts、OnboardingProgress、AccountPerformance、PromotionBanner、ReferralLinkCard、RiskDisclosure 只要出现在 sections/brickPlan/layout 中，就必须从 componentMorphPool 对应 10 种 DOM morph 池里选择 morph/morphId。",
@@ -12027,7 +12600,7 @@ function buildPrompt(payload, config = {}) {
     "sections、layout 和 brickPlan 只能包含可渲染且启用的业务模块；禁止空 section、空 slots、东缺一块西缺一块的断裂拼版。",
     "brickPlan、brickTrace、brickName、brickReason 只用于系统调试和数据属性，不能作为用户端可见 UI 文案。",
     "如果管理员要求真实账号用卡片、模拟账号用列表，必须设置 moduleSettings.tradingAccounts.grouping = \"separated\"、viewMode = \"card\"、realViewMode = \"card\"、demoViewMode = \"list\"，前端会渲染成两个独立账号模块且不显示 tab。",
-    "真实账号卡片+模拟账号列表、真实/模拟分区、任一账号列表视图时，TradingAccounts 的 brickPlan size 必须是 3x2 或更大宽幅尺寸且 zone=full；只有纯 combined card 账号证明才允许 size=2x2 zone=main。",
+    "真实账号卡片+模拟账号列表、真实/模拟分区、任一账号列表视图或 combined card 账号证明时，TradingAccounts 的 brickPlan size 必须是 3x2 或更大宽幅尺寸且 zone=full。",
     "AccountPerformance/trading_account_highlight 的 brickPlan size 必须是 3x2 或更大宽幅尺寸且 zone=full；账号表现图表用整横栏展示账号上下文、主数值、ECharts 趋势和指标带，优先保证美观度和空间使用。",
     "如果管理员要求交易账号分成两个列表、真实和模拟都列表、Live/Demo 都列表，必须设置 moduleSettings.tradingAccounts.grouping = \"separated\" 且 viewMode/realViewMode/demoViewMode 都为 \"list\"。",
     "如果管理员要求模拟账号列表在真实账号列表上面，必须在 aiSummary 或 layout reason 中保留 Demo 在上、Live 在下的排序意图，前端会按该顺序渲染。",
@@ -12095,6 +12668,7 @@ function buildPrompt(payload, config = {}) {
       componentLibraryReference: componentLibraryPromptReference({ prompt, limit: 12 }),
       savedCompositionReference: savedCompositionPromptReference(6),
       aestheticTraining: aestheticTrainingContext({ prompt }, { sampleLimit: 4, componentLimit: 10, feedbackLimit: 6 }),
+      goldenStyleContract: goldenStyleContractForPrompt(prompt),
       designGovernance,
     }),
     "",
@@ -12611,8 +13185,9 @@ function mockSectionsForIntent(intent, plan, wantsWelcome = false, wantsWalletLi
 	      { id: "insight-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
 	    ],
 	    deposit: [
-	      { id: "deposit-hero", type: "hero", title: "首次入金", slots: ["promo_banner", "asset_overview"] },
-	      { id: "deposit-activation", type: "split", title: "开户与快捷入口", slots: ["onboarding_guide", "quick_actions"] },
+	      { id: "deposit-hero", type: "full", title: "首次入金", slots: ["promo_banner"] },
+	      { id: "deposit-actions", type: "split", title: "账户与快捷入口", slots: ["asset_overview", "quick_actions"] },
+	      { id: "deposit-activation", type: "full", title: "开户引导", slots: ["onboarding_guide"] },
 	      { id: "deposit-performance", type: "full", title: "账号表现", slots: ["trading_account_highlight"] },
 	      { id: "deposit-accounts", type: "full", title: "交易账号", slots: ["trading_accounts_list"] },
 	    ],
@@ -12623,12 +13198,13 @@ function mockSectionsForIntent(intent, plan, wantsWelcome = false, wantsWalletLi
       { id: "risk-accounts", type: "full", title: "账号排查", slots: ["tradingAccounts"] },
     ],
     onboarding: [
-      { id: "onboarding-hero", type: "hero", title: "开户路径", slots: ["onboardingProgress", "openAccountActions"] },
-      { id: "onboarding-next", type: "split", title: "下一步", slots: ["createAccountForm", "fundActions", "quickActions"] },
+      { id: "onboarding-hero", type: "full", title: "开户路径", slots: ["onboardingProgress"] },
+      { id: "onboarding-next", type: "split", title: "下一步", slots: ["openAccountActions", "quickActions"] },
       { id: "onboarding-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
     ],
     copytrading: [
-      { id: "copytrading-hero", type: "hero", title: "跟单推荐", slots: ["copytrading_signals", "onboardingProgress"] },
+      { id: "copytrading-hero", type: "full", title: "跟单推荐", slots: ["copytrading_signals"] },
+      { id: "copytrading-onboarding", type: "full", title: "开户路径", slots: ["onboardingProgress"] },
       { id: "copytrading-actions", type: "split", title: "下一步", slots: ["quickActions", "balanceTotal"] },
       { id: "copytrading-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
     ],
@@ -12773,9 +13349,9 @@ function mockHomepageConfig(payload, providerConfig) {
       { brickId: "tradingAccounts.separatedList", brickName: "真实/模拟账号双列表", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "3x2", zone: "full", reason: "账号列表承接分析下钻。" },
     ],
     deposit: [
-      { brickId: "promoBanner.depositLadder", brickName: "入金奖励阶梯", family: "PromotionBanner", feature: "promo_banner", component: "promo_banner", size: "2x2", zone: "hero", reason: "首屏用三档入金奖励和唯一主 CTA 承接首次入金目标。" },
+      { brickId: "promoBanner.depositLadder", brickName: "入金奖励阶梯", family: "PromotionBanner", feature: "promo_banner", component: "promo_banner", size: "3x1", zone: "hero", reason: "首屏用整横栏三档入金奖励和唯一主 CTA 承接首次入金目标。" },
       { brickId: "assetOverview.tickerStrip", brickName: "账户摘要指标带", family: "AssetOverview", feature: "asset_overview", component: "asset_overview", size: "1x1", zone: "hero", reason: "同屏展示账户余额、钱包余额和交易账号余额。" },
-      { brickId: "onboardingProgress.nextStepHero", brickName: "新手下一步引导", family: "OnboardingProgress", feature: "onboarding_guide", component: "onboarding_guide", size: "2x1", zone: "main", reason: "KYC、开真实账户和首次入金形成连续路径。" },
+      { brickId: "onboardingProgress.nextStepHero", brickName: "新手下一步引导", family: "OnboardingProgress", feature: "onboarding_guide", component: "onboarding_guide", size: "3x1", zone: "full", reason: "KYC、开真实账户和首次入金形成连续路径，用整横栏承接。" },
       { brickId: "quickActions.accentCards", brickName: "强调快捷入口卡", family: "QuickActions", feature: "quick_actions", component: "quick_actions", size: "1x1", zone: "rail", reason: "常用入口用精致图标卡承接操作。" },
       { brickId: "accountPerformance.proChart", brickName: "账号表现双趋势", family: "AccountPerformance", feature: "trading_account_highlight", component: "trading_account_highlight", size: "3x2", zone: "full", reason: "账号表现整横栏呈现账号上下文、净值/PnL 趋势和操作闭环。" },
       { brickId: "tradingAccounts.separatedList", brickName: "真实/模拟账号双列表", family: "TradingAccounts", feature: "trading_accounts_list", component: "trading_accounts_list", size: "3x2", zone: "full", reason: "真实交易账号和模拟交易账号必须同时出现，并用分组列表提升扫描效率。" },
@@ -12788,7 +13364,7 @@ function mockHomepageConfig(payload, providerConfig) {
       { brickId: "tradingAccounts.separatedList", brickName: "真实/模拟账号双列表", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "3x2", zone: "full", reason: "风险排查需要账号列表。" },
     ],
     onboarding: [
-      { brickId: onboardingPresentation.brickId, brickName: onboardingPresentation.brickName, family: "OnboardingProgress", feature: "onboardingProgress", component: "onboarding_progress", size: "2x1", zone: "hero", reason: onboardingPresentation.reason },
+      { brickId: onboardingPresentation.brickId, brickName: onboardingPresentation.brickName, family: "OnboardingProgress", feature: "onboarding_guide", component: "onboarding_guide", size: "3x1", zone: "hero", reason: onboardingPresentation.reason },
       { brickId: "openAccount.conversionPanel", brickName: "开户转化面板", family: "OpenAccount", feature: "openAccountActions", component: "open_account_panel", size: "1x2", zone: "rail", reason: "真实、模拟和绑定账号集中处理。" },
       { brickId: "createAccountForm.realAccount", brickName: "真实账户创建表单", family: "CreateAccountForm", feature: "createAccountForm", component: "create_account_form", size: "1x2", zone: "rail", reason: "直接创建真实账号。" },
       { brickId: "fundActions.priorityDock", brickName: "资金操作 Dock", family: "FundActions", feature: "fundActions", component: "fund_actions", size: "1x1", zone: "main", reason: "首次入金动作靠前。" },
@@ -12796,8 +13372,8 @@ function mockHomepageConfig(payload, providerConfig) {
       { brickId: "tradingAccounts.separatedList", brickName: "真实/模拟账号双列表", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "3x2", zone: "full", reason: "账号列表放下方承接开户结果。" },
     ],
     copytrading: [
-      { brickId: "copytradingSignals.curveCards", brickName: "AI 跟单信号源推荐", family: "CopytradingSignals", feature: "copytrading_signals", component: "copytrading_signals", size: "2x2", zone: "hero", reason: "跟单推荐进入首屏，必须展示信号源、收益率、总收益和曲线。" },
-      { brickId: onboardingPresentation.brickId, brickName: onboardingPresentation.brickName, family: "OnboardingProgress", feature: "onboardingProgress", component: "onboarding_progress", size: "2x1", zone: "main", reason: onboardingPresentation.reason },
+      { brickId: "copytradingSignals.curveCards", brickName: "AI 跟单信号源推荐", family: "CopytradingSignals", feature: "copytrading_signals", component: "copytrading_signals", size: "3x2", zone: "hero", reason: "跟单推荐进入首屏，必须用整横栏展示信号源、收益率、总收益和曲线。" },
+      { brickId: onboardingPresentation.brickId, brickName: onboardingPresentation.brickName, family: "OnboardingProgress", feature: "onboarding_guide", component: "onboarding_guide", size: "3x1", zone: "full", reason: onboardingPresentation.reason },
       { brickId: "quickActions.taskRail", brickName: "五项快捷入口", family: "QuickActions", feature: "quickActions", component: "quick_actions", size: "2x1", zone: "main", reason: "高频入口以任务按钮组承接，不留空占位。" },
       { brickId: "assetOverview.compactMetrics", brickName: "轻量资产指标条", family: "AssetOverview", feature: "balanceTotal", component: "asset_summary", size: "3x1", zone: "main", reason: "资产降级为辅助指标，不抢跟单推荐。" },
       { brickId: "tradingAccounts.separatedList", brickName: "真实与模拟账号卡片", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "3x2", zone: "full", reason: "真实账号和模拟账号都用卡片，分区展示形成明显区分。" },
@@ -12805,36 +13381,36 @@ function mockHomepageConfig(payload, providerConfig) {
     growth: [
       { brickId: "adCarousel.editorialCover", brickName: "专题封面轮播", family: "PromotionBanner", feature: "adCarousel", component: "ad_carousel", size: "3x1", zone: "hero", reason: "活动增长首页把交易大赛和奖池作为专题封面。" },
       { brickId: "quickActions.priorityMatrix", brickName: "转化快捷矩阵", family: "QuickActions", feature: "quickActions", component: "quick_actions", size: "2x1", zone: "main", reason: "保留 8 个快捷入口承接参与、入金和账号操作。" },
-      { brickId: "promoBanner.scoreboard", brickName: "赛事活动看板", family: "PromotionBanner", feature: "promoHighlight", component: "promo_banner", size: "2x1", zone: "main", reason: "把奖池、倒计时和活动 CTA 从轮播里拆成独立活动看板。" },
+      { brickId: "promoBanner.scoreboard", brickName: "赛事活动看板", family: "PromotionBanner", feature: "promoHighlight", component: "promo_banner", size: "3x1", zone: "full", reason: "把奖池、倒计时和活动 CTA 作为整横栏活动看板。" },
       { brickId: "fundActions.priorityDock", brickName: "资金操作 Dock", family: "FundActions", feature: "fundActions", component: "fund_actions", size: "1x1", zone: "rail", reason: "活动转化承接入金。" },
-      { brickId: "tradingAccounts.cardProof", brickName: "紧凑账号证明卡", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "2x2", zone: "main", reason: "账号作为活动参与证明。" },
+      { brickId: "tradingAccounts.cardProof", brickName: "紧凑账号证明卡", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "3x2", zone: "full", reason: "账号作为活动参与证明，仍按交易账号大模块整横栏展示。" },
     ],
     partner: [
       { brickId: "referralLinkCard.compact", brickName: "推广链接", family: "ReferralLinkCard", feature: "referral_link_card", component: "referral_link_card", size: "1x1", zone: "rail", reason: "IB 首页仅轻量展示推广链接、邀请码和可选基础统计。" },
       { brickId: "quickActions.priorityMatrix", brickName: "转化快捷矩阵", family: "QuickActions", feature: "quickActions", component: "quick_actions", size: "2x1", zone: "main", reason: "渠道经理高频操作集中。" },
-      { brickId: "promoBanner.scoreboard", brickName: "赛事活动看板", family: "PromotionBanner", feature: "promoHighlight", component: "promo_banner", size: "2x1", zone: "main", reason: "渠道活动数据独立看板。" },
-      { brickId: "tradingAccounts.cardProof", brickName: "紧凑账号证明卡", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "2x2", zone: "main", reason: "账号转化简洁展示。" },
+      { brickId: "promoBanner.scoreboard", brickName: "赛事活动看板", family: "PromotionBanner", feature: "promoHighlight", component: "promo_banner", size: "3x1", zone: "full", reason: "渠道活动数据作为整横栏独立看板。" },
+      { brickId: "tradingAccounts.cardProof", brickName: "紧凑账号证明卡", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "3x2", zone: "full", reason: "账号转化仍按交易账号大模块整横栏展示。" },
     ],
     retention: [
       { brickId: "assetOverview.compactMetrics", brickName: "紧凑资产指标条", family: "AssetOverview", feature: "balanceTotal", component: "asset_summary", size: "3x1", zone: "hero", reason: "留存首页先唤起账户状态。" },
       { brickId: "quickActions.taskRail", brickName: "下一步任务按钮组", family: "QuickActions", feature: "quickActions", component: "quick_actions", size: "2x1", zone: "main", reason: "重新开始交易任务靠前。" },
       { brickId: "fundActions.priorityDock", brickName: "资金操作 Dock", family: "FundActions", feature: "fundActions", component: "fund_actions", size: "1x1", zone: "rail", reason: "快捷入金降低回流门槛。" },
-      { brickId: "promoBanner.scoreboard", brickName: "温和召回看板", family: "PromotionBanner", feature: "promoHighlight", component: "promo_banner", size: "2x1", zone: "main", reason: "权益提醒温和承接。" },
+      { brickId: "promoBanner.scoreboard", brickName: "温和召回看板", family: "PromotionBanner", feature: "promoHighlight", component: "promo_banner", size: "3x1", zone: "full", reason: "权益提醒作为整横栏 Banner 承接。" },
       { brickId: "marketInsight.healthPanel", brickName: "账户健康洞察", family: "MarketInsight", feature: "marketInsight", component: "market_insight", size: "1x2", zone: "rail", reason: "告诉客户账户状态和下一步。" },
-      { brickId: "tradingAccounts.cardProof", brickName: "紧凑账号证明卡", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "2x2", zone: "main", reason: "账号信息压缩展示。" },
+      { brickId: "tradingAccounts.cardProof", brickName: "紧凑账号证明卡", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "3x2", zone: "full", reason: "账号信息仍按交易账号大模块整横栏展示。" },
     ],
     mobile: [
       { brickId: "assetOverview.compactMetrics", brickName: "紧凑资产指标条", family: "AssetOverview", feature: "balanceTotal", component: "asset_summary", size: "3x1", zone: "hero", reason: "移动端首屏先用低高度资产条。" },
       { brickId: "fundActions.priorityDock", brickName: "资金操作 Dock", family: "FundActions", feature: "fundActions", component: "fund_actions", size: "1x1", zone: "rail", reason: "入金出金按钮靠前。" },
       { brickId: "quickActions.actionDock", brickName: "交易操作 Dock", family: "QuickActions", feature: "quickActions", component: "quick_actions", size: "3x1", zone: "full", reason: "移动端使用短工具条。" },
       { brickId: "walletBalance.currencyRail", brickName: "钱包币种侧栏", family: "WalletBalance", feature: "walletBalance", component: "wallet_balance", size: "1x1", zone: "rail", reason: "钱包摘要轻量展示。" },
-      { brickId: "tradingAccounts.cardProof", brickName: "紧凑账号证明卡", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "2x2", zone: "main", reason: "账号列表压缩为卡片。" },
+      { brickId: "tradingAccounts.cardProof", brickName: "紧凑账号证明卡", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "3x2", zone: "full", reason: "账号列表以整横栏卡片墙承接。" },
     ],
     brand: [
       { brickId: "assetOverview.tickerStrip", brickName: "三项资产汇总", family: "AssetOverview", feature: "asset_overview", component: "asset_overview", size: "2x1", zone: "main", reason: "首屏先呈现余额合计、交易账号余额和钱包余额汇总。" },
       { brickId: "quickActions.taskRail", brickName: "五项快捷入口", family: "QuickActions", feature: "quick_actions", component: "quick_actions", size: "1x1", zone: "rail", reason: "快捷入口与资产概览同行，避免侧栏空白。" },
       { brickId: "walletList.tiles", brickName: "钱包磁贴组", family: "WalletList", feature: "wallet_list", component: "wallet_list", size: "3x2", zone: "full", reason: "多币种钱包用卡片列表展示，且不进入资产概览。" },
-      { brickId: "promoBanner.scoreboard", brickName: "主推活动看板", family: "PromotionBanner", feature: "promoHighlight", component: "promo_banner", size: "2x1", zone: "main", reason: "主推活动降为业务推动卡，不抢资金安全首屏。" },
+      { brickId: "promoBanner.scoreboard", brickName: "主推活动看板", family: "PromotionBanner", feature: "promoHighlight", component: "promo_banner", size: "3x1", zone: "full", reason: "主推活动作为整横栏 Banner 承接，不抢资金安全首屏。" },
       { brickId: "tradingAccounts.separatedList", brickName: "合并账号工作台", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "3x2", zone: "full", reason: "真实和模拟账号在同一列表，用胶囊筛选区分。" },
     ],
   };
@@ -12888,7 +13464,7 @@ function mockHomepageConfig(payload, providerConfig) {
     heroFocus: meta[4],
     brickPlan: personalizedPlan,
     brickTrace: { intent, strategy: meta[0].replace(/^AI\s*/, ""), score: 90, selectedCount: personalizedPlan.length, source: "mock" },
-	    sections: isAsset
+	    sections: splitLargeHomepageSections(isAsset
 	      ? [
 	          { id: "asset-overview", type: "hero", title: "资产与快捷入口", slots: ["asset_overview", "quick_actions"] },
 	          { id: "asset-wallets", type: "full", title: "多币种钱包", slots: ["wallet_list"] },
@@ -12896,7 +13472,7 @@ function mockHomepageConfig(payload, providerConfig) {
 	          { id: "asset-risk", type: "full", title: "风险提示", slots: ["risk_disclosure"] },
 	          { id: "asset-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
 	        ]
-	      : mockSectionsForIntent(intent, personalizedPlan, wantsWelcome, wantsWalletList, payload.variant),
+	      : mockSectionsForIntent(intent, personalizedPlan, wantsWelcome, wantsWalletList, payload.variant)),
     modules: {
       AssetOverview: { variant: intent === "deposit" ? "tickerStrip" : isVip ? "wealthPlate" : isTrader ? "darkTerminal" : isAsset || intent === "brand" ? "tickerStrip" : "standard" },
       WalletBalance: { variant: isVip ? "premiumCard" : "splitCurrency" },
@@ -13676,6 +14252,27 @@ function ensureHomepageSectionContains(config, sectionSeed, slot) {
   });
 }
 
+function ensureLargeHomepageBrickPlanSections(config) {
+  const next = ensureObject(config);
+  (Array.isArray(next.brickPlan) ? next.brickPlan : []).forEach((brick) => {
+    const component = canonicalHomeBlock(brick?.component || brick?.feature);
+    if (!component || !LARGE_FULL_ROW_HOME_BLOCKS.has(component)) return;
+    ensureHomepageSectionContains(
+      next,
+      { id: `planned-${component.replace(/_/g, "-")}`, type: "full", title: homepageSectionTitleForSlot(component, brick?.brickName) },
+      component,
+    );
+  });
+  next.sections = splitLargeHomepageSections(next.sections || []);
+  if (Array.isArray(next.layout)) {
+    next.layout = next.layout.map((block) => {
+      const component = canonicalHomeBlock(block?.component || block?.feature);
+      return component && LARGE_FULL_ROW_HOME_BLOCKS.has(component) ? { ...block, component, slot: "full" } : block;
+    });
+  }
+  return next;
+}
+
 function sanitizeHomepageAllowedBlocks(config, prompt = "", guidedIntake = null, options = {}) {
   const next = ensureObject(config);
   const settings = ensureHomepageModuleSettings(next.moduleSettings);
@@ -13738,8 +14335,8 @@ function sanitizeHomepageAllowedBlocks(config, prompt = "", guidedIntake = null,
   }
 
   [
-    wantsPamm && ["pamm", "split", "PAMM", "pamm_products"],
-    wantsCopyTrading && ["copytrading", "split", "CopyTrading", "copytrading_signals"],
+    wantsPamm && ["pamm", "full", "PAMM", "pamm_products"],
+    wantsCopyTrading && ["copytrading", "full", "CopyTrading", "copytrading_signals"],
     wantsPromoBanner && ["promo-banner", "full", "首页 Banner", "promo_banner"],
     wantsReferralCard && ["referral-link", "rail", "推广链接", "referral_link_card"],
     wantsKycStatus && ["kyc-status", "rail", "KYC 状态", "kyc_status_card"],
@@ -13780,6 +14377,7 @@ function sanitizeHomepageAllowedBlocks(config, prompt = "", guidedIntake = null,
       if (!feature || !component) return null;
       if (component === "referral_link_card" && !wantsReferralCard) return null;
       if (!allowsBlock(component) || !allowsBlock(feature)) return null;
+      const largeSize = homepageLargeBlockSize(component);
       return {
         ...brick,
         feature,
@@ -13787,13 +14385,23 @@ function sanitizeHomepageAllowedBlocks(config, prompt = "", guidedIntake = null,
         brickId: cleanText(brick?.brickId || `${component}.generated`, `${component}.generated`, 90),
         brickName: cleanText(brick?.brickName || brick?.name || component, component, 80),
         family: cleanText(brick?.family || brick?.brickFamily || component, component, 48),
-        size: normalizeComponentSize(brick?.size || brick?.brickSize, component === "trading_accounts_list" ? "3x2" : "2x1"),
-        zone: ["hero", "main", "rail", "full"].includes(brick?.zone || brick?.brickZone) ? brick.zone || brick.brickZone : "main",
+        size: largeSize || normalizeComponentSize(brick?.size || brick?.brickSize, component === "trading_accounts_list" ? "3x2" : "2x1"),
+        zone: largeSize ? "full" : ["hero", "main", "rail", "full"].includes(brick?.zone || brick?.brickZone) ? brick.zone || brick.brickZone : "main",
       };
     })
     .filter(Boolean)
     .filter((brick, index, list) => list.findIndex((item) => item.component === brick.component) === index)
     .slice(0, CANONICAL_HOME_BLOCKS.length);
+  next.brickPlan.forEach((brick) => {
+    if (LARGE_FULL_ROW_HOME_BLOCKS.has(brick.component) && !homepageSectionsContainSlot(next.sections, brick.component)) {
+      ensureHomepageSectionContains(
+        next,
+        { id: `planned-${brick.component.replace(/_/g, "-")}`, type: "full", title: homepageSectionTitleForSlot(brick.component, brick.brickName) },
+        brick.component,
+      );
+    }
+  });
+  next.sections = splitLargeHomepageSections(next.sections);
   const plannedComponents = new Set(next.brickPlan.map((brick) => brick.component));
   canonicalHomepageReference().bricks.forEach((brick) => {
     const visible = next.sections.some((section) => section.slots.includes(brick.component));
@@ -14301,7 +14909,7 @@ function normalizeServerAutoLayoutBreakpoint(source, fallback) {
 
 function normalizeServerAutoLayoutModuleRules(source) {
   const rules = ensureObject(source);
-  const moduleIds = ["promo_banner", "onboarding_guide", "quick_actions", "trading_account_highlight", "trading_accounts_list", "wallet_list"];
+  const moduleIds = ["promo_banner", "onboarding_guide", "pamm_products", "copytrading_signals", "quick_actions", "trading_account_highlight", "trading_accounts_list", "wallet_list"];
 	  return moduleIds.reduce((next, moduleId) => {
 	    const rule = ensureObject(rules[moduleId]);
 	    const defaultDesktop = LARGE_FULL_ROW_HOME_BLOCKS.has(moduleId)
@@ -14405,13 +15013,13 @@ const GUIDED_SLOT_ORDER = [
 
 const GUIDED_SLOT_SECTIONS = {
   welcome_header: { id: "guided-welcome", type: "hero", title: "欢迎" },
-  promo_banner: { id: "guided-hero", type: "split", title: "首屏重点" },
-  copytrading_signals: { id: "guided-hero", type: "split", title: "首屏重点" },
-  onboarding_guide: { id: "guided-hero", type: "split", title: "首屏重点" },
+  promo_banner: { id: "guided-hero", type: "full", title: "首屏重点" },
+  copytrading_signals: { id: "guided-hero", type: "full", title: "首屏重点" },
+  onboarding_guide: { id: "guided-hero", type: "full", title: "首屏重点" },
   asset_overview: { id: "guided-overview", type: "split", title: "账户概览" },
   wallet_list: { id: "guided-wallets", type: "full", title: "钱包列表" },
   quick_actions: { id: "guided-actions", type: "split", title: "快捷操作" },
-  pamm_products: { id: "guided-products", type: "split", title: "产品推荐" },
+  pamm_products: { id: "guided-products", type: "full", title: "产品推荐" },
   referral_link_card: { id: "guided-growth", type: "split", title: "增长工具" },
   kyc_status_card: { id: "guided-kyc-status", type: "split", title: "KYC 状态" },
   announcements: { id: "guided-content", type: "split", title: "公告资讯" },
@@ -14910,9 +15518,9 @@ function applyProfessionalTraderWorkbenchServerConfig(next, settings, understand
 function depositGovernedBrickPlan(variant = 0) {
   const mode = Math.abs(Number(variant || 0)) % 3;
   const base = [
-    { brickId: "promoBanner.depositLadder", brickName: "入金奖励阶梯", family: "PromotionBanner", feature: "promo_banner", component: "promo_banner", size: "2x2", zone: "hero", reason: "首屏用三档入金奖励和唯一主 CTA 承接首次入金目标。" },
+    { brickId: "promoBanner.depositLadder", brickName: "入金奖励阶梯", family: "PromotionBanner", feature: "promo_banner", component: "promo_banner", size: "3x1", zone: "hero", reason: "首屏用整横栏三档入金奖励和唯一主 CTA 承接首次入金目标。" },
     { brickId: "assetOverview.tickerStrip", brickName: "账户摘要指标带", family: "AssetOverview", feature: "asset_overview", component: "asset_overview", size: "1x1", zone: "hero", reason: "在同屏展示账户余额、钱包余额和交易账号余额，给入金前资金上下文。" },
-    { brickId: "onboardingProgress.nextStepHero", brickName: "新手下一步引导", family: "OnboardingProgress", feature: "onboarding_guide", component: "onboarding_guide", size: "2x1", zone: "main", reason: "KYC、开真实账户和首次入金形成连续路径，避免旧开户面板散落。" },
+    { brickId: "onboardingProgress.nextStepHero", brickName: "新手下一步引导", family: "OnboardingProgress", feature: "onboarding_guide", component: "onboarding_guide", size: "3x1", zone: "full", reason: "KYC、开真实账户和首次入金形成连续路径，用整横栏避免旧开户面板散落。" },
     { brickId: "quickActions.accentCards", brickName: "强调快捷入口卡", family: "QuickActions", feature: "quick_actions", component: "quick_actions", size: "1x1", zone: "rail", reason: "4-10 个常用入口用精致图标卡承接交易、转账、跟单和账号动作。" },
     { brickId: "accountPerformance.proChart", brickName: "账号表现双趋势", family: "AccountPerformance", feature: "trading_account_highlight", component: "trading_account_highlight", size: "3x2", zone: "full", reason: "账号表现整横栏呈现账号上下文、净值/PnL 趋势和操作闭环。" },
     { brickId: "tradingAccounts.separatedList", brickName: "真实/模拟账号双列表", family: "TradingAccounts", feature: "trading_accounts_list", component: "trading_accounts_list", size: "3x2", zone: "full", reason: "真实交易账号和模拟交易账号必须同时出现，并用分组列表提升扫描效率。" },
@@ -14958,8 +15566,9 @@ function enforceServerDepositConversionContract(config, prompt = "", variant = 0
   const hasOptional = (slot) => currentSlots.includes(slot);
   const sections = [];
   if (wantsWelcomeHeader) sections.push({ id: "welcome-header", type: "full", title: "欢迎", slots: ["welcome_header"] });
-  sections.push({ id: "deposit-hero", type: "hero", title: "首次入金", slots: ["promo_banner", "asset_overview"] });
-  sections.push({ id: "deposit-activation", type: "split", title: "开户与快捷入口", slots: ["onboarding_guide", "quick_actions"] });
+  sections.push({ id: "deposit-hero", type: "full", title: "首次入金", slots: ["promo_banner"] });
+  sections.push({ id: "deposit-actions", type: "split", title: "账户与快捷入口", slots: ["asset_overview", "quick_actions"] });
+  sections.push({ id: "deposit-activation", type: "full", title: "开户引导", slots: ["onboarding_guide"] });
   if (hasOptional("kyc_status_card")) sections.push({ id: "deposit-kyc-status", type: "rail", title: "KYC 状态", slots: ["kyc_status_card"] });
   if (hasOptional("copytrading_signals")) sections.push({ id: "deposit-copytrading", type: "full", title: "CopyTrading", slots: ["copytrading_signals"] });
   if (hasOptional("pamm_products")) sections.push({ id: "deposit-pamm", type: "full", title: "PAMM", slots: ["pamm_products"] });
@@ -15118,7 +15727,7 @@ function applyHomepageUnderstandingToServerConfig(config, prompt, variant = 0) {
     next.sections = [
       { id: "trust-hero", type: "hero", title: "资产与快捷入口", slots: ["asset_overview", "quick_actions"] },
       { id: "wallet-cards", type: "full", title: "钱包列表", slots: ["wallet_list"] },
-      { id: "conversion-tools", type: "split", title: "活动", slots: ["promo_banner"] },
+      { id: "conversion-tools", type: "full", title: "活动", slots: ["promo_banner"] },
       { id: "combined-accounts", type: "full", title: "交易账号", slots: ["tradingAccounts"] },
     ];
     delete next.layout;
@@ -15162,7 +15771,7 @@ function applyHomepageUnderstandingToServerConfig(config, prompt, variant = 0) {
       { brickId: "assetOverview.tickerStrip", brickName: "三项资产汇总", family: "AssetOverview", feature: "asset_overview", component: "asset_overview", size: "2x1", zone: "main", reason: "首屏只展示余额合计、交易账号余额和钱包余额汇总。" },
       { brickId: "quickActions.taskRail", brickName: "五项快捷入口", family: "QuickActions", feature: "quick_actions", component: "quick_actions", size: "1x1", zone: "rail", reason: "与资产概览同行，避免右侧快捷入口下方大面积留白。" },
       { brickId: "walletList.tiles", brickName: "钱包磁贴组", family: "WalletList", feature: "wallet_list", component: "wallet_list", size: "3x2", zone: "full", reason: "多币种钱包卡片只在钱包列表模块展示。" },
-      { brickId: "promoBanner.scoreboard", brickName: "主推活动看板", family: "PromotionBanner", feature: "promo_banner", component: "promo_banner", size: "2x1", zone: "main", reason: "活动作为辅助内容，不进入资产概览。" },
+      { brickId: "promoBanner.scoreboard", brickName: "主推活动看板", family: "PromotionBanner", feature: "promo_banner", component: "promo_banner", size: "3x1", zone: "full", reason: "活动作为整横栏 Banner 承接，不进入资产概览。" },
       { brickId: "tradingAccounts.separatedList", brickName: "合并账号工作台", family: "TradingAccounts", feature: "tradingAccounts", component: "account_list", size: "3x2", zone: "full", reason: "真实和模拟账号在同一列表，用胶囊筛选区分。" },
     ];
   }
@@ -15178,7 +15787,7 @@ function applyHomepageUnderstandingToServerConfig(config, prompt, variant = 0) {
       copytrading_signals: "curve-cards",
     };
     settings.copytrading = { ...ensureObject(settings.copytrading), enabled: true };
-    ensureHomepageSectionContains(next, { id: "copytrading", type: "split", title: "CopyTrading 推荐" }, "copytrading_signals");
+    ensureHomepageSectionContains(next, { id: "copytrading", type: "full", title: "CopyTrading 推荐" }, "copytrading_signals");
 
     if (understanding.wantsNewUserJourney && !shouldProtectDepositIntent) {
       next.name = "AI 新客跟单驾驶舱";
@@ -15192,9 +15801,10 @@ function applyHomepageUnderstandingToServerConfig(config, prompt, variant = 0) {
       next.heroFocus = "copytrading_signals";
       next.pageIntent = { ...ensureObject(next.pageIntent), primaryIntent: "copytrading" };
       next.sections = [
-        { id: "activation-hero", type: "split", title: "新客启动", slots: ["copytrading_signals", "onboarding_guide"] },
-        { id: "activation-actions", type: "split", title: "下一步操作", slots: understanding.wantsPamm ? ["pamm_products", "quick_actions"] : ["quick_actions", "asset_overview"] },
-        ...(understanding.wantsPamm ? [{ id: "activation-assets", type: "split", title: "账户资产", slots: ["asset_overview"] }] : []),
+        { id: "activation-copytrading", type: "full", title: "CopyTrading 推荐", slots: ["copytrading_signals"] },
+        { id: "activation-onboarding", type: "full", title: "新客启动", slots: ["onboarding_guide"] },
+        ...(understanding.wantsPamm ? [{ id: "activation-pamm", type: "full", title: "PAMM 产品", slots: ["pamm_products"] }] : []),
+        { id: "activation-actions", type: "split", title: "下一步操作", slots: ["quick_actions", "asset_overview"] },
         { id: "activation-accounts", type: "full", title: "真实与模拟账号", slots: ["trading_accounts_list"] },
       ];
       delete next.layout;
@@ -15244,10 +15854,10 @@ function applyHomepageUnderstandingToServerConfig(config, prompt, variant = 0) {
       };
       settings.promoHighlight.enabled = false;
       next.brickPlan = [
-        { brickId: "copytradingSignals.curveCards", brickName: "AI 跟单信号源推荐", family: "CopytradingSignals", feature: "copytrading_signals", component: "copytrading_signals", size: "2x2", zone: "hero", reason: "CopyTrading 进入首屏，展示信号源、收益率、总收益和曲线。" },
-        { brickId: onboardingPresentation.brickId, brickName: onboardingPresentation.brickName, family: "OnboardingProgress", feature: "onboardingProgress", component: "onboarding_progress", size: "2x1", zone: "main", reason: onboardingPresentation.reason },
+        { brickId: "copytradingSignals.curveCards", brickName: "AI 跟单信号源推荐", family: "CopytradingSignals", feature: "copytrading_signals", component: "copytrading_signals", size: "3x2", zone: "hero", reason: "CopyTrading 进入首屏，用整横栏展示信号源、收益率、总收益和曲线。" },
+        { brickId: onboardingPresentation.brickId, brickName: onboardingPresentation.brickName, family: "OnboardingProgress", feature: "onboarding_guide", component: "onboarding_guide", size: "3x1", zone: "full", reason: onboardingPresentation.reason },
         ...(understanding.wantsPamm
-          ? [{ brickId: "pammProducts.recommendations", brickName: "AI PAMM 产品推荐", family: "PammProducts", feature: "pamm_products", component: "pamm_products", size: "2x1", zone: "main", reason: "PAMM 作为独立 AI 推荐模块，不与 CopyTrading 合并。" }]
+          ? [{ brickId: "pammProducts.recommendations", brickName: "AI PAMM 产品推荐", family: "PammProducts", feature: "pamm_products", component: "pamm_products", size: "3x2", zone: "full", reason: "PAMM 作为独立 AI 推荐模块，用整横栏展示产品、收益、风险和曲线。" }]
           : []),
         { brickId: "quickActions.taskRail", brickName: "五项快捷入口", family: "QuickActions", feature: "quickActions", component: "quick_actions", size: "2x1", zone: "main", reason: "入口作为下一步任务组，避免空白快捷框。" },
         { brickId: "assetOverview.compactMetrics", brickName: "轻量资产指标条", family: "AssetOverview", feature: "balanceTotal", component: "asset_summary", size: "3x1", zone: "main", reason: "资产降级为辅助指标，不抢新客引导和跟单推荐。" },
@@ -15544,8 +16154,9 @@ function enforceHomepagePromptIntent(payload, config) {
     next.heroFocus = "promo_banner";
 	    next.sections = [
 	      ...(wantsWelcomeHeader ? [{ id: "welcome-header", type: "full", title: "欢迎", slots: ["welcome_header"] }] : []),
-	      { id: "deposit-hero", type: "hero", title: "首次入金", slots: ["promo_banner", "asset_overview"] },
-	      { id: "deposit-activation", type: "split", title: "开户与快捷入口", slots: ["onboarding_guide", "quick_actions"] },
+	      { id: "deposit-hero", type: "full", title: "首次入金", slots: ["promo_banner"] },
+	      { id: "deposit-actions", type: "split", title: "账户与快捷入口", slots: ["asset_overview", "quick_actions"] },
+	      { id: "deposit-activation", type: "full", title: "开户引导", slots: ["onboarding_guide"] },
 	      { id: "deposit-performance", type: "full", title: "账号表现", slots: ["trading_account_highlight"] },
 	      { id: "deposit-accounts", type: "full", title: "交易账号", slots: ["trading_accounts_list"] },
 	    ];
@@ -15702,6 +16313,7 @@ function enforceHomepagePromptIntent(payload, config) {
   applyHomepageUnderstandingToServerConfig(next, prompt, payload.variant);
   lightRepairHomepageIntent(next, intentProfile, text);
   applyGuidedIntakeOverrides(next, guidedIntake);
+  applyGoldenStyleContractToHomepageConfig(next, prompt);
   if (next.themeCustom) {
     next.themeCustom = normalizeServerThemeCustom(next.themeCustom);
   }
@@ -17539,7 +18151,9 @@ async function callProvider(payload) {
     const mockConfig = applyHomepagePagePlan(repaired.config, policyPayload, repaired.repairActions);
     const pagePlanPolicyRepair = applyHomepageModulePolicy(mockConfig, modulePolicy, repaired.repairActions);
     applyComponentReferencesToHomepageConfig(mockConfig, policyPayload.prompt, { actions: repaired.repairActions });
+    applyGoldenStyleContractToHomepageConfig(mockConfig, policyPayload.prompt, repaired.repairActions);
     enforceFourColumnTradingAccountContract(mockConfig, policyPayload.prompt);
+    ensureLargeHomepageBrickPlanSections(mockConfig);
     const combinedPolicyRepair = mergeHomepageModulePolicyRepairResults(repaired.modulePolicyRepairResult, pagePlanPolicyRepair);
     repaired.config = mockConfig;
     repaired.validation = validateHomepageConfig(mockConfig, guidedSnapshot, modulePolicy, combinedPolicyRepair);
@@ -17623,7 +18237,9 @@ async function callProvider(payload) {
   const homepageConfig = applyHomepagePagePlan(repaired.config, policyPayload, repaired.repairActions);
   const pagePlanPolicyRepair = applyHomepageModulePolicy(homepageConfig, modulePolicy, repaired.repairActions);
   applyComponentReferencesToHomepageConfig(homepageConfig, policyPayload.prompt, { actions: repaired.repairActions });
+  applyGoldenStyleContractToHomepageConfig(homepageConfig, policyPayload.prompt, repaired.repairActions);
   enforceFourColumnTradingAccountContract(homepageConfig, policyPayload.prompt);
+  ensureLargeHomepageBrickPlanSections(homepageConfig);
   const combinedPolicyRepair = mergeHomepageModulePolicyRepairResults(repaired.modulePolicyRepairResult, pagePlanPolicyRepair);
   repaired.config = homepageConfig;
   repaired.validation = validateHomepageConfig(homepageConfig, guidedSnapshot, modulePolicy, combinedPolicyRepair);

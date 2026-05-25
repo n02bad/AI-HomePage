@@ -4,13 +4,17 @@
 }
 
 .client-shell.is-blueprint-home {
-  width: min(100%, 1320px);
-  max-width: 1320px;
+  width: min(100%, var(--home-skeleton-contract-max-width, 1320px));
+  max-width: var(--home-skeleton-contract-max-width, 1320px);
   container-type: inline-size;
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: var(--home-skeleton-contract-gap, 22px);
   margin: 0 auto;
+}
+
+body[data-home-style-contract]:not([data-home-style-contract=""]) .client-home-page {
+  background: var(--home-skeleton-contract-bg, var(--home-bg));
 }
 
 .sr-only {
@@ -28,7 +32,86 @@
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   align-items: stretch;
-  gap: 14px;
+  gap: var(--home-skeleton-contract-row-gap, 14px);
+}
+
+.client-shell.is-blueprint-home[data-home-blueprint-contract] {
+  padding-inline: 0;
+}
+
+.client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-row[data-row-chrome="connected"] {
+  overflow: hidden;
+  gap: 0;
+  min-height: var(--home-row-min-height, 180px);
+  border: 1px solid var(--home-skeleton-contract-border, var(--home-border-soft));
+  border-radius: var(--home-skeleton-contract-radius, var(--home-radius-sm, 8px));
+  background: var(--home-skeleton-contract-surface, var(--home-card-bg));
+  box-shadow: var(--home-skeleton-contract-shadow, none);
+}
+
+.client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-row[data-row-chrome="connected"] > .ai-home-block {
+  min-width: 0;
+  padding: var(--home-skeleton-contract-padding, 16px);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-row[data-row-chrome="connected"] > .ai-home-block:not(:last-child) {
+  border-right: 1px solid var(--home-skeleton-contract-border, var(--home-border-soft));
+}
+
+.client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-row[data-row-chrome="connected"] > .ai-home-block:is(
+  .balance-overview,
+  .account-progress-card,
+  .quick-panel,
+  .refer-card,
+  .accounts-panel,
+  .ai-welcome-feature,
+  .ai-balance-feature,
+  .ai-wallet-feature,
+  .ai-action-feature,
+  .ai-open-feature,
+  .ai-onboarding-feature,
+  .ai-quick-feature,
+  .ai-referral-feature,
+  .ai-accounts-feature,
+  .ai-promo-feature,
+  .ai-pamm-feature,
+  .ai-copytrading-feature,
+  .ai-risk-feature,
+  .ai-faq-feature,
+  .ai-support-feature,
+  .ai-download-feature
+) {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-row[data-row-chrome="band"],
+.client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-row[data-row-chrome="workbench"] {
+  padding: var(--home-skeleton-contract-padding, 16px);
+  border: 1px solid var(--home-skeleton-contract-border, var(--home-border-soft));
+  border-radius: var(--home-skeleton-contract-radius, var(--home-radius-sm, 8px));
+  background: var(--home-skeleton-contract-surface-soft, var(--home-surface-soft));
+}
+
+.client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-row[data-row-chrome="workbench"] {
+  background: var(--home-skeleton-contract-surface, var(--home-card-bg));
+  box-shadow: var(--home-skeleton-contract-shadow, none);
+}
+
+.client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-block[data-home-slot-chrome="bare"],
+.client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-block[data-home-slot-chrome="inline"],
+.client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-block[data-home-slot-chrome="flat"] {
+  box-shadow: none;
+}
+
+.client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-block[data-home-slot-chrome="legalStrip"] {
+  background: var(--home-skeleton-contract-surface-soft, var(--home-surface-soft));
+  box-shadow: none;
 }
 
 .ai-home-row[data-row-kind="paired"] {
@@ -10219,11 +10302,18 @@ body[data-home-render-mode="aiHtml"] .dashboard-customize-link {
 }
 
 .home-skeleton-render-host {
+  --home-skeleton-contract-max-width: 1320px;
+  --home-skeleton-contract-page-gutter: 16px;
   --home-skeleton-contract-radius: var(--home-radius-sm, 8px);
   --home-skeleton-contract-button-radius: var(--home-radius-sm, 8px);
   --home-skeleton-contract-gap: 14px;
+  --home-skeleton-contract-row-gap: 14px;
   --home-skeleton-contract-padding: 16px;
   --home-skeleton-contract-shadow: none;
+  --home-skeleton-contract-border: var(--home-border-soft, #edf2f7);
+  --home-skeleton-contract-bg: var(--home-bg);
+  --home-skeleton-contract-surface: var(--home-card-bg, #fff);
+  --home-skeleton-contract-surface-soft: var(--home-surface-soft, #f8fbff);
 }
 
 .home-skeleton-render-host.is-published-skeleton::before {
@@ -10820,13 +10910,18 @@ body[data-home-render-mode="skeletonHtml"] .dashboard-customize-link {
     grid-template-columns: 1fr;
   }
 
-  .client-shell.is-blueprint-home .ai-home-row .ai-home-block,
-  body[data-layout-page="client-home"] .client-shell.is-blueprint-home .ai-home-block-hero.ai-home-block-polished,
-  body[data-layout-page="client-home"] .client-shell.is-blueprint-home .ai-home-block-main,
-  body[data-layout-page="client-home"] .client-shell.is-blueprint-home .ai-home-block-rail {
-    grid-column: 1 / -1;
-    min-height: 0;
-  }
+	  .client-shell.is-blueprint-home .ai-home-row .ai-home-block,
+	  body[data-layout-page="client-home"] .client-shell.is-blueprint-home .ai-home-block-hero.ai-home-block-polished,
+	  body[data-layout-page="client-home"] .client-shell.is-blueprint-home .ai-home-block-main,
+	  body[data-layout-page="client-home"] .client-shell.is-blueprint-home .ai-home-block-rail {
+	    grid-column: 1 / -1;
+	    min-height: 0;
+	  }
+
+	  .client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-row[data-row-chrome="connected"] > .ai-home-block:not(:last-child) {
+	    border-right: 0;
+	    border-bottom: 1px solid var(--home-skeleton-contract-border, var(--home-border-soft));
+	  }
 
   .home-skeleton-slot-grid {
     grid-template-columns: 1fr;

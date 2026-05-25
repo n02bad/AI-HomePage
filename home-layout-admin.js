@@ -14,6 +14,7 @@
   const SUGGESTION_HISTORY_KEY = "forexcrm.home.ai.suggestion.history";
   const MAX_MODEL_HISTORY = 120;
   const MODEL_HISTORY_PREVIEW_LIMIT = 5;
+  const MODEL_HISTORY_STORAGE_LIMITS = [MAX_MODEL_HISTORY, 60, 24, 8, 3, 1, 0];
   const BACKGROUND_JOB_POLL_MS = 1100;
   const BACKGROUND_JOB_MAX_WAIT_MS = 20 * 60 * 1000;
   const MINIMAX_CN_BASE_URL = "https://api.minimaxi.com/v1";
@@ -1371,8 +1372,8 @@
 
   function skeletonSlotSize(slot = {}) {
     const id = slot.id || slot.slot || "";
-    if (["trading_accounts_list", "wallet_list", "copytrading_signals"].includes(id)) return "3x2";
-    if (["asset_overview", "promo_banner", "ad_carousel", "risk_disclosure"].includes(id)) return "3x1";
+    if (["trading_accounts_list", "wallet_list", "copytrading_signals", "trading_account_highlight", "account_performance", "pamm_products"].includes(id)) return "3x2";
+    if (["asset_overview", "promo_banner", "ad_carousel", "onboarding_guide", "onboarding_progress", "risk_disclosure"].includes(id)) return "3x1";
     if (slot.sectionType === "hero" || slot.sectionType === "full") return "3x1";
     if (slot.sectionType === "rail") return "1x1";
     return "2x1";
@@ -2044,13 +2045,22 @@
       surface: compactPromptText(contract.surface, "", 180),
       density: compactPromptText(contract.density, "balanced", 32),
       theme: compactPromptText(contract.theme, "blueFinance", 48),
-      tokens: {
-        cardRadius: compactPromptText(tokens.cardRadius, "8px", 24),
-        buttonRadius: compactPromptText(tokens.buttonRadius, "8px", 24),
-        sectionGap: compactPromptText(tokens.sectionGap, "14px", 24),
-        cardPadding: compactPromptText(tokens.cardPadding, "16px", 24),
-        cardShadow: compactPromptText(tokens.cardShadow, "none", 80),
-      },
+	      tokens: {
+	        pageMaxWidth: compactPromptText(tokens.pageMaxWidth, "1280px", 24),
+	        pageGutter: compactPromptText(tokens.pageGutter, "16px", 24),
+	        cardRadius: compactPromptText(tokens.cardRadius, "8px", 24),
+	        buttonRadius: compactPromptText(tokens.buttonRadius, "8px", 24),
+	        sectionGap: compactPromptText(tokens.sectionGap, "14px", 24),
+	        rowGap: compactPromptText(tokens.rowGap || tokens.sectionGap, "14px", 24),
+	        cardPadding: compactPromptText(tokens.cardPadding, "16px", 24),
+	        cardShadow: compactPromptText(tokens.cardShadow, "none", 80),
+	        cardBorder: compactPromptText(tokens.cardBorder, "", 80),
+	        background: compactPromptText(tokens.background, "", 180),
+	        surface: compactPromptText(tokens.surface, "", 80),
+	        surfaceSoft: compactPromptText(tokens.surfaceSoft, "", 80),
+	        primaryColor: compactPromptText(tokens.primaryColor, "", 40),
+	        accentColor: compactPromptText(tokens.accentColor, "", 40),
+	      },
       componentRules: (Array.isArray(contract.componentRules) ? contract.componentRules : []).slice(0, 4),
       ctaRules: (Array.isArray(contract.ctaRules) ? contract.ctaRules : []).slice(0, 3),
       moduleGrammar: compactPromptText(contract.moduleGrammar, "", 180),
@@ -2059,11 +2069,19 @@
         mode: compactPromptText(chromePolicy.mode, "cardedDashboard", 40),
         sectionChrome: compactPromptText(chromePolicy.sectionChrome, "group", 32),
         defaultSlotChrome: compactPromptText(chromePolicy.defaultSlotChrome, "contained", 32),
-        componentBoundary: compactPromptText(chromePolicy.componentBoundary, "component-contained", 48),
-        promptRule: compactPromptText(chromePolicy.promptRule, "", 180),
-      },
-    };
-  }
+	        componentBoundary: compactPromptText(chromePolicy.componentBoundary, "component-contained", 48),
+	        promptRule: compactPromptText(chromePolicy.promptRule, "", 180),
+	      },
+	      layoutRules: contract.layoutRules && typeof contract.layoutRules === "object"
+	        ? {
+	            maxWidth: compactPromptText(contract.layoutRules.maxWidth, "", 24),
+	            sectionGrouping: compactPromptText(contract.layoutRules.sectionGrouping, "", 140),
+	            backgroundRule: compactPromptText(contract.layoutRules.backgroundRule, "", 140),
+	            blockRelation: compactPromptText(contract.layoutRules.blockRelation, "", 140),
+	          }
+	        : null,
+	    };
+	  }
 
   function compactSkeletonPagePlan(config = {}) {
     const plan = config.pagePlan && typeof config.pagePlan === "object" ? config.pagePlan : {};
@@ -3011,20 +3029,20 @@
 
   const GUIDED_SLOT_SECTIONS = {
     welcome_header: { id: "guided-welcome", type: "hero", title: "欢迎" },
-    promo_banner: { id: "guided-hero", type: "split", title: "首屏重点" },
-    copytrading_signals: { id: "guided-hero", type: "split", title: "首屏重点" },
-    onboarding_guide: { id: "guided-hero", type: "split", title: "首屏重点" },
+    promo_banner: { id: "guided-hero", type: "full", title: "首屏重点" },
+    copytrading_signals: { id: "guided-hero", type: "full", title: "首屏重点" },
+    onboarding_guide: { id: "guided-hero", type: "full", title: "首屏重点" },
     asset_overview: { id: "guided-overview", type: "split", title: "账户概览" },
     wallet_list: { id: "guided-wallets", type: "full", title: "钱包列表" },
     quick_actions: { id: "guided-actions", type: "split", title: "快捷操作" },
-    pamm_products: { id: "guided-products", type: "split", title: "产品推荐" },
+    pamm_products: { id: "guided-products", type: "full", title: "产品推荐" },
     referral_link_card: { id: "guided-growth", type: "split", title: "增长工具" },
     announcements: { id: "guided-content", type: "split", title: "公告资讯" },
     market_news: { id: "guided-content", type: "split", title: "公告资讯" },
     faq_section: { id: "guided-help", type: "split", title: "帮助与下载" },
     support_contact: { id: "guided-help", type: "split", title: "帮助与下载" },
     app_download: { id: "guided-help", type: "split", title: "帮助与下载" },
-    trading_account_highlight: { id: "guided-account-performance", type: "split", title: "账户表现" },
+    trading_account_highlight: { id: "guided-account-performance", type: "full", title: "账户表现" },
     trading_accounts_list: { id: "guided-trading-accounts", type: "full", title: "交易账号" },
     risk_disclosure: { id: "guided-risk-disclosure", type: "full", title: "风险提示" },
   };
@@ -3793,19 +3811,101 @@
     }
   }
 
+  function compactModelHistoryText(value, maxLength = 240) {
+    return String(value || "").replace(/\s+/g, " ").trim().slice(0, maxLength);
+  }
+
+  function compactModelHistorySnapshot(snapshot = {}) {
+    if (!snapshot || typeof snapshot !== "object") return {};
+    return {
+      name: compactModelHistoryText(snapshot.name, 80),
+      layoutPreset: compactModelHistoryText(snapshot.layoutPreset, 40),
+      themePreset: compactModelHistoryText(snapshot.themePreset, 40),
+      colorMode: compactModelHistoryText(snapshot.colorMode, 16),
+      density: compactModelHistoryText(snapshot.density, 24),
+      intent: compactModelHistoryText(snapshot.intent, 40),
+      strategy: compactModelHistoryText(snapshot.strategy, 120),
+      renderMode: compactModelHistoryText(snapshot.renderMode, 24),
+      htmlScheme: compactModelHistoryText(snapshot.htmlScheme, 80),
+      htmlSourceType: compactModelHistoryText(snapshot.htmlSourceType, 48),
+      htmlPipeline: compactModelHistoryText(snapshot.htmlPipeline, 48),
+      htmlIsFallback: Boolean(snapshot.htmlIsFallback),
+      htmlMock: Boolean(snapshot.htmlMock),
+      htmlQualityStatus: compactModelHistoryText(snapshot.htmlQualityStatus, 40),
+      qualityScore: Number.isFinite(Number(snapshot.qualityScore)) ? Math.round(Number(snapshot.qualityScore)) : null,
+      htmlFallbackReason: compactModelHistoryText(snapshot.htmlFallbackReason, 180),
+      pageGoal: compactModelHistoryText(snapshot.pageGoal, 48),
+      mainVisual: compactModelHistoryText(snapshot.mainVisual, 48),
+      primaryCta: compactModelHistoryText(snapshot.primaryCta, 80),
+      validationWarnings: Number.isFinite(Number(snapshot.validationWarnings)) ? Number(snapshot.validationWarnings) : 0,
+      modulePolicyScore: Number.isFinite(Number(snapshot.modulePolicyScore)) ? Math.round(Number(snapshot.modulePolicyScore)) : null,
+      skeletonScheme: compactModelHistoryText(snapshot.skeletonScheme, 80),
+      skeletonSlots: Number.isFinite(Number(snapshot.skeletonSlots)) ? Number(snapshot.skeletonSlots) : 0,
+      brickIds: Array.isArray(snapshot.brickIds) ? snapshot.brickIds.map((item) => compactModelHistoryText(item, 80)).filter(Boolean).slice(0, 12) : [],
+      sections: Array.isArray(snapshot.sections) ? snapshot.sections.map((item) => compactModelHistoryText(item, 90)).filter(Boolean).slice(0, 12) : [],
+    };
+  }
+
+  function compactModelHistoryRecord(record = {}) {
+    return {
+      id: compactModelHistoryText(record.id, 90) || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      at: compactModelHistoryText(record.at, 48) || new Date().toISOString(),
+      action: compactModelHistoryText(record.action, 40),
+      pageRunId: compactModelHistoryText(record.pageRunId, 90),
+      serverCallId: compactModelHistoryText(record.serverCallId, 90),
+      providerId: compactModelHistoryText(record.providerId, 40),
+      provider: compactModelHistoryText(record.provider, 80),
+      model: compactModelHistoryText(record.model, 120),
+      callMode: compactModelHistoryText(record.callMode, 32),
+      apiMode: compactModelHistoryText(record.apiMode, 32),
+      inputMode: compactModelHistoryText(record.inputMode, 24),
+      variant: Number.isFinite(Number(record.variant)) ? Number(record.variant) : 0,
+      status: compactModelHistoryText(record.status, 24),
+      mock: Boolean(record.mock),
+      durationMs: Number.isFinite(Number(record.durationMs)) ? Number(record.durationMs) : 0,
+      prompt: compactModelHistoryText(record.prompt, 1200),
+      message: compactModelHistoryText(record.message, 900),
+      htmlSourceType: compactModelHistoryText(record.htmlSourceType, 48),
+      htmlPipeline: compactModelHistoryText(record.htmlPipeline, 48),
+      htmlIsFallback: Boolean(record.htmlIsFallback),
+      htmlFallbackReason: compactModelHistoryText(record.htmlFallbackReason, 180),
+      htmlQualityStatus: compactModelHistoryText(record.htmlQualityStatus, 40),
+      configSnapshot: compactModelHistorySnapshot(record.configSnapshot),
+    };
+  }
+
   function saveModelHistory(records) {
-    const normalized = (Array.isArray(records) ? records : []).slice(0, MAX_MODEL_HISTORY);
-    window.localStorage.setItem(MODEL_HISTORY_KEY, JSON.stringify(normalized));
-    return normalized;
+    const compacted = (Array.isArray(records) ? records : []).map(compactModelHistoryRecord).slice(0, MAX_MODEL_HISTORY);
+
+    for (const limit of MODEL_HISTORY_STORAGE_LIMITS) {
+      const normalized = compacted.slice(0, limit);
+      try {
+        window.localStorage.setItem(MODEL_HISTORY_KEY, JSON.stringify(normalized));
+        return normalized;
+      } catch (error) {
+        try {
+          window.localStorage.removeItem(MODEL_HISTORY_KEY);
+        } catch (removeError) {
+          // Ignore storage cleanup failures; the next smaller write still gets a chance.
+        }
+      }
+    }
+
+    try {
+      window.localStorage.removeItem(MODEL_HISTORY_KEY);
+    } catch (error) {
+      // Local call history is only a convenience cache; server-side history remains the source of truth.
+    }
+    return [];
   }
 
   function addModelHistoryRecord(record) {
     const records = loadModelHistory();
-    const nextRecord = {
+    const nextRecord = compactModelHistoryRecord({
       ...record,
       id: record?.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
       at: record?.at || new Date().toISOString(),
-    };
+    });
     saveModelHistory([nextRecord, ...records]);
     renderModelHistory();
   }
@@ -4427,15 +4527,19 @@
   }
 
   function aiRequestContext(options = {}) {
-    const context = {
-      currentConfig: home.normalizeConfig(currentConfig),
-      defaultConfig: home.DEFAULT_CONFIG,
-      features: home.FEATURES,
-      bricks: home.HOME_BRICKS,
-      moduleStyleOptions: home.MODULE_STYLE_OPTIONS,
-      moduleVariantOptions: home.MODULE_VARIANT_OPTIONS,
-      schema: home.HOMEPAGE_CONFIG_JSON_SCHEMA,
-    };
+	    const normalizedCurrentConfig = home.normalizeConfig(currentConfig);
+	    const styleContract = home.buildSkeletonDesignContract(normalizedCurrentConfig);
+	    const context = {
+	      currentConfig: normalizedCurrentConfig,
+	      defaultConfig: home.DEFAULT_CONFIG,
+	      features: home.FEATURES,
+	      bricks: home.HOME_BRICKS,
+	      moduleStyleOptions: home.MODULE_STYLE_OPTIONS,
+	      moduleVariantOptions: home.MODULE_VARIANT_OPTIONS,
+	      schema: home.HOMEPAGE_CONFIG_JSON_SCHEMA,
+	      styleContract,
+	      goldenStyleContract: normalizedCurrentConfig.styleContract || normalizedCurrentConfig.goldenStyleContract || null,
+	    };
 
 	    if (options.inputMode) context.inputMode = options.inputMode;
 	    if (options.guidedIntake) context.guidedIntake = options.guidedIntake;
