@@ -2854,6 +2854,10 @@ function homepageRecordSnapshot(config) {
 	    repairActions: Array.isArray(source.repairActions) ? source.repairActions.slice(0, 6) : [],
 	    skeletonScheme: source.skeletonHtmlScheme?.enabled ? safeRecordText(source.skeletonHtmlScheme.name || "骨架 HTML 填充", 80) : "",
 	    skeletonSlots: source.skeletonHtmlScheme?.enabled && Array.isArray(source.skeletonHtmlScheme.slots) ? source.skeletonHtmlScheme.slots.length : 0,
+	    styleContract: source.styleContract?.id ? safeRecordText(source.styleContract.id, 80) : "",
+	    goldenStyleContract: source.goldenStyleContract?.id ? safeRecordText(source.goldenStyleContract.id, 80) : "",
+	    styleContractSources: Array.isArray(source.styleContract?.sourceSampleIds) ? source.styleContract.sourceSampleIds.slice(0, 5) : [],
+	    sectionTransitions: sections.map((section) => `${safeRecordText(section?.id, 32)}:${safeRecordText(section?.transition, 24)}`).filter((item) => !item.endsWith(":")).slice(0, 12),
 	    brickIds: brickPlan.map((item) => safeRecordText(item?.brickId || item?.feature, 80)).filter(Boolean).slice(0, 12),
 	    componentReferences: normalizeHomepageConfigComponentReferences(source.componentReferences)
 	      .map((item) => ({
@@ -5769,19 +5773,37 @@ function normalizeDesignSample(sample = {}) {
   };
 }
 
+let designSamplesReadCache = null;
+let designSampleRankCache = new Map();
+let goldenStyleContractCache = new Map();
+
 function readDesignSamples() {
+  let mtimeMs = 0;
+  try {
+    mtimeMs = fs.statSync(DESIGN_SAMPLE_FILE).mtimeMs;
+  } catch (error) {
+    mtimeMs = 0;
+  }
+  if (designSamplesReadCache && designSamplesReadCache.mtimeMs === mtimeMs) return designSamplesReadCache.payload;
   const data = readJsonFile(DESIGN_SAMPLE_FILE, { samples: [] });
-  return {
+  const payload = {
     version: Number.isFinite(Number(data.version)) ? Number(data.version) : 1,
     updatedAt: cleanText(data.updatedAt, "", 40) || new Date().toISOString(),
     samples: (Array.isArray(data.samples) ? data.samples : []).map(normalizeDesignSample).slice(0, MAX_DESIGN_SAMPLES),
   };
+  designSampleRankCache = new Map();
+  goldenStyleContractCache = new Map();
+  designSamplesReadCache = { mtimeMs, payload };
+  return payload;
 }
 
 function writeDesignSamples(samples) {
   const normalized = (Array.isArray(samples) ? samples : []).map(normalizeDesignSample).slice(0, MAX_DESIGN_SAMPLES);
   const payload = { version: 1, updatedAt: new Date().toISOString(), samples: normalized };
   writeJsonFile(DESIGN_SAMPLE_FILE, payload);
+  designSamplesReadCache = null;
+  designSampleRankCache = new Map();
+  goldenStyleContractCache = new Map();
   return payload;
 }
 
@@ -6021,7 +6043,8 @@ function deleteDesignSample(id, options = {}) {
 }
 
 function designSampleSearchText(sample) {
-  return normalizeKeywordText(
+  if (sample && typeof sample === "object" && sample.__searchText) return sample.__searchText;
+  const text = normalizeKeywordText(
     [
       sample.id,
       sample.name,
@@ -6047,6 +6070,14 @@ function designSampleSearchText(sample) {
       ...(Array.isArray(sample.avoidPatterns) ? sample.avoidPatterns : []),
     ].join(" "),
   );
+  if (sample && typeof sample === "object") {
+    Object.defineProperty(sample, "__searchText", {
+      value: text,
+      enumerable: false,
+      configurable: true,
+    });
+  }
+  return text;
 }
 
 function designSampleRankScore(sample, prompt, index = 0, options = {}) {
@@ -6065,7 +6096,9 @@ function designSampleRankScore(sample, prompt, index = 0, options = {}) {
 
 function rankDesignSamplesForPrompt(prompt, limit = 4, options = {}) {
   const includeAntiExamples = Boolean(options.includeAntiExamples);
-  return readDesignSamples().samples
+  const cacheKey = JSON.stringify(["all", normalizeKeywordText(prompt).slice(0, 500), Math.max(1, Math.min(Number(limit) || 4, 8)), includeAntiExamples, Boolean(options.antiExamples)]);
+  if (designSampleRankCache.has(cacheKey)) return designSampleRankCache.get(cacheKey).slice();
+  const ranked = readDesignSamples().samples
     .filter((sample) => includeAntiExamples || !sample.isAntiExample)
     .map((sample, index) => {
       return {
@@ -6076,24 +6109,34 @@ function rankDesignSamplesForPrompt(prompt, limit = 4, options = {}) {
     .sort((a, b) => b.score - a.score)
     .map((item) => item.sample)
     .slice(0, Math.max(1, Math.min(Number(limit) || 4, 8)));
+  designSampleRankCache.set(cacheKey, ranked);
+  return ranked.slice();
 }
 
 function rankGoldenDesignSamplesForPrompt(prompt, limit = 3) {
+  const cacheKey = JSON.stringify(["golden", normalizeKeywordText(prompt).slice(0, 500), Math.max(1, Math.min(Number(limit) || 3, 5))]);
+  if (designSampleRankCache.has(cacheKey)) return designSampleRankCache.get(cacheKey).slice();
   const samples = readDesignSamples().samples.filter((sample) => sample.isGolden && !sample.isAntiExample);
-  return samples
+  const ranked = samples
     .map((sample, index) => ({ sample, score: designSampleRankScore(sample, prompt, index) }))
     .sort((a, b) => b.score - a.score)
     .map((item) => item.sample)
     .slice(0, Math.max(1, Math.min(Number(limit) || 3, 5)));
+  designSampleRankCache.set(cacheKey, ranked);
+  return ranked.slice();
 }
 
 function rankLowScoreAntiExamplesForPrompt(prompt, limit = 3) {
+  const cacheKey = JSON.stringify(["anti", normalizeKeywordText(prompt).slice(0, 500), Math.max(1, Math.min(Number(limit) || 3, 5))]);
+  if (designSampleRankCache.has(cacheKey)) return designSampleRankCache.get(cacheKey).slice();
   const samples = readDesignSamples().samples.filter((sample) => sample.isAntiExample || Number(sample.humanScore ?? sample.aestheticScore) <= 68);
-  return samples
+  const ranked = samples
     .map((sample, index) => ({ sample, score: designSampleRankScore(sample, prompt, index, { antiExamples: true }) }))
     .sort((a, b) => b.score - a.score)
     .map((item) => item.sample)
     .slice(0, Math.max(1, Math.min(Number(limit) || 3, 5)));
+  designSampleRankCache.set(cacheKey, ranked);
+  return ranked.slice();
 }
 
 function summarizeDesignSampleForPrompt(sample) {
@@ -6281,6 +6324,18 @@ function extractGoldenStyleContractFromSample(sample = {}) {
       sectionChrome: "connected",
       defaultSlotChrome: "flat",
       componentBoundary: "page-owned",
+      sectionOverrides: {
+        "welcome-header": "connected",
+        "deposit-hero": "connected",
+        "deposit-actions": "connected",
+        "deposit-activation": "connected",
+        "deposit-kyc-status": "connected",
+        "deposit-copytrading": "band",
+        "deposit-referral-faq": "band",
+        "deposit-performance": "workbench",
+        "deposit-accounts": "workbench",
+        "risk-disclosure-footer": "band",
+      },
       slotOverrides: {
         promo_banner: "featured",
         onboarding_guide: "featured",
@@ -6304,7 +6359,7 @@ function extractGoldenStyleContractFromSample(sample = {}) {
       rowRecipes: ["12", "8+4", "6+6"],
       sectionGrouping: "每 1-2 个相关模块组成一个业务组；避免每个模块独立漂浮成白卡。",
       backgroundRule: "背景必须是浅蓝灰连续页面底，不使用默认蓝绿空气感背景。",
-      blockRelation: "同组模块通过共享父级、分隔线、等高和统一 padding 衔接。",
+      blockRelation: "同组模块通过共享父级、分隔线、等高和统一 padding 衔接；不同叙事组必须使用 hard-break 或 workbench 明确断开。",
     },
     componentRules: [
       "主色使用 #2f66e8 / #275bd5 一组蓝，不再混入默认青绿色作为主视觉。",
@@ -6322,6 +6377,9 @@ function extractGoldenStyleContractFromSample(sample = {}) {
 }
 
 function goldenStyleContractForPrompt(prompt, options = {}) {
+  const limit = Math.max(1, Math.min(Number(options.limit) || 3, 5));
+  const cacheKey = JSON.stringify([normalizeKeywordText(prompt).slice(0, 500), limit]);
+  if (goldenStyleContractCache.has(cacheKey)) return jsonCloneWithinLimit(goldenStyleContractCache.get(cacheKey), null, 80_000);
   const samples = rankGoldenDesignSamplesForPrompt(prompt, options.limit || 3);
   const primary = samples.find((sample) => goldenSamplePalette(sample).length || sample.homepageConfig || sample.configSnapshot) || samples[0];
   if (!primary) return null;
@@ -6329,7 +6387,8 @@ function goldenStyleContractForPrompt(prompt, options = {}) {
   contract.sourceSampleIds = samples.map((sample) => sample.id).filter(Boolean).slice(0, 5);
   contract.sourceSampleNames = samples.map((sample) => sample.name).filter(Boolean).slice(0, 5);
   contract.confidence = samples.length ? 0.9 : 0.75;
-  return contract;
+  goldenStyleContractCache.set(cacheKey, contract);
+  return jsonCloneWithinLimit(contract, null, 80_000);
 }
 
 function shouldApplyGoldenStyleContract(prompt, config = {}) {
@@ -6339,9 +6398,51 @@ function shouldApplyGoldenStyleContract(prompt, config = {}) {
   return true;
 }
 
+function isGoldenHomepageStyleContract(contract = {}) {
+  if (!contract || typeof contract !== "object") return false;
+  const text = `${contract.id || ""} ${contract.label || ""} ${contract.personality || ""} ${contract.sourceSampleId || ""}`.toLowerCase();
+  return /golden|黄金/.test(text) || Array.isArray(contract.sourceSampleIds);
+}
+
+function homepageSectionTransition(section = {}, index = 0) {
+  const explicit = normalizeHomepageSectionTransition(section.transition);
+  if (explicit) return explicit;
+  const id = cleanText(section.id, "", 64);
+  const slots = Array.isArray(section.slots) ? section.slots.map((slot) => canonicalHomeBlock(slot) || cleanText(slot, "", 80)) : [];
+  if (["welcome-header", "deposit-hero", "deposit-actions", "deposit-activation", "deposit-kyc-status"].includes(id)) return "connected";
+  if (id === "deposit-accounts" || slots.includes("trading_accounts_list")) {
+    return slots.includes("trading_accounts_list") && index > 0 ? "connected" : "workbench";
+  }
+  if (id === "deposit-performance" || slots.includes("trading_account_highlight")) return index > 0 ? "hard-break" : "workbench";
+  if (/risk|disclosure|footer|copytrading|referral|faq|pamm|support|download|market|announcements/i.test(id)) return index > 0 ? "hard-break" : "plain";
+  if (slots.some((slot) => ["risk_disclosure", "copytrading_signals", "referral_link_card", "faq_section", "pamm_products", "support_contact", "app_download", "market_news", "announcements"].includes(slot))) {
+    return index > 0 ? "hard-break" : "plain";
+  }
+  return index === 0 ? "plain" : "soft-break";
+}
+
+function applySectionTransitionsToHomepageConfig(config, actions = []) {
+  if (!config || typeof config !== "object" || !Array.isArray(config.sections)) return config;
+  let changed = false;
+  config.sections = config.sections.map((section, index) => {
+    const transition = homepageSectionTransition(section, index);
+    if (!transition || section.transition === transition) return section;
+    changed = true;
+    return { ...section, transition };
+  });
+  if (changed) actions?.push?.("已为首页 section 写入 connected / hard-break / workbench 过渡契约，避免块与块处在含糊中间态。");
+  return config;
+}
+
 function applyGoldenStyleContractToHomepageConfig(config, prompt = "", actions = []) {
   if (!config || typeof config !== "object" || !shouldApplyGoldenStyleContract(prompt, config)) return config;
-  const contract = goldenStyleContractForPrompt(prompt);
+  const existingContract =
+    isGoldenHomepageStyleContract(config.goldenStyleContract)
+      ? config.goldenStyleContract
+      : isGoldenHomepageStyleContract(config.styleContract)
+        ? config.styleContract
+        : null;
+  const contract = existingContract || goldenStyleContractForPrompt(prompt);
   if (!contract) return config;
   const existingThemeCustom = normalizeServerThemeCustom(config.themeCustom);
   const nextThemeCustom = existingThemeCustom
@@ -6375,7 +6476,10 @@ function applyGoldenStyleContractToHomepageConfig(config, prompt = "", actions =
     config.skeletonHtmlScheme.designContract = contract;
     config.skeletonHtmlScheme.styleContract = contract;
   }
-  actions?.push?.("已把黄金样式抽成可执行 styleContract，并同步主题、背景和块关系渲染契约。");
+  applySectionTransitionsToHomepageConfig(config, actions);
+  if (!existingContract) {
+    actions?.push?.("已把黄金样式抽成可执行 styleContract，并同步主题、背景和块关系渲染契约。");
+  }
   return config;
 }
 
@@ -8510,6 +8614,68 @@ function evaluateSkeletonSlotQuality(config = {}) {
   };
 }
 
+function normalizeHomepageSectionTransition(value = "") {
+  const raw = cleanText(value, "", 24);
+  return ["connected", "soft-break", "hard-break", "workbench", "plain"].includes(raw) ? raw : "";
+}
+
+function evaluateSectionTransitionQuality(config = {}) {
+  const sections = Array.isArray(config.sections) ? config.sections : [];
+  const styleContract = config.styleContract || config.goldenStyleContract || config.skeletonHtmlScheme?.designContract || null;
+  const chromePolicy = styleContract?.chromePolicy && typeof styleContract.chromePolicy === "object" ? styleContract.chromePolicy : {};
+  const transitions = sections.map((section) => normalizeHomepageSectionTransition(section?.transition));
+  const explicitCount = transitions.filter(Boolean).length;
+  const hardBreakCount = transitions.filter((item) => item === "hard-break").length;
+  const connectedCount = transitions.filter((item) => item === "connected").length;
+  const workbenchCount = transitions.filter((item) => item === "workbench").length;
+  const fullSingletonCount = sections.filter((section) => section?.type === "full" && Array.isArray(section.slots) && section.slots.length === 1).length;
+  const hasPolicy =
+    Boolean(styleContract?.id || styleContract?.label) &&
+    Boolean(chromePolicy.mode || chromePolicy.sectionChrome || chromePolicy.sectionOverrides || chromePolicy.slotOverrides);
+  const issues = [];
+  const notes = [];
+
+  if (sections.length <= 2) {
+    return { score: 100, issues: [], notes: [`${sections.length} 个 section，过渡风险低`] };
+  }
+  if (!hasPolicy) issues.push("缺少可执行 styleContract/goldenStyleContract，块关系只能靠默认间距。");
+  if (sections.length >= 6 && explicitCount < Math.min(5, sections.length - 1)) {
+    issues.push(`只有 ${explicitCount}/${sections.length} 个 section 声明 transition，连续区和断点不够明确。`);
+  }
+  if (sections.length >= 6 && hardBreakCount < 1) {
+    issues.push("长页面没有 hard-break，辅助内容和主流程容易糊成一串白卡。");
+  }
+  if (fullSingletonCount >= 6 && connectedCount < 2 && hardBreakCount < 2) {
+    issues.push("单模块整行过多，但没有连续组或硬断点，容易形成平均白卡堆叠。");
+  }
+  if (chromePolicy.mode === "sectionBand" && !chromePolicy.sectionOverrides && explicitCount < 3) {
+    issues.push("sectionBand 模式缺少 sectionOverrides/transition，模块边界会处在不连不分的中间态。");
+  }
+
+  notes.push(
+    `${sections.length} 个 sections`,
+    `${explicitCount} 个显式 transition`,
+    `${connectedCount} 个 connected`,
+    `${hardBreakCount} 个 hard-break`,
+    `${workbenchCount} 个 workbench`,
+    hasPolicy ? `契约 ${cleanText(styleContract.id || styleContract.label, "", 80)}` : "未挂入黄金样式契约",
+  );
+
+  const score = categoryScore(
+    100 -
+      (hasPolicy ? 0 : 24) -
+      Math.max(0, Math.min(28, (Math.min(5, Math.max(0, sections.length - 1)) - explicitCount) * 7)) -
+      (sections.length >= 6 && hardBreakCount < 1 ? 18 : 0) -
+      (fullSingletonCount >= 6 && connectedCount < 2 && hardBreakCount < 2 ? 14 : 0),
+  );
+
+  return {
+    score,
+    issues: [...new Set(issues)].slice(0, 6),
+    notes,
+  };
+}
+
 function evaluateHomepageAesthetic(payload = {}, config = {}) {
   const sourceConfig = config && typeof config === "object" ? config : {};
   const prompt = cleanText(payload.prompt || sourceConfig.prompt || "", "", 1200);
@@ -8524,6 +8690,7 @@ function evaluateHomepageAesthetic(payload = {}, config = {}) {
   const moduleStyles = sourceConfig.moduleStyles && typeof sourceConfig.moduleStyles === "object" ? sourceConfig.moduleStyles : {};
 	  const htmlQuality = htmlScheme?.enabled || html || css ? evaluateAiHtmlQuality({ ...htmlScheme, html, css }, payload, sourceConfig) : null;
   const skeletonQuality = evaluateSkeletonSlotQuality(sourceConfig);
+  const transitionQuality = evaluateSectionTransitionQuality(sourceConfig);
 	  const componentRefs = beautifulComponentReferences({ prompt, limit: 8 });
   const sampleRefs = rankDesignSamplesForPrompt(prompt, 4).map(summarizeDesignSampleForPrompt);
   const feedbackRefs = feedbackMemoryPromptReference(prompt, 5);
@@ -8580,6 +8747,13 @@ function evaluateHomepageAesthetic(payload = {}, config = {}) {
         `${uniqueZones} 类积木区域`,
         `${wideBlocks} 个宽幅/整行模块`,
       ],
+    },
+    {
+      key: "blockTransitionQuality",
+      label: "块过渡质量",
+      weight: 14,
+      score: transitionQuality.score,
+      notes: transitionQuality.notes,
     },
     {
       key: "componentCraft",
@@ -8666,6 +8840,10 @@ function evaluateHomepageAesthetic(payload = {}, config = {}) {
   if (skeletonQuality.issues.length) {
     skeletonQuality.issues.slice(0, 5).forEach((issue) => issues.push(`骨架填充质量：${issue}`));
     suggestions.push("重新生成低分或占位 slot，优先引用同 family 高分积木，图表模块必须输出真实 SVG/data-chart/趋势结构。");
+  }
+  if (transitionQuality.issues.length) {
+    transitionQuality.issues.slice(0, 4).forEach((issue) => issues.push(`块过渡质量：${issue}`));
+    suggestions.push("为连续业务路径标记 connected，为不同叙事组标记 hard-break/workbench，并让黄金 styleContract 的 chromePolicy 执行这些断点。");
   }
 
 	  return {
@@ -14704,7 +14882,7 @@ function enforceServerWelcomeHeaderTop(config) {
     .map((section) => ({ ...section, slots: Array.isArray(section.slots) ? section.slots.filter((slot) => slot !== "welcome_header") : [] }))
     .filter((section) => section.slots.length);
   const welcomeSectionType = config?.pageIntent?.primaryIntent === "deposit" ? "full" : "hero";
-  config.sections.unshift({ id: "welcome-header", type: welcomeSectionType, title: "欢迎", slots: ["welcome_header"] });
+  config.sections.unshift({ id: "welcome-header", type: welcomeSectionType, title: "欢迎", transition: config?.pageIntent?.primaryIntent === "deposit" ? "connected" : "", slots: ["welcome_header"] });
   config.layout = [welcomeBlock].concat((Array.isArray(config.layout) ? config.layout : []).filter((block) => block?.component !== "welcome_header"));
   config.brickPlan = (Array.isArray(config.brickPlan) ? config.brickPlan : []).filter((brick) => brick?.component !== "welcome_header" && brick?.feature !== "welcome_header");
 }
@@ -14732,7 +14910,7 @@ function enforceServerJourneyTimelineFullRow(config) {
       ? config.sections.findIndex((section) => section.slots?.includes("promo_banner") || section.slots?.includes("asset_overview"))
       : -1;
   const insertIndex = depositHeroIndex >= 0 ? depositHeroIndex + 1 : config.sections[0]?.slots?.includes("welcome_header") ? 1 : 0;
-  config.sections.splice(insertIndex, 0, { id: "onboarding-journey", type: "full", title: "开户进度", slots: ["onboarding_guide"] });
+  config.sections.splice(insertIndex, 0, { id: "onboarding-journey", type: "full", title: "开户进度", transition: config?.pageIntent?.primaryIntent === "deposit" ? "connected" : "", slots: ["onboarding_guide"] });
   config.layout = (Array.isArray(config.layout) ? config.layout : []).map((block) =>
     block?.component === "onboarding_guide"
       ? { ...block, slot: "full", priority: Math.min(Number(block.priority) || 20, 8), brickSize: "3x1", brickZone: "full" }
@@ -15565,22 +15743,22 @@ function enforceServerDepositConversionContract(config, prompt = "", variant = 0
     currentSlots.includes("welcome_header") || textHasAny(text, ["欢迎模块", "欢迎头部", "欢迎区", "客户姓名", "问候", "welcome"]);
   const hasOptional = (slot) => currentSlots.includes(slot);
   const sections = [];
-  if (wantsWelcomeHeader) sections.push({ id: "welcome-header", type: "full", title: "欢迎", slots: ["welcome_header"] });
-  sections.push({ id: "deposit-hero", type: "full", title: "首次入金", slots: ["promo_banner"] });
-  sections.push({ id: "deposit-actions", type: "split", title: "账户与快捷入口", slots: ["asset_overview", "quick_actions"] });
-  sections.push({ id: "deposit-activation", type: "full", title: "开户引导", slots: ["onboarding_guide"] });
-  if (hasOptional("kyc_status_card")) sections.push({ id: "deposit-kyc-status", type: "rail", title: "KYC 状态", slots: ["kyc_status_card"] });
-  if (hasOptional("copytrading_signals")) sections.push({ id: "deposit-copytrading", type: "full", title: "CopyTrading", slots: ["copytrading_signals"] });
-  if (hasOptional("pamm_products")) sections.push({ id: "deposit-pamm", type: "full", title: "PAMM", slots: ["pamm_products"] });
+  if (wantsWelcomeHeader) sections.push({ id: "welcome-header", type: "full", title: "欢迎", transition: "connected", slots: ["welcome_header"] });
+  sections.push({ id: "deposit-hero", type: "full", title: "首次入金", transition: "connected", slots: ["promo_banner"] });
+  sections.push({ id: "deposit-actions", type: "split", title: "账户与快捷入口", transition: "connected", slots: ["asset_overview", "quick_actions"] });
+  sections.push({ id: "deposit-activation", type: "full", title: "开户引导", transition: "connected", slots: ["onboarding_guide"] });
+  if (hasOptional("kyc_status_card")) sections.push({ id: "deposit-kyc-status", type: "rail", title: "KYC 状态", transition: "connected", slots: ["kyc_status_card"] });
+  if (hasOptional("copytrading_signals")) sections.push({ id: "deposit-copytrading", type: "full", title: "CopyTrading", transition: "hard-break", slots: ["copytrading_signals"] });
+  if (hasOptional("pamm_products")) sections.push({ id: "deposit-pamm", type: "full", title: "PAMM", transition: "hard-break", slots: ["pamm_products"] });
   const referralFaqSlots = ["referral_link_card", "faq_section"].filter(hasOptional);
-  if (referralFaqSlots.length) sections.push({ id: "deposit-referral-faq", type: referralFaqSlots.length > 1 ? "split" : "rail", title: "推广与帮助", slots: referralFaqSlots });
+  if (referralFaqSlots.length) sections.push({ id: "deposit-referral-faq", type: referralFaqSlots.length > 1 ? "split" : "rail", title: "推广与帮助", transition: "hard-break", slots: referralFaqSlots });
   ["announcements", "market_news", "support_contact", "app_download"].forEach((slot) => {
-    if (hasOptional(slot)) sections.push({ id: `deposit-${slot.replace(/_/g, "-")}`, type: LARGE_FULL_ROW_HOME_BLOCKS.has(slot) ? "full" : "split", title: homepageSectionTitleForSlot(slot, slot), slots: [slot] });
+    if (hasOptional(slot)) sections.push({ id: `deposit-${slot.replace(/_/g, "-")}`, type: LARGE_FULL_ROW_HOME_BLOCKS.has(slot) ? "full" : "split", title: homepageSectionTitleForSlot(slot, slot), transition: "hard-break", slots: [slot] });
   });
-  sections.push({ id: "deposit-performance", type: "full", title: "账号表现", slots: ["trading_account_highlight"] });
-  sections.push({ id: "deposit-accounts", type: "full", title: "交易账号", slots: ["trading_accounts_list"] });
+  sections.push({ id: "deposit-performance", type: "full", title: "账号表现", transition: "hard-break", slots: ["trading_account_highlight"] });
+  sections.push({ id: "deposit-accounts", type: "full", title: "交易账号", transition: "connected", slots: ["trading_accounts_list"] });
   if (hasOptional("risk_disclosure") || settings.riskDisclosure?.enabled || /风险提示|风险披露|保证金|杠杆/.test(text)) {
-    sections.push({ id: "risk-disclosure-footer", type: "full", title: "风险提示", variant: "legal-strip", slots: ["risk_disclosure"] });
+    sections.push({ id: "risk-disclosure-footer", type: "full", title: "风险提示", variant: "legal-strip", transition: "hard-break", slots: ["risk_disclosure"] });
     settings.riskDisclosure = { ...ensureObject(settings.riskDisclosure), enabled: true };
   }
 
@@ -16327,6 +16505,8 @@ function enforceHomepagePromptIntent(payload, config) {
   if (intent === "deposit") {
     enforceServerDepositConversionContract(next, prompt, payload.variant);
   }
+  applyGoldenStyleContractToHomepageConfig(next, prompt);
+  applySectionTransitionsToHomepageConfig(next);
 
   const finalUnderstanding = extractHomepageUnderstanding(prompt);
   const isCostWorkbench = finalUnderstanding.wantsTradingCostWorkbench;
@@ -18154,6 +18334,8 @@ async function callProvider(payload) {
     applyGoldenStyleContractToHomepageConfig(mockConfig, policyPayload.prompt, repaired.repairActions);
     enforceFourColumnTradingAccountContract(mockConfig, policyPayload.prompt);
     ensureLargeHomepageBrickPlanSections(mockConfig);
+    applyGoldenStyleContractToHomepageConfig(mockConfig, policyPayload.prompt, repaired.repairActions);
+    applySectionTransitionsToHomepageConfig(mockConfig, repaired.repairActions);
     const combinedPolicyRepair = mergeHomepageModulePolicyRepairResults(repaired.modulePolicyRepairResult, pagePlanPolicyRepair);
     repaired.config = mockConfig;
     repaired.validation = validateHomepageConfig(mockConfig, guidedSnapshot, modulePolicy, combinedPolicyRepair);
@@ -18240,6 +18422,8 @@ async function callProvider(payload) {
   applyGoldenStyleContractToHomepageConfig(homepageConfig, policyPayload.prompt, repaired.repairActions);
   enforceFourColumnTradingAccountContract(homepageConfig, policyPayload.prompt);
   ensureLargeHomepageBrickPlanSections(homepageConfig);
+  applyGoldenStyleContractToHomepageConfig(homepageConfig, policyPayload.prompt, repaired.repairActions);
+  applySectionTransitionsToHomepageConfig(homepageConfig, repaired.repairActions);
   const combinedPolicyRepair = mergeHomepageModulePolicyRepairResults(repaired.modulePolicyRepairResult, pagePlanPolicyRepair);
   repaired.config = homepageConfig;
   repaired.validation = validateHomepageConfig(homepageConfig, guidedSnapshot, modulePolicy, combinedPolicyRepair);

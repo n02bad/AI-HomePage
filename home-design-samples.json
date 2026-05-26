@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-05-19T07:19:39.173Z",
+  "updatedAt": "2026-05-25T10:39:42.662Z",
   "samples": [
     {
       "id": "visual-mpc95cvc-2a726",
@@ -71,97 +71,1891 @@
       "updatedAt": "2026-05-19T06:28:49.130Z"
     },
     {
-      "id": "visual-mpc9ixlw-4b91e",
+      "id": "visual-mpkvl6xu-0c30c",
       "sampleKind": "golden-page",
       "sourceType": "visual-only",
       "visualOnly": true,
       "isGolden": true,
       "isAntiExample": false,
-      "name": "NEW HOMEPAGE",
-      "scenario": "科技化，账户总览明细，新用户Onboardding，营销活动，快捷操作简约",
-      "pageIntent": "trader/onboarding",
-      "themePreset": "",
-      "visualStyle": "",
-      "prompt": "科技化，账户总览明细，新用户Onboardding，营销活动，快捷操作简约",
-      "aestheticScore": 100,
-      "humanScore": 100,
+      "name": "01-client-home-original",
+      "scenario": "请生成 Forex CRM 用户端首页完整页面 JSON，不是单组件，不是 slot 片段。 页面语言：zh-CN，不允许中英文混用，除 MT4/MT5/Sirix/XOH/Fortex 等产品名外，所有按钮和标题使用中文，另外这个界面的各",
+      "pageIntent": "onboarding",
+      "themePreset": "trustBlue",
+      "visualStyle": "trustBlue / structured homepage",
+      "prompt": "请生成 Forex CRM 用户端首页完整页面 JSON，不是单组件，不是 slot 片段。 页面语言：zh-CN，不允许中英文混用，除 MT4/MT5/Sirix/XOH/Fortex 等产品名外，所有按钮和标题使用中文，另外这个界面的各个工的交互样式要处理出来。 设计目标： 打造一个可发布的 Forex CRM 用户首页，视觉对标成熟国际金融 SaaS，蓝色金融、清爽、精致、扁平化，但不能只是普通白卡片堆叠，整体要保持一致性。 页面布局： - 桌面端宽度按 1440px 设计，内容最大宽度 1280px。 - 使用 12 栅格，模块间距 16-24px。 - 首屏只放 4 类模块：欢迎资产区、Onboarding、CopyTrading、快捷入口。 - 第二屏放交易账号列表、账号表现、推广链接。 - 底部放 FAQ 和风险提示。 - 不允许重复展示同一组资产数据。如果欢迎模块已展示账户概览，则不要再单独生成资产概览模块。 模块顺序： 1. 欢迎 + 账户概览 + 主 CTA 2. 新手 Onboarding 引导 3. CopyTrading 信号源推荐 4. 快捷入口 5. 交易账号列表 6. 账号表现 7. 推广链接 8. FAQ 9. 风险提示 强制要求： - 主 CTA 统一为“立即入金”。 - Onboarding 必须包含 4 步：KYC、开真实账户、首次入金、首次交易。 - 交易账号列表必须同时包含 Live 和 Demo。 - 交易账号卡片桌面端一行 4 张，使用紧凑卡片。 - CopyTrading 必须有 1-3 个信号源，每个信号源展示收益率、最大回撤、30D 面积图。 - 推广链接必须展示链接地址、邀请码、复制按钮。 - 风险提示必须在最底部，默认折叠，支持展开。 视觉规则： - 禁止普通白卡片堆叠。 - 使用轻渐变背景、精致 1px 边框、柔和阴影、金融蓝主色。 - 图标使用扁平化金融图标，不要普通线框图标。 - 图表必须像真实 ECharts 面积图，不要简单直线占位。 - 所有模块需要有清晰标题、状态标签、主要操作和辅助操作层级。 输出",
+      "aestheticScore": 92,
+      "humanScore": 92,
       "scoreDimensions": {
-        "firstScreenFocus": 10,
-        "informationHierarchy": 10,
-        "moduleBalance": 10,
-        "componentCraft": 10,
-        "financialTone": 10,
-        "businessTruth": 10,
-        "responsive": 10,
-        "visualConsistency": 10,
-        "publishability": 10
+        "firstScreenFocus": 8,
+        "informationHierarchy": 8,
+        "moduleBalance": 9,
+        "componentCraft": 8,
+        "financialTone": 9,
+        "businessTruth": 8,
+        "responsive": 8,
+        "visualConsistency": 8,
+        "publishability": 8
       },
       "tags": [
-        "trader/onboarding",
+        "trustBlue",
+        "onboarding",
+        "trustBlue / structured homepage",
         "新客开户",
+        "默认资产首页",
+        "入金转化",
+        "出金安全",
         "专业交易",
+        "CopyTrading",
+        "IB 推广",
+        "风控合规",
+        "白标资金安全"
+      ],
+      "scenarioTags": [
+        "新客开户",
+        "默认资产首页",
+        "入金转化",
+        "出金安全",
+        "专业交易",
+        "CopyTrading",
+        "IB 推广",
+        "风控合规",
+        "白标资金安全",
+        "暗色高端"
+      ],
+      "page": {
+        "name": "01-client-home-original",
+        "layout": "本地自动提取的 visual-only 首页骨架。",
+        "hero": "学习功能组件组织：资产总览、钱包列表、交易账号、开户进度、快捷操作、交易表现",
+        "navigation": "",
+        "mobile": ""
+      },
+      "functions": [
+        {
+          "name": "资产总览",
+          "objective": "资产总览在样本中形成了可复用的首页功能组件。",
+          "modules": [
+            "asset_overview"
+          ],
+          "data": [
+            "balance",
+            "equity",
+            "walletTotal"
+          ],
+          "actions": [
+            "查看资产",
+            "入金"
+          ],
+          "states": [
+            "default"
+          ]
+        },
+        {
+          "name": "钱包列表",
+          "objective": "钱包列表在样本中形成了可复用的首页功能组件。",
+          "modules": [
+            "wallet_list"
+          ],
+          "data": [
+            "currency",
+            "availableBalance"
+          ],
+          "actions": [
+            "转账",
+            "出入金"
+          ],
+          "states": [
+            "default"
+          ]
+        },
+        {
+          "name": "交易账号",
+          "objective": "交易账号在样本中形成了可复用的首页功能组件。",
+          "modules": [
+            "trading_accounts"
+          ],
+          "data": [
+            "accountId",
+            "balance",
+            "leverage"
+          ],
+          "actions": [
+            "开新账户",
+            "切换账户"
+          ],
+          "states": [
+            "default"
+          ]
+        },
+        {
+          "name": "开户进度",
+          "objective": "开户进度在样本中形成了可复用的首页功能组件。",
+          "modules": [
+            "onboarding_guide"
+          ],
+          "data": [
+            "stepStatus",
+            "progress"
+          ],
+          "actions": [
+            "继续完成",
+            "去认证"
+          ],
+          "states": [
+            "default"
+          ]
+        },
+        {
+          "name": "快捷操作",
+          "objective": "快捷操作在样本中形成了可复用的首页功能组件。",
+          "modules": [
+            "quick_actions"
+          ],
+          "data": [
+            "actionName",
+            "actionStatus"
+          ],
+          "actions": [
+            "入金",
+            "出金",
+            "转账"
+          ],
+          "states": [
+            "default"
+          ]
+        },
+        {
+          "name": "交易表现",
+          "objective": "交易表现在样本中形成了可复用的首页功能组件。",
+          "modules": [
+            "performance_summary"
+          ],
+          "data": [
+            "pnl",
+            "drawdown",
+            "positions"
+          ],
+          "actions": [
+            "查看报表"
+          ],
+          "states": [
+            "default"
+          ]
+        },
+        {
+          "name": "邀请推广",
+          "objective": "邀请推广在样本中形成了可复用的首页功能组件。",
+          "modules": [
+            "referral_panel"
+          ],
+          "data": [
+            "inviteCode",
+            "commission",
+            "conversion"
+          ],
+          "actions": [
+            "复制链接",
+            "查看推广"
+          ],
+          "states": [
+            "default"
+          ]
+        },
+        {
+          "name": "资金安全",
+          "objective": "资金安全在样本中形成了可复用的首页功能组件。",
+          "modules": [
+            "security_trust"
+          ],
+          "data": [
+            "riskLevel",
+            "margin",
+            "fundSafety"
+          ],
+          "actions": [
+            "查看安全说明"
+          ],
+          "states": [
+            "default"
+          ]
+        }
+      ],
+      "sampleBlocks": [
+        {
+          "id": "sample-block-mpkvl6xz",
+          "name": "资产总览",
+          "page": "first-screen",
+          "function": "资产总览在样本中形成了可复用的首页功能组件。",
+          "componentRefs": [],
+          "visualNotes": [],
+          "dataFields": [
+            "balance",
+            "equity",
+            "walletTotal"
+          ]
+        },
+        {
+          "id": "sample-block-mpkvl6xz",
+          "name": "钱包列表",
+          "page": "content-section",
+          "function": "钱包列表在样本中形成了可复用的首页功能组件。",
+          "componentRefs": [],
+          "visualNotes": [],
+          "dataFields": [
+            "currency",
+            "availableBalance"
+          ]
+        },
+        {
+          "id": "sample-block-mpkvl6xz",
+          "name": "交易账号",
+          "page": "content-section",
+          "function": "交易账号在样本中形成了可复用的首页功能组件。",
+          "componentRefs": [],
+          "visualNotes": [],
+          "dataFields": [
+            "accountId",
+            "balance",
+            "leverage"
+          ]
+        },
+        {
+          "id": "sample-block-mpkvl6xz",
+          "name": "开户进度",
+          "page": "content-section",
+          "function": "开户进度在样本中形成了可复用的首页功能组件。",
+          "componentRefs": [],
+          "visualNotes": [],
+          "dataFields": [
+            "stepStatus",
+            "progress"
+          ]
+        },
+        {
+          "id": "sample-block-mpkvl6xz",
+          "name": "快捷操作",
+          "page": "content-section",
+          "function": "快捷操作在样本中形成了可复用的首页功能组件。",
+          "componentRefs": [],
+          "visualNotes": [],
+          "dataFields": [
+            "actionName",
+            "actionStatus"
+          ]
+        },
+        {
+          "id": "sample-block-mpkvl6xz",
+          "name": "交易表现",
+          "page": "content-section",
+          "function": "交易表现在样本中形成了可复用的首页功能组件。",
+          "componentRefs": [],
+          "visualNotes": [],
+          "dataFields": [
+            "pnl",
+            "drawdown",
+            "positions"
+          ]
+        },
+        {
+          "id": "sample-block-mpkvl6xz",
+          "name": "邀请推广",
+          "page": "content-section",
+          "function": "邀请推广在样本中形成了可复用的首页功能组件。",
+          "componentRefs": [],
+          "visualNotes": [],
+          "dataFields": [
+            "inviteCode",
+            "commission",
+            "conversion"
+          ]
+        },
+        {
+          "id": "sample-block-mpkvl6xz",
+          "name": "资金安全",
+          "page": "content-section",
+          "function": "资金安全在样本中形成了可复用的首页功能组件。",
+          "componentRefs": [],
+          "visualNotes": [],
+          "dataFields": [
+            "riskLevel",
+            "margin",
+            "fundSafety"
+          ]
+        }
+      ],
+      "componentRefs": [],
+      "goodPatterns": [
+        "学习功能组件组织：资产总览、钱包列表、交易账号、开户进度、快捷操作、交易表现"
+      ],
+      "avoidPatterns": [
+        "不要像素级复刻原稿布局",
+        "不要照搬品牌 Logo、图片、插画和受保护素材",
+        "不要复制原稿里的具体金额、姓名、账户、活动文案"
+      ],
+      "whyGood": "学习功能组件组织：资产总览、钱包列表、交易账号、开户进度、快捷操作、交易表现",
+      "whyBad": "",
+      "applicableScenarios": [
+        "新客开户",
+        "默认资产首页",
+        "入金转化",
+        "出金安全",
+        "专业交易",
+        "CopyTrading",
+        "IB 推广",
+        "风控合规",
+        "暗色高端",
+        "白标资金安全"
+      ],
+      "forbiddenReuse": "不要像素级复刻原稿布局；不要照搬品牌 Logo、图片、插画和受保护素材；不要复制原稿里的具体金额、姓名、账户、活动文案",
+      "homepageConfig": null,
+      "configSnapshot": null,
+      "referenceAssetId": "reference-1779693548891-227c8bb792ff3",
+      "sourceAssetType": "html",
+      "renderEvidence": {
+        "screenshotPath": "artifacts/home-golden-samples/visual-mpkvl6xu-0c30c-mpkw9aze-content-preview.png",
+        "screenshotUrl": "/artifacts/home-golden-samples/visual-mpkvl6xu-0c30c-mpkw9aze-content-preview.png",
+        "domSnapshot": "欢迎回来, Huang! Track your trading performance and manage your account. Customize Dashboard Sunday, May 3, 2026 账户总览 账户余额 (USD) 5,011,295.94 交易账号余额 (USD) 4,999,999.95 钱包余额 (USD) 11,295.99 EUR 已按汇率折算为 USD 入金 出金 账户开通进度 0/3 完成以下步骤即可开始真实账户交易 完善个人资料 身份认证 (KYC) 首次入金 去完成：完善个人资料 进行中 5月盈利王挑战赛 奖池 $9,600 · 剩余 28 days · 共 3 项活动 查看详情 快速操作 开新账户 入金 出金 转账 Transactions Order History Positions 邀请链接 点击 123 CRM 123 TA 50 测试注册链接 http://user-1.hcs55.com:38080/regist-real?invitid=555555690-123 Refer Code 555555690-123 交易账号 全部 Live Demo 开户 真实账号 模拟账号 绑定账号 Live 80009 MT5 · HCHoldingsGroup Trade 999,999.99 余额(USD) 净值 1,002,480.64 信用金 7788.00 账号类型 ECN 预付款比例 286% Live 80010 MT5 · HCHoldingsGroup Trade CopyTrading 999,999.99 余额(USD) 净值 1,001,185.20 信用金 7788.00 账号类型 ECN 预付款比例 312% Live 80011 MT5 · HCHoldingsGroup PAMM 999,999.99 余额(USD) 净值 997,640.32 信用金 7788.00 账号类型 ECN 预付款比例 248% Live 80012 MT5 · HCHoldingsGroup Trade",
+        "aiHtml": "",
+        "aiCss": "",
+        "cssSummary": {
+          "hasCss": true,
+          "colorPalette": [],
+          "spacingScale": [],
+          "radiusScale": [],
+          "shadowStyle": [],
+          "fontScale": [],
+          "layoutSignals": [],
+          "componentStyleNotes": [],
+          "cssLength": 20,
+          "htmlStructure": {
+            "hasHtml": true,
+            "tags": [],
+            "headings": [],
+            "classNames": [],
+            "dataHooks": [
+              "light",
+              "./styles.css"
+            ],
+            "sectionCount": 0,
+            "textExcerpt": "欢迎回来, Huang! Track your trading performance and manage your account. Customize Dashboard Sunday, May 3, 2026 账户总览 账户余额 (USD) 5,011,295.94 交易账号余额 (USD) 4,999,999.95 钱包余额 (USD) 11,295.99 EUR 已按汇率折算为 USD 入金 出金 账户开通进度 0/3 完成以下步骤即可开始真实账户交易 完善个人资料 身份认证 (KYC) 首次入金 去完成：完善个人资料 进行中 5月盈利王挑战赛 奖池 $9,600 · 剩余 28 days · 共 3 项活动 查看详情 快速操作 开新账户 入金 出金 转账 Transactions Order History Positions 邀请链接 点击 123 CRM 123 TA 50 测试注册链接 http://user-1.hcs55.com:38080/regist-real?invitid=555555690-123 Refer Code 555555690-123 交易账号 全部 Live Demo 开户 真实账号 模拟账号 绑定账号 Live 80009 MT5 · HCHoldingsGroup Trade 999,999.99 余额(USD) 净值 1,002,480.64 信用金 7788.00 账号类型 ECN 预付款比例 286% Live 80010 MT5 · HCHoldingsGroup Trade CopyTrading 999,999.99 余额(USD) 净值 1,001,185.20 信用金 7788.00 账号类型 ECN 预付款比例 312% Live 80011 MT5 · HCHoldingsGroup PAMM 999,999.99 余额(USD) 净值 997,640.32 信用金 7788.00 账号类型 ECN 预付款比例 248% Live 80012 MT5 · HCHoldingsGroup Trade "
+          },
+          "sourceFiles": [
+            {
+              "name": "01-client-home-original.html",
+              "type": "html",
+              "size": 138579,
+              "width": 0,
+              "height": 0,
+              "layoutHint": "",
+              "dominantColors": []
+            }
+          ],
+          "referenceAssetId": "reference-1779693548891-227c8bb792ff3",
+          "referenceType": "html",
+          "sourceAssetIds": [
+            "reference-1779693548891-227c8bb792ff3"
+          ],
+          "sourceAssetNames": [
+            "01-client-home-original.html"
+          ],
+          "textExcerpt": "欢迎回来, Huang! Track your trading performance and manage your account. Customize Dashboard Sunday, May 3, 2026 账户总览 账户余额 (USD) 5,011,295.94 交易账号余额 (USD) 4,999,999.95 钱包余额 (USD) 11,295.99 EUR 已按汇率折算为 USD 入金 出金 账户开通进度 0/3 完成以下步骤即可开始真实账户交易 完善个人资料 身份认证 (KYC) 首次入金 去完成：完善个人资料 进行中 5月盈利王挑战赛 奖池 $9,600 · 剩余 28 days · 共 3 项活动 查看详情 快速操作 开新账户 入金 出金 转账 Transactions Order History Positions 邀请链接 点击 123 CRM 123 TA 50 测试注册链接 http://user-1.hcs55.com:38080/regist-real?invitid=555555690-123 Refer Code 555555690-123 交易账号 全部 Live Demo 开户 真实账号 模拟账号 绑定账号 Live 80009 MT5 · HCHoldingsGroup Trade 999,999.99 余额(USD) 净值 1,002,480.64 信用金 7788.00 账号类型 ECN 预付款比例 286% Live 80010 MT5 · HCHoldingsGroup Trade CopyTrading 999,999.99 余额(USD) 净值 1,001,185.20 信用金 7788.00 账号类型 ECN 预付款比例 312% Live 80011 MT5 · HCHoldingsGroup PAMM 999,999.99 余额(USD) 净值 997,640.32 信用金 7788.00 账号类型 ECN 预付款比例 248% Live 80012 MT5 · HCHoldingsGroup Trade "
+        },
+        "themeTokens": {
+          "themePreset": "trustBlue",
+          "visualStyle": "trustBlue / structured homepage",
+          "colorPalette": [],
+          "spacingScale": [],
+          "radiusScale": [],
+          "shadowStyle": [],
+          "fontScale": []
+        },
+        "capturedAt": "2026-05-25T07:39:08.964Z",
+        "sourceUrl": "/artifacts/home-ai-reference-assets/reference-1779693548891-227c8bb792ff3-01-client-home-original.html"
+      },
+      "promptSeeds": [
+        "请生成 Forex CRM 用户端首页完整页面 JSON，不是单组件，不是 slot 片段。 页面语言：zh-CN，不允许中英文混用，除 MT4/MT5/Sirix/XOH/Fortex 等产品名外，所有按钮和标题使用中文，另外这个界面的各个工的交互样式要处理出来。 设计目标： 打造一个可发布的 Forex CRM 用户首页，视觉对标成熟国际金融 SaaS，蓝色金融、清爽、精致、扁平化，但不能只是普通白卡片堆叠，整体要保持一致性。 页面布局： - 桌面端宽度按 1440px 设计，内容最大宽度 1280px。 - ",
+        "请生成 Forex CRM 用户端首页完整页面 JSON，不是单组件，不是 slot 片段。 页面语言：zh-CN，不允许中英文混用，除 MT4/MT5/Sirix/XOH/Fortex 等产品名外，所有按钮和标题使用中文，另外这个界面的各个工的交互样式要处理出来。 设计目标： 打造一个可发布的 Forex CRM 用户首页，视觉对标成熟国际金融 SaaS，蓝色金融、清爽、精致、扁平化，但不能只是普通白卡片堆叠，整体要保持一致性。 页面布局： - 桌面端宽度按 1440px 设计，内容最大宽度 1280px。 -"
+      ],
+      "createdAt": "2026-05-25T07:19:08.903Z",
+      "updatedAt": "2026-05-25T07:39:08.964Z"
+    },
+    {
+      "id": "visual-mpkytenj-f80c5",
+      "sampleKind": "golden-page",
+      "sourceType": "visual-only",
+      "visualOnly": true,
+      "isGolden": true,
+      "isAntiExample": false,
+      "name": "02-client-home-version-1",
+      "scenario": "请生成 Forex CRM 用户端首页完整页面 JSON，不是单组件，不是 slot 片段。 页面语言：zh-CN，不允许中英文混用，除 MT4/MT5/Sirix/XOH/Fortex 等产品名外，所有按钮和标题使用中文，另外这个界面的各",
+      "pageIntent": "onboarding",
+      "themePreset": "trustBlue",
+      "visualStyle": "trustBlue / structured homepage",
+      "prompt": "请生成 Forex CRM 用户端首页完整页面 JSON，不是单组件，不是 slot 片段。 页面语言：zh-CN，不允许中英文混用，除 MT4/MT5/Sirix/XOH/Fortex 等产品名外，所有按钮和标题使用中文，另外这个界面的各个工的交互样式要处理出来。 设计目标： 打造一个可发布的 Forex CRM 用户首页，视觉对标成熟国际金融 SaaS，蓝色金融、清爽、精致、扁平化，但不能只是普通白卡片堆叠，整体要保持一致性。 页面布局： - 桌面端宽度按 1440px 设计，内容最大宽度 1280px。 - 使用 12 栅格，模块间距 16-24px。 - 首屏只放 4 类模块：欢迎资产区、Onboarding、CopyTrading、快捷入口。 - 第二屏放交易账号列表、账号表现、推广链接。 - 底部放 FAQ 和风险提示。 - 不允许重复展示同一组资产数据。如果欢迎模块已展示账户概览，则不要再单独生成资产概览模块。 模块顺序： 1. 欢迎 + 账户概览 + 主 CTA 2. 新手 Onboarding 引导 3. CopyTrading 信号源推荐 4. 快捷入口 5. 交易账号列表 6. 账号表现 7. 推广链接 8. FAQ 9. 风险提示 强制要求： - 主 CTA 统一为“立即入金”。 - Onboarding 必须包含 4 步：KYC、开真实账户、首次入金、首次交易。 - 交易账号列表必须同时包含 Live 和 Demo。 - 交易账号卡片桌面端一行 4 张，使用紧凑卡片。 - CopyTrading 必须有 1-3 个信号源，每个信号源展示收益率、最大回撤、30D 面积图。 - 推广链接必须展示链接地址、邀请码、复制按钮。 - 风险提示必须在最底部，默认折叠，支持展开。 视觉规则： - 禁止普通白卡片堆叠。 - 使用轻渐变背景、精致 1px 边框、柔和阴影、金融蓝主色。 - 图标使用扁平化金融图标，不要普通线框图标。 - 图表必须像真实 ECharts 面积图，不要简单直线占位。 - 所有模块需要有清晰标题、状态标签、主要操作和辅助操作层级。 输出",
+      "aestheticScore": 92,
+      "humanScore": 92,
+      "scoreDimensions": {
+        "firstScreenFocus": 8,
+        "informationHierarchy": 8,
+        "moduleBalance": 9,
+        "componentCraft": 8,
+        "financialTone": 9,
+        "businessTruth": 8,
+        "responsive": 8,
+        "visualConsistency": 8,
+        "publishability": 8
+      },
+      "tags": [
+        "trustBlue",
+        "onboarding",
+        "trustBlue / structured homepage",
+        "新客开户",
+        "默认资产首页",
+        "入金转化",
+        "出金安全",
+        "专业交易",
+        "CopyTrading",
+        "IB 推广",
+        "风控合规",
+        "白标资金安全"
+      ],
+      "scenarioTags": [
+        "新客开户",
+        "默认资产首页",
+        "入金转化",
+        "出金安全",
+        "专业交易",
+        "CopyTrading",
+        "IB 推广",
+        "风控合规",
+        "白标资金安全",
+        "暗色高端"
+      ],
+      "page": {
+        "name": "02-client-home-version-1",
+        "layout": "本地自动提取的 visual-only 首页骨架。",
+        "hero": "学习功能组件组织：资产总览、钱包列表、交易账号、开户进度、快捷操作、交易表现",
+        "navigation": "",
+        "mobile": ""
+      },
+      "functions": [
+        {
+          "name": "资产总览",
+          "objective": "资产总览在样本中形成了可复用的首页功能组件。",
+          "modules": [
+            "asset_overview"
+          ],
+          "data": [
+            "balance",
+            "equity",
+            "walletTotal"
+          ],
+          "actions": [
+            "查看资产",
+            "入金"
+          ],
+          "states": [
+            "default"
+          ]
+        },
+        {
+          "name": "钱包列表",
+          "objective": "钱包列表在样本中形成了可复用的首页功能组件。",
+          "modules": [
+            "wallet_list"
+          ],
+          "data": [
+            "currency",
+            "availableBalance"
+          ],
+          "actions": [
+            "转账",
+            "出入金"
+          ],
+          "states": [
+            "default"
+          ]
+        },
+        {
+          "name": "交易账号",
+          "objective": "交易账号在样本中形成了可复用的首页功能组件。",
+          "modules": [
+            "trading_accounts"
+          ],
+          "data": [
+            "accountId",
+            "balance",
+            "leverage"
+          ],
+          "actions": [
+            "开新账户",
+            "切换账户"
+          ],
+          "states": [
+            "default"
+          ]
+        },
+        {
+          "name": "开户进度",
+          "objective": "开户进度在样本中形成了可复用的首页功能组件。",
+          "modules": [
+            "onboarding_guide"
+          ],
+          "data": [
+            "stepStatus",
+            "progress"
+          ],
+          "actions": [
+            "继续完成",
+            "去认证"
+          ],
+          "states": [
+            "default"
+          ]
+        },
+        {
+          "name": "快捷操作",
+          "objective": "快捷操作在样本中形成了可复用的首页功能组件。",
+          "modules": [
+            "quick_actions"
+          ],
+          "data": [
+            "actionName",
+            "actionStatus"
+          ],
+          "actions": [
+            "入金",
+            "出金",
+            "转账"
+          ],
+          "states": [
+            "default"
+          ]
+        },
+        {
+          "name": "交易表现",
+          "objective": "交易表现在样本中形成了可复用的首页功能组件。",
+          "modules": [
+            "performance_summary"
+          ],
+          "data": [
+            "pnl",
+            "drawdown",
+            "positions"
+          ],
+          "actions": [
+            "查看报表"
+          ],
+          "states": [
+            "default"
+          ]
+        },
+        {
+          "name": "邀请推广",
+          "objective": "邀请推广在样本中形成了可复用的首页功能组件。",
+          "modules": [
+            "referral_panel"
+          ],
+          "data": [
+            "inviteCode",
+            "commission",
+            "conversion"
+          ],
+          "actions": [
+            "复制链接",
+            "查看推广"
+          ],
+          "states": [
+            "default"
+          ]
+        },
+        {
+          "name": "资金安全",
+          "objective": "资金安全在样本中形成了可复用的首页功能组件。",
+          "modules": [
+            "security_trust"
+          ],
+          "data": [
+            "riskLevel",
+            "margin",
+            "fundSafety"
+          ],
+          "actions": [
+            "查看安全说明"
+          ],
+          "states": [
+            "default"
+          ]
+        }
+      ],
+      "sampleBlocks": [
+        {
+          "id": "sample-block-mpkytenp",
+          "name": "资产总览",
+          "page": "first-screen",
+          "function": "资产总览在样本中形成了可复用的首页功能组件。",
+          "componentRefs": [],
+          "visualNotes": [],
+          "dataFields": [
+            "balance",
+            "equity",
+            "walletTotal"
+          ]
+        },
+        {
+          "id": "sample-block-mpkytenp",
+          "name": "钱包列表",
+          "page": "content-section",
+          "function": "钱包列表在样本中形成了可复用的首页功能组件。",
+          "componentRefs": [],
+          "visualNotes": [],
+          "dataFields": [
+            "currency",
+            "availableBalance"
+          ]
+        },
+        {
+          "id": "sample-block-mpkytenp",
+          "name": "交易账号",
+          "page": "content-section",
+          "function": "交易账号在样本中形成了可复用的首页功能组件。",
+          "componentRefs": [],
+          "visualNotes": [],
+          "dataFields": [
+            "accountId",
+            "balance",
+            "leverage"
+          ]
+        },
+        {
+          "id": "sample-block-mpkytenp",
+          "name": "开户进度",
+          "page": "content-section",
+          "function": "开户进度在样本中形成了可复用的首页功能组件。",
+          "componentRefs": [],
+          "visualNotes": [],
+          "dataFields": [
+            "stepStatus",
+            "progress"
+          ]
+        },
+        {
+          "id": "sample-block-mpkytenp",
+          "name": "快捷操作",
+          "page": "content-section",
+          "function": "快捷操作在样本中形成了可复用的首页功能组件。",
+          "componentRefs": [],
+          "visualNotes": [],
+          "dataFields": [
+            "actionName",
+            "actionStatus"
+          ]
+        },
+        {
+          "id": "sample-block-mpkytenp",
+          "name": "交易表现",
+          "page": "content-section",
+          "function": "交易表现在样本中形成了可复用的首页功能组件。",
+          "componentRefs": [],
+          "visualNotes": [],
+          "dataFields": [
+            "pnl",
+            "drawdown",
+            "positions"
+          ]
+        },
+        {
+          "id": "sample-block-mpkytenp",
+          "name": "邀请推广",
+          "page": "content-section",
+          "function": "邀请推广在样本中形成了可复用的首页功能组件。",
+          "componentRefs": [],
+          "visualNotes": [],
+          "dataFields": [
+            "inviteCode",
+            "commission",
+            "conversion"
+          ]
+        },
+        {
+          "id": "sample-block-mpkytenp",
+          "name": "资金安全",
+          "page": "content-section",
+          "function": "资金安全在样本中形成了可复用的首页功能组件。",
+          "componentRefs": [],
+          "visualNotes": [],
+          "dataFields": [
+            "riskLevel",
+            "margin",
+            "fundSafety"
+          ]
+        }
+      ],
+      "componentRefs": [],
+      "goodPatterns": [
+        "学习功能组件组织：资产总览、钱包列表、交易账号、开户进度、快捷操作、交易表现"
+      ],
+      "avoidPatterns": [
+        "不要像素级复刻原稿布局",
+        "不要照搬品牌 Logo、图片、插画和受保护素材",
+        "不要复制原稿里的具体金额、姓名、账户、活动文案"
+      ],
+      "whyGood": "学习功能组件组织：资产总览、钱包列表、交易账号、开户进度、快捷操作、交易表现",
+      "whyBad": "",
+      "applicableScenarios": [
+        "新客开户",
+        "默认资产首页",
+        "入金转化",
+        "出金安全",
+        "专业交易",
+        "CopyTrading",
+        "IB 推广",
+        "风控合规",
+        "暗色高端",
+        "白标资金安全"
+      ],
+      "forbiddenReuse": "不要像素级复刻原稿布局；不要照搬品牌 Logo、图片、插画和受保护素材；不要复制原稿里的具体金额、姓名、账户、活动文案",
+      "homepageConfig": null,
+      "configSnapshot": null,
+      "referenceAssetId": "reference-1779698970978-489216e7a8b75",
+      "sourceAssetType": "html",
+      "renderEvidence": {
+        "screenshotPath": "artifacts/home-golden-samples/visual-mpkytenj-f80c5-mpkzar0w-preview.png",
+        "screenshotUrl": "/artifacts/home-golden-samples/visual-mpkytenj-f80c5-mpkzar0w-preview.png",
+        "domSnapshot": "ForexCRM - 蓝色金融工作台 :root { --blue: #2f66e8; --blue-dark: #275bd5; --blue-soft: #eef4ff; --border: #d8e1ef; --border-light: #e8edf5; --text: #0f172a; --muted: #64748b; --sidebar: #f8fafc; --surface: #ffffff; --surface-soft: #f7faff; --shadow: 0 16px 40px rgba(15, 23, 42, 0.07); } * { box-sizing: border-box; } body { margin: 0; min-height: 100vh; overflow-x: hidden; background: radial-gradient(circle at 56% 6%, rgba(47, 102, 232, 0.045), transparent 28%), linear-gradient(180deg, #ffffff 0%, #f8fbff 100%); color: var(--text); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", sans-serif; font-size: 14px; letter-spacing: 0; } button, input { font: inherit; } button { cursor: pointer; } a { color: inherit; text-decoration: none; } svg { display: block; } .sidebar { position: fixed; inset: 0 auto 0 0; width: 278px; display: flex; flex-direction: column; border-right: 1px solid var(--border-light); background: var(--sidebar); z-index: 10; } .brand { display: flex; align-items: center; gap: 14px; padding: 21px 16px 20px; } .brand-mark { width: 43px; height: 43px; display: grid; place-items: center; border-radius: 1",
+        "aiHtml": "",
+        "aiCss": "",
+        "cssSummary": {
+          "hasCss": true,
+          "colorPalette": [],
+          "spacingScale": [],
+          "radiusScale": [],
+          "shadowStyle": [],
+          "fontScale": [],
+          "layoutSignals": [],
+          "componentStyleNotes": [],
+          "cssLength": 20,
+          "htmlStructure": {
+            "hasHtml": true,
+            "tags": [],
+            "headings": [],
+            "classNames": [],
+            "dataHooks": [
+              "light",
+              "./styles.css"
+            ],
+            "sectionCount": 0,
+            "textExcerpt": "ForexCRM - 蓝色金融工作台 :root { --blue: #2f66e8; --blue-dark: #275bd5; --blue-soft: #eef4ff; --border: #d8e1ef; --border-light: #e8edf5; --text: #0f172a; --muted: #64748b; --sidebar: #f8fafc; --surface: #ffffff; --surface-soft: #f7faff; --shadow: 0 16px 40px rgba(15, 23, 42, 0.07); } * { box-sizing: border-box; } body { margin: 0; min-height: 100vh; overflow-x: hidden; background: radial-gradient(circle at 56% 6%, rgba(47, 102, 232, 0.045), transparent 28%), linear-gradient(180deg, #ffffff 0%, #f8fbff 100%); color: var(--text); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", sans-serif; font-size: 14px; letter-spacing: 0; } button, input { font: inherit; } button { cursor: pointer; } a { color: inherit; text-decoration: none; } svg { display: block; } .sidebar { position: fixed; inset: 0 auto 0 0; width: 278px; display: flex; flex-direction: column; border-right: 1px solid var(--border-light); background: var(--sidebar); z-index: 10; } .brand { display: flex; align-items: center; gap: 14px; padding: 21px 16px 20px; } .brand-mark { width: 43px; height: 43px; display: grid; place-items: center; border-radius: 1"
+          },
+          "sourceFiles": [
+            {
+              "name": "02-client-home-version-1.html",
+              "type": "html",
+              "size": 160993,
+              "width": 0,
+              "height": 0,
+              "layoutHint": "",
+              "dominantColors": []
+            }
+          ],
+          "referenceAssetId": "reference-1779698970978-489216e7a8b75",
+          "referenceType": "html",
+          "sourceAssetIds": [
+            "reference-1779698970978-489216e7a8b75"
+          ],
+          "sourceAssetNames": [
+            "02-client-home-version-1.html"
+          ],
+          "textExcerpt": "ForexCRM - 蓝色金融工作台 :root { --blue: #2f66e8; --blue-dark: #275bd5; --blue-soft: #eef4ff; --border: #d8e1ef; --border-light: #e8edf5; --text: #0f172a; --muted: #64748b; --sidebar: #f8fafc; --surface: #ffffff; --surface-soft: #f7faff; --shadow: 0 16px 40px rgba(15, 23, 42, 0.07); } * { box-sizing: border-box; } body { margin: 0; min-height: 100vh; overflow-x: hidden; background: radial-gradient(circle at 56% 6%, rgba(47, 102, 232, 0.045), transparent 28%), linear-gradient(180deg, #ffffff 0%, #f8fbff 100%); color: var(--text); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", sans-serif; font-size: 14px; letter-spacing: 0; } button, input { font: inherit; } button { cursor: pointer; } a { color: inherit; text-decoration: none; } svg { display: block; } .sidebar { position: fixed; inset: 0 auto 0 0; width: 278px; dis"
+        },
+        "themeTokens": {
+          "themePreset": "trustBlue",
+          "visualStyle": "trustBlue / structured homepage",
+          "colorPalette": [],
+          "spacingScale": [],
+          "radiusScale": [],
+          "shadowStyle": [],
+          "fontScale": []
+        },
+        "capturedAt": "2026-05-25T09:03:12.253Z",
+        "sourceUrl": "/artifacts/home-ai-reference-assets/reference-1779698970978-489216e7a8b75-02-client-home-version-1.html"
+      },
+      "promptSeeds": [
+        "请生成 Forex CRM 用户端首页完整页面 JSON，不是单组件，不是 slot 片段。 页面语言：zh-CN，不允许中英文混用，除 MT4/MT5/Sirix/XOH/Fortex 等产品名外，所有按钮和标题使用中文，另外这个界面的各个工的交互样式要处理出来。 设计目标： 打造一个可发布的 Forex CRM 用户首页，视觉对标成熟国际金融 SaaS，蓝色金融、清爽、精致、扁平化，但不能只是普通白卡片堆叠，整体要保持一致性。 页面布局： - 桌面端宽度按 1440px 设计，内容最大宽度 1280px。 - ",
+        "请生成 Forex CRM 用户端首页完整页面 JSON，不是单组件，不是 slot 片段。 页面语言：zh-CN，不允许中英文混用，除 MT4/MT5/Sirix/XOH/Fortex 等产品名外，所有按钮和标题使用中文，另外这个界面的各个工的交互样式要处理出来。 设计目标： 打造一个可发布的 Forex CRM 用户首页，视觉对标成熟国际金融 SaaS，蓝色金融、清爽、精致、扁平化，但不能只是普通白卡片堆叠，整体要保持一致性。 页面布局： - 桌面端宽度按 1440px 设计，内容最大宽度 1280px。 -"
+      ],
+      "createdAt": "2026-05-25T08:49:30.997Z",
+      "updatedAt": "2026-05-25T09:03:12.253Z"
+    },
+    {
+      "id": "visual-mpkz4l4h-61340",
+      "sampleKind": "golden-page",
+      "sourceType": "visual-only",
+      "visualOnly": true,
+      "isGolden": true,
+      "isAntiExample": false,
+      "name": "04-client-home-version-4",
+      "scenario": "请为 ForexCRM 用户端首页生成可发布的首页方案。分级：增长版，在基础能力上加入活动权益、按钮和转化承接。页面布局：宽松布局：增加留白和模块呼吸感，降低同屏信息密度，适合品牌感、高净值或需要高级感的首页。首页样式丰富度：标准丰富：使用",
+      "pageIntent": "vip",
+      "themePreset": "trustBlue",
+      "visualStyle": "trustBlue / structured homepage",
+      "prompt": "请为 ForexCRM 用户端首页生成可发布的首页方案。分级：增长版，在基础能力上加入活动权益、按钮和转化承接。页面布局：宽松布局：增加留白和模块呼吸感，降低同屏信息密度，适合品牌感、高净值或需要高级感的首页。首页样式丰富度：标准丰富：使用品牌主色、1-2 个辅助色和清晰状态色，允许轻量色块、图标底色和模块分区，让首页更有层次但仍保持金融专业感。视觉：蓝色金融，清爽专业。语气：专业稳健。必选模块（不可撤销）：账户概览：使用 asset_overview 展示账户摘要，包含账户余额，钱包余额，交易账号余额，单位：USD、快捷入口：展示操作入口，4-10个快捷入口位置，icon或者icon+文字、交易账号列表：必须同时包含真实交易账号和模拟交易账号的列表，列表可参考交易账号积木块，列表或卡片形式皆可、新手 Onboarding 引导：KYC -> 开真实账户 -> 首次入金 -> 首次交易，帮助新用户完成基础流程，其中首次交易可选；需要有进度的风格，营销的感觉。交易账号模块必须同时包含真实交易账号和模拟交易账号。选填模块：欢迎模块：必须在页面的第一栏，展示客户姓名、问候语、最近登录时间、交易表现：说明Live交易账户的交易表现，左右结构；栏目左侧显示交易账号信息：账号、平台、服务器，余额、净值、信用金、已用保证金、保证金比例、杠杆信息。右侧展示净值面积图echart图表(7D/30D),PnL面积图Echart图表组件。(7D/30D)；这两个面积图优先展示净值面积图，可以点击tab切换至PnL面积图。底部走势摘要条与操作入口形成闭环；在12栏的布局中，必须8+4或者12+0的布局、钱包列表/卡片：使用 wallet_list 独立模块展示多币种钱包卡片，只展示钱包货币、币种图标和钱包余额，不把多币种明细塞到账户概览、热门信号源：宽松布局，在12栏的布局中，必须8+4或者12+0的布局，展示3个推荐的跟单信号源卡片，至少需要展示信号源名称、收益率、收益率面积图Echarts(30d)，模拟的面积图要看起来真实，吸引人，扁平化、推广链接：展示推广链接信息：链接名称、链接地址(",
+      "aestheticScore": 92,
+      "humanScore": 92,
+      "scoreDimensions": {
+        "firstScreenFocus": 8,
+        "informationHierarchy": 8,
+        "moduleBalance": 9,
+        "componentCraft": 8,
+        "financialTone": 9,
+        "businessTruth": 8,
+        "responsive": 8,
+        "visualConsistency": 8,
+        "publishability": 8
+      },
+      "tags": [
+        "trustBlue",
+        "vip",
+        "trustBlue / structured homepage",
+        "新客开户",
+        "默认资产首页",
+        "入金转化",
+        "专业交易",
+        "CopyTrading",
         "IB 推广",
         "活动增长",
+        "客服帮助",
         "极简白"
       ],
       "scenarioTags": [
         "新客开户",
+        "默认资产首页",
+        "入金转化",
         "专业交易",
+        "CopyTrading",
         "IB 推广",
         "活动增长",
-        "极简白"
+        "客服帮助",
+        "极简白",
+        "暗色高端",
+        "黑金 VIP"
       ],
       "page": {
-        "name": "NEW HOMEPAGE",
-        "layout": "visual-only：仅学习外部设计稿的构图、层级、密度和 token 气质。",
-        "hero": "构图完美，视觉有营销感，Onborading的内容很细又简约，邀请模块内容丰富，交易账号可以列表也可以卡片切换，这个组件完美。",
+        "name": "04-client-home-version-4",
+        "layout": "本地自动提取的 visual-only 首页骨架。",
+        "hero": "学习功能组件组织：资产总览、钱包列表、交易账号、开户进度、快捷操作、交易表现",
         "navigation": "",
         "mobile": ""
       },
-      "functions": [],
-      "sampleBlocks": [],
+      "functions": [
+        {
+          "name": "资产总览",
+          "objective": "资产总览在样本中形成了可复用的首页功能组件。",
+          "modules": [
+            "asset_overview"
+          ],
+          "data": [
+            "balance",
+            "equity",
+            "walletTotal"
+          ],
+          "actions": [
+            "查看资产",
+            "入金"
+          ],
+          "states": [
+            "default"
+          ]
+        },
+        {
+          "name": "钱包列表",
+          "objective": "钱包列表在样本中形成了可复用的首页功能组件。",
+          "modules": [
+            "wallet_list"
+          ],
+          "data": [
+            "currency",
+            "availableBalance"
+          ],
+          "actions": [
+            "转账",
+            "出入金"
+          ],
+          "states": [
+            "default"
+          ]
+        },
+        {
+          "name": "交易账号",
+          "objective": "交易账号在样本中形成了可复用的首页功能组件。",
+          "modules": [
+            "trading_accounts"
+          ],
+          "data": [
+            "accountId",
+            "balance",
+            "leverage"
+          ],
+          "actions": [
+            "开新账户",
+            "切换账户"
+          ],
+          "states": [
+            "default"
+          ]
+        },
+        {
+          "name": "开户进度",
+          "objective": "开户进度在样本中形成了可复用的首页功能组件。",
+          "modules": [
+            "onboarding_guide"
+          ],
+          "data": [
+            "stepStatus",
+            "progress"
+          ],
+          "actions": [
+            "继续完成",
+            "去认证"
+          ],
+          "states": [
+            "default"
+          ]
+        },
+        {
+          "name": "快捷操作",
+          "objective": "快捷操作在样本中形成了可复用的首页功能组件。",
+          "modules": [
+            "quick_actions"
+          ],
+          "data": [
+            "actionName",
+            "actionStatus"
+          ],
+          "actions": [
+            "入金",
+            "出金",
+            "转账"
+          ],
+          "states": [
+            "default"
+          ]
+        },
+        {
+          "name": "交易表现",
+          "objective": "交易表现在样本中形成了可复用的首页功能组件。",
+          "modules": [
+            "performance_summary"
+          ],
+          "data": [
+            "pnl",
+            "drawdown",
+            "positions"
+          ],
+          "actions": [
+            "查看报表"
+          ],
+          "states": [
+            "default"
+          ]
+        },
+        {
+          "name": "邀请推广",
+          "objective": "邀请推广在样本中形成了可复用的首页功能组件。",
+          "modules": [
+            "referral_panel"
+          ],
+          "data": [
+            "inviteCode",
+            "commission",
+            "conversion"
+          ],
+          "actions": [
+            "复制链接",
+            "查看推广"
+          ],
+          "states": [
+            "default"
+          ]
+        },
+        {
+          "name": "活动增长",
+          "objective": "活动增长在样本中形成了可复用的首页功能组件。",
+          "modules": [
+            "campaign_banner"
+          ],
+          "data": [
+            "reward",
+            "deadline",
+            "progress"
+          ],
+          "actions": [
+            "查看活动",
+            "领取奖励"
+          ],
+          "states": [
+            "default"
+          ]
+        }
+      ],
+      "sampleBlocks": [
+        {
+          "id": "sample-block-mpkz4l4l",
+          "name": "资产总览",
+          "page": "first-screen",
+          "function": "资产总览在样本中形成了可复用的首页功能组件。",
+          "componentRefs": [],
+          "visualNotes": [],
+          "dataFields": [
+            "balance",
+            "equity",
+            "walletTotal"
+          ]
+        },
+        {
+          "id": "sample-block-mpkz4l4l",
+          "name": "钱包列表",
+          "page": "content-section",
+          "function": "钱包列表在样本中形成了可复用的首页功能组件。",
+          "componentRefs": [],
+          "visualNotes": [],
+          "dataFields": [
+            "currency",
+            "availableBalance"
+          ]
+        },
+        {
+          "id": "sample-block-mpkz4l4l",
+          "name": "交易账号",
+          "page": "content-section",
+          "function": "交易账号在样本中形成了可复用的首页功能组件。",
+          "componentRefs": [],
+          "visualNotes": [],
+          "dataFields": [
+            "accountId",
+            "balance",
+            "leverage"
+          ]
+        },
+        {
+          "id": "sample-block-mpkz4l4l",
+          "name": "开户进度",
+          "page": "content-section",
+          "function": "开户进度在样本中形成了可复用的首页功能组件。",
+          "componentRefs": [],
+          "visualNotes": [],
+          "dataFields": [
+            "stepStatus",
+            "progress"
+          ]
+        },
+        {
+          "id": "sample-block-mpkz4l4l",
+          "name": "快捷操作",
+          "page": "content-section",
+          "function": "快捷操作在样本中形成了可复用的首页功能组件。",
+          "componentRefs": [],
+          "visualNotes": [],
+          "dataFields": [
+            "actionName",
+            "actionStatus"
+          ]
+        },
+        {
+          "id": "sample-block-mpkz4l4l",
+          "name": "交易表现",
+          "page": "content-section",
+          "function": "交易表现在样本中形成了可复用的首页功能组件。",
+          "componentRefs": [],
+          "visualNotes": [],
+          "dataFields": [
+            "pnl",
+            "drawdown",
+            "positions"
+          ]
+        },
+        {
+          "id": "sample-block-mpkz4l4l",
+          "name": "邀请推广",
+          "page": "content-section",
+          "function": "邀请推广在样本中形成了可复用的首页功能组件。",
+          "componentRefs": [],
+          "visualNotes": [],
+          "dataFields": [
+            "inviteCode",
+            "commission",
+            "conversion"
+          ]
+        },
+        {
+          "id": "sample-block-mpkz4l4l",
+          "name": "活动增长",
+          "page": "content-section",
+          "function": "活动增长在样本中形成了可复用的首页功能组件。",
+          "componentRefs": [],
+          "visualNotes": [],
+          "dataFields": [
+            "reward",
+            "deadline",
+            "progress"
+          ]
+        }
+      ],
       "componentRefs": [],
       "goodPatterns": [
-        "构图完美，视觉有营销感，Onborading的内容很细又简约，邀请模块内容丰富，交易账号可以列表也可以卡片切换，这个组件完美。"
+        "学习功能组件组织：资产总览、钱包列表、交易账号、开户进度、快捷操作、交易表现"
       ],
-      "avoidPatterns": [],
-      "whyGood": "构图完美，视觉有营销感，Onborading的内容很细又简约，邀请模块内容丰富，交易账号可以列表也可以卡片切换，这个组件完美。",
+      "avoidPatterns": [
+        "不要像素级复刻原稿布局",
+        "不要照搬品牌 Logo、图片、插画和受保护素材",
+        "不要复制原稿里的具体金额、姓名、账户、活动文案"
+      ],
+      "whyGood": "学习功能组件组织：资产总览、钱包列表、交易账号、开户进度、快捷操作、交易表现",
       "whyBad": "",
       "applicableScenarios": [
         "新客开户",
+        "默认资产首页",
+        "入金转化",
         "专业交易",
+        "CopyTrading",
         "IB 推广",
+        "黑金 VIP",
         "活动增长",
-        "极简白"
+        "极简白",
+        "暗色高端"
       ],
-      "forbiddenReuse": "只学习视觉层级、构图、信息密度、色彩和模块比例；不要照搬品牌素材、文案、金额或受保护内容。",
+      "forbiddenReuse": "不要像素级复刻原稿布局；不要照搬品牌 Logo、图片、插画和受保护素材；不要复制原稿里的具体金额、姓名、账户、活动文案",
       "homepageConfig": null,
       "configSnapshot": null,
-      "referenceAssetId": "reference-1779172762524-4ff90c1052a35",
+      "referenceAssetId": "reference-1779699492586-e2b6d1d435d4f",
       "sourceAssetType": "html",
       "renderEvidence": {
-        "screenshotPath": "",
-        "screenshotUrl": "",
-        "domSnapshot": "",
+        "screenshotPath": "artifacts/home-golden-samples/visual-mpkz4l4h-61340-mpkzb0cd-preview.png",
+        "screenshotUrl": "/artifacts/home-golden-samples/visual-mpkz4l4h-61340-mpkzb0cd-preview.png",
+        "domSnapshot": "ForexCRM - 稿图版一 :root { --blue: #2f66e8; --blue-dark: #275bd5; --blue-soft: #eef4ff; --border: #d8e1ef; --border-light: #e8edf5; --text: #0f172a; --muted: #64748b; --sidebar: #f8fafc; --surface: #ffffff; --surface-soft: #f7faff; --shadow: 0 16px 40px rgba(15, 23, 42, 0.07); } * { box-sizing: border-box; } body { margin: 0; min-height: 100vh; overflow-x: hidden; background: radial-gradient(circle at 56% 6%, rgba(47, 102, 232, 0.045), transparent 28%), linear-gradient(180deg, #ffffff 0%, #f8fbff 100%); color: var(--text); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", sans-serif; font-size: 14px; letter-spacing: 0; } button, input { font: inherit; } button { cursor: pointer; } a { color: inherit; text-decoration: none; } svg { display: block; } .sidebar { position: fixed; inset: 0 auto 0 0; width: 278px; display: flex; flex-direction: column; border-right: 1px solid var(--border-light); background: var(--sidebar); z-index: 10; } .brand { display: flex; align-items: center; gap: 14px; padding: 21px 16px 20px; } .brand-mark { width: 43px; height: 43px; display: grid; place-items: center; border-radius: 12px",
         "aiHtml": "",
         "aiCss": "",
         "cssSummary": {
-          "referenceAssetId": "reference-1779172762524-4ff90c1052a35",
+          "hasCss": true,
+          "colorPalette": [],
+          "spacingScale": [],
+          "radiusScale": [],
+          "shadowStyle": [],
+          "fontScale": [],
+          "layoutSignals": [],
+          "componentStyleNotes": [],
+          "cssLength": 20,
+          "htmlStructure": {
+            "hasHtml": true,
+            "tags": [],
+            "headings": [],
+            "classNames": [],
+            "dataHooks": [
+              "light",
+              "./styles.css"
+            ],
+            "sectionCount": 0,
+            "textExcerpt": "ForexCRM - 稿图版一 :root { --blue: #2f66e8; --blue-dark: #275bd5; --blue-soft: #eef4ff; --border: #d8e1ef; --border-light: #e8edf5; --text: #0f172a; --muted: #64748b; --sidebar: #f8fafc; --surface: #ffffff; --surface-soft: #f7faff; --shadow: 0 16px 40px rgba(15, 23, 42, 0.07); } * { box-sizing: border-box; } body { margin: 0; min-height: 100vh; overflow-x: hidden; background: radial-gradient(circle at 56% 6%, rgba(47, 102, 232, 0.045), transparent 28%), linear-gradient(180deg, #ffffff 0%, #f8fbff 100%); color: var(--text); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", sans-serif; font-size: 14px; letter-spacing: 0; } button, input { font: inherit; } button { cursor: pointer; } a { color: inherit; text-decoration: none; } svg { display: block; } .sidebar { position: fixed; inset: 0 auto 0 0; width: 278px; display: flex; flex-direction: column; border-right: 1px solid var(--border-light); background: var(--sidebar); z-index: 10; } .brand { display: flex; align-items: center; gap: 14px; padding: 21px 16px 20px; } .brand-mark { width: 43px; height: 43px; display: grid; place-items: center; border-radius: 12px"
+          },
+          "sourceFiles": [
+            {
+              "name": "04-client-home-version-4.html",
+              "type": "html",
+              "size": 179108,
+              "width": 0,
+              "height": 0,
+              "layoutHint": "",
+              "dominantColors": []
+            }
+          ],
+          "referenceAssetId": "reference-1779699492586-e2b6d1d435d4f",
           "referenceType": "html",
-          "textExcerpt": "ForexCRM - 用户端首页 欢迎回来, Huang! Track your trading performance and manage your account. Customize Dashboard Sunday, May 3, 2026 Overview 账户总览 账户余额 (USD) -- 交易账号余额 (USD) -- 钱包余额 (USD) -- 按钱包币种折算 入金 出金 账户开通进度 0/3 完成以下步骤即可开始真实账户交易 完善个人资料 身份认证 (KYC) 首次入金 去完成：完善个人资料 进行中 5月盈利王挑战赛 奖池 $9,600 · 剩余 28 days · 共 3 项活动 查看详情 快速操作 开新账户 入金 出金 转账 Transactions Order History Positions Referral 邀请链接 点击 123 CRM 123 TA 50 测试注册链接 http://user-1.hcs55.com:38080/regist-real?invitid=555555690-123 Refer Code 555555690-123 <button type=\"button\" aria-label=\"复制邀请码"
+          "sourceAssetIds": [
+            "reference-1779699492586-e2b6d1d435d4f"
+          ],
+          "sourceAssetNames": [
+            "04-client-home-version-4.html"
+          ],
+          "textExcerpt": "ForexCRM - 稿图版一 :root { --blue: #2f66e8; --blue-dark: #275bd5; --blue-soft: #eef4ff; --border: #d8e1ef; --border-light: #e8edf5; --text: #0f172a; --muted: #64748b; --sidebar: #f8fafc; --surface: #ffffff; --surface-soft: #f7faff; --shadow: 0 16px 40px rgba(15, 23, 42, 0.07); } * { box-sizing: border-box; } body { margin: 0; min-height: 100vh; overflow-x: hidden; background: radial-gradient(circle at 56% 6%, rgba(47, 102, 232, 0.045), transparent 28%), linear-gradient(180deg, #ffffff 0%, #f8fbff 100%); color: var(--text); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"PingFang SC\", \"Microsoft YaHei\", sans-serif; font-size: 14px; letter-spacing: 0; } button, input { font: inherit; } button { cursor: pointer; } a { color: inherit; text-decoration: none; } svg { display: block; } .sidebar { position: fixed; inset: 0 auto 0 0; width: 278px; displa"
         },
         "themeTokens": {
-          "themePreset": "",
-          "visualStyle": ""
+          "themePreset": "trustBlue",
+          "visualStyle": "trustBlue / structured homepage",
+          "colorPalette": [],
+          "spacingScale": [],
+          "radiusScale": [],
+          "shadowStyle": [],
+          "fontScale": []
         },
-        "capturedAt": "2026-05-19T06:39:22.532Z",
-        "sourceUrl": "/artifacts/home-ai-reference-assets/reference-1779172762524-4ff90c1052a35-client-home.html"
+        "capturedAt": "2026-05-25T09:03:24.323Z",
+        "sourceUrl": "/artifacts/home-ai-reference-assets/reference-1779699492586-e2b6d1d435d4f-04-client-home-version-4.html"
       },
       "promptSeeds": [
-        "科技化，账户总览明细，新用户Onboardding，营销活动，快捷操作简约"
+        "请为 ForexCRM 用户端首页生成可发布的首页方案。分级：增长版，在基础能力上加入活动权益、按钮和转化承接。页面布局：宽松布局：增加留白和模块呼吸感，降低同屏信息密度，适合品牌感、高净值或需要高级感的首页。首页样式丰富度：标准丰富：使用品牌主色、1-2 个辅助色和清晰状态色，允许轻量色块、图标底色和模块分区，让首页更有层次但仍保持金融专业感。视觉：蓝色金融，清爽专业。语气：专业稳健。必选模块（不可撤销）：账户概览：使用 asset_overview 展示账户摘要，包含账户余额，钱包余额，交易账号余额，单位：US"
       ],
-      "createdAt": "2026-05-19T06:39:22.539Z",
-      "updatedAt": "2026-05-19T06:39:22.539Z"
+      "createdAt": "2026-05-25T08:58:12.597Z",
+      "updatedAt": "2026-05-25T09:03:24.323Z"
+    },
+    {
+      "id": "visual-mpkzkzwb-112f5",
+      "sampleKind": "golden-page",
+      "sourceType": "visual-only",
+      "visualOnly": true,
+      "isGolden": true,
+      "isAntiExample": false,
+      "name": "05-client-home-version-5",
+      "scenario": "请为 ForexCRM 用户端首页生成可发布的首页方案。分级：增长版，在基础能力上加入活动权益、按钮和转化承接。页面布局：宽松布局：增加留白和模块呼吸感，降低同屏信息密度，适合品牌感、高净值或需要高级感的首页。首页样式丰富度：标准丰富：使用",
+      "pageIntent": "vip",
+      "themePreset": "darkPro",
+      "visualStyle": "darkPro / grid dashboard / list-card components / tokenized spacing",
+      "prompt": "请为 ForexCRM 用户端首页生成可发布的首页方案。分级：增长版，在基础能力上加入活动权益、按钮和转化承接。页面布局：宽松布局：增加留白和模块呼吸感，降低同屏信息密度，适合品牌感、高净值或需要高级感的首页。首页样式丰富度：标准丰富：使用品牌主色、1-2 个辅助色和清晰状态色，允许轻量色块、图标底色和模块分区，让首页更有层次但仍保持金融专业感。视觉：蓝色金融，清爽专业。语气：专业稳健。必选模块（不可撤销）：账户概览：使用 asset_overview 展示账户摘要，包含账户余额，钱包余额，交易账号余额，单位：USD、快捷入口：展示操作入口，4-10个快捷入口位置，icon或者icon+文字、交易账号列表：必须同时包含真实交易账号和模拟交易账号的列表，列表可参考交易账号积木块，列表或卡片形式皆可、新手 Onboarding 引导：KYC -> 开真实账户 -> 首次入金 -> 首次交易，帮助新用户完成基础流程，其中首次交易可选；需要有进度的风格，营销的感觉。交易账号模块必须同时包含真实交易账号和模拟交易账号。选填模块：欢迎模块：必须在页面的第一栏，展示客户姓名、问候语、最近登录时间、交易表现：说明Live交易账户的交易表现，左右结构；栏目左侧显示交易账号信息：账号、平台、服务器，余额、净值、信用金、已用保证金、保证金比例、杠杆信息。右侧展示净值面积图echart图表(7D/30D),PnL面积图Echart图表组件。(7D/30D)；这两个面积图优先展示净值面积图，可以点击tab切换至PnL面积图。底部走势摘要条与操作入口形成闭环；在12栏的布局中，必须8+4或者12+0的布局、钱包列表/卡片：使用 wallet_list 独立模块展示多币种钱包卡片，只展示钱包货币、币种图标和钱包余额，不把多币种明细塞到账户概览、热门信号源：宽松布局，在12栏的布局中，必须8+4或者12+0的布局，展示3个推荐的跟单信号源卡片，至少需要展示信号源名称、收益率、收益率面积图Echarts(30d)，模拟的面积图要看起来真实，吸引人，扁平化、推广链接：展示推广链接信息：链接名称、链接地址(",
+      "aestheticScore": 92,
+      "humanScore": 92,
+      "scoreDimensions": {
+        "firstScreenFocus": 9,
+        "informationHierarchy": 9,
+        "moduleBalance": 9,
+        "componentCraft": 9,
+        "financialTone": 9,
+        "businessTruth": 8,
+        "responsive": 9,
+        "visualConsistency": 9,
+        "publishability": 8
+      },
+      "tags": [
+        "darkPro",
+        "vip",
+        "darkPro / grid dashboard / list-card",
+        "新客开户",
+        "默认资产首页",
+        "入金转化",
+        "出金安全",
+        "专业交易",
+        "CopyTrading",
+        "IB 推广",
+        "活动增长",
+        "客服帮助"
+      ],
+      "scenarioTags": [
+        "新客开户",
+        "默认资产首页",
+        "入金转化",
+        "出金安全",
+        "专业交易",
+        "CopyTrading",
+        "IB 推广",
+        "活动增长",
+        "客服帮助",
+        "极简白",
+        "黑金 VIP"
+      ],
+      "page": {
+        "name": "05-client-home-version-5",
+        "layout": "DOM 骨架：section；区块数量约 6；布局信号：grid layout、flex layout、explicit grid columns、sticky context、responsive media queries、responsive sizing tokens、multi-section page",
+        "hero": "学习整体骨架：DOM 骨架：section",
+        "navigation": "Deposit / Withdrawal / Internal Transfer / Wallet Flow",
+        "mobile": "包含响应式断点或自适应尺寸，可学习移动端单列节奏。"
+      },
+      "functions": [
+        {
+          "name": "资产总览",
+          "objective": "资产总览在样本中形成了可复用的首页功能组件。",
+          "modules": [
+            "asset_overview"
+          ],
+          "data": [
+            "balance",
+            "equity",
+            "walletTotal"
+          ],
+          "actions": [
+            "查看资产",
+            "入金"
+          ],
+          "states": [
+            "default"
+          ]
+        },
+        {
+          "name": "钱包列表",
+          "objective": "钱包列表在样本中形成了可复用的首页功能组件。",
+          "modules": [
+            "wallet_list"
+          ],
+          "data": [
+            "currency",
+            "availableBalance"
+          ],
+          "actions": [
+            "转账",
+            "出入金"
+          ],
+          "states": [
+            "default"
+          ]
+        },
+        {
+          "name": "交易账号",
+          "objective": "交易账号在样本中形成了可复用的首页功能组件。",
+          "modules": [
+            "trading_accounts"
+          ],
+          "data": [
+            "accountId",
+            "balance",
+            "leverage"
+          ],
+          "actions": [
+            "开新账户",
+            "切换账户"
+          ],
+          "states": [
+            "default"
+          ]
+        },
+        {
+          "name": "开户进度",
+          "objective": "开户进度在样本中形成了可复用的首页功能组件。",
+          "modules": [
+            "onboarding_guide"
+          ],
+          "data": [
+            "stepStatus",
+            "progress"
+          ],
+          "actions": [
+            "继续完成",
+            "去认证"
+          ],
+          "states": [
+            "default"
+          ]
+        },
+        {
+          "name": "快捷操作",
+          "objective": "快捷操作在样本中形成了可复用的首页功能组件。",
+          "modules": [
+            "quick_actions"
+          ],
+          "data": [
+            "actionName",
+            "actionStatus"
+          ],
+          "actions": [
+            "入金",
+            "出金",
+            "转账"
+          ],
+          "states": [
+            "default"
+          ]
+        },
+        {
+          "name": "交易表现",
+          "objective": "交易表现在样本中形成了可复用的首页功能组件。",
+          "modules": [
+            "performance_summary"
+          ],
+          "data": [
+            "pnl",
+            "drawdown",
+            "positions"
+          ],
+          "actions": [
+            "查看报表"
+          ],
+          "states": [
+            "default"
+          ]
+        },
+        {
+          "name": "邀请推广",
+          "objective": "邀请推广在样本中形成了可复用的首页功能组件。",
+          "modules": [
+            "referral_panel"
+          ],
+          "data": [
+            "inviteCode",
+            "commission",
+            "conversion"
+          ],
+          "actions": [
+            "复制链接",
+            "查看推广"
+          ],
+          "states": [
+            "default"
+          ]
+        },
+        {
+          "name": "活动增长",
+          "objective": "活动增长在样本中形成了可复用的首页功能组件。",
+          "modules": [
+            "campaign_banner"
+          ],
+          "data": [
+            "reward",
+            "deadline",
+            "progress"
+          ],
+          "actions": [
+            "查看活动",
+            "领取奖励"
+          ],
+          "states": [
+            "default"
+          ]
+        }
+      ],
+      "sampleBlocks": [
+        {
+          "id": "sample-block-mpkzlbjw",
+          "name": "资产总览",
+          "page": "first-screen",
+          "function": "资产总览在样本中形成了可复用的首页功能组件。",
+          "componentRefs": [],
+          "visualNotes": [
+            "grid layout",
+            "flex layout",
+            "explicit grid columns",
+            "sticky context",
+            "responsive media queries",
+            "responsive sizing tokens"
+          ],
+          "dataFields": [
+            "balance",
+            "equity",
+            "walletTotal"
+          ]
+        },
+        {
+          "id": "sample-block-mpkzlbjw",
+          "name": "钱包列表",
+          "page": "content-section",
+          "function": "钱包列表在样本中形成了可复用的首页功能组件。",
+          "componentRefs": [],
+          "visualNotes": [
+            "grid layout",
+            "flex layout",
+            "explicit grid columns",
+            "sticky context",
+            "responsive media queries",
+            "responsive sizing tokens"
+          ],
+          "dataFields": [
+            "currency",
+            "availableBalance"
+          ]
+        },
+        {
+          "id": "sample-block-mpkzlbjw",
+          "name": "交易账号",
+          "page": "content-section",
+          "function": "交易账号在样本中形成了可复用的首页功能组件。",
+          "componentRefs": [],
+          "visualNotes": [
+            "grid layout",
+            "flex layout",
+            "explicit grid columns",
+            "sticky context",
+            "responsive media queries",
+            "responsive sizing tokens"
+          ],
+          "dataFields": [
+            "accountId",
+            "balance",
+            "leverage"
+          ]
+        },
+        {
+          "id": "sample-block-mpkzlbjw",
+          "name": "开户进度",
+          "page": "content-section",
+          "function": "开户进度在样本中形成了可复用的首页功能组件。",
+          "componentRefs": [],
+          "visualNotes": [
+            "grid layout",
+            "flex layout",
+            "explicit grid columns",
+            "sticky context",
+            "responsive media queries",
+            "responsive sizing tokens"
+          ],
+          "dataFields": [
+            "stepStatus",
+            "progress"
+          ]
+        },
+        {
+          "id": "sample-block-mpkzlbjw",
+          "name": "快捷操作",
+          "page": "content-section",
+          "function": "快捷操作在样本中形成了可复用的首页功能组件。",
+          "componentRefs": [],
+          "visualNotes": [
+            "grid layout",
+            "flex layout",
+            "explicit grid columns",
+            "sticky context",
+            "responsive media queries",
+            "responsive sizing tokens"
+          ],
+          "dataFields": [
+            "actionName",
+            "actionStatus"
+          ]
+        },
+        {
+          "id": "sample-block-mpkzlbjw",
+          "name": "交易表现",
+          "page": "content-section",
+          "function": "交易表现在样本中形成了可复用的首页功能组件。",
+          "componentRefs": [],
+          "visualNotes": [
+            "grid layout",
+            "flex layout",
+            "explicit grid columns",
+            "sticky context",
+            "responsive media queries",
+            "responsive sizing tokens"
+          ],
+          "dataFields": [
+            "pnl",
+            "drawdown",
+            "positions"
+          ]
+        },
+        {
+          "id": "sample-block-mpkzlbjw",
+          "name": "邀请推广",
+          "page": "content-section",
+          "function": "邀请推广在样本中形成了可复用的首页功能组件。",
+          "componentRefs": [],
+          "visualNotes": [
+            "grid layout",
+            "flex layout",
+            "explicit grid columns",
+            "sticky context",
+            "responsive media queries",
+            "responsive sizing tokens"
+          ],
+          "dataFields": [
+            "inviteCode",
+            "commission",
+            "conversion"
+          ]
+        },
+        {
+          "id": "sample-block-mpkzlbjw",
+          "name": "活动增长",
+          "page": "content-section",
+          "function": "活动增长在样本中形成了可复用的首页功能组件。",
+          "componentRefs": [],
+          "visualNotes": [
+            "grid layout",
+            "flex layout",
+            "explicit grid columns",
+            "sticky context",
+            "responsive media queries",
+            "responsive sizing tokens"
+          ],
+          "dataFields": [
+            "reward",
+            "deadline",
+            "progress"
+          ]
+        }
+      ],
+      "componentRefs": [],
+      "goodPatterns": [
+        "学习整体骨架：DOM 骨架：section；学习间距/留白 token：0 / 0 auto 0 0 / 1px solid var(--border-light) / 14px / 21px 16px 20px / 8px；学习主色与中性色关系：#2f66e8 / #275bd",
+        "学习整体骨架：DOM 骨架：section",
+        "学习间距/留白 token：0 / 0 auto 0 0 / 1px solid var(--border-light) / 14px / 21px 16px 20px / 8px",
+        "学习主色与中性色关系：#2f66e8 / #275bd5 / #eef4ff / #d8e1ef / #e8edf5 / #0f172a",
+        "学习组件工艺：薄边框卡片、玻璃/模糊背景、渐变背景或状态底色、阴影层级、统一圆角系统、明确 CTA / button 层级、卡片/面板组件语言、列表/行式信息组件",
+        "学习功能组件组织：资产总览、钱包列表、交易账号、开户进度、快捷操作、交易表现",
+        "学习标题层级：Deposit / Withdrawal / Internal Transfer / Wallet Flow / Order History / Open Positions"
+      ],
+      "avoidPatterns": [
+        "不要像素级复刻原稿布局",
+        "不要照搬品牌 Logo、图片、插画和受保护素材",
+        "不要复制原稿里的具体金额、姓名、账户、活动文案"
+      ],
+      "whyGood": "学习整体骨架：DOM 骨架：section；学习间距/留白 token：0 / 0 auto 0 0 / 1px solid var(--border-light) / 14px / 21px 16px 20px / 8px；学习主色与中性色关系：#2f66e8 / #275bd5 / #eef4ff / #d8e1ef / #e8edf5 / #0f172a；学习组件工艺：薄边框卡片、玻璃/模糊背景、渐变背景或状态底色、阴影层级、统一圆角系统、明确 CTA / button 层级、卡片/面板组件语言、列表/行式信息组件；学习功能组件组织：资产总览、钱包列表、交易账号、开户进度、快捷操作、交易表现；学习标题层级：Deposit / Withdrawal / Internal Transfer / Wallet Flow / Order History / Open Positions",
+      "whyBad": "",
+      "applicableScenarios": [
+        "新客开户",
+        "默认资产首页",
+        "入金转化",
+        "出金安全",
+        "专业交易",
+        "CopyTrading",
+        "IB 推广",
+        "黑金 VIP",
+        "活动增长",
+        "极简白"
+      ],
+      "forbiddenReuse": "不要像素级复刻原稿布局；不要照搬品牌 Logo、图片、插画和受保护素材；不要复制原稿里的具体金额、姓名、账户、活动文案",
+      "homepageConfig": null,
+      "configSnapshot": null,
+      "referenceAssetId": "reference-1779700258224-2e2f8d6d7825e",
+      "sourceAssetType": "html",
+      "renderEvidence": {
+        "screenshotPath": "artifacts/home-golden-samples/visual-mpkzkzwb-112f5-mpkzkzwi-preview.png",
+        "screenshotUrl": "/artifacts/home-golden-samples/visual-mpkzkzwb-112f5-mpkzkzwi-preview.png",
+        "domSnapshot": "Deposit Withdrawal Internal Transfer Wallet Flow Order History Open Positions Pending Order TA Flow Live 交易账号 400009 2000281 2000282 2000283 2000284 1000008 3000281 3000282 3000283 MT5 · HCHoldingsGroup 余额 152,306.00 净值 378,283.99 信用金 89,180.00 已用预付款 24,680.00 保证金比例 184.62% 杠杆 1:100 Equity PnL 7D 30D Referral Link Click 271 Refer NO. 622 Refer TA NO. 78 Test registration link http://use-1.hcs555.com:38080/regist-real?inbitid=-123 Invitation code 1234567890-1234 Referral QR Trading Account All(9) Live(6) Demo(3) Account Server Balance Equity Operation 400009 Live MT5 HCHoldingsGroup 152,306.00 378,283.99 View 2000281 Live MT5 HCHoldingsGroup 99,999.99 99,999.99 View 2000282 Live MT5 HCHoldingsGroup 58,420.18 61,088.43 View 2000283 Live MT4 HCHoldingsGroup 42,116.20 41,220.91 View 2000284 Live MT4 HCHoldingsGroup 24,880.00 25,090.14 View 1000008 Live MT4 HCHoldingsGroup 10,500.00 10,312.44 View 3000281 Demo MT5 HCHoldingsGroup 99,999.99 99,999.99 View 3000282 Demo MT5 HCHoldingsGroup 50,000.00 51,280.00 View 3000283 Demo MT4 HCHoldingsGroup 20,000.00 19,640.20 View",
+        "aiHtml": "",
+        "aiCss": "",
+        "cssSummary": {
+          "hasCss": true,
+          "colorPalette": [
+            "#2f66e8",
+            "#275bd5",
+            "#eef4ff",
+            "#d8e1ef",
+            "#e8edf5",
+            "#0f172a",
+            "#64748b",
+            "#f8fafc",
+            "#ffffff",
+            "#f7faff",
+            "rgba(15, 23, 42, 0.07)",
+            "rgba(47, 102, 232, 0.045)"
+          ],
+          "spacingScale": [
+            "0",
+            "0 auto 0 0",
+            "1px solid var(--border-light)",
+            "14px",
+            "21px 16px 20px",
+            "8px",
+            "0 16px 18px",
+            "10px",
+            "0 14px",
+            "auto",
+            "6px 0 14px",
+            "22px 0 44px"
+          ],
+          "radiusScale": [
+            "12px",
+            "7px",
+            "50%",
+            "99px",
+            "3px",
+            "0",
+            "50% 50% 45% 45%",
+            "2px"
+          ],
+          "shadowStyle": [
+            "0 9px 18px rgba(47, 102, 232, 0.24)",
+            "4px -3px 0 -1px currentColor, 8px -7px 0 -1px currentColor",
+            "7px 0 0 -1.8px var(--sidebar), 0 7px 0 -1.8px var(--sidebar), 7px 7px 0 -1.8px v",
+            "var(--block-shadow)",
+            "var(--draft-shadow)",
+            "inset 0 0 0 2px #fff, 0 5px 14px rgba(15, 23, 42, 0.08)"
+          ],
+          "fontScale": [
+            "14px",
+            "18px",
+            "800",
+            "1.05",
+            "12px",
+            "1",
+            "13px",
+            "700",
+            "17px",
+            "16px",
+            "900",
+            "25px"
+          ],
+          "layoutSignals": [
+            "grid layout",
+            "flex layout",
+            "explicit grid columns",
+            "sticky context",
+            "responsive media queries",
+            "responsive sizing tokens",
+            "multi-section page"
+          ],
+          "componentStyleNotes": [
+            "薄边框卡片",
+            "玻璃/模糊背景",
+            "渐变背景或状态底色",
+            "阴影层级",
+            "统一圆角系统",
+            "明确 CTA / button 层级",
+            "卡片/面板组件语言",
+            "列表/行式信息组件"
+          ],
+          "cssLength": 24346,
+          "htmlStructure": {
+            "hasHtml": true,
+            "tags": [
+              "section"
+            ],
+            "headings": [
+              "Deposit",
+              "Withdrawal",
+              "Internal Transfer",
+              "Wallet Flow",
+              "Order History",
+              "Open Positions",
+              "Pending Order",
+              "TA Flow",
+              "Referral Link",
+              "271",
+              "622",
+              "78",
+              "Referral QR",
+              "Trading Account"
+            ],
+            "classNames": [
+              "page",
+              "xb-draft-page",
+              "xb-draft-shell",
+              "xb-draft-v5",
+              "xb-two-column",
+              "xb-dashboard-layout",
+              "xb-grid",
+              "xb-main-column",
+              "xb-card",
+              "xb-action-strip",
+              "xb-action-tile",
+              "xb-account-chart",
+              "xb-account-info",
+              "xb-account-head",
+              "xb-account-select-row",
+              "xb-live-pill",
+              "xb-account-select-label",
+              "xb-account-metrics",
+              "is-primary",
+              "xb-account-visual",
+              "xb-chart-toolbar",
+              "xb-chart-tabs",
+              "is-active",
+              "xb-range-tabs",
+              "xb-echart-host",
+              "xb-ad-banner",
+              "xb-referral",
+              "xb-panel-head"
+            ],
+            "dataHooks": [
+              "deposit",
+              "withdraw",
+              "Withdrawal",
+              "transfer",
+              "Internal",
+              "wallet",
+              "history",
+              "Order",
+              "open",
+              "pending",
+              "sliders",
+              "TA",
+              "400009",
+              "equity"
+            ],
+            "sectionCount": 6,
+            "textExcerpt": "Deposit Withdrawal Internal Transfer Wallet Flow Order History Open Positions Pending Order TA Flow Live 交易账号 400009 2000281 2000282 2000283 2000284 1000008 3000281 3000282 3000283 MT5 · HCHoldingsGroup 余额 152,306.00 净值 378,283.99 信用金 89,180.00 已用预付款 24,680.00 保证金比例 184.62% 杠杆 1:100 Equity PnL 7D 30D Referral Link Click 271 Refer NO. 622 Refer TA NO. 78 Test registration link http://use-1.hcs555.com:38080/regist-real?inbitid=-123 Invitation code 1234567890-1234 Referral QR Trading Account All(9) Live(6) Demo(3) Account Server Balance Equity Operation 400009 Live MT5 HCHoldingsGroup 152,306.00 378,283.99 View 2000281 Live MT5 HCHoldingsGroup 99,999.99 99,999.99 View 2000282 Live MT5 HCHoldingsGroup 58,420.18 61,088.43 View 2000283 Live MT4 HCHoldingsGroup 42,116.20 41,220.91 View 2000284 Live MT4 HCHoldingsGroup 24,880.00 25,090.14 View 1000008 Live MT4 HCHoldingsGroup 10,500.00 10,312.44 View 3000281 Demo MT5 HCHoldingsGroup 99,999.99 99,999.99 View 3000282 Demo MT5 HCHoldingsGroup 50,000.00 51,280.00 View 3000283 Demo MT4 HCHoldingsGroup 20,000.00 19,640.20 View"
+          },
+          "sourceFiles": [
+            {
+              "name": "05-client-home-version-5.html",
+              "type": "html",
+              "size": 180667,
+              "width": 0,
+              "height": 0,
+              "layoutHint": "",
+              "dominantColors": []
+            }
+          ],
+          "referenceAssetId": "reference-1779700258224-2e2f8d6d7825e",
+          "referenceType": "html",
+          "sourceAssetIds": [
+            "reference-1779700258224-2e2f8d6d7825e"
+          ],
+          "sourceAssetNames": [
+            "05-client-home-version-5.html"
+          ],
+          "textExcerpt": "Deposit Withdrawal Internal Transfer Wallet Flow Order History Open Positions Pending Order TA Flow Live 交易账号 400009 2000281 2000282 2000283 2000284 1000008 3000281 3000282 3000283 MT5 · HCHoldingsGroup 余额 152,306.00 净值 378,283.99 信用金 89,180.00 已用预付款 24,680.00 保证金比例 184.62% 杠杆 1:100 Equity PnL 7D 30D Referral Link Click 271 Refer NO. 622 Refer TA NO. 78 Test registration link http://use-1.hcs555.com:38080/regist-real?inbitid=-123 Invitation code 1234567890-1234 Referral QR Trading Account All(9) Live(6) Demo(3) Account Server Balance Equity Operation 400009 Live MT5 HCHoldingsGroup 152,306.00 378,283.99 View 2000281 Live MT5 HCHoldingsGroup 99,999.99 99,999.99 View 2000282 Live MT5 HCHoldingsGroup 58,420.18 61,088.43 View 2000283 Live MT4 HCHoldingsGroup 42,116.20 41,220.91 View 2000284 Live MT4 HCHoldingsGroup 24,880.00 25,090.14 View 1000008 Live MT4 HCHoldingsGroup 10,500.00 10,312.44"
+        },
+        "themeTokens": {
+          "themePreset": "darkPro",
+          "visualStyle": "darkPro / grid dashboard / list-card components / tokenized spacing",
+          "colorPalette": [
+            "#2f66e8",
+            "#275bd5",
+            "#eef4ff",
+            "#d8e1ef",
+            "#e8edf5",
+            "#0f172a",
+            "#64748b",
+            "#f8fafc",
+            "#ffffff",
+            "#f7faff",
+            "rgba(15, 23, 42, 0.07)",
+            "rgba(47, 102, 232, 0.045)"
+          ],
+          "spacingScale": [
+            "0",
+            "0 auto 0 0",
+            "1px solid var(--border-light)",
+            "14px",
+            "21px 16px 20px",
+            "8px",
+            "0 16px 18px",
+            "10px",
+            "0 14px",
+            "auto",
+            "6px 0 14px",
+            "22px 0 44px"
+          ],
+          "radiusScale": [
+            "12px",
+            "7px",
+            "50%",
+            "99px",
+            "3px",
+            "0",
+            "50% 50% 45% 45%",
+            "2px"
+          ],
+          "shadowStyle": [
+            "0 9px 18px rgba(47, 102, 232, 0.24)",
+            "4px -3px 0 -1px currentColor, 8px -7px 0 -1px currentColor",
+            "7px 0 0 -1.8px var(--sidebar), 0 7px 0 -1.8px var(--sidebar), 7px 7px 0 -1.8px v",
+            "var(--block-shadow)",
+            "var(--draft-shadow)",
+            "inset 0 0 0 2px #fff, 0 5px 14px rgba(15, 23, 42, 0.08)"
+          ],
+          "fontScale": [
+            "14px",
+            "18px",
+            "800",
+            "1.05",
+            "12px",
+            "1",
+            "13px",
+            "700",
+            "17px",
+            "16px",
+            "900",
+            "25px"
+          ]
+        },
+        "capturedAt": "2026-05-25T09:10:58.235Z",
+        "sourceUrl": "/artifacts/home-ai-reference-assets/reference-1779700258224-2e2f8d6d7825e-05-client-home-version-5.html"
+      },
+      "promptSeeds": [
+        "请为 ForexCRM 用户端首页生成可发布的首页方案。分级：增长版，在基础能力上加入活动权益、按钮和转化承接。页面布局：宽松布局：增加留白和模块呼吸感，降低同屏信息密度，适合品牌感、高净值或需要高级感的首页。首页样式丰富度：标准丰富：使用品牌主色、1-2 个辅助色和清晰状态色，允许轻量色块、图标底色和模块分区，让首页更有层次但仍保持金融专业感。视觉：蓝色金融，清爽专业。语气：专业稳健。必选模块（不可撤销）：账户概览：使用 asset_overview 展示账户摘要，包含账户余额，钱包余额，交易账号余额，单位：US",
+        "Deposit",
+        "Withdrawal",
+        "Internal Transfer",
+        "Wallet Flow",
+        "Order History",
+        "Open Positions"
+      ],
+      "createdAt": "2026-05-25T09:11:13.340Z",
+      "updatedAt": "2026-05-25T09:11:13.340Z"
     }
   ]
 }

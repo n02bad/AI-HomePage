@@ -2686,6 +2686,18 @@
         mode: "sectionBand",
         sectionChrome: "band",
         defaultSlotChrome: "flat",
+        sectionOverrides: {
+          "welcome-header": "connected",
+          "deposit-hero": "connected",
+          "deposit-actions": "connected",
+          "deposit-activation": "connected",
+          "deposit-kyc-status": "connected",
+          "deposit-copytrading": "band",
+          "deposit-referral-faq": "band",
+          "deposit-performance": "workbench",
+          "deposit-accounts": "workbench",
+          "risk-disclosure-footer": "band",
+        },
         slotOverrides: {
           promo_banner: "featured",
           asset_overview: "inline",
@@ -2708,6 +2720,9 @@
       ],
       moduleGrammar: "奖励阶梯、资产摘要、新手路径、账号证明和规则说明共同组成入金转化页。",
       differenceRule: "本方案差异必须体现入金路径，不要只是把普通首页顶部换成活动文案。",
+      layoutRules: {
+        blockRelation: "欢迎、奖励、账户摘要和开户路径必须连续成组；CopyTrading、推广帮助、账号证明和风险披露之间使用明确硬断点。",
+      },
     },
   };
 
@@ -5240,18 +5255,18 @@
         riskNotice: { enabled: false },
       }));
 		      next.sections = [
-		        ...(wantsWelcomeHeader ? [{ id: "welcome-header", type: "full", title: "欢迎", slots: ["welcome_header"] }] : []),
-		        { id: "deposit-hero", type: "full", title: "首次入金", slots: ["promo_banner"] },
-		        { id: "deposit-actions", type: "split", title: "账户与快捷入口", slots: ["asset_overview", "quick_actions"] },
-		        { id: "deposit-activation", type: "full", title: "开户引导", slots: ["onboarding_guide"] },
-		        ...(slotVisibleInConfig(next, "kyc_status_card") ? [{ id: "deposit-kyc-status", type: "rail", title: "KYC 状态", slots: ["kyc_status_card"] }] : []),
-		        ...(slotVisibleInConfig(next, "copytrading_signals") ? [{ id: "deposit-copytrading", type: "full", title: "CopyTrading", slots: ["copytrading_signals"] }] : []),
+		        ...(wantsWelcomeHeader ? [{ id: "welcome-header", type: "full", title: "欢迎", transition: "connected", slots: ["welcome_header"] }] : []),
+		        { id: "deposit-hero", type: "full", title: "首次入金", transition: "connected", slots: ["promo_banner"] },
+		        { id: "deposit-actions", type: "split", title: "账户与快捷入口", transition: "connected", slots: ["asset_overview", "quick_actions"] },
+		        { id: "deposit-activation", type: "full", title: "开户引导", transition: "connected", slots: ["onboarding_guide"] },
+		        ...(slotVisibleInConfig(next, "kyc_status_card") ? [{ id: "deposit-kyc-status", type: "rail", title: "KYC 状态", transition: "connected", slots: ["kyc_status_card"] }] : []),
+		        ...(slotVisibleInConfig(next, "copytrading_signals") ? [{ id: "deposit-copytrading", type: "full", title: "CopyTrading", transition: "hard-break", slots: ["copytrading_signals"] }] : []),
 		        ...(slotVisibleInConfig(next, "referral_link_card") || slotVisibleInConfig(next, "faq_section")
-		          ? [{ id: "deposit-referral-faq", type: "split", title: "推广与帮助", slots: ["referral_link_card", "faq_section"].filter((slot) => slotVisibleInConfig(next, slot)) }]
+		          ? [{ id: "deposit-referral-faq", type: "split", title: "推广与帮助", transition: "hard-break", slots: ["referral_link_card", "faq_section"].filter((slot) => slotVisibleInConfig(next, slot)) }]
 		          : []),
-		        { id: "deposit-performance", type: "full", title: "账号表现", slots: ["trading_account_highlight"] },
-		        { id: "deposit-accounts", type: "full", title: "交易账号", slots: ["trading_accounts_list"] },
-		        ...(slotVisibleInConfig(next, "risk_disclosure") ? [{ id: "risk-disclosure-footer", type: "full", title: "风险提示", slots: ["risk_disclosure"] }] : []),
+		        { id: "deposit-performance", type: "full", title: "账号表现", transition: "hard-break", slots: ["trading_account_highlight"] },
+		        { id: "deposit-accounts", type: "full", title: "交易账号", transition: "connected", slots: ["trading_accounts_list"] },
+		        ...(slotVisibleInConfig(next, "risk_disclosure") ? [{ id: "risk-disclosure-footer", type: "full", title: "风险提示", transition: "hard-break", slots: ["risk_disclosure"] }] : []),
 		      ];
 	      next.brickPlan = depositGovernedBrickPlan(depositMode);
       next.layout = enforceHomepageLayoutSafety(
@@ -6025,6 +6040,23 @@
     return normalizeSkeletonSlotChrome(policy.defaultSlotChrome, "contained");
   }
 
+  function normalizeSectionTransition(value, fallback = "") {
+    const raw = cleanMetaText(value, "", 24);
+    return ["connected", "soft-break", "hard-break", "workbench", "plain"].includes(raw) ? raw : fallback;
+  }
+
+  function skeletonSectionTransition(section = {}, sectionChrome = "", index = 0, designContract = {}) {
+    const explicit = normalizeSectionTransition(section.transition);
+    if (explicit) return explicit;
+    const contract = normalizeSkeletonDesignContract(designContract, SKELETON_STYLE_CONTRACTS.accountOpsConsole);
+    const sectionId = cleanMetaText(section.id, "", 64);
+    if (/risk|disclosure|footer|copytrading|referral|faq|performance/i.test(sectionId) && index > 0) return "hard-break";
+    if (sectionChrome === "connected") return "connected";
+    if (sectionChrome === "workbench") return "workbench";
+    if (sectionChrome === "band" && contract.chromePolicy?.mode === "sectionBand") return index <= 3 ? "connected" : "hard-break";
+    return index === 0 ? "plain" : "soft-break";
+  }
+
   function buildSkeletonHtmlMarkup(sections, slots, designContract = {}) {
     const contract = normalizeSkeletonDesignContract(designContract, SKELETON_STYLE_CONTRACTS.accountOpsConsole);
     const slotByKey = Object.fromEntries(slots.map((slot) => [slot.id, slot]));
@@ -6041,8 +6073,9 @@
               const sectionSlots = (section.slots || []).map((slot) => slotByKey[skeletonSlotKey(slot)]).filter(Boolean);
               if (!sectionSlots.length) return "";
               const sectionChrome = skeletonSectionChrome(section, contract);
+              const sectionTransition = skeletonSectionTransition(section, sectionChrome, sectionIndex, contract);
               return `
-                <section class="home-skeleton-section ${skeletonSectionClass(section.type)}" data-home-skeleton-section="${escapeHtml(section.id || `section-${sectionIndex + 1}`)}" data-home-skeleton-section-type="${escapeHtml(section.type || "full")}" data-home-skeleton-section-chrome="${escapeHtml(sectionChrome)}">
+                <section class="home-skeleton-section ${skeletonSectionClass(section.type)}" data-home-skeleton-section="${escapeHtml(section.id || `section-${sectionIndex + 1}`)}" data-home-skeleton-section-type="${escapeHtml(section.type || "full")}" data-home-skeleton-section-chrome="${escapeHtml(sectionChrome)}" data-home-skeleton-section-transition="${escapeHtml(sectionTransition)}">
                   <header class="home-skeleton-section-head">
                     <span>${escapeHtml(sectionChrome)}</span>
                     <strong>${escapeHtml(section.title || `Section ${sectionIndex + 1}`)}</strong>
@@ -7915,24 +7948,27 @@
     });
   }
 
-	  function normalizeSections(sections) {
-	    const source = Array.isArray(sections) && sections.length ? sections : DEFAULT_CONFIG.sections;
-	    const normalized = source
-	      .map((section, index) => {
-	        const slots = uniqueValidSlots(section.slots);
-	        if (!slots.length) return null;
+  function normalizeSections(sections) {
+    const source = Array.isArray(sections) && sections.length ? sections : DEFAULT_CONFIG.sections;
+    const normalized = source
+      .map((section, index) => {
+        const slots = uniqueValidSlots(section.slots);
+        if (!slots.length) return null;
 
         return {
           id: String(section.id || `section-${index + 1}`).slice(0, 32),
           type: ["hero", "rail", "split", "full"].includes(section.type) ? section.type : "full",
           title: String(section.title || "").slice(0, 28),
           variant: String(section.variant || "").slice(0, 24),
+          transition: ["connected", "soft-break", "hard-break", "workbench", "plain"].includes(section.transition)
+            ? section.transition
+            : "",
           slots,
-	        };
-	      })
-	      .filter(Boolean);
+        };
+      })
+      .filter(Boolean);
     return splitLargeFullRowSections(normalized);
-	  }
+  }
 
   function normalizeAutoLayoutBreakpoint(source, fallback) {
     const value = source && typeof source === "object" ? source : {};

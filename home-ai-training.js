@@ -16,7 +16,29 @@
     { key: "publishability", label: "可发布性" },
   ];
 
-  const SCENARIO_TAGS = ["新客开户", "专业交易", "CopyTrading", "IB 推广", "黑金 VIP", "活动增长", "极简白", "移动端优先", "白标资金安全"];
+  const SCENARIO_TAGS = [
+    "新客开户",
+    "默认资产首页",
+    "入金转化",
+    "出金安全",
+    "专业交易",
+    "多账户管理",
+    "CopyTrading",
+    "PAMM 理财",
+    "IB 推广",
+    "返佣中心",
+    "活动增长",
+    "交易竞赛",
+    "黑金 VIP",
+    "风控合规",
+    "白标资金安全",
+    "客服帮助",
+    "行情资讯",
+    "本地化运营",
+    "极简白",
+    "暗色高端",
+    "移动端优先",
+  ];
 
   const els = {
     page: document.querySelector("[data-training-page]"),
@@ -962,15 +984,26 @@
     const source = `${prompt || ""} ${config?.pageIntent?.primaryIntent || ""} ${config?.themePreset || config?.theme || ""} ${config?.layoutPreset || ""}`;
     return [
       /开户|onboarding|kyc/i.test(source) ? "新客开户" : "",
+      /asset|资产|钱包|balance|overview|默认/i.test(source) ? "默认资产首页" : "",
+      /入金|充值|deposit|fund/i.test(source) ? "入金转化" : "",
+      /出金|提现|withdraw/i.test(source) ? "出金安全" : "",
       /专业交易|trader|mt5|持仓|订单/i.test(source) ? "专业交易" : "",
+      /多账户|账户矩阵|account switch|account list/i.test(source) ? "多账户管理" : "",
       /copytrading|跟单|信号源/i.test(source) ? "CopyTrading" : "",
+      /pamm|mam|理财|资管|wealth/i.test(source) ? "PAMM 理财" : "",
       /ib|代理|推广|邀请码|referral/i.test(source) ? "IB 推广" : "",
+      /返佣|佣金|rebate|commission/i.test(source) ? "返佣中心" : "",
       /黑金|vip|高净值|blackgold/i.test(source) ? "黑金 VIP" : "",
       /活动|增长|大赛|campaign|promo/i.test(source) ? "活动增长" : "",
-      /极简|白|minimalWhite/i.test(source) ? "极简白" : "",
-      /移动端|手机|mobile/i.test(source) ? "移动端优先" : "",
+      /竞赛|比赛|competition|contest/i.test(source) ? "交易竞赛" : "",
+      /风控|合规|监管|risk|compliance/i.test(source) ? "风控合规" : "",
       /白标|资金安全|安全/i.test(source) ? "白标资金安全" : "",
-      /asset|资产|默认/i.test(source) ? "默认资产首页" : "",
+      /客服|帮助|support|help|工单/i.test(source) ? "客服帮助" : "",
+      /行情|资讯|news|calendar|日历/i.test(source) ? "行情资讯" : "",
+      /本地化|多语言|language|locale|region/i.test(source) ? "本地化运营" : "",
+      /极简|白|minimalWhite/i.test(source) ? "极简白" : "",
+      /暗色|深色|dark|blackgold/i.test(source) ? "暗色高端" : "",
+      /移动端|手机|mobile/i.test(source) ? "移动端优先" : "",
     ].filter(Boolean);
   }
 
@@ -1230,12 +1263,20 @@
     return new Promise((resolve, reject) => {
       reader.onerror = () => reject(new Error(`读取 ${file.name} 失败`));
       reader.onload = async () => {
+        const textContent = isText ? String(reader.result || "") : "";
+        const textByteLength = isText && window.TextEncoder ? new TextEncoder().encode(textContent).length : textContent.length;
+        const isHtml = /html/i.test(mime) || /\.html?$/i.test(file.name || "");
+        if (isHtml && file.size > 0 && textByteLength < file.size * 0.92 && !/<\/html>\s*$/i.test(textContent)) {
+          reject(new Error(`${file.name} 读取不完整，请重新选择原始 HTML 文件`));
+          return;
+        }
         const payload = {
           name: file.name,
           mime,
           size: file.size,
           dataUrl: isText ? "" : String(reader.result || ""),
-          textContent: isText ? String(reader.result || "") : "",
+          textContent,
+          textByteLength,
         };
         resolve(await enrichImagePayload(payload));
       };
@@ -1311,6 +1352,12 @@
 
   function setGoldenAnalysisStatus(message) {
     if (els.goldenAnalysisStatus) els.goldenAnalysisStatus.textContent = message;
+  }
+
+  function setVisualGoldenSaving(isSaving) {
+    if (els.saveVisualGolden) els.saveVisualGolden.disabled = isSaving;
+    if (els.upgradeReferenceGolden) els.upgradeReferenceGolden.disabled = isSaving;
+    if (els.analyzeGoldenFiles) els.analyzeGoldenFiles.disabled = isSaving;
   }
 
   function fillFieldIfEmpty(input, value) {
@@ -1423,7 +1470,9 @@
     const analysis = options.analysis && typeof options.analysis === "object" ? options.analysis : null;
     const assets = Array.isArray(options.assets) ? options.assets.filter(Boolean) : [asset].filter(Boolean);
     const imageAsset = assets.find((item) => item.type === "image" || /^image\//i.test(item.mime || ""));
-    const primaryAsset = asset || imageAsset || assets[0] || {};
+    const htmlAsset = assets.find((item) => item.type === "html" || /html/i.test(item.mime || "") || /\.html?$/i.test(item.name || ""));
+    const explicitAssetIsVisual = asset && (asset.type === "image" || /^image\//i.test(asset.mime || "") || asset.type === "html" || /html/i.test(asset.mime || ""));
+    const primaryAsset = explicitAssetIsVisual ? asset : imageAsset || htmlAsset || asset || assets[0] || {};
     const name = metadata.name || analysis?.name || `${primaryAsset.name || "外部设计稿"} visual-only 黄金样本`;
     const isImage = primaryAsset.type === "image" || /^image\//i.test(primaryAsset.mime || "");
     const cssSummary = {
@@ -1496,15 +1545,23 @@
     }
     const metadata = visualSampleMetadata();
     const analysis = options.analysis || state.goldenAnalysis || null;
-    const data = await requestJson("/api/home-ai/design-samples", {
-      method: "POST",
-      body: JSON.stringify({ sample: visualOnlySampleFromAsset(asset, metadata, { analysis, assets: options.assets || [asset] }) }),
-    });
-    syncSamplesFromLibrary(data.library?.samples);
-    renderAll();
-    setActiveTab("library");
-    closeTrainingModal();
-    showToast("visual-only 黄金样本已保存，会参与生成前检索");
+    setVisualGoldenSaving(true);
+    setGoldenAnalysisStatus("正在保存黄金样本，并生成截图阅览...");
+    try {
+      const data = await requestJson("/api/home-ai/design-samples", {
+        method: "POST",
+        body: JSON.stringify({ sample: visualOnlySampleFromAsset(asset, metadata, { analysis, assets: options.assets || [asset] }) }),
+      });
+      syncSamplesFromLibrary(data.library?.samples);
+      renderAll();
+      setActiveTab("library");
+      closeTrainingModal();
+      const hasScreenshot = Boolean(data.sample?.renderEvidence?.screenshotUrl || data.sample?.renderEvidence?.screenshotPath);
+      showToast(hasScreenshot ? "visual-only 黄金样本已保存，截图阅览已生成" : "visual-only 黄金样本已保存，会参与生成前检索");
+      return data.sample;
+    } finally {
+      setVisualGoldenSaving(false);
+    }
   }
 
   async function saveUploadedVisualGolden() {
@@ -1512,21 +1569,31 @@
     const metadata = { ...visualSampleMetadata(), analysis: state.goldenAnalysis };
     const selectedReference = state.references.find((asset) => asset.id === els.referenceUpgradeSelect?.value);
     const savedAssets = [];
-    if (files.length) {
-      for (const file of files) {
-        const saved = await saveReferenceAssetFromFile(file, metadata);
-        if (saved) savedAssets.push(saved);
+    setVisualGoldenSaving(true);
+    setGoldenAnalysisStatus("正在保存参考稿，并准备生成截图阅览...");
+    try {
+      if (files.length) {
+        for (const file of files) {
+          const saved = await saveReferenceAssetFromFile(file, metadata);
+          if (saved) savedAssets.push(saved);
+        }
       }
+      const assets = savedAssets.length ? savedAssets : selectedReference ? [selectedReference] : [];
+      const primaryAsset =
+        assets.find((asset) => asset.type === "image" || /^image\//i.test(asset.mime || "")) ||
+        assets.find((asset) => asset.type === "html" || /html/i.test(asset.mime || "") || /\.html?$/i.test(asset.name || "")) ||
+        assets[0] ||
+        null;
+      await saveVisualOnlyGoldenFromAsset(primaryAsset, { analysis: state.goldenAnalysis, assets });
+      state.goldenPendingFile = null;
+      state.goldenPendingFiles = [];
+      state.goldenAnalysis = null;
+      if (els.goldenFile) els.goldenFile.value = "";
+      renderGoldenAnalysisSummary(null);
+      setGoldenAnalysisStatus("等待选择文件。会提取界面骨架、结构、间距、留白、功能组件和视觉 token。");
+    } finally {
+      setVisualGoldenSaving(false);
     }
-    const assets = savedAssets.length ? savedAssets : selectedReference ? [selectedReference] : [];
-    const primaryAsset = assets.find((asset) => asset.type === "image" || /^image\//i.test(asset.mime || "")) || assets[0] || null;
-    await saveVisualOnlyGoldenFromAsset(primaryAsset, { analysis: state.goldenAnalysis, assets });
-    state.goldenPendingFile = null;
-    state.goldenPendingFiles = [];
-    state.goldenAnalysis = null;
-    if (els.goldenFile) els.goldenFile.value = "";
-    renderGoldenAnalysisSummary(null);
-    setGoldenAnalysisStatus("等待选择文件。会提取界面骨架、结构、间距、留白、功能组件和视觉 token。");
   }
 
   async function upgradeSelectedReferenceGolden() {

@@ -88,6 +88,7 @@
 .training-actions button,
 .review-panel button,
 .golden-library-panel button,
+.training-modal-body button,
 .candidate-toolbar button,
 .preview-size-switch button,
 .decision-segment button {
@@ -107,14 +108,62 @@
 }
 
 .training-actions a:first-child,
-.primary-action,
-.training-primary-button,
+button.primary-action,
+button.training-primary-button,
 .candidate-toolbar button.primary,
 .decision-segment button.active,
 .preview-size-switch button.active {
   border-color: #1d4ed8;
   background: #1d4ed8;
   color: #fff;
+}
+
+.training-actions a:hover,
+.training-actions button:hover,
+.review-panel button:hover,
+.golden-library-panel button:hover,
+.training-modal-head button:hover,
+.training-modal-body button:hover,
+.candidate-toolbar button:hover,
+.preview-size-switch button:hover,
+.decision-segment button:hover {
+  border-color: #b8c8dc;
+  background: #f8fbff;
+}
+
+.training-actions a:first-child:hover,
+button.primary-action:hover,
+button.training-primary-button:hover,
+.candidate-toolbar button.primary:hover,
+.decision-segment button.active:hover,
+.preview-size-switch button.active:hover {
+  border-color: #1e40af;
+  background: #1e40af;
+  color: #fff;
+}
+
+.training-actions a:focus-visible,
+.training-actions button:focus-visible,
+.review-panel button:focus-visible,
+.golden-library-panel button:focus-visible,
+.training-modal-head button:focus-visible,
+.training-modal-body button:focus-visible,
+.candidate-toolbar button:focus-visible,
+.preview-size-switch button:focus-visible,
+.decision-segment button:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.18);
+  outline-offset: 2px;
+}
+
+.training-actions button:disabled,
+.review-panel button:disabled,
+.golden-library-panel button:disabled,
+.training-modal-body button:disabled,
+.candidate-toolbar button:disabled,
+.preview-size-switch button:disabled,
+.decision-segment button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
 }
 
 .training-tabs {
@@ -508,6 +557,11 @@
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+}
+
+.form-actions button {
+  min-height: 48px;
+  padding: 0 14px;
 }
 
 .form-actions .primary-action {

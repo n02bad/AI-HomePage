@@ -161,6 +161,8 @@
     referenceClear: document.querySelector("[data-ai-reference-clear]"),
     compose: document.querySelector("[data-ai-compose-home]"),
     status: document.querySelector("[data-ai-component-status]"),
+    progress: document.querySelector("[data-ai-component-progress]"),
+    progressText: document.querySelector("[data-ai-component-progress-text]"),
     result: document.querySelector("[data-ai-component-result]"),
     resultTitle: document.querySelector("[data-ai-component-result-title]"),
     resultProvider: document.querySelector("[data-ai-component-result-provider]"),
@@ -221,6 +223,18 @@
 
   function setGenerateButtonLabel(label) {
     if (els.generate) els.generate.textContent = label;
+  }
+
+  function setComponentGenerationProgress(active, message = "正在生成组件预览...") {
+    if (els.progress) {
+      els.progress.hidden = !active;
+      els.progress.setAttribute("aria-busy", active ? "true" : "false");
+    }
+    if (els.progressText) els.progressText.textContent = message;
+    if (els.result) {
+      if (active) els.result.dataset.generating = "true";
+      else delete els.result.dataset.generating;
+    }
   }
 
   function renderPendingComponentDraft() {
@@ -2110,7 +2124,10 @@
     const visualReference = visualReferenceForRequest();
     const layoutContext = componentLayoutContextForRequest({ family, prompt, selectedSize: size, visualReference });
     const autoSizeHint = size === "auto" ? `，页面宽度建议 ${layoutContext.recommendedSize}（${layoutContext.recommendedSpan}/12 栏）` : "";
-    setStatus(`正在通过 ${modelLabel()} 生成组件${visualReference ? "，并仿照图片/截图参考" : ""}${autoSizeHint}...`);
+    const generationMessage = `正在通过 ${modelLabel()} 生成组件${visualReference ? "，并仿照图片/截图参考" : ""}${autoSizeHint}...`;
+    setStatus(generationMessage, "loading");
+    setComponentGenerationProgress(true, "AI 正在生成组件结构、样式和预览内容...");
+    setGenerateButtonLabel("生成中...");
     if (trigger) trigger.disabled = true;
     if (trigger !== els.generate && els.generate) els.generate.disabled = true;
     if (els.confirmSave) els.confirmSave.disabled = true;
@@ -2144,6 +2161,7 @@
     } catch (error) {
       setStatus(`${error.message}。如果还没有配置密钥，可以用 npm run start:mock 先演示完整链路。`, "error");
     } finally {
+      setComponentGenerationProgress(false);
       if (trigger) trigger.disabled = false;
       if (trigger !== els.generate && els.generate) els.generate.disabled = false;
       renderPendingComponentDraft();

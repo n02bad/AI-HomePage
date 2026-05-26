@@ -131,6 +131,76 @@
   color: #dc2626;
 }
 
+.brick-ai-status[data-tone="loading"] {
+  color: #2563eb;
+}
+
+.brick-ai-progress[hidden] {
+  display: none;
+}
+
+.brick-ai-progress {
+  display: grid;
+  gap: 8px;
+  padding: 11px 12px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.brick-ai-progress-track {
+  position: relative;
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #dbeafe;
+}
+
+.brick-ai-progress-track span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 42%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2563eb 0%, #14b8a6 100%);
+  animation: brick-ai-progress-slide 1.15s ease-in-out infinite;
+}
+
+.brick-ai-progress strong {
+  color: #1e40af;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.brick-ai-result[data-generating="true"] {
+  border-color: #bfdbfe;
+}
+
+.brick-ai-result[data-generating="true"] .brick-ai-result-preview,
+.brick-ai-result[data-generating="true"] .brick-ai-result-meta {
+  opacity: 0.72;
+}
+
+@keyframes brick-ai-progress-slide {
+  0% {
+    transform: translateX(-110%);
+  }
+
+  50% {
+    transform: translateX(85%);
+  }
+
+  100% {
+    transform: translateX(245%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brick-ai-progress-track span {
+    animation: none;
+    width: 100%;
+  }
+}
+
 .ai-model-status-card {
   display: grid;
   gap: 10px;

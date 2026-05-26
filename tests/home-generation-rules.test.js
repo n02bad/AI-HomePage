@@ -389,6 +389,14 @@ async function run() {
 	  const goldenDesignContract = home.buildSkeletonDesignContract(goldenStyledConfig);
 	  assert.strictEqual(goldenDesignContract.tokens.background.includes("#eef4ff"), true);
 	  assert.strictEqual(goldenDesignContract.chromePolicy.sectionChrome, "connected");
+	  const goldenTransitionConfig = home.normalizeConfig({
+	    sections: [
+	      { id: "deposit-hero", type: "full", transition: "connected", slots: ["promo_banner"] },
+	      { id: "deposit-performance", type: "full", transition: "hard-break", slots: ["trading_account_highlight"] },
+	    ],
+	  });
+	  assert.strictEqual(goldenTransitionConfig.sections[0].transition, "connected");
+	  assert.strictEqual(goldenTransitionConfig.sections[1].transition, "hard-break");
 	  assert.strictEqual(
 	    modelSettings.sanitizeModelConfig({
       provider: "openai",
@@ -1111,6 +1119,10 @@ async function run() {
 		  assert(serverSource.includes("goldenStyleContractForPrompt"), "AI generation must compile whole-page golden samples into an executable style contract");
 		  assert(serverSource.includes("applyGoldenStyleContractToHomepageConfig"), "server repair must attach golden style contracts to generated home configs");
 		  assert(serverSource.includes("executableGoldenContractPolicy"), "golden sample prompt context must require executable style fields, not just visual advice");
+		  assert(serverSource.includes("applySectionTransitionsToHomepageConfig"), "server repair must attach explicit section transition contracts");
+		  assert(serverSource.includes("blockTransitionQuality"), "homepage aesthetic score must include block transition quality");
+		  assert(personalizationSource.includes("data-home-skeleton-section-transition"), "skeleton renderer must expose section transition attributes");
+		  assert(personalizationCss.includes('data-home-skeleton-section-transition="hard-break"'), "runtime CSS must support obvious hard section breaks");
 		  assert(personalizationSource.includes("data-home-blueprint-contract"), "blueprint renderer must expose executable style contracts on the page shell");
 		  assert(personalizationSource.includes("dataset.homeSlotChrome"), "blueprint slots must inherit page-owned chrome from style contracts");
 		  assert(personalizationCss.includes("--home-skeleton-contract-bg"), "runtime CSS must expose golden contract background tokens");
