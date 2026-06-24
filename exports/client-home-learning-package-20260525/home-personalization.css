@@ -4,17 +4,13 @@
 }
 
 .client-shell.is-blueprint-home {
-  width: min(100%, var(--home-skeleton-contract-max-width, 1320px));
-  max-width: var(--home-skeleton-contract-max-width, 1320px);
+  width: min(100%, 1320px);
+  max-width: 1320px;
   container-type: inline-size;
   display: flex;
   flex-direction: column;
-  gap: var(--home-skeleton-contract-gap, 22px);
+  gap: 22px;
   margin: 0 auto;
-}
-
-body[data-home-style-contract]:not([data-home-style-contract=""]) .client-home-page {
-  background: var(--home-skeleton-contract-bg, var(--home-bg));
 }
 
 .sr-only {
@@ -32,168 +28,7 @@ body[data-home-style-contract]:not([data-home-style-contract=""]) .client-home-p
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   align-items: stretch;
-  gap: var(--home-skeleton-contract-row-gap, 14px);
-}
-
-.client-shell.is-blueprint-home[data-home-blueprint-contract] {
-  padding-inline: 0;
-}
-
-.client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-row[data-row-chrome="connected"] {
-  overflow: visible;
-  gap: var(--home-skeleton-contract-row-gap, 14px);
-  min-height: var(--home-row-min-height, 180px);
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-.client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-row[data-row-chrome="connected"] > .ai-home-block {
-  min-width: 0;
-  padding: var(--home-skeleton-contract-padding, 16px);
-  border: 1px solid var(--home-skeleton-contract-border, var(--home-border-soft));
-  border-radius: var(--home-skeleton-contract-radius, var(--home-radius-sm, 8px));
-  background: var(--home-skeleton-contract-surface, var(--home-card-bg));
-  box-shadow: var(--home-skeleton-contract-shadow, none);
-}
-
-.client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-row[data-row-chrome="connected"] > .ai-home-block:not(:last-child) {
-  border-right: 1px solid var(--home-skeleton-contract-border, var(--home-border-soft));
-}
-
-.client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-row[data-row-chrome="connected"] > .ai-home-block:is(
-  .balance-overview,
-  .account-progress-card,
-  .quick-panel,
-  .refer-card,
-  .accounts-panel,
-  .ai-welcome-feature,
-  .ai-balance-feature,
-  .ai-wallet-feature,
-  .ai-action-feature,
-  .ai-open-feature,
-  .ai-onboarding-feature,
-  .ai-quick-feature,
-  .ai-referral-feature,
-  .ai-accounts-feature,
-  .ai-promo-feature,
-  .ai-pamm-feature,
-  .ai-copytrading-feature,
-  .ai-risk-feature,
-  .ai-faq-feature,
-  .ai-support-feature,
-  .ai-download-feature
-) {
-  border-color: var(--home-skeleton-contract-border, var(--home-border-soft));
-  background: var(--home-skeleton-contract-surface, var(--home-card-bg));
-  box-shadow: var(--home-skeleton-contract-shadow, none);
-}
-
-.client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-row[data-row-chrome="separated"] {
-  gap: calc(var(--home-skeleton-contract-row-gap, 14px) + 6px);
-  min-height: var(--home-row-min-height, 180px);
-}
-
-.client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-row[data-row-chrome="separated"] > .ai-home-block {
-  min-width: 0;
-  border: 1px solid var(--home-skeleton-contract-border, var(--home-border-soft));
-  border-radius: var(--home-skeleton-contract-radius, var(--home-radius-sm, 8px));
-  background: var(--home-skeleton-contract-surface, var(--home-card-bg));
-  box-shadow: var(--home-skeleton-contract-shadow, none);
-}
-
-.client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-row[data-row-chrome="separated"] > .ai-home-block:is(
-  .ai-balance-feature,
-  .ai-quick-feature,
-  .ai-reference-feature
-) {
-  border: 1px solid var(--home-skeleton-contract-border, var(--home-border-soft));
-  border-radius: var(--home-skeleton-contract-radius, var(--home-radius-sm, 8px));
-  background: var(--home-skeleton-contract-surface, var(--home-card-bg));
-  box-shadow: var(--home-skeleton-contract-shadow, none);
-}
-
-.client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-row[data-row-chrome="band"],
-.client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-row[data-row-chrome="workbench"] {
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-.client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-row[data-row-chrome="workbench"] {
-  background: transparent;
-  box-shadow: none;
-}
-
-.client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-composite {
-  width: 100%;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--home-skeleton-contract-row-gap, 14px);
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-.client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-composite[data-home-composite-surface="light-section"] {
-  background: transparent;
-}
-
-.client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-composite:is(
-  [data-home-composite-surface="connected-panel"],
-  [data-home-composite-surface="light-section"]
-) {
-  gap: var(--home-skeleton-contract-gap, 14px);
-  padding: 0;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-.client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-composite > .ai-home-row {
-  min-height: var(--home-row-min-height, 180px);
-}
-
-.client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-composite > .ai-home-row[data-row-chrome] {
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-.client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-composite > .ai-home-row + .ai-home-row {
-  padding-top: 0;
-  border-top: 0;
-}
-
-.client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-composite:is(
-  [data-home-composite-surface="connected-panel"],
-  [data-home-composite-surface="light-section"]
-) > .ai-home-row + .ai-home-row {
-  padding-top: 0;
-  border-top: 0;
-}
-
-.client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-composite .ai-home-row[data-row-chrome="connected"] > .ai-home-block {
-  padding: var(--home-skeleton-contract-padding, 16px);
-}
-
-.client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-block[data-home-slot-chrome="bare"],
-.client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-block[data-home-slot-chrome="inline"],
-.client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-block[data-home-slot-chrome="flat"] {
-  box-shadow: none;
-}
-
-.client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-block[data-home-slot-chrome="legalStrip"] {
-  background: var(--home-skeleton-contract-surface-soft, var(--home-surface-soft));
-  box-shadow: none;
+  gap: 14px;
 }
 
 .ai-home-row[data-row-kind="paired"] {
@@ -212,16 +47,6 @@ body[data-home-style-contract]:not([data-home-style-contract=""]) .client-home-p
   align-self: stretch;
   height: 100%;
   margin-bottom: 0;
-}
-
-.ai-reference-feature {
-  min-width: 0;
-  overflow: hidden;
-}
-
-.ai-reference-feature .ai-reference-component-host {
-  height: 100%;
-  min-width: 0;
 }
 
 .dashboard-customize-link {
@@ -10394,18 +10219,11 @@ body[data-home-render-mode="aiHtml"] .dashboard-customize-link {
 }
 
 .home-skeleton-render-host {
-  --home-skeleton-contract-max-width: 1320px;
-  --home-skeleton-contract-page-gutter: 16px;
   --home-skeleton-contract-radius: var(--home-radius-sm, 8px);
   --home-skeleton-contract-button-radius: var(--home-radius-sm, 8px);
   --home-skeleton-contract-gap: 14px;
-  --home-skeleton-contract-row-gap: 14px;
   --home-skeleton-contract-padding: 16px;
   --home-skeleton-contract-shadow: none;
-  --home-skeleton-contract-border: var(--home-border-soft, #edf2f7);
-  --home-skeleton-contract-bg: var(--home-bg);
-  --home-skeleton-contract-surface: var(--home-card-bg, #fff);
-  --home-skeleton-contract-surface-soft: var(--home-surface-soft, #f8fbff);
 }
 
 .home-skeleton-render-host.is-published-skeleton::before {
@@ -10460,42 +10278,10 @@ body[data-home-render-mode="aiHtml"] .dashboard-customize-link {
   display: grid;
   gap: 10px;
   min-width: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-}
-
-.home-skeleton-section[data-home-skeleton-section-transition="connected"] {
-  border-color: transparent;
-  background: transparent;
-}
-
-.home-skeleton-section[data-home-skeleton-section-transition="connected"]
-  + .home-skeleton-section[data-home-skeleton-section-transition="connected"] {
-  margin-top: 0;
-  border-top-color: transparent;
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
-}
-
-.home-skeleton-section[data-home-skeleton-section-transition="connected"]:has(+ .home-skeleton-section[data-home-skeleton-section-transition="connected"]) {
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
-}
-
-.home-skeleton-section[data-home-skeleton-section-transition="hard-break"] {
-  position: static;
-  margin-top: 0;
-}
-
-.home-skeleton-section[data-home-skeleton-section-transition="hard-break"]::before {
-  display: none;
-  content: none;
-}
-
-.home-skeleton-section[data-home-skeleton-section-transition="workbench"] {
-  background: transparent;
+  padding: 10px;
+  border: 1px solid var(--home-border-soft, #edf2f7);
+  border-radius: var(--home-skeleton-contract-radius, var(--home-radius-sm, 8px));
+  background: color-mix(in srgb, var(--home-card-bg, #fff) 88%, transparent);
 }
 
 .home-skeleton-section-head {
@@ -10567,8 +10353,10 @@ body[data-home-render-mode="aiHtml"] .dashboard-customize-link {
 }
 
 .home-skeleton-render-host[data-home-skeleton-chrome-mode="workbench"] .home-skeleton-section {
-  border: 0;
-  background: transparent;
+  border-style: solid;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--home-surface-soft, #f8fbff) 72%, transparent), transparent),
+    var(--home-card-bg, #fff);
 }
 
 .home-skeleton-slot[data-home-skeleton-chrome="bare"],
@@ -10953,40 +10741,24 @@ body[data-home-render-mode="aiHtml"] .dashboard-customize-link {
   gap: 16px;
 }
 
-.home-skeleton-render-host.is-published-skeleton
-  .home-skeleton-section[data-home-skeleton-section-transition="connected"]
-  + .home-skeleton-section[data-home-skeleton-section-transition="connected"] {
-  margin-top: 0;
-}
-
-.home-skeleton-render-host.is-published-skeleton
-  .home-skeleton-section[data-home-skeleton-section-transition="hard-break"] {
-  position: static;
-  margin-top: 0;
-}
-
-.home-skeleton-render-host.is-published-skeleton
-  .home-skeleton-section[data-home-skeleton-section-transition="hard-break"]::before {
-  display: none;
-  content: none;
-}
-
 .home-skeleton-render-host.is-published-skeleton .home-skeleton-slot-grid {
   gap: 16px;
 }
 
 .home-skeleton-render-host.is-published-skeleton .home-skeleton-section[data-home-skeleton-section-chrome="band"] {
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
+  padding: var(--home-skeleton-contract-padding, 16px);
+  border: 1px solid var(--home-border-soft, #edf2f7);
+  border-radius: var(--home-skeleton-contract-radius, var(--home-radius-sm, 8px));
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--home-primary-faint, #eff6ff) 38%, transparent), transparent),
+    var(--home-surface-soft, #f8fbff);
 }
 
 .home-skeleton-render-host.is-published-skeleton .home-skeleton-section[data-home-skeleton-section-chrome="workbench"] {
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
+  padding: var(--home-skeleton-contract-padding, 16px);
+  border: 1px solid var(--home-border, #dbe4ef);
+  border-radius: var(--home-skeleton-contract-radius, var(--home-radius-sm, 8px));
+  background: var(--home-card-bg, #fff);
 }
 
 .home-skeleton-render-host.is-published-skeleton .home-skeleton-section[data-home-skeleton-section-chrome="connected"] {
@@ -10996,16 +10768,16 @@ body[data-home-render-mode="aiHtml"] .dashboard-customize-link {
 }
 
 .home-skeleton-render-host.is-published-skeleton .home-skeleton-section[data-home-skeleton-section-chrome="connected"] .home-skeleton-slot-grid {
-  overflow: visible;
-  gap: 16px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
+  overflow: hidden;
+  gap: 0;
+  border: 1px solid var(--home-border-soft, #edf2f7);
+  border-radius: var(--home-skeleton-contract-radius, var(--home-radius-sm, 8px));
+  background: var(--home-card-bg, #fff);
 }
 
 .home-skeleton-render-host.is-published-skeleton .home-skeleton-section[data-home-skeleton-section-chrome="connected"] .home-skeleton-slot {
-  padding: 0;
-  border-right: 0;
+  padding: var(--home-skeleton-contract-padding, 16px);
+  border-right: 1px solid var(--home-border-soft, #edf2f7);
 }
 
 .home-skeleton-render-host.is-published-skeleton .home-skeleton-section[data-home-skeleton-section-chrome="connected"] .home-skeleton-slot:last-child {
@@ -11048,18 +10820,13 @@ body[data-home-render-mode="skeletonHtml"] .dashboard-customize-link {
     grid-template-columns: 1fr;
   }
 
-	  .client-shell.is-blueprint-home .ai-home-row .ai-home-block,
-	  body[data-layout-page="client-home"] .client-shell.is-blueprint-home .ai-home-block-hero.ai-home-block-polished,
-	  body[data-layout-page="client-home"] .client-shell.is-blueprint-home .ai-home-block-main,
-	  body[data-layout-page="client-home"] .client-shell.is-blueprint-home .ai-home-block-rail {
-	    grid-column: 1 / -1;
-	    min-height: 0;
-	  }
-
-	  .client-shell.is-blueprint-home[data-home-blueprint-contract] .ai-home-row[data-row-chrome="connected"] > .ai-home-block:not(:last-child) {
-	    border-right: 0;
-	    border-bottom: 1px solid var(--home-skeleton-contract-border, var(--home-border-soft));
-	  }
+  .client-shell.is-blueprint-home .ai-home-row .ai-home-block,
+  body[data-layout-page="client-home"] .client-shell.is-blueprint-home .ai-home-block-hero.ai-home-block-polished,
+  body[data-layout-page="client-home"] .client-shell.is-blueprint-home .ai-home-block-main,
+  body[data-layout-page="client-home"] .client-shell.is-blueprint-home .ai-home-block-rail {
+    grid-column: 1 / -1;
+    min-height: 0;
+  }
 
   .home-skeleton-slot-grid {
     grid-template-columns: 1fr;

@@ -1,0 +1,5674 @@
+<!-- Standalone static export from client-home.html. Open this file directly in a browser. -->
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light" style="color-scheme: light;"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    
+    <title>ForexCRM - 用户端首页</title>
+    <style data-inlined-from="./styles.css">
+:root {
+  --blue: #2f66e8;
+  --blue-dark: #275bd5;
+  --blue-soft: #eef4ff;
+  --border: #d8e1ef;
+  --border-light: #e8edf5;
+  --text: #0f172a;
+  --muted: #64748b;
+  --sidebar: #f8fafc;
+  --surface: #ffffff;
+  --surface-soft: #f7faff;
+  --shadow: 0 16px 40px rgba(15, 23, 42, 0.07);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 56% 6%, rgba(47, 102, 232, 0.045), transparent 28%),
+    linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  color: var(--text);
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 14px;
+  letter-spacing: 0;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+svg {
+  display: block;
+}
+
+.sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: 278px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border-light);
+  background: var(--sidebar);
+  z-index: 10;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 21px 16px 20px;
+}
+
+.brand-mark {
+  width: 43px;
+  height: 43px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #2f66e8, #1f4ed8);
+  color: #fff;
+  box-shadow: 0 9px 18px rgba(47, 102, 232, 0.24);
+}
+
+.brand-mark svg {
+  width: 27px;
+  height: 27px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.4;
+}
+
+.brand-title {
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.05;
+}
+
+.brand-subtitle {
+  margin-top: 8px;
+  color: #475569;
+  font-size: 12px;
+}
+
+.portal-switch {
+  height: 40px;
+  margin: 0 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: #fff;
+  color: #172033;
+  text-align: left;
+}
+
+.portal-switch .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--blue);
+}
+
+.portal-switch svg {
+  width: 16px;
+  height: 16px;
+  margin-left: auto;
+  fill: none;
+  stroke: #94a3b8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.nav {
+  flex: 1;
+  overflow: auto;
+  padding: 6px 0 14px;
+  scrollbar-color: #c8cdd4 transparent;
+  scrollbar-width: thin;
+}
+
+.nav::-webkit-scrollbar {
+  width: 7px;
+}
+
+.nav::-webkit-scrollbar-thumb {
+  background: #c7ccd4;
+  border-radius: 99px;
+}
+
+.nav section {
+  margin: 22px 0 44px;
+}
+
+.nav h2 {
+  margin: 0 0 13px;
+  padding: 0 32px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.nav a {
+  height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 32px;
+  color: #172033;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.nav a:hover {
+  background: #f1f5fb;
+}
+
+.nav-item {
+  display: block;
+}
+
+.nav-submenu {
+  display: grid;
+  gap: 2px;
+  margin: 2px 0 6px;
+}
+
+.nav-submenu a {
+  height: 34px;
+  position: relative;
+  gap: 0;
+  padding: 0 22px 0 63px;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.nav-submenu a::before {
+  content: "";
+  position: absolute;
+  left: 43px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #cbd5e1;
+  transform: translateY(-50%);
+}
+
+.nav-submenu a:hover,
+.nav-submenu a.active-menu {
+  color: #1d4ed8;
+}
+
+.nav-submenu a.active-menu::before {
+  background: #2563eb;
+}
+
+.nav-icon {
+  width: 16px;
+  height: 16px;
+  position: relative;
+  color: #2563eb;
+  flex: 0 0 auto;
+}
+
+.nav-icon::before,
+.nav-icon::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border: 1.8px solid currentColor;
+  border-radius: 3px;
+}
+
+.nav-icon.chart::before {
+  border: 0;
+  border-left: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  border-radius: 0;
+}
+
+.nav-icon.chart::after {
+  inset: 4px 3px 3px 6px;
+  border: 0;
+  border-left: 2px solid currentColor;
+  box-shadow: 4px -3px 0 -1px currentColor, 8px -7px 0 -1px currentColor;
+}
+
+.nav-icon.user-plus::before,
+.nav-icon.users::before {
+  inset: 2px 5px 8px;
+  border-radius: 50%;
+}
+
+.nav-icon.user-plus::after,
+.nav-icon.users::after {
+  inset: 9px 3px 1px;
+  border-top-left-radius: 9px;
+  border-top-right-radius: 9px;
+}
+
+.nav-icon.task::before {
+  border-radius: 50%;
+}
+
+.nav-icon.task::after {
+  inset: 4px;
+  border: 0;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(38deg);
+}
+
+.nav-icon.grid::before {
+  inset: 2px;
+  box-shadow: 7px 0 0 -1.8px var(--sidebar), 0 7px 0 -1.8px var(--sidebar), 7px 7px 0 -1.8px var(--sidebar);
+}
+
+.nav-icon.trend::before {
+  border: 0;
+  border-bottom: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+  transform: rotate(-34deg);
+}
+
+.nav-icon.trend::after {
+  display: none;
+}
+
+.nav-icon.dollar::before {
+  content: "$";
+  inset: -2px 0 0;
+  border: 0;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+.nav-icon.dollar::after,
+.nav-icon.document::after,
+.nav-icon.message::after,
+.nav-icon.gift::after,
+.nav-icon.crown::after,
+.nav-icon.swap::after,
+.nav-icon.cube::after,
+.nav-icon.bag::after,
+.nav-icon.settings::after,
+.nav-icon.shield::after {
+  display: none;
+}
+
+.nav-icon.shield::before {
+  border-radius: 50% 50% 45% 45%;
+}
+
+.nav-icon.document::before {
+  border-radius: 2px;
+  clip-path: polygon(0 0, 68% 0, 100% 32%, 100% 100%, 0 100%);
+}
+
+.nav-icon.message::before {
+  inset: 3px 2px 4px;
+  border-radius: 3px;
+}
+
+.nav-icon.gift::before {
+  border-radius: 2px;
+  box-shadow: inset 0 5px 0 transparent;
+}
+
+.nav-icon.crown::before {
+  border: 0;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(4px);
+}
+
+.nav-icon.crown::after {
+  display: block;
+  inset: 2px 2px 5px;
+  border: 0;
+  border-left: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+}
+
+.nav-icon.swap::before {
+  border: 0;
+  border-top: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  border-radius: 0;
+}
+
+.nav-icon.cube::before {
+  border-radius: 4px;
+  transform: rotate(45deg) scale(0.78);
+}
+
+.nav-icon.bag::before {
+  border-radius: 3px;
+}
+
+.nav-icon.settings::before {
+  border-radius: 50%;
+}
+
+.nav .nav-icon {
+  width: 17px;
+  height: 17px;
+  color: #2563eb;
+  flex: 0 0 17px;
+  overflow: visible;
+}
+
+.nav .nav-icon::before,
+.nav .nav-icon::after {
+  content: none;
+  display: none;
+}
+
+.nav .nav-icon path,
+.nav .nav-icon rect,
+.nav .nav-icon circle {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.profile {
+  padding: 27px 32px 16px;
+  border-top: 1px solid var(--border-light);
+  background: #f5f8fc;
+}
+
+.profile-name {
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.profile-email {
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.badges {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.badge {
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 9px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.badge.blue {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+
+.badge.orange {
+  color: #c2410c;
+  background: #fed7aa;
+}
+
+.badge.purple {
+  color: #7e22ce;
+  background: #f3d9ff;
+}
+
+.badge.green {
+  color: #047857;
+  background: #bbf7d0;
+}
+
+.logout {
+  height: 67px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 32px;
+  border: 0;
+  background: #f8fafc;
+  color: #172033;
+  font-weight: 600;
+}
+
+.logout-icon {
+  width: 16px;
+  height: 16px;
+  position: relative;
+  color: #ef4444;
+}
+
+.logout-icon::before {
+  content: "";
+  position: absolute;
+  inset: 2px 6px 2px 0;
+  border: 1.8px solid currentColor;
+  border-right: 0;
+  border-radius: 2px;
+}
+
+.logout-icon::after {
+  content: "";
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  right: 1px;
+  top: 4px;
+  border-top: 1.8px solid currentColor;
+  border-right: 1.8px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.app {
+  min-height: 100vh;
+  margin-left: 278px;
+}
+
+.topbar {
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px 0 25px;
+  border-bottom: 1px solid var(--border-light);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.search {
+  width: 632px;
+  max-width: min(632px, 42vw);
+  height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 0 15px 0 18px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #f3f6fb;
+  color: #52637a;
+}
+
+.search svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: #334155;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.search kbd {
+  margin-left: auto;
+  border: 0;
+  color: #8b98aa;
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 17px;
+}
+
+.icon-btn,
+.language {
+  border: 0;
+  background: transparent;
+  color: #0f172a;
+}
+
+.icon-btn {
+  width: 27px;
+  height: 27px;
+  display: grid;
+  place-items: center;
+}
+
+.icon-btn svg,
+.language svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.language {
+  height: 39px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
+}
+
+.language span:last-of-type {
+  font-weight: 600;
+}
+
+.tabbar {
+  height: 59px;
+  display: flex;
+  align-items: center;
+  padding-left: 16px;
+  border-bottom: 1px solid #edf1f7;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.tab {
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  gap: 13px;
+  padding: 0 14px 0 18px;
+  border-radius: 9px;
+  background: #f1f5fb;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.tab button {
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.page {
+  min-height: calc(100vh - 131px);
+  padding: clamp(30px, 3.1vw, 38px) clamp(24px, 3vw, 58px) 88px;
+}
+
+.content-shell {
+  width: 100%;
+  max-width: 1266px;
+  margin: 0 auto;
+}
+
+.heading {
+  margin-bottom: 28px;
+}
+
+.heading h1 {
+  margin: 0;
+  font-size: 32px;
+  line-height: 1.1;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.heading p {
+  margin: 8px 0 25px;
+  color: #475569;
+  font-size: 14px;
+}
+
+.segmented {
+  width: min(220px, 100%);
+  height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border: 1px solid #cfd9e8;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 2px 5px rgba(15, 23, 42, 0.03);
+}
+
+.segmented button {
+  flex: 1;
+  height: 34px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.segmented button.active {
+  background: var(--blue);
+  color: #fff;
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.05);
+}
+
+body[data-layout-page="open-account"] .heading,
+body[data-layout-page="demo-open-account"] .heading {
+  margin-bottom: 18px;
+  padding: 0 2px 2px;
+}
+
+body[data-layout-page="open-account"] .heading h1,
+body[data-layout-page="demo-open-account"] .heading h1 {
+  font-size: 28px;
+  line-height: 1.18;
+}
+
+body[data-layout-page="open-account"] .heading p,
+body[data-layout-page="demo-open-account"] .heading p {
+  max-width: 620px;
+  margin: 8px 0 18px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.open-method-tabs {
+  width: fit-content;
+  max-width: 100%;
+  height: auto;
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-muted);
+  box-shadow: none;
+}
+
+.open-method-tabs button {
+  flex: 0 0 auto;
+  min-width: 92px;
+  min-height: 38px;
+  height: 38px;
+  padding: 0 18px;
+  border-radius: 7px;
+  color: var(--text-soft);
+  font-size: 14px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.open-method-tabs button.active {
+  background: var(--surface-raised);
+  color: var(--text-strong);
+  box-shadow: var(--shadow-soft);
+}
+
+.promotion-entry-card {
+  position: relative;
+  display: grid;
+  gap: 14px;
+  width: 100%;
+  max-width: 920px;
+  margin-bottom: 18px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-soft);
+}
+
+.promotion-entry-card[hidden],
+.workspace[hidden] {
+  display: none !important;
+}
+
+.promotion-entry-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 14px;
+  row-gap: 10px;
+  align-items: end;
+}
+
+.promotion-link-field {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.promotion-link-field > span {
+  color: var(--text-soft);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.promotion-link-field.required > span::before {
+  content: "*";
+  margin-right: 8px;
+  color: #ef4444;
+}
+
+.promotion-link-field input {
+  width: 100%;
+  height: 42px;
+  min-width: 0;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--input-bg);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 850;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.promotion-link-field input::placeholder {
+  color: #a8b1bf;
+}
+
+.promotion-link-field input:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(47, 102, 232, 0.12);
+}
+
+.promotion-history-link {
+  justify-self: end;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  color: var(--blue);
+  font-size: 13px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.promotion-history-link:hover {
+  border-color: #bfdbfe;
+  background: var(--blue-soft);
+}
+
+.promotion-form-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.promotion-secondary-action,
+.promotion-primary-action {
+  width: 112px;
+  height: 40px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.promotion-secondary-action {
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text-soft);
+}
+
+.promotion-primary-action {
+  border: 0;
+  background: var(--blue);
+  color: #fff;
+  box-shadow: 0 10px 22px rgba(47, 102, 232, 0.22);
+}
+
+.promotion-link-result {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: var(--blue-soft);
+}
+
+.promotion-link-result[hidden] {
+  display: none !important;
+}
+
+.promotion-link-result small {
+  display: block;
+  margin-bottom: 6px;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.promotion-link-result strong {
+  display: block;
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.promotion-link-result p {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.promotion-link-result.is-invalid {
+  border-color: #facc15;
+  background: #fffbeb;
+}
+
+.promotion-link-result.is-invalid small {
+  color: #b45309;
+}
+
+.promotion-link-result.is-external {
+  border-color: #bfdbfe;
+  background: var(--blue-soft);
+}
+
+.promotion-result-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  max-width: 42%;
+}
+
+.promotion-result-tags span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--surface-raised);
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.promotion-history-panel {
+  position: absolute;
+  top: 82px;
+  right: 16px;
+  z-index: 12;
+  width: min(420px, calc(100% - 32px));
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-raised);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.14);
+}
+
+.promotion-history-panel[hidden] {
+  display: none !important;
+}
+
+.promotion-history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+
+.promotion-history-item:hover {
+  border-color: #bfdbfe;
+  background: var(--blue-soft);
+  transform: translateY(-1px);
+}
+
+.promotion-history-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 2px 0;
+}
+
+.promotion-history-head strong {
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.promotion-history-head span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.promotion-history-list {
+  display: grid;
+  gap: 8px;
+}
+
+.promotion-history-main {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.promotion-history-main strong {
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.promotion-history-main small,
+.promotion-history-empty {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.promotion-history-code {
+  flex: 0 0 auto;
+  max-width: 150px;
+  min-height: 26px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: var(--blue-soft);
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 950;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.promotion-link-banner {
+  display: grid;
+  gap: 5px;
+  margin-top: 18px;
+  padding: 12px 14px;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 850;
+}
+
+.promotion-link-banner.is-invalid {
+  border-color: #facc15;
+  background: #fffbeb;
+  color: #b45309;
+}
+
+.promotion-link-banner span {
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+body[data-layout-page="open-account"] .content-shell,
+body[data-layout-page="demo-open-account"] .content-shell {
+  --open-account-gap: clamp(18px, 1.7vw, 24px);
+  --open-account-summary-width: 390px;
+  max-width: 1280px;
+}
+
+body[data-layout-page="open-account"] .promotion-entry-card,
+body[data-layout-page="demo-open-account"] .promotion-entry-card {
+  width: calc(100% - var(--open-account-summary-width) - var(--open-account-gap));
+  max-width: none;
+}
+
+.workspace {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  gap: clamp(20px, 2.1vw, 28px);
+}
+
+body[data-layout-page="open-account"] .workspace,
+body[data-layout-page="demo-open-account"] .workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(330px, var(--open-account-summary-width));
+  align-items: start;
+  gap: var(--open-account-gap);
+}
+
+.wizard-card,
+.summary-card {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--shadow);
+}
+
+.wizard-card {
+  flex: 1 1 590px;
+  width: 100%;
+  min-width: 0;
+  max-width: 834px;
+  padding: clamp(28px, 2.8vw, 38px) clamp(22px, 2.6vw, 35px) 36px;
+}
+
+body[data-layout-page="open-account"] .wizard-card,
+body[data-layout-page="demo-open-account"] .wizard-card {
+  max-width: none;
+}
+
+.step {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 36px;
+}
+
+.step.compact {
+  margin-bottom: 36px;
+}
+
+.step.last {
+  margin-bottom: 0;
+}
+
+.step-marker {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  margin-top: 2px;
+  border-radius: 50%;
+  background: var(--blue);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.step-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.step-body header {
+  margin-bottom: 22px;
+}
+
+.step.compact .step-body header {
+  margin-bottom: 16px;
+}
+
+.step-body h3 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.15;
+  font-weight: 800;
+}
+
+.step-body p {
+  margin: 5px 0 0;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.platform-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: clamp(14px, 2.4vw, 31px);
+}
+
+.choice-card {
+  position: relative;
+  display: block;
+  min-height: 84px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.choice-card::before,
+.choice-card::after {
+  content: "";
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.choice-card::before {
+  top: 13px;
+  right: 13px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--blue);
+  transform: scale(0.8);
+}
+
+.choice-card::after {
+  top: 19px;
+  right: 19px;
+  width: 8px;
+  height: 5px;
+  border-left: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: rotate(-45deg) scale(0.8);
+}
+
+.choice-card input,
+.pill input,
+.currency input,
+.lever input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.choice-card.selected,
+.choice-card:has(input:checked) {
+  border-color: #2563eb;
+  background: #f8fbff;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.18);
+}
+
+.choice-card.selected::before,
+.choice-card.selected::after,
+.choice-card:has(input:checked)::before,
+.choice-card:has(input:checked)::after {
+  opacity: 1;
+}
+
+.choice-card.selected::before,
+.choice-card:has(input:checked)::before {
+  transform: scale(1);
+}
+
+.choice-card.selected::after,
+.choice-card:has(input:checked)::after {
+  transform: rotate(-45deg) scale(1);
+}
+
+.platform {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+}
+
+.platform-logo {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.platform-logo.mt4 {
+  background: linear-gradient(135deg, #406ec9, #294aa6);
+}
+
+.platform-logo.mt5 {
+  background: linear-gradient(135deg, #6152d8, #3928a8);
+}
+
+.platform strong,
+.account strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.platform small,
+.account small {
+  display: block;
+  margin-top: 8px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.checkmark {
+  display: none;
+}
+
+.pill-row,
+.currency-row,
+.leverage-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.pill {
+  position: relative;
+  height: 43px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 17px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.pill.selected,
+.pill:has(input:checked) {
+  border-color: var(--blue);
+  background: var(--blue);
+  color: #fff;
+}
+
+.white-dot,
+.green-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.green-dot {
+  background: #10b981;
+}
+
+.pill.selected .green-dot,
+.pill:has(input:checked) .green-dot {
+  background: #fff;
+}
+
+.account-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+  gap: 14px;
+}
+
+.account {
+  min-height: 127px;
+  padding: 19px 17px 17px;
+}
+
+.account-icon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 14px;
+  border-radius: 8px;
+}
+
+.account-icon svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.account-icon.blue {
+  color: #2563eb;
+  background: #eff6ff;
+}
+
+.account-icon.amber {
+  color: #f97316;
+  background: #fff7ed;
+}
+
+.account-icon.violet {
+  color: #9333ea;
+  background: #f5f7ff;
+}
+
+.account-icon.emerald {
+  color: #059669;
+  background: #ecfdf5;
+}
+
+.account-icon.rose {
+  color: #0f766e;
+  background: #f0fdfa;
+}
+
+.currency {
+  position: relative;
+  height: 50px;
+  min-width: 82px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 0 15px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: #fff;
+  font-weight: 800;
+}
+
+.currency::after {
+  content: "";
+  width: 10px;
+  height: 6px;
+  border-left: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  opacity: 0;
+  transform: rotate(-45deg);
+}
+
+.currency.selected,
+.currency:has(input:checked) {
+  border-color: var(--blue);
+  color: var(--blue);
+  background: #f9fbff;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.1);
+}
+
+.currency.selected::after,
+.currency:has(input:checked)::after {
+  opacity: 1;
+}
+
+.currency svg {
+  display: none;
+}
+
+.lever {
+  position: relative;
+  height: 49px;
+  min-width: 86px;
+  display: grid;
+  place-items: center;
+  padding: 0 17px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: #fff;
+  font-weight: 800;
+}
+
+.lever.selected,
+.lever:has(input:checked) {
+  border-color: var(--blue);
+  background: var(--blue);
+  color: #fff;
+}
+
+.summary-card {
+  flex: 0 1 405px;
+  width: min(100%, 405px);
+  min-width: min(100%, 300px);
+  padding: 34px 27px 30px;
+}
+
+body[data-layout-page="open-account"] .summary-card,
+body[data-layout-page="demo-open-account"] .summary-card {
+  width: 100%;
+  min-width: 0;
+}
+
+.summary-card h3 {
+  margin: 0 0 25px;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.summary-card dl {
+  margin: 0;
+}
+
+.summary-card dl div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 19px;
+}
+
+.summary-card dt {
+  color: #64748b;
+}
+
+.summary-card dd {
+  margin: 0;
+  color: #020617;
+  font-weight: 800;
+  text-align: right;
+}
+
+.blue-text {
+  color: #2563eb !important;
+}
+
+.summary-divider {
+  height: 1px;
+  margin: 26px 0 22px;
+  background: #edf1f6;
+}
+
+.primary-action {
+  width: 100%;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 5px;
+  background: var(--blue);
+  color: #fff;
+  font-weight: 900;
+  box-shadow: 0 8px 18px rgba(47, 102, 232, 0.22);
+}
+
+.primary-action:hover {
+  background: var(--blue-dark);
+}
+
+.primary-action:disabled,
+.primary-action.is-disabled {
+  cursor: not-allowed;
+  background: #94a3b8;
+  box-shadow: none;
+}
+
+.primary-action svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.ghost-action {
+  width: 100%;
+  height: 42px;
+  margin-top: 11px;
+  border: 0;
+  background: transparent;
+  color: #334155;
+  font-weight: 700;
+}
+
+.summary-card p {
+  margin: 19px 0 0;
+  color: #64748b;
+  font-size: 11px;
+  text-align: center;
+}
+
+.summary-card a {
+  color: #2563eb;
+  font-weight: 700;
+}
+
+@media (max-width: 1180px) {
+  .sidebar {
+    width: 244px;
+  }
+
+  .app {
+    margin-left: 244px;
+  }
+
+  .content-shell {
+    max-width: 100%;
+  }
+
+  .page {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+
+  .workspace {
+    align-items: stretch;
+  }
+
+  body[data-layout-page="open-account"] .promotion-entry-card,
+  body[data-layout-page="demo-open-account"] .promotion-entry-card {
+    width: 100%;
+  }
+
+  body[data-layout-page="open-account"] .workspace,
+  body[data-layout-page="demo-open-account"] .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-card {
+    flex: 1 1 320px;
+  }
+}
+
+@media (max-width: 860px) {
+  .sidebar {
+    position: static;
+    width: 100%;
+    max-height: none;
+  }
+
+  .nav,
+  .profile,
+  .logout,
+  .portal-switch {
+    display: none;
+  }
+
+  .brand {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .app {
+    margin-left: 0;
+  }
+
+  .topbar {
+    height: auto;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+
+  .search {
+    order: 2;
+    width: 100%;
+    max-width: none;
+  }
+
+  .top-actions {
+    margin-left: auto;
+  }
+
+  .tabbar {
+    padding-left: 16px;
+  }
+
+  .page {
+    min-height: auto;
+    padding: 26px 16px 42px;
+  }
+
+  .content-shell {
+    width: 100%;
+  }
+
+  .heading h1 {
+    font-size: 26px;
+  }
+
+  .wizard-card {
+    padding: 24px 18px;
+    flex-basis: 100%;
+    max-width: none;
+  }
+
+  .step {
+    gap: 12px;
+  }
+
+  .platform-grid,
+  .account-grid {
+    gap: 12px;
+  }
+
+  .account {
+    min-height: 118px;
+  }
+
+  .summary-card {
+    flex-basis: 100%;
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .brand-mark {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+  }
+
+  .brand-title {
+    font-size: 17px;
+  }
+
+  .topbar {
+    align-items: flex-start;
+  }
+
+  .search {
+    height: 42px;
+  }
+
+  .top-actions {
+    max-width: calc(100vw - 32px);
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .toolbar-btn {
+    max-width: 118px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .language {
+    height: 36px;
+    padding: 0 10px;
+  }
+
+  .language span:last-of-type {
+    display: none;
+  }
+
+  .tabbar {
+    height: 52px;
+    padding: 0 12px;
+  }
+
+  .tab {
+    max-width: 100%;
+  }
+
+  .tab span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .page {
+    padding: 22px 12px 34px;
+  }
+
+  .heading {
+    margin-bottom: 22px;
+  }
+
+  .heading h1 {
+    font-size: 24px;
+  }
+
+  .heading p {
+    margin-bottom: 18px;
+  }
+
+  .segmented {
+    height: 42px;
+  }
+
+  .segmented button {
+    height: 32px;
+  }
+
+  .open-method-tabs {
+    width: 100%;
+    gap: 5px;
+    padding: 5px;
+  }
+
+  .open-method-tabs button {
+    min-width: 0;
+    padding: 0 10px;
+    font-size: 14px;
+  }
+
+  .promotion-entry-card {
+    padding: 14px;
+    border-radius: 8px;
+  }
+
+  .promotion-entry-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .promotion-history-link {
+    justify-self: stretch;
+  }
+
+  .promotion-history-link,
+  .promotion-link-result,
+  .promotion-form-actions {
+    grid-column: auto;
+    margin-left: 0;
+    padding-left: 0;
+  }
+
+  .promotion-history-panel {
+    position: static;
+    width: 100%;
+    box-shadow: var(--shadow-soft);
+  }
+
+  .promotion-form-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .promotion-secondary-action,
+  .promotion-primary-action {
+    width: 100%;
+  }
+
+  .promotion-link-result {
+    display: grid;
+  }
+
+  .promotion-result-tags {
+    max-width: none;
+    justify-content: flex-start;
+  }
+
+  .wizard-card,
+  .summary-card {
+    border-radius: 14px;
+  }
+
+  .wizard-card {
+    padding: 22px 14px 24px;
+  }
+
+  .platform-grid,
+  .account-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .step {
+    display: block;
+    margin-bottom: 30px;
+  }
+
+  .step-marker {
+    float: left;
+    width: 28px;
+    height: 28px;
+    margin: 0 10px 0 0;
+    font-size: 12px;
+  }
+
+  .step-body header,
+  .step.compact .step-body header {
+    min-height: 34px;
+    margin-bottom: 14px;
+  }
+
+  .step-body > :not(header) {
+    clear: both;
+  }
+
+  .platform {
+    min-height: 78px;
+    gap: 12px;
+    padding: 15px 44px 15px 14px;
+  }
+
+  .platform-logo {
+    width: 42px;
+    height: 42px;
+  }
+
+  .account {
+    min-height: 112px;
+    padding: 16px 44px 15px 15px;
+  }
+
+  .choice-card::before {
+    top: 12px;
+    right: 12px;
+  }
+
+  .choice-card::after {
+    top: 18px;
+    right: 18px;
+  }
+
+  .pill-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 9px;
+  }
+
+  .currency-row,
+  .leverage-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+  }
+
+  .pill,
+  .currency,
+  .lever {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .summary-card {
+    padding: 26px 20px 24px;
+  }
+}
+
+@media (max-width: 390px) {
+  .pill-row,
+  .currency-row,
+  .leverage-row {
+    grid-template-columns: 1fr;
+  }
+
+  .platform strong,
+  .account strong {
+    font-size: 13px;
+  }
+
+  .platform small,
+  .account small {
+    line-height: 1.35;
+  }
+}
+
+</style>
+    <style data-inlined-from="./blocks.css">
+/*
+  Nxbroker shared building blocks.
+  Page CSS should compose these classes first, then add page-specific layout details.
+*/
+
+:root {
+  --block-content-max: 1280px;
+  --block-row-gap: 24px;
+  --block-column-gap: 16px;
+  --block-card-padding: 20px;
+  --block-inner-gap: 16px;
+  --block-control-gap: 12px;
+  --block-radius: 8px;
+  --block-border: #dce6f4;
+  --block-surface: rgba(255, 255, 255, 0.98);
+  --block-surface-soft: #f8fbff;
+  --block-shadow: 0 16px 36px rgba(15, 23, 42, 0.055);
+  --block-action-min: 112px;
+  --block-repeat-min: 252px;
+  --block-auto-min: 240px;
+  --block-auto-gap: var(--block-inner-gap);
+}
+
+.block-container {
+  width: min(100%, var(--block-content-max));
+  margin: 0 auto;
+}
+
+.block-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-items: start;
+  gap: var(--block-row-gap) var(--block-column-gap);
+}
+
+.block-grid > * {
+  min-width: 0;
+}
+
+.block-span-12,
+.block-full {
+  grid-column: 1 / -1;
+}
+
+.block-span-8 {
+  grid-column: span 8;
+}
+
+.block-span-6 {
+  grid-column: span 6;
+}
+
+.block-span-4 {
+  grid-column: span 4;
+}
+
+.block-span-3 {
+  grid-column: span 3;
+}
+
+.block-card {
+  min-width: 0;
+  border: 1px solid var(--block-border);
+  border-radius: var(--block-radius);
+  background: var(--block-surface);
+  box-shadow: var(--block-shadow);
+}
+
+.block-card-padded {
+  padding: var(--block-card-padding);
+}
+
+.block-card-fill {
+  height: 100%;
+}
+
+.block-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--block-inner-gap);
+}
+
+.block-stack {
+  display: grid;
+  min-width: 0;
+  gap: var(--block-inner-gap);
+}
+
+.block-autolayout,
+.block-auto-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--block-auto-min)), 1fr));
+  align-items: stretch;
+  gap: var(--block-auto-gap);
+}
+
+.block-auto-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--block-auto-gap);
+}
+
+.block-auto-row > *,
+.block-autolayout > *,
+.block-auto-grid > * {
+  min-width: 0;
+}
+
+.block-auto-stack {
+  display: grid;
+  min-width: 0;
+  gap: var(--block-auto-gap);
+}
+
+.block-action-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--block-action-min)), 1fr));
+  gap: var(--block-control-gap);
+}
+
+.block-repeat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--block-repeat-min)), 1fr));
+  gap: var(--block-inner-gap);
+  align-items: start;
+}
+
+.block-action-tile {
+  min-height: 68px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 7px;
+  padding: 10px 8px;
+  border: 1px solid var(--block-border);
+  border-radius: 7px;
+  background: #fff;
+  color: #111827;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.block-action-tile:hover {
+  transform: translateY(-1px);
+}
+
+.block-module-toolbar,
+.block-filter-panel,
+.block-table-card {
+  min-width: 0;
+  border: 1px solid var(--block-border);
+  border-radius: var(--block-radius);
+  background: var(--block-surface);
+}
+
+.block-module-toolbar,
+.block-filter-panel {
+  padding: var(--block-card-padding);
+}
+
+.block-table-card {
+  overflow: hidden;
+}
+
+@media (max-width: 1280px) {
+  .block-collapse-1280 > .block-span-8,
+  .block-collapse-1280 > .block-span-6,
+  .block-collapse-1280 > .block-span-4,
+  .block-collapse-1280 > .block-span-3,
+  .block-span-full-1280 {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 680px) {
+  :root {
+    --block-row-gap: 22px;
+    --block-card-padding: 15px;
+    --block-action-min: 128px;
+    --block-auto-min: 100%;
+  }
+
+  .block-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--block-row-gap) 12px;
+  }
+
+  .block-span-12,
+  .block-span-8,
+  .block-span-6,
+  .block-span-4,
+  .block-span-3,
+  .block-full {
+    grid-column: 1 / -1;
+  }
+
+  .block-head,
+  .block-auto-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+:root[data-theme="dark"] {
+  --block-border: rgba(148, 163, 184, 0.22);
+  --block-surface: rgba(15, 23, 42, 0.9);
+  --block-surface-soft: rgba(15, 23, 42, 0.72);
+  --block-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+}
+
+:root[data-theme="dark"] .block-action-tile {
+  background: rgba(15, 23, 42, 0.72);
+  color: #e5edf8;
+}
+
+</style>
+    <style data-inlined-from="./client-home.css?v=20260520-account-platform-inline">
+.client-home-page {
+  --block-content-max: 1280px;
+  --block-row-gap: 30px;
+  --block-column-gap: 16px;
+  --block-card-padding: 20px;
+  --block-inner-gap: 16px;
+  --block-control-gap: 12px;
+  --block-action-min: 92px;
+  --block-repeat-min: 252px;
+  padding-top: 24px;
+  padding-bottom: 72px;
+  background:
+    radial-gradient(circle at 70% 8%, rgba(37, 99, 235, 0.055), transparent 28%),
+    linear-gradient(180deg, #ffffff 0%, #f6f9fd 100%);
+}
+
+.client-shell {
+  color: #111827;
+}
+
+.client-welcome {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.client-welcome h1 {
+  margin: 0;
+  color: #111827;
+  font-size: 31px;
+  line-height: 1.1;
+  font-weight: 900;
+}
+
+.client-welcome p {
+  margin: 8px 0 0;
+  color: #4b5563;
+  font-size: 14px;
+}
+
+.welcome-actions {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  color: #475569;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.welcome-actions button {
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid #d9e3f1;
+  border-radius: 7px;
+  background: #fff;
+  color: #111827;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.overview-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 14px;
+}
+
+.overview-head h2 {
+  margin: 0;
+  color: #111827;
+  font-size: 18px;
+  line-height: 1.2;
+  font-weight: 900;
+}
+
+.overview-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.overview-info {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #dce6f4;
+  border-radius: 7px;
+  background: #fff;
+  color: #64748b;
+}
+
+.overview-info::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  z-index: 20;
+  right: 0;
+  top: calc(100% + 8px);
+  width: min(320px, 72vw);
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #111827;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.55;
+  white-space: normal;
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.18);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.overview-info:hover::after,
+.overview-info:focus-visible::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.balance-metrics {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr 1fr;
+  gap: var(--block-control-gap);
+}
+
+.balance-metric {
+  min-width: 0;
+  min-height: 104px;
+  display: grid;
+  align-content: center;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid #dce6f4;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.balance-metric.primary {
+  border-color: #b7ccff;
+  background:
+    radial-gradient(circle at 86% 12%, rgba(37, 99, 235, 0.14), transparent 34%),
+    linear-gradient(135deg, #eef5ff 0%, #dbeafe 100%);
+}
+
+.balance-metric small {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.balance-metric.primary small {
+  color: #2563eb;
+}
+
+.balance-metric strong {
+  overflow: hidden;
+  color: #111827;
+  font-size: clamp(24px, 2vw, 30px);
+  line-height: 1;
+  font-weight: 950;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.balance-metric.primary strong {
+  color: #17336d;
+  font-size: clamp(28px, 2.4vw, 36px);
+}
+
+.balance-metric span {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.overview-fund-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--block-control-gap);
+  margin-top: var(--block-inner-gap);
+}
+
+.fund-action {
+  min-width: 0;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 0 24px;
+  border: 1px solid #dce6f4;
+  border-radius: 8px;
+  background: #fff;
+  color: #172033;
+  font-size: 15px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.fund-action.deposit {
+  border-color: #2563eb;
+  background:
+    radial-gradient(circle at 92% 16%, rgba(255, 255, 255, 0.24), transparent 28%),
+    linear-gradient(135deg, #2563eb 0%, #1f4ed8 100%);
+  color: #fff;
+  box-shadow: 0 14px 24px rgba(37, 99, 235, 0.2);
+}
+
+.fund-action.withdraw {
+  background: #f8fbff;
+  color: #2563eb;
+}
+
+.fund-icon {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.fund-action.withdraw .fund-icon {
+  background: #e8f1ff;
+  color: #1d4ed8;
+}
+
+.fund-action .fund-icon svg {
+  width: 19px;
+  height: 19px;
+  stroke-width: 2.25;
+}
+
+.account-progress-card {
+  border-color: #b8d4ff;
+  background:
+    radial-gradient(circle at 88% 0%, rgba(37, 99, 235, 0.08), transparent 34%),
+    linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.progress-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.progress-top h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: #111827;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.progress-top h2::before {
+  content: "";
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #2563eb, #f59e0b);
+}
+
+.progress-top h2 span {
+  color: #2563eb;
+  font-size: 13px;
+}
+
+.progress-top p {
+  margin: 9px 0 0;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.icon-only {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #94a3b8;
+}
+
+.progress-track {
+  height: 6px;
+  margin: 13px 0 15px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: #e6eefb;
+}
+
+.progress-track span {
+  display: block;
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: #2563eb;
+}
+
+.progress-tasks {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.progress-task {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid #e1e8f3;
+  border-radius: 8px;
+  background: #fff;
+  color: #111827;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.progress-task.active {
+  border-color: #c7d9ff;
+  background: #f8fbff;
+}
+
+.progress-task i {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+  border: 1px solid #cbd5e1;
+  border-radius: 50%;
+}
+
+.progress-cta {
+  width: fit-content;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 13px;
+  padding: 0 14px;
+  border-radius: 7px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 900;
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.18);
+}
+
+.promo-banner {
+  min-height: 78px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 15px;
+  overflow: hidden;
+  padding: 14px 18px;
+  border-color: #7c3f18;
+  background:
+    linear-gradient(110deg, rgba(17, 24, 39, 0.92), rgba(91, 47, 27, 0.92)),
+    repeating-linear-gradient(115deg, transparent 0 24px, rgba(255, 255, 255, 0.12) 25px 26px);
+  color: #fff;
+}
+
+.promo-badge {
+  width: 45px;
+  height: 45px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #facc15;
+  color: #111827;
+}
+
+.promo-copy {
+  min-width: 0;
+}
+
+.promo-copy div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.promo-copy span {
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  border-radius: 5px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.promo-copy strong {
+  overflow: hidden;
+  font-size: 17px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.promo-copy p {
+  margin: 5px 0 0;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.promo-banner > a {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  border-radius: 6px;
+  background: #fff;
+  color: #c2410c;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.quick-panel h2,
+.refer-head h2,
+.accounts-title-row h2 {
+  margin: 0;
+  color: #111827;
+  font-size: 18px;
+  line-height: 1.2;
+  font-weight: 900;
+}
+
+.quick-actions {
+  margin-top: 18px;
+}
+
+.quick-action:hover,
+.progress-cta:hover,
+.promo-banner > a:hover,
+.refer-field button:hover,
+.qr-button:hover,
+.account-entry-trigger:hover,
+.account-entry-action:hover {
+  transform: translateY(-1px);
+}
+
+.quick-icon {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+}
+
+.quick-icon.blue {
+  color: #2563eb;
+}
+
+.quick-icon.green {
+  color: #059669;
+}
+
+.quick-icon.warm {
+  color: #ea580c;
+}
+
+.quick-icon.purple {
+  color: #7c3aed;
+}
+
+.quick-icon.red {
+  color: #dc2626;
+}
+
+.quick-icon.cyan {
+  color: #0891b2;
+}
+
+.refer-head {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.7fr) minmax(280px, 1fr);
+  align-items: end;
+  gap: 18px;
+  margin-bottom: 14px;
+}
+
+.refer-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--block-control-gap);
+}
+
+.refer-stats span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.refer-stats small {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.refer-stats b {
+  color: #111827;
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 950;
+}
+
+.refer-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) minmax(230px, 330px) 68px;
+  gap: var(--block-control-gap);
+}
+
+.refer-field,
+.qr-button {
+  min-height: 66px;
+  border: 1px solid #dce6f4;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.refer-field {
+  position: relative;
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  gap: 7px;
+  padding: 10px 52px 10px 13px;
+}
+
+.refer-field label {
+  color: #475569;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.refer-field span {
+  overflow: hidden;
+  color: #334155;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.refer-field button {
+  position: absolute;
+  right: 12px;
+  bottom: 13px;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  background: #fff;
+  color: #111827;
+}
+
+.qr-button {
+  display: grid;
+  place-items: center;
+  color: #111827;
+}
+
+.accounts-panel {
+  min-height: 520px;
+  padding: var(--block-card-padding) var(--block-card-padding) 24px;
+}
+
+.accounts-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.accounts-title-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-width: 0;
+}
+
+.account-toolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.account-filter {
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px;
+  border: 1px solid #dce6f4;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.account-filter button {
+  height: 30px;
+  min-width: 62px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #475569;
+  font-weight: 900;
+}
+
+.account-filter button.active {
+  background: #2563eb;
+  color: #fff;
+  box-shadow: 0 8px 15px rgba(37, 99, 235, 0.18);
+}
+
+.account-open-menu {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.view-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.view-toggle button {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #dce6f4;
+  border-radius: 8px;
+  background: #fff;
+  color: #64748b;
+}
+
+.view-toggle button.active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.accounts-card-view[hidden],
+.accounts-list-view[hidden] {
+  display: none !important;
+}
+
+.trade-account-card {
+  min-height: 302px;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #dfe7f2;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.account-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.account-card-title {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.account-id-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.account-status {
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.account-status.demo {
+  background: #64748b;
+}
+
+.account-number {
+  color: #111827;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.account-menu {
+  width: 30px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  margin-left: auto;
+  border: 0;
+  border-radius: 7px;
+  background: #f8fbff;
+  color: #475569;
+}
+
+.account-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.account-tags span {
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 7px;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.balance-box {
+  min-height: 76px;
+  display: grid;
+  align-content: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #f6f9ff;
+}
+
+.balance-box strong {
+  color: #111827;
+  font-size: 24px;
+  line-height: 1;
+  font-weight: 950;
+}
+
+.balance-box span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.account-platform {
+  min-width: 0;
+  margin-top: 2px;
+  overflow: hidden;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.account-meta div {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+  min-height: 60px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #edf3fb;
+  background: #fbfdff;
+  color: #64748b;
+}
+
+.account-meta span {
+  font-size: 12px;
+}
+
+.account-meta b {
+  overflow: hidden;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-entry-trigger {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px solid #2563eb;
+  border-radius: 7px;
+  background: #2563eb;
+  color: #fff;
+  font-weight: 950;
+  box-shadow: 0 10px 18px rgba(37, 99, 235, 0.18);
+}
+
+.account-entry-trigger span {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.account-entry-trigger i {
+  display: grid;
+  place-items: center;
+  margin-left: auto;
+  color: rgba(255, 255, 255, 0.84);
+}
+
+.account-entry-trigger[aria-expanded="true"] i {
+  transform: rotate(180deg);
+}
+
+.account-entry-trigger.compact {
+  min-width: 96px;
+  min-height: 40px;
+  padding: 0 10px;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.account-entry-trigger.compact span {
+  width: 22px;
+  height: 22px;
+}
+
+.account-entry-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.account-entry-actions[hidden] {
+  display: none !important;
+}
+
+.account-entry-action {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 12px;
+  border: 1px solid #c7d9ff;
+  border-radius: 7px;
+  background: #fff;
+  color: #2563eb;
+  font-weight: 900;
+  text-align: left;
+}
+
+.account-entry-action.primary {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.account-entry-action span {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: #e8f1ff;
+}
+
+.account-entry-action b {
+  font-size: 13px;
+}
+
+.account-entry-action.compact {
+  min-height: 36px;
+  width: 100%;
+  background: #fff;
+}
+
+.account-open-menu .account-entry-actions {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 168px;
+  padding: 8px;
+  border: 1px solid #dce6f4;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.16);
+}
+
+.account-open-menu .account-entry-action span {
+  width: 22px;
+  height: 22px;
+}
+
+.account-entry-action button,
+button.account-entry-action {
+  font-family: inherit;
+}
+
+.account-entry-action:hover {
+  border-color: #2563eb;
+  box-shadow: 0 8px 16px rgba(37, 99, 235, 0.12);
+}
+
+.account-entry-trigger:hover {
+  box-shadow: 0 14px 24px rgba(37, 99, 235, 0.22);
+}
+
+.account-entry-trigger:focus-visible,
+.account-entry-action:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.22);
+  outline-offset: 2px;
+}
+
+.account-entry-action button {
+  border: 0;
+}
+
+.account-entry-action.primary:hover {
+  background: #e8f1ff;
+}
+
+.account-entry-action[type="button"] {
+  cursor: pointer;
+}
+
+.account-entry-trigger[aria-expanded="true"] {
+  background: #173f9d;
+  color: #fff;
+}
+
+.accounts-list-view {
+  overflow: auto;
+  border: 1px solid #dfe7f2;
+  border-radius: 8px;
+}
+
+.account-table {
+  width: 100%;
+  min-width: 980px;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+.account-table th,
+.account-table td {
+  padding: 14px 15px;
+  border-bottom: 1px solid #edf2f7;
+  color: #5f6673;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.account-table th {
+  background: #f8fbff;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.account-table td strong {
+  color: #111827;
+  font-size: 16px;
+}
+
+.table-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.table-actions a,
+.table-actions button {
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border: 1px solid #2563eb;
+  border-radius: 6px;
+  background: #fff;
+  color: #2563eb;
+  font-weight: 900;
+}
+
+.table-actions a:first-child {
+  background: #2563eb;
+  color: #fff;
+}
+
+.client-toast {
+  position: fixed;
+  right: 28px;
+  bottom: 28px;
+  z-index: 50;
+  padding: 11px 16px;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #fff;
+  font-weight: 900;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.18);
+}
+
+.welcome-actions svg,
+.overview-info svg,
+.fund-icon svg,
+.icon-only svg,
+.progress-cta svg,
+.promo-badge svg,
+.quick-icon svg,
+.refer-field button svg,
+.qr-button svg,
+.view-toggle svg,
+.account-menu svg,
+.account-entry-trigger svg,
+.account-entry-action svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.welcome-actions svg,
+.quick-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.promo-badge svg {
+  width: 23px;
+  height: 23px;
+}
+
+.refer-field button,
+.qr-button,
+.overview-info,
+.fund-action,
+.quick-action,
+.progress-cta,
+.promo-banner > a,
+.account-entry-trigger,
+.account-entry-action,
+.table-actions a,
+.table-actions button {
+  transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.account-entry-trigger i {
+  transition: transform 0.16s ease;
+}
+
+@media (max-width: 1280px) {
+  .client-home-page {
+    --block-action-min: 112px;
+  }
+
+  .progress-tasks {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 980px) {
+  .client-welcome,
+  .welcome-actions,
+  .accounts-head,
+  .accounts-title-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .welcome-actions {
+    white-space: normal;
+  }
+
+  .account-toolbar {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .progress-tasks,
+  .overview-head,
+  .balance-metrics,
+  .overview-fund-actions,
+  .refer-head,
+  .refer-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .overview-head {
+    display: grid;
+  }
+
+  .overview-tools {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .promo-banner {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .promo-banner > a {
+    grid-column: 1 / -1;
+    width: fit-content;
+  }
+}
+
+@media (max-width: 680px) {
+  .client-home-page {
+    padding-top: 18px;
+  }
+
+  .client-welcome h1 {
+    font-size: 26px;
+  }
+
+  .balance-overview,
+  .account-progress-card,
+  .quick-panel,
+  .refer-card,
+  .accounts-panel {
+    padding: 15px;
+  }
+
+  .accounts-card-view,
+  .account-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .quick-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .account-filter {
+    flex: 1 1 220px;
+    width: auto;
+  }
+
+  .account-filter button {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .account-open-menu .account-entry-actions {
+    right: auto;
+    left: 0;
+  }
+}
+
+</style>
+    <style data-inlined-from="./theme.css">
+:root {
+  --bg: #f8fbff;
+  --page-bg: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  --surface-raised: #ffffff;
+  --surface-muted: #f3f6fb;
+  --surface-hover: #f8fbff;
+  --surface-selected: #eef4ff;
+  --input-bg: #ffffff;
+  --text-strong: #0f172a;
+  --text-soft: #475569;
+  --icon-muted: #94a3b8;
+  --overlay: rgba(15, 23, 42, 0.42);
+  --shadow-soft: 0 12px 28px rgba(15, 23, 42, 0.05);
+  --shadow-floating: 0 24px 70px rgba(15, 23, 42, 0.22);
+  --blue-faint: #eff6ff;
+  --success: #059669;
+  --success-soft: #ecfdf5;
+  --warning: #c2410c;
+  --warning-soft: #fff7ed;
+  --danger: #dc2626;
+  --danger-soft: #fff1f2;
+  --purple: #7c3aed;
+  --purple-soft: #f3e8ff;
+  --gold: #92400e;
+  --gold-soft: #fff7d6;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --blue: #6ea8ff;
+  --blue-dark: #8ab6ff;
+  --blue-soft: rgba(96, 165, 250, 0.16);
+  --border: #253247;
+  --border-light: #1e293b;
+  --text: #e5edf8;
+  --muted: #9aa8bd;
+  --sidebar: #0b1220;
+  --surface: #111827;
+  --surface-soft: #172033;
+  --bg: #0a1020;
+  --page-bg:
+    radial-gradient(circle at 58% 0%, rgba(96, 165, 250, 0.12), transparent 30%),
+    linear-gradient(180deg, #0a1020 0%, #0d1424 100%);
+  --surface-raised: #151f2f;
+  --surface-muted: #1b2638;
+  --surface-hover: #202d42;
+  --surface-selected: rgba(96, 165, 250, 0.18);
+  --input-bg: #101827;
+  --text-strong: #f8fbff;
+  --text-soft: #c4cfdd;
+  --icon-muted: #8ea0b8;
+  --overlay: rgba(2, 6, 23, 0.68);
+  --shadow: 0 18px 44px rgba(0, 0, 0, 0.36);
+  --shadow-soft: 0 14px 32px rgba(0, 0, 0, 0.24);
+  --shadow-floating: 0 28px 76px rgba(0, 0, 0, 0.48);
+  --blue-faint: rgba(96, 165, 250, 0.14);
+  --success: #34d399;
+  --success-soft: rgba(52, 211, 153, 0.14);
+  --warning: #fb923c;
+  --warning-soft: rgba(251, 146, 60, 0.15);
+  --danger: #f87171;
+  --danger-soft: rgba(248, 113, 113, 0.15);
+  --purple: #c4b5fd;
+  --purple-soft: rgba(167, 139, 250, 0.15);
+  --gold: #facc15;
+  --gold-soft: rgba(250, 204, 21, 0.16);
+  color-scheme: dark;
+}
+
+:root[data-theme="dark"] body {
+  background: var(--page-bg);
+  color: var(--text);
+}
+
+.theme-toggle {
+  position: relative;
+}
+
+.theme-toggle .theme-icon {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.theme-toggle .theme-icon-sun {
+  position: absolute;
+  opacity: 0;
+  transform: scale(0.72) rotate(-16deg);
+}
+
+:root[data-theme="dark"] .theme-toggle .theme-icon-moon {
+  opacity: 0;
+  transform: scale(0.72) rotate(16deg);
+}
+
+:root[data-theme="dark"] .theme-toggle .theme-icon-sun {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+}
+
+.standalone-theme-toggle,
+.theme-toggle:not(.icon-btn) {
+  width: 38px;
+  height: 38px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+.standalone-theme-toggle svg,
+.theme-toggle:not(.icon-btn) svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+:root[data-theme="dark"] :is(.sidebar, .profile, .logout) {
+  background: var(--sidebar);
+}
+
+:root[data-theme="dark"] :is(.topbar, .tabbar, .common-tabbar, .portal-menu) {
+  background: rgba(15, 23, 42, 0.9);
+  border-color: var(--border-light);
+}
+
+:root[data-theme="dark"] :is(.portal-switch, .language, .search, .tab, .tab-arrow, .toolbar-btn, .icon-btn) {
+  background: var(--input-bg);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .toolbar-btn {
+  background: transparent;
+}
+
+:root[data-theme="dark"] :is(.search, .search span, .search kbd, .brand-subtitle, .profile-email, .nav h2) {
+  color: var(--muted);
+}
+
+:root[data-theme="dark"] :is(.nav a, .portal-switch, .portal-option, .logout, .brand-title) {
+  color: var(--text);
+}
+
+:root[data-theme="dark"] :is(.nav a:hover, .active-menu, .common-tabbar .active-tab, .portal-option:hover, .portal-option.active) {
+  background: var(--surface-selected);
+  color: var(--blue) !important;
+}
+
+:root[data-theme="dark"] .nav-icon,
+:root[data-theme="dark"] .nav .nav-icon {
+  color: var(--blue);
+}
+
+:root[data-theme="dark"] .page,
+:root[data-theme="dark"] :is(.points-app, .points-page, .promotion-page, .ib-material-page, .promo-page, .server-page, .servers-page, .deposit-page, .client-home-page, .copytrading-page, .blacklist-app, .contest-page, .leaderboard-page, .crm-app, .crm-page, .crm-detail-page) {
+  background: var(--page-bg);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] :is(
+  .content-shell,
+  .client-shell,
+  .points-shell,
+  .promotion-shell,
+  .ib-material-shell,
+  .promo-shell,
+  .server-shell,
+  .servers-shell,
+  .deposit-shell,
+  .copytrading-shell,
+  .blacklist-shell,
+  .leaderboard-shell
+) {
+  color: var(--text);
+}
+
+:root[data-theme="dark"] :is(
+  .page-card,
+  .wizard-card,
+  .summary-card,
+  .balance-overview,
+  .account-progress-card,
+  .promo-banner,
+  .quick-panel,
+  .refer-card,
+  .accounts-panel,
+  .method-card,
+  .settings-card,
+  .side-card,
+  .editor-bar,
+  .rule-card,
+  .audit-card,
+  .module-toolbar,
+  .filter-panel,
+  .table-card,
+  .detail-panel,
+  .link-workspace-card,
+  .subagent-card,
+  .builder-side-card,
+  .builder-card,
+  .impact-card-inline,
+  .account-permission-card,
+  .material-toolbar,
+  .material-list-card,
+  .material-card,
+  .material-modal,
+  .blacklist-stats-panel,
+  .blacklist-add-panel,
+  .preview-panel,
+  .blacklist-list-panel,
+  .empty-state,
+  .server-panel,
+  .server-card,
+  .server-toolbar,
+  .payment-panel,
+  .deposit-panel,
+  .section-card,
+  .callout,
+  .activity-control-panel,
+  .current-activity-banner,
+  .activity-config-card,
+  .detail-module-card,
+  .detail-side-card
+) {
+  background: var(--surface-raised);
+  border-color: var(--border);
+  color: var(--text);
+  box-shadow: var(--shadow-soft);
+}
+
+:root[data-theme="dark"] .detail-side-card {
+  box-shadow: none;
+}
+
+:root[data-theme="dark"] .profile-buttons .secondary-action {
+  background: var(--input-bg);
+  border-color: rgba(110, 168, 255, 0.38);
+  color: var(--blue);
+}
+
+:root[data-theme="dark"] .profile-buttons .secondary-action:hover {
+  background: var(--surface-hover);
+  border-color: rgba(110, 168, 255, 0.52);
+}
+
+:root[data-theme="dark"] :is(.page-card:hover, .method-card:hover, .account-permission-card:has(input:checked), .choice-card.selected, .choice-card:has(input:checked)) {
+  background: var(--surface-hover);
+  border-color: rgba(110, 168, 255, 0.62);
+}
+
+:root[data-theme="dark"] :is(
+  h1,
+  h2,
+  h3,
+  h4,
+  .heading h1,
+  .client-welcome h1,
+  .overview-head h2,
+  .blacklist-heading h1,
+  .panel-title h2,
+  .method-head strong,
+  .data-table strong,
+  .material-table strong,
+  .balance-metric strong,
+  .balance-metric.primary strong,
+  .stat-card strong,
+  .preview-stats strong,
+  .summary-card dd,
+  .stat-value,
+  .toolbar-stats strong,
+  .metric-strip strong,
+  .ib-material-stats strong,
+  .detail-list strong,
+  .card-title h3,
+  .requirement-list strong,
+  .time-list strong,
+  .current-activity-main h2,
+  .current-activity-side dd,
+  .account-name
+) {
+  color: var(--text-strong);
+}
+
+:root[data-theme="dark"] :is(
+  p,
+  small,
+  .heading p,
+  .client-welcome p,
+  .overview-head p,
+  .balance-metric small,
+  .balance-metric span,
+  .panel-title p,
+  .blacklist-heading p,
+  .import-box p,
+  .import-message,
+  .modal-header p,
+  .data-table small,
+  .material-table small,
+  .filter-panel label,
+  .detail-list span,
+  .card-title small,
+  .card-body p,
+  .section-title p,
+  .requirement-list p,
+  .rules-list,
+  .time-list li,
+  .stat-label,
+  .stat-note,
+  .current-activity-summary,
+  .current-activity-side div,
+  .toolbar-stats span,
+  .intro,
+  .page-card p
+) {
+  color: var(--muted);
+}
+
+:root[data-theme="dark"] :is(
+  button,
+  input,
+  select,
+  textarea,
+  .choice-card,
+  .pill,
+  .currency,
+  .lever,
+  .fund-action,
+  .welcome-actions button,
+  .overview-info,
+  .filter-search,
+  .filter-panel select,
+  .secondary-action,
+  .card-action,
+  .review-action,
+  .deposit-record-btn,
+  .deposit-back-btn,
+  .back-link,
+  .copy-btn,
+  .upload-preview button,
+  .preview-stats span,
+  .formula-row,
+  .commission-formula,
+  .points-tabs,
+  .points-tabs button,
+  .icon-square,
+  .mini-select
+) {
+  background-color: var(--input-bg);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] :is(input, select, textarea)::placeholder {
+  color: var(--icon-muted);
+}
+
+:root[data-theme="dark"] :is(.primary-action, .primary-cta, .card-action.primary, .fund-action.deposit, .toolbar-left .primary-action) {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #07111f;
+}
+
+:root[data-theme="dark"] :is(.primary-action:hover, .primary-cta:hover, .card-action.primary:hover) {
+  background: var(--blue-dark);
+  border-color: var(--blue-dark);
+}
+
+:root[data-theme="dark"] :is(table, .data-table, .material-table, .commission-table, .link-table, .server-table) {
+  color: var(--text);
+}
+
+:root[data-theme="dark"] :is(th, td, .data-table th, .data-table td, .material-table th, .material-table td, .commission-table th, .commission-table td, .link-table th, .link-table td, .server-table th, .server-table td) {
+  border-color: var(--border-light);
+}
+
+:root[data-theme="dark"] :is(thead, .data-table th, .material-table th, .commission-table th, .link-table th, .server-table th) {
+  background: var(--surface-muted);
+  color: var(--text-soft);
+}
+
+:root[data-theme="dark"] :is(tbody tr:hover, .data-table tbody tr:hover, .data-table tbody tr.selected-row, .material-table tr:hover, .server-table tbody tr:hover) {
+  background: var(--surface-hover);
+}
+
+:root[data-theme="dark"] :is(.server-table td, .server-table th, .server-table th:last-child, .server-table td:last-child) {
+  background-color: var(--surface-raised);
+  color: var(--text);
+  box-shadow: -1px 0 0 var(--border-light);
+}
+
+:root[data-theme="dark"] :is(
+  .balance-metric,
+  .stat-card,
+  .metric-strip span,
+  .ib-material-stats span,
+  .formula-symbol,
+  .deduction-card,
+  .audit-card,
+  .account,
+  .progress-task,
+  .toolbar-stats span,
+  .server-row,
+  .wallet-card,
+  .record-card,
+  .reward-card,
+  .quick-item,
+  .account-row,
+  .card-cover,
+  .card-meta,
+  .size-list li
+) {
+  background: var(--surface-muted);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] :is(.balance-metric.primary, .rule-card.is-new, .reward-card.secondary, .reward-card.wide) {
+  background:
+    radial-gradient(circle at 88% 12%, rgba(110, 168, 255, 0.16), transparent 34%),
+    var(--surface-muted);
+  border-color: rgba(110, 168, 255, 0.42);
+}
+
+:root[data-theme="dark"] :is(.progress-track, .progress-task.active, .fund-action.withdraw .fund-icon, .points-tabs button.active, .preferred-activity-box strong) {
+  background: var(--surface-hover);
+  border-color: rgba(110, 168, 255, 0.38);
+}
+
+:root[data-theme="dark"] .progress-top h2 span {
+  color: var(--blue);
+}
+
+:root[data-theme="dark"] .edit-status {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+:root[data-theme="dark"] .edit-status.editing {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+
+:root[data-theme="dark"] .edit-status.saved {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+:root[data-theme="dark"] :is(.modal-backdrop, .material-modal-backdrop, .drawer-backdrop) {
+  background: var(--overlay);
+}
+
+:root[data-theme="dark"] :is(.wide-modal, .simple-modal, .link-detail-modal, .action-menu-panel, .toast) {
+  background: var(--surface-raised);
+  border-color: var(--border);
+  color: var(--text);
+  box-shadow: var(--shadow-floating);
+}
+
+:root[data-theme="dark"] :is(.modal-header, .modal-footer, .package-builder-form .modal-footer, .material-modal .modal-header, .material-modal .modal-footer) {
+  border-color: var(--border-light);
+}
+
+:root[data-theme="dark"] :is(.section-kicker, .card-kicker, .badge.blue, .chip.blue, .pill.blue, .status-pill.blue, .account-icon.blue) {
+  background: var(--blue-soft);
+  color: #bfdbfe;
+}
+
+:root[data-theme="dark"] :is(.badge.green, .chip.green, .pill.green, .status-pill.green, .success, .number.positive) {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+:root[data-theme="dark"] :is(.badge.orange, .chip.orange, .pill.orange, .status-pill.orange) {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+:root[data-theme="dark"] :is(.chip.red, .pill.red, .status-pill.red, .card-action.danger, .number.negative) {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+:root[data-theme="dark"] :is(.badge.purple, .chip.purple, .pill.purple, .status-pill.purple, .account-icon.violet) {
+  background: var(--purple-soft);
+  color: var(--purple);
+}
+
+:root[data-theme="dark"] :is(.pill.award, .rank-badge.gold, .reward-rank) {
+  background: var(--gold-soft);
+  color: var(--gold);
+}
+
+:root[data-theme="dark"] :is(.switch span, .toggle, .toggle-track) {
+  background: #334155;
+}
+
+:root[data-theme="dark"] :is(.switch input:checked + span, .switch.is-on span, .toggle.is-on, .toggle-track.is-on) {
+  background: var(--blue);
+}
+
+:root[data-theme="dark"] :is(.empty-state, .upload-box, .file-drop, .drop-zone) {
+  background: rgba(15, 23, 42, 0.38);
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+:root[data-theme="dark"] :is(.summary-divider, .divider) {
+  background: var(--border-light);
+}
+
+:root[data-theme="dark"] :is(.hero, .share-band, .hero-countdown) {
+  background: #08111f;
+}
+
+:root[data-theme="dark"] .callout {
+  background: rgba(251, 146, 60, 0.12);
+  border-color: rgba(251, 146, 60, 0.48);
+}
+
+:root[data-theme="dark"] .reward-card {
+  background: rgba(250, 204, 21, 0.14);
+  border-color: rgba(250, 204, 21, 0.5);
+}
+
+:root[data-theme="dark"] .theme-toggle:focus-visible,
+:root[data-theme="dark"] :is(button, a, input, select, textarea):focus-visible {
+  outline: 3px solid rgba(110, 168, 255, 0.35);
+  outline-offset: 2px;
+}
+
+</style>
+
+  <style id="nxbroker-common-layout-style">
+      :root {
+        --app-topbar-height: 72px;
+        --app-tabbar-height: 59px;
+        --app-sidebar-width: 278px;
+        --app-sidebar-collapsed-width: 76px;
+        --app-chrome-height: calc(var(--app-topbar-height) + var(--app-tabbar-height));
+      }
+
+      .sidebar,
+      .app {
+        transition:
+          width 0.18s ease,
+          margin-left 0.18s ease;
+      }
+
+      .app {
+        width: auto;
+        min-width: 0;
+      }
+
+      .app > .topbar,
+      .app > .common-tabbar {
+        min-width: 0;
+      }
+
+      .app > .topbar .search {
+        min-width: 0;
+      }
+
+      .app > .topbar .search span {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .top-actions,
+      .toolbar-btn,
+      .language {
+        min-width: 0;
+      }
+
+      .sidebar-collapse-toggle {
+        width: 34px;
+        height: 34px;
+        display: grid;
+        place-items: center;
+        margin-left: auto;
+        border: 1px solid var(--border-light);
+        border-radius: 9px;
+        background: #fff;
+        color: #64748b;
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+      }
+
+      .sidebar-collapse-toggle:hover {
+        color: #1d4ed8;
+        border-color: #c7d7f7;
+        background: #f8fbff;
+      }
+
+      .sidebar-collapse-toggle svg {
+        width: 17px;
+        height: 17px;
+        fill: none;
+        stroke: currentColor;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 2.2;
+        transition: transform 0.18s ease;
+      }
+
+      .nav-label,
+      .brand-copy,
+      .logout-label,
+      .portal-switch [data-portal-label],
+      .portal-switch svg,
+      .profile-name,
+      .profile-email,
+      .nav h2 {
+        transition:
+          opacity 0.14s ease,
+          transform 0.14s ease;
+      }
+
+      .app > .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 18;
+        backdrop-filter: blur(14px);
+      }
+
+      .app > .common-tabbar {
+        position: sticky;
+        top: var(--app-topbar-height);
+        z-index: 17;
+        backdrop-filter: blur(14px);
+      }
+
+      .mobile-nav-toggle,
+      .mobile-nav-backdrop {
+        display: none;
+      }
+
+      .active-menu {
+        background: #eef4ff;
+        color: #1d4ed8 !important;
+        font-weight: 800;
+      }
+
+      .nav-item.has-children {
+        position: relative;
+      }
+
+      .nav-item.has-children > a {
+        position: relative;
+        padding-right: 46px;
+      }
+
+      .nav-item.has-children > a::after {
+        content: "";
+        position: absolute;
+        right: 28px;
+        top: 50%;
+        width: 7px;
+        height: 7px;
+        border-top: 1.8px solid currentColor;
+        border-right: 1.8px solid currentColor;
+        opacity: 0.45;
+        transform: translateY(-50%) rotate(45deg);
+      }
+
+      .nav-item.has-children:hover > a::after,
+      .nav-item.has-children:focus-within > a::after,
+      .nav-item.has-children.is-flyout-open > a::after,
+      .nav-item.has-children > a.active-menu::after {
+        opacity: 0.9;
+      }
+
+      .nav-item.has-children:hover > a,
+      .nav-item.has-children:focus-within > a,
+      .nav-item.has-children.is-flyout-open > a {
+        background: linear-gradient(90deg, #eef4ff 0%, rgba(238, 244, 255, 0.52) 100%);
+        color: #1d4ed8;
+      }
+
+      .nav-item.has-children > .nav-submenu {
+        position: fixed;
+        z-index: 36;
+        top: var(--nav-flyout-top, 120px);
+        left: var(--nav-flyout-left, 277px);
+        min-width: var(--nav-flyout-min-width, 220px);
+        max-width: min(320px, calc(100vw - var(--nav-flyout-left, 277px) - 16px));
+        display: grid;
+        gap: 4px;
+        margin: 0;
+        padding: 10px;
+        border: 1px solid #d8e4f6;
+        border-radius: 14px;
+        background:
+          linear-gradient(180deg, rgba(248, 251, 255, 0.92), #fff 42%),
+          #fff;
+        box-shadow:
+          0 24px 54px rgba(15, 23, 42, 0.14),
+          0 2px 8px rgba(37, 99, 235, 0.06);
+        opacity: 0;
+        pointer-events: none;
+        transform: translateX(-4px) scale(0.98);
+        transition:
+          opacity 0.14s ease,
+          transform 0.14s ease,
+          visibility 0.14s ease;
+        visibility: hidden;
+      }
+
+      .nav-item.has-children > .nav-submenu::before {
+        content: "";
+        position: absolute;
+        top: -2px;
+        bottom: -2px;
+        left: -18px;
+        width: 18px;
+        background: transparent;
+      }
+
+      .nav-item.has-children:hover > .nav-submenu,
+      .nav-item.has-children:focus-within > .nav-submenu,
+      .nav-item.has-children.is-flyout-open > .nav-submenu {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateX(0) scale(1);
+        visibility: visible;
+      }
+
+      .nav-submenu-title {
+        min-height: 36px;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 2px 10px 8px;
+        color: #0f172a;
+        font-size: 14px;
+        font-weight: 900;
+      }
+
+      .nav-submenu .nav-flyout-icon {
+        width: 26px;
+        height: 26px;
+        flex: 0 0 26px;
+        padding: 5px;
+        border-radius: 8px;
+        background: #eef4ff;
+        color: #2563eb;
+        fill: none;
+        stroke: currentColor;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 2;
+      }
+
+      .nav-submenu a {
+        width: 100%;
+        height: 38px;
+        position: relative;
+        justify-content: flex-start;
+        gap: 0;
+        margin: 0;
+        padding: 0 12px 0 30px;
+        border-radius: 8px;
+        color: #66758a;
+        font-size: 13px;
+        font-weight: 850;
+        line-height: 1;
+        text-align: left;
+        white-space: nowrap;
+        transition:
+          background 0.12s ease,
+          color 0.12s ease,
+          transform 0.12s ease;
+      }
+
+      .nav-submenu-title span,
+      .nav-submenu a span {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .nav-submenu a::before {
+        content: "";
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #cbd5e1;
+        transform: translateY(-50%);
+      }
+
+      .nav-submenu a:hover,
+      .nav-submenu a.active-menu {
+        background: #eef4ff;
+        color: #1d4ed8;
+      }
+
+      .nav-submenu a:hover {
+        transform: translateX(2px);
+      }
+
+      .nav-submenu a.active-menu::before {
+        background: #2563eb;
+      }
+
+      .nav-submenu-item {
+        position: relative;
+      }
+
+      .nav-submenu-item.has-children > a {
+        padding-right: 32px;
+      }
+
+      .nav-submenu-item.has-children > a::after {
+        content: "";
+        position: absolute;
+        right: 13px;
+        top: 50%;
+        width: 7px;
+        height: 7px;
+        border-top: 1.8px solid currentColor;
+        border-right: 1.8px solid currentColor;
+        opacity: 0.48;
+        transform: translateY(-50%) rotate(45deg);
+      }
+
+      .nav-submenu .nav-subitem-icon {
+        width: 20px;
+        height: 20px;
+        flex: 0 0 20px;
+        margin-right: 8px;
+        padding: 3px;
+        border-radius: 7px;
+        background: #eef4ff;
+        color: #2563eb;
+        fill: none;
+        stroke: currentColor;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 2;
+      }
+
+      .nav-submenu .nav-submenu.nested {
+        position: absolute;
+        z-index: 38;
+        top: -8px;
+        left: calc(100% + 8px);
+        min-width: 220px;
+        max-width: min(300px, calc(100vw - 24px));
+        display: grid;
+        gap: 4px;
+        margin: 0;
+        padding: 10px;
+        border: 1px solid #d8e4f6;
+        border-radius: 14px;
+        background:
+          linear-gradient(180deg, rgba(248, 251, 255, 0.92), #fff 42%),
+          #fff;
+        box-shadow:
+          0 24px 54px rgba(15, 23, 42, 0.14),
+          0 2px 8px rgba(37, 99, 235, 0.06);
+        opacity: 0;
+        pointer-events: none;
+        transform: translateX(-4px) scale(0.98);
+        transition:
+          opacity 0.14s ease,
+          transform 0.14s ease,
+          visibility 0.14s ease;
+        visibility: hidden;
+      }
+
+      .nav-submenu-item.has-children:hover > .nav-submenu.nested,
+      .nav-submenu-item.has-children:focus-within > .nav-submenu.nested {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateX(0) scale(1);
+        visibility: visible;
+      }
+
+      .portal-switch-wrap {
+        position: relative;
+        margin: 0 16px 18px;
+      }
+
+      .portal-switch-wrap .portal-switch {
+        width: 100%;
+        margin: 0;
+      }
+
+      .portal-switch[aria-expanded="true"] svg {
+        transform: rotate(180deg);
+      }
+
+      .portal-switch .status-dot {
+        background: var(--portal-color, var(--blue));
+      }
+
+      .portal-menu {
+        position: absolute;
+        z-index: 20;
+        top: calc(100% + 8px);
+        left: 0;
+        right: 0;
+        padding: 6px;
+        border: 1px solid var(--border);
+        border-radius: 9px;
+        background: #fff;
+        box-shadow: 0 18px 42px rgba(15, 23, 42, 0.14);
+      }
+
+      .portal-menu[hidden] {
+        display: none;
+      }
+
+      .portal-option {
+        width: 100%;
+        min-height: 50px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 10px;
+        border: 0;
+        border-radius: 7px;
+        background: transparent;
+        color: #172033;
+        text-align: left;
+      }
+
+      .portal-option:hover,
+      .portal-option.active {
+        background: #f1f5fb;
+      }
+
+      .portal-option-dot {
+        width: 8px;
+        height: 8px;
+        flex: 0 0 8px;
+        border-radius: 50%;
+      }
+
+      .portal-option strong,
+      .portal-option small {
+        display: block;
+      }
+
+      .portal-option strong {
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .portal-option small {
+        margin-top: 4px;
+        color: #64748b;
+        font-size: 11px;
+      }
+
+      .badge.active-role {
+        outline: 2px solid var(--portal-color, var(--blue));
+        outline-offset: 2px;
+      }
+
+      .common-tabbar {
+        gap: 8px;
+        padding: 0 16px;
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+
+      .common-tabbar::-webkit-scrollbar {
+        display: none;
+      }
+
+      .common-tabbar .tab {
+        height: 38px;
+        flex: 0 0 auto;
+        max-width: 220px;
+        padding: 0 13px;
+        background: transparent;
+        color: #64748b;
+        font-weight: 700;
+      }
+
+      .common-tabbar .tab span {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .common-tabbar .active-tab {
+        background: #f1f5fb;
+        color: #2563eb;
+      }
+
+      .common-tabbar .tab:hover {
+        background: #f8fbff;
+        color: #1d4ed8;
+      }
+
+      .common-tabbar .tab-close {
+        opacity: 0.58;
+        border-radius: 5px;
+      }
+
+      .common-tabbar .tab-close:hover {
+        background: rgba(37, 99, 235, 0.1);
+        color: #1d4ed8;
+        opacity: 1;
+      }
+
+      .tab-arrow {
+        width: 38px;
+        height: 38px;
+        display: grid;
+        place-items: center;
+        border: 1px solid var(--border);
+        border-radius: 9px;
+        background: #fff;
+        color: #0f172a;
+      }
+
+      .toolbar-btn {
+        height: 38px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 0;
+        background: transparent;
+        color: #0f172a;
+        font-weight: 800;
+      }
+
+      .toolbar-btn svg,
+      .tab-arrow svg,
+      .theme-toggle svg {
+        width: 17px;
+        height: 17px;
+        fill: none;
+        stroke: currentColor;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 2;
+      }
+
+      :root[data-theme="dark"] .sidebar-collapse-toggle,
+      :root[data-theme="dark"] .nav-item.has-children > .nav-submenu,
+      :root[data-theme="dark"] .nav-submenu .nav-submenu.nested {
+        background: #111827;
+        border-color: #253247;
+        color: #e5edf8;
+        box-shadow: 0 24px 54px rgba(0, 0, 0, 0.38);
+      }
+
+      :root[data-theme="dark"] .nav-submenu-title {
+        color: #f8fbff;
+      }
+
+      :root[data-theme="dark"] .nav-submenu a:hover,
+      :root[data-theme="dark"] .nav-submenu a.active-menu,
+      :root[data-theme="dark"] .common-tabbar .tab:hover {
+        background: rgba(96, 165, 250, 0.16);
+        color: #6ea8ff;
+      }
+
+      @media (min-width: 861px) {
+        body.sidebar-collapsed .sidebar {
+          width: var(--app-sidebar-collapsed-width);
+        }
+
+        body.sidebar-collapsed .app {
+          margin-left: var(--app-sidebar-collapsed-width);
+        }
+
+        body.sidebar-collapsed .brand {
+          justify-content: center;
+          gap: 0;
+          padding: 18px 10px 14px;
+        }
+
+        body.sidebar-collapsed .brand-mark {
+          width: 42px;
+          height: 42px;
+          border-radius: 11px;
+        }
+
+        body.sidebar-collapsed .brand-copy,
+        body.sidebar-collapsed .nav-label,
+        body.sidebar-collapsed .logout-label,
+        body.sidebar-collapsed .portal-switch [data-portal-label],
+        body.sidebar-collapsed .portal-switch svg,
+        body.sidebar-collapsed .profile-name,
+        body.sidebar-collapsed .profile-email {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          overflow: hidden;
+          clip: rect(0 0 0 0);
+          white-space: nowrap;
+          opacity: 0;
+          pointer-events: none;
+        }
+
+        body.sidebar-collapsed .sidebar-collapse-toggle {
+          position: absolute;
+          top: 60px;
+          right: -15px;
+          z-index: 3;
+          width: 30px;
+          height: 30px;
+          border-radius: 999px;
+          box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
+        }
+
+        body.sidebar-collapsed .sidebar-collapse-toggle svg {
+          transform: rotate(180deg);
+        }
+
+        body.sidebar-collapsed .portal-switch-wrap {
+          margin: 0 12px 14px;
+        }
+
+        body.sidebar-collapsed .portal-switch {
+          justify-content: center;
+          padding: 0;
+        }
+
+        body.sidebar-collapsed .portal-switch .status-dot {
+          width: 11px;
+          height: 11px;
+        }
+
+        body.sidebar-collapsed .portal-menu {
+          top: 0;
+          right: auto;
+          left: calc(100% + 10px);
+          width: 222px;
+        }
+
+        body.sidebar-collapsed .nav {
+          padding: 6px 8px 14px;
+        }
+
+        body.sidebar-collapsed .nav section {
+          margin: 10px 0 18px;
+        }
+
+        body.sidebar-collapsed .nav h2 {
+          height: 1px;
+          margin: 10px 14px;
+          padding: 0;
+          overflow: hidden;
+          opacity: 0.35;
+          background: #e2e8f0;
+          color: transparent;
+        }
+
+        body.sidebar-collapsed .nav section > .nav-item > a {
+          width: 44px;
+          height: 44px;
+          justify-content: center;
+          gap: 0;
+          margin: 0 auto;
+          padding: 0;
+          border-radius: 11px;
+        }
+
+        body.sidebar-collapsed .nav section > .nav-item > a.active-menu {
+          box-shadow: inset 3px 0 0 var(--portal-color, #2563eb);
+        }
+
+        body.sidebar-collapsed .nav-item.has-children > a {
+          padding: 0;
+        }
+
+        body.sidebar-collapsed .nav-item.has-children > a::after {
+          right: 5px;
+          width: 5px;
+          height: 5px;
+          opacity: 0.62;
+        }
+
+        body.sidebar-collapsed .nav-icon {
+          width: 18px;
+          height: 18px;
+        }
+
+        body.sidebar-collapsed .nav-item.has-children > .nav-submenu {
+          left: var(--nav-flyout-left, var(--app-sidebar-collapsed-width));
+          width: min(284px, calc(100vw - var(--nav-flyout-left, var(--app-sidebar-collapsed-width)) - 18px));
+          min-width: min(var(--nav-flyout-min-width, 256px), calc(100vw - var(--nav-flyout-left, var(--app-sidebar-collapsed-width)) - 18px));
+          max-width: min(284px, calc(100vw - var(--nav-flyout-left, var(--app-sidebar-collapsed-width)) - 18px));
+          gap: 6px;
+          padding: 12px;
+        }
+
+        body.sidebar-collapsed .nav-item.has-children > .nav-submenu .nav-submenu-title {
+          min-height: 42px;
+          padding: 4px 10px 10px;
+          font-size: 17px;
+          line-height: 1.2;
+        }
+
+        body.sidebar-collapsed .nav-item.has-children > .nav-submenu .nav-flyout-icon {
+          width: 34px;
+          height: 34px;
+          flex-basis: 34px;
+          border-radius: 10px;
+        }
+
+        body.sidebar-collapsed .nav-item.has-children > .nav-submenu a {
+          width: 100%;
+          height: 42px;
+          justify-content: flex-start;
+          margin: 0;
+          padding: 0 14px 0 34px;
+          border-radius: 10px;
+          font-size: 14px;
+          line-height: 1;
+          white-space: nowrap;
+          box-shadow: none;
+        }
+
+        body.sidebar-collapsed .profile {
+          margin: 8px;
+          padding: 12px 8px;
+          text-align: center;
+        }
+
+        body.sidebar-collapsed .badges {
+          justify-content: center;
+          gap: 6px;
+        }
+
+        body.sidebar-collapsed .badge:not(.active-role) {
+          display: none;
+        }
+
+        body.sidebar-collapsed .badge.active-role {
+          max-width: 48px;
+          padding: 4px 6px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        body.sidebar-collapsed .logout {
+          height: 54px;
+          justify-content: center;
+          padding: 0;
+        }
+      }
+
+      @media (max-width: 860px) {
+        :root {
+          --app-topbar-height: 0px;
+          --app-tabbar-height: 0px;
+          --app-chrome-height: 0px;
+        }
+
+        .app {
+          width: 100%;
+          min-width: 0;
+          margin-left: 0 !important;
+        }
+
+        .app > .topbar,
+        .app > .common-tabbar {
+          position: static;
+        }
+
+        .app > .topbar {
+          height: auto;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+          align-items: stretch;
+          gap: 10px;
+          padding: 12px 14px;
+        }
+
+        .app > .topbar .search {
+          order: 2;
+          width: 100%;
+          max-width: 100%;
+          height: 42px;
+        }
+
+        .app > .topbar .search kbd {
+          display: none;
+        }
+
+        .app > .topbar .top-actions {
+          order: 1;
+          width: 100%;
+          justify-content: flex-start;
+          gap: 8px;
+          overflow-x: auto;
+          overscroll-behavior-x: contain;
+          scrollbar-width: none;
+          flex-wrap: nowrap;
+        }
+
+        .app > .topbar .top-actions::-webkit-scrollbar {
+          display: none;
+        }
+
+        .app > .topbar .toolbar-btn,
+        .app > .topbar .language,
+        .app > .topbar .icon-btn {
+          flex: 0 0 auto;
+        }
+
+        .app > .topbar .toolbar-btn {
+          max-width: min(46vw, 168px);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .app > .common-tabbar {
+          min-height: 50px;
+          height: auto;
+          padding: 6px 12px;
+        }
+
+        .page {
+          max-width: 100%;
+        }
+
+        body.mobile-nav-open {
+          overflow: hidden;
+        }
+
+        .sidebar {
+          position: sticky;
+          top: 0;
+          z-index: 46;
+          width: 100%;
+          height: 70px;
+          min-height: 70px;
+          max-height: 70px;
+          overflow: hidden;
+          border-right: 0;
+          border-bottom: 1px solid var(--border-light);
+          background: color-mix(in srgb, var(--sidebar) 96%, #ffffff);
+          box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+        }
+
+        .sidebar .brand {
+          min-height: 70px;
+          padding: 14px 16px;
+          border-bottom: 0;
+        }
+
+        .mobile-nav-toggle {
+          width: 42px;
+          height: 42px;
+          flex: 0 0 42px;
+          position: fixed;
+          top: 14px;
+          right: 16px;
+          z-index: 60;
+          display: grid !important;
+          place-items: center;
+          margin-left: auto;
+          border: 1px solid var(--border-light);
+          border-radius: 10px;
+          background: #fff;
+          color: #0f172a;
+          box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+        }
+
+        .sidebar-collapse-toggle {
+          display: none;
+        }
+
+        .mobile-nav-toggle svg {
+          width: 19px;
+          height: 19px;
+          grid-area: 1 / 1;
+          fill: none;
+          stroke: currentColor;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+          stroke-width: 2.2;
+        }
+
+        .mobile-nav-close-icon {
+          display: none;
+        }
+
+        .mobile-nav-backdrop {
+          position: fixed;
+          inset: 0;
+          z-index: 42;
+          background: rgba(15, 23, 42, 0.36);
+          backdrop-filter: blur(8px);
+        }
+
+        .mobile-nav-backdrop:not([hidden]) {
+          display: block;
+        }
+
+        .sidebar.is-mobile-nav-open {
+          position: fixed;
+          inset: 0 auto 0 0;
+          width: min(86vw, 342px);
+          height: 100dvh;
+          min-height: 100dvh;
+          max-height: 100dvh;
+          overflow: hidden;
+          border-right: 1px solid var(--border-light);
+          border-bottom: 0;
+          box-shadow: 28px 0 64px rgba(15, 23, 42, 0.2);
+        }
+
+        .sidebar.is-mobile-nav-open .brand {
+          border-bottom: 1px solid var(--border-light);
+        }
+
+        .sidebar.is-mobile-nav-open .mobile-nav-toggle {
+          position: static;
+          z-index: auto;
+        }
+
+        .sidebar.is-mobile-nav-open .mobile-nav-menu-icon {
+          display: none;
+        }
+
+        .sidebar.is-mobile-nav-open .mobile-nav-close-icon {
+          display: block;
+        }
+
+        .sidebar.is-mobile-nav-open .portal-switch-wrap {
+          display: block;
+          flex: 0 0 auto;
+          margin: 14px 16px 12px;
+        }
+
+        .sidebar.is-mobile-nav-open .portal-switch {
+          display: flex;
+        }
+
+        .sidebar.is-mobile-nav-open .nav {
+          display: block;
+          flex: 1 1 auto;
+          min-height: 0;
+          padding: 4px 0 14px;
+          overflow: auto;
+        }
+
+        .sidebar.is-mobile-nav-open .profile {
+          display: block;
+          flex: 0 0 auto;
+          padding: 17px 24px 14px;
+        }
+
+        .sidebar.is-mobile-nav-open .logout {
+          flex: 0 0 58px;
+          display: flex;
+          height: 58px;
+          padding: 0 24px;
+        }
+
+        .sidebar.is-mobile-nav-open .nav section {
+          margin: 16px 0 22px;
+        }
+
+        .sidebar.is-mobile-nav-open .nav h2 {
+          padding: 0 24px;
+        }
+
+        .sidebar.is-mobile-nav-open .nav a {
+          padding: 0 24px;
+        }
+
+        .sidebar.is-mobile-nav-open .nav-item.has-children > a {
+          padding-right: 42px;
+        }
+
+        .sidebar.is-mobile-nav-open .nav-item.has-children > a::after {
+          right: 24px;
+          transform: translateY(-50%) rotate(135deg);
+        }
+
+        .common-tabbar {
+          max-width: 100%;
+          overflow-x: auto;
+          flex-wrap: nowrap;
+          scroll-padding: 12px;
+        }
+
+        .common-tabbar .tab {
+          flex: 0 0 auto;
+          max-width: min(58vw, 188px);
+        }
+
+        .common-tabbar .tab-close {
+          flex: 0 0 16px;
+        }
+
+        .table-footer,
+        [class$="-table-footer"],
+        [class*="-table-toolbar"],
+        [class*="-toolbar"] {
+          min-width: 0;
+        }
+
+        [class*="-table-wrap"],
+        .responsive-table {
+          max-width: 100%;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+          overscroll-behavior-x: contain;
+        }
+
+        [class*="-table-wrap"] table,
+        .responsive-table table {
+          width: max-content;
+        }
+
+        .table-footer,
+        [class$="-table-footer"] {
+          gap: 12px;
+        }
+
+        .pager {
+          max-width: 100%;
+          overflow-x: auto;
+        }
+
+        .portal-switch-wrap {
+          display: none;
+        }
+
+        .nav-item.has-children > .nav-submenu {
+          display: none;
+        }
+
+        .sidebar.is-mobile-nav-open .nav-item.has-children > .nav-submenu {
+          position: static;
+          z-index: auto;
+          min-width: 0;
+          max-width: none;
+          display: grid;
+          gap: 2px;
+          margin: 2px 18px 10px 52px;
+          padding: 0;
+          border: 0;
+          border-radius: 0;
+          background: transparent;
+          box-shadow: none;
+          opacity: 1;
+          pointer-events: auto;
+          transform: none;
+          visibility: visible;
+        }
+
+        .sidebar.is-mobile-nav-open .nav-item.has-children > .nav-submenu::before,
+        .sidebar.is-mobile-nav-open .nav-submenu-title {
+          display: none;
+        }
+
+        .sidebar.is-mobile-nav-open .nav-submenu a {
+          height: 32px;
+          padding: 0 10px 0 18px;
+          border-radius: 7px;
+          font-size: 12px;
+        }
+
+        .sidebar.is-mobile-nav-open .nav-submenu a::before {
+          left: 6px;
+        }
+
+        .sidebar.is-mobile-nav-open .nav-submenu-item.has-children > a {
+          width: auto;
+          justify-content: flex-start;
+          padding-right: 28px;
+        }
+
+        .sidebar.is-mobile-nav-open .nav-submenu .nav-submenu.nested {
+          position: static;
+          min-width: 0;
+          max-width: none;
+          margin: 2px 0 7px 14px;
+          padding: 0;
+          border: 0;
+          background: transparent;
+          box-shadow: none;
+          opacity: 1;
+          pointer-events: auto;
+          transform: none;
+          visibility: visible;
+        }
+      }
+
+      @media (max-width: 560px) {
+        .app > .topbar {
+          padding: 10px 12px;
+        }
+
+        .app > .topbar .toolbar-btn {
+          max-width: 128px;
+        }
+
+        .common-tabbar .tab:not(.active-tab) {
+          max-width: 104px;
+        }
+
+        .common-tabbar .tab-close {
+          display: none;
+        }
+
+        .table-footer,
+        [class$="-table-footer"],
+        [class*="-table-toolbar"] {
+          align-items: stretch !important;
+          flex-direction: column;
+        }
+
+        .table-footer > *,
+        [class$="-table-footer"] > *,
+        [class*="-table-toolbar"] > * {
+          min-width: 0;
+          max-width: 100%;
+        }
+
+        .pager {
+          width: 100%;
+        }
+
+        .pager button {
+          flex: 1 1 0;
+        }
+
+        .app > .topbar .language span:last-of-type {
+          display: none;
+        }
+
+        .common-tabbar .tab {
+          max-width: 72vw;
+        }
+      }
+    </style>    <meta name="xbroker-export-kind" content="standalone-static-html" />
+    <meta name="xbroker-export-source" content="client-home.html" />
+    <style data-standalone-export-fixes>
+html, body { min-height: 100%; }
+canvas { max-width: 100%; }
+</style>
+  </head>
+  <body data-layout-page="client-home" data-portal="client" data-page-tab-opening-bound="true" data-theme="light">
+    
+      <aside class="sidebar" data-common-layout="sidebar" style="--portal-color: #059669">
+        <div class="brand">
+          <div class="brand-mark">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 15.5 10.2 11l3.2 3.2L18.8 8.8"></path>
+              <path d="M16.1 8.8h2.7v2.7"></path>
+            </svg>
+          </div>
+          <div class="brand-copy">
+            <div class="brand-title">ForexCRM</div>
+            <div class="brand-subtitle" data-portal-subtitle="">Client Portal</div>
+          </div>
+          <button class="sidebar-collapse-toggle" type="button" aria-label="收起侧边栏" aria-pressed="false" data-sidebar-collapse-toggle="" title="收起侧边栏">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>
+          </button>
+          <button class="mobile-nav-toggle" type="button" aria-label="打开导航菜单" aria-controls="mobile-navigation" aria-expanded="false" data-mobile-nav-toggle="">
+            <svg class="mobile-nav-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"></path><path d="M4 12h16"></path><path d="M4 17h16"></path></svg>
+            <svg class="mobile-nav-close-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12"></path><path d="m18 6-12 12"></path></svg>
+          </button>
+        </div>
+
+        <div class="portal-switch-wrap">
+          <button class="portal-switch" type="button" aria-haspopup="listbox" aria-expanded="false">
+            <span class="status-dot"></span>
+            <span data-portal-label="">用户端</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"></path></svg>
+          </button>
+          <div class="portal-menu" role="listbox" hidden="">
+            
+      <button class="portal-option active" type="button" role="option" aria-selected="true" data-portal-option="client">
+        <span class="portal-option-dot" style="background: #059669"></span>
+        <span>
+          <strong>用户端</strong>
+          <small>Client Portal</small>
+        </span>
+      </button>
+      <button class="portal-option" type="button" role="option" aria-selected="false" data-portal-option="admin">
+        <span class="portal-option-dot" style="background: #2f66e8"></span>
+        <span>
+          <strong>管理端</strong>
+          <small>Admin Portal</small>
+        </span>
+      </button>
+      <button class="portal-option" type="button" role="option" aria-selected="false" data-portal-option="ib">
+        <span class="portal-option-dot" style="background: #7e22ce"></span>
+        <span>
+          <strong>IB端</strong>
+          <small>IB Portal</small>
+        </span>
+      </button>
+      <button class="portal-option" type="button" role="option" aria-selected="false" data-portal-option="sales">
+        <span class="portal-option-dot" style="background: #c2410c"></span>
+        <span>
+          <strong>销售端</strong>
+          <small>Sales Portal</small>
+        </span>
+      </button>
+          </div>
+        </div>
+
+        <nav class="nav" id="mobile-navigation" aria-label="主导航" data-shared-nav="" data-tab-opening-bound="true"><section><h2>CLIENT</h2>
+      <div class="nav-item has-children" data-flyout-bound="true">
+        <a class="active-menu" href="./01-client-home-original.html" data-nav-id="client-home-pages" aria-label="用户首页" title="用户首页" aria-haspopup="menu" aria-expanded="false"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1.5"></rect><rect x="14" y="4" width="6" height="6" rx="1.5"></rect><rect x="4" y="14" width="6" height="6" rx="1.5"></rect><rect x="14" y="14" width="6" height="6" rx="1.5"></rect></svg><span class="nav-label">用户首页</span></a>
+        <div class="nav-submenu" role="menu" aria-label="用户首页 子菜单">
+          <div class="nav-submenu-title"><svg class="nav-flyout-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1.5"></rect><rect x="14" y="4" width="6" height="6" rx="1.5"></rect><rect x="4" y="14" width="6" height="6" rx="1.5"></rect><rect x="14" y="14" width="6" height="6" rx="1.5"></rect></svg><span>用户首页</span></div>
+          <a class="active-menu" href="./01-client-home-original.html" data-nav-id="client-home" role="menuitem" aria-label="原首页" title="原首页"><span>原首页</span></a><a href="./02-client-home-version-1.html" data-nav-id="client-home-version-1" role="menuitem" aria-label="版本一" title="版本一"><span>版本一</span></a><a href="./03-client-home-version-3.html" data-nav-id="client-home-version-3" role="menuitem" aria-label="第三版" title="第三版"><span>第三版</span></a><a href="./04-client-home-version-4.html" data-nav-id="client-home-version-4" role="menuitem" aria-label="稿图版一" title="稿图版一"><span>稿图版一</span></a><a href="./05-client-home-version-5.html" data-nav-id="client-home-version-5" role="menuitem" aria-label="稿图版二" title="稿图版二"><span>稿图版二</span></a><a href="./06-client-home-version-6.html" data-nav-id="client-home-version-6" role="menuitem" aria-label="稿图版三" title="稿图版三"><span>稿图版三</span></a><a href="./07-client-home-version-7.html" data-nav-id="client-home-version-7" role="menuitem" aria-label="稿图版四" title="稿图版四"><span>稿图版四</span></a></div>
+      </div>
+      <div class="nav-item">
+        <a href="./open-account.html" data-nav-id="open-account" aria-label="真实开户" title="真实开户"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"></circle><path d="M3.5 20a5.5 5.5 0 0 1 11 0"></path><path d="M18 8v6"></path><path d="M15 11h6"></path></svg><span class="nav-label">真实开户</span></a>
+        
+      </div>
+      <div class="nav-item">
+        <a href="./demo-open-account.html" data-nav-id="demo-open-account" aria-label="模拟开户" title="模拟开户"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="6" rx="2"></rect><rect x="5" y="14" width="14" height="6" rx="2"></rect><path d="M8 7h.01"></path><path d="M8 17h.01"></path><path d="M12 10v4"></path></svg><span class="nav-label">模拟开户</span></a>
+        
+      </div>
+      <div class="nav-item">
+        <a href="./deposit.html" data-nav-id="deposit" aria-label="入金" title="入金"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18"></path><path d="M17 7.5c0-1.9-2.2-3-5-3s-5 1.1-5 3 1.7 2.8 5 3.5 5 1.6 5 3.5-2.2 3-5 3-5-1.1-5-3"></path></svg><span class="nav-label">入金</span></a>
+        
+      </div>
+      <div class="nav-item">
+        <a href="./client-wallet.html" data-nav-id="client-wallet" aria-label="我的钱包" title="我的钱包"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="7" width="16" height="12" rx="3"></rect><path d="M7 7V5h9a2 2 0 0 1 2 2"></path><path d="M15 12h5"></path><circle cx="16.5" cy="13.5" r=".8"></circle></svg><span class="nav-label">我的钱包</span></a>
+        
+      </div>
+      <div class="nav-item">
+        <a href="./client-trading-records.html" data-nav-id="client-trading-records" aria-label="持仓订单" title="持仓订单"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5"></path><path d="M4 19h16"></path><rect x="7" y="12" width="3" height="4" rx="1"></rect><rect x="12" y="8" width="3" height="8" rx="1"></rect><rect x="17" y="4" width="3" height="12" rx="1"></rect></svg><span class="nav-label">持仓订单</span></a>
+        
+      </div>
+      <div class="nav-item">
+        <a href="./client-limit-orders.html" data-nav-id="client-limit-orders" aria-label="限价订单" title="限价订单"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="m8.5 12.5 2.2 2.2 4.8-5.4"></path></svg><span class="nav-label">限价订单</span></a>
+        
+      </div>
+      <div class="nav-item">
+        <a href="./client-trading-history.html" data-nav-id="client-trading-history" aria-label="交易历史" title="交易历史"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"></path><path d="M14 3v5h5"></path><path d="M9 13h6"></path><path d="M9 17h6"></path></svg><span class="nav-label">交易历史</span></a>
+        
+      </div>
+      <div class="nav-item has-children" data-flyout-bound="true">
+        <a href="./client-copytrading.html" data-nav-id="client-copytrading" aria-label="CopyTrading" title="CopyTrading" aria-haspopup="menu" aria-expanded="false"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17 9 12l4 4 7-9"></path><path d="M14 7h6v6"></path></svg><span class="nav-label">CopyTrading</span></a>
+        <div class="nav-submenu" role="menu" aria-label="CopyTrading 子菜单">
+          <div class="nav-submenu-title"><svg class="nav-flyout-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17 9 12l4 4 7-9"></path><path d="M14 7h6v6"></path></svg><span>CopyTrading</span></div>
+          <a href="./client-copytrading.html" data-nav-id="client-copytrading-market" role="menuitem" aria-label="信号源排行榜" title="信号源排行榜"><span>信号源排行榜</span></a><a href="./client-copytrading-subscriptions.html" data-nav-id="client-copytrading-subscriptions" role="menuitem" aria-label="我的订阅" title="我的订阅"><span>我的订阅</span></a><a href="./client-copytrading-create.html" data-nav-id="client-copytrading-create" role="menuitem" aria-label="我的信号源" title="我的信号源"><span>我的信号源</span></a><a href="./client-copytrading-rebates.html" data-nav-id="client-copytrading-rebates" role="menuitem" aria-label="返佣/分润" title="返佣/分润"><span>返佣/分润</span></a></div>
+      </div>
+      <div class="nav-item">
+        <a href="./client-trading-contest.html" data-nav-id="client-trading-contest" aria-label="交易大赛" title="交易大赛"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8"></path><path d="M12 17v4"></path><path d="M7 4h10v5a5 5 0 0 1-10 0z"></path><path d="M7 7H4a3 3 0 0 0 3 3"></path><path d="M17 7h3a3 3 0 0 1-3 3"></path></svg><span class="nav-label">交易大赛</span></a>
+        
+      </div>
+      <div class="nav-item">
+        <a href="./points-mall.html" data-nav-id="points-mall" aria-label="积分商城" title="积分商城"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8h12l-1 13H7z"></path><path d="M9 8a3 3 0 0 1 6 0"></path><path d="M8 13h8"></path></svg><span class="nav-label">积分商城</span></a>
+        
+      </div>
+      <div class="nav-item">
+        <a href="./client-rewards.html" data-nav-id="client-rewards" aria-label="奖励中心" title="奖励中心"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="9" width="16" height="11" rx="2"></rect><path d="M4 13h16"></path><path d="M12 9v11"></path><path d="M8 9c-1.5 0-2.5-1-2.5-2.2S6.5 4.5 8 5c2 .6 4 4 4 4s-2.5 0-4 0z"></path><path d="M16 9c1.5 0 2.5-1 2.5-2.2S17.5 4.5 16 5c-2 .6-4 4-4 4s2.5 0 4 0z"></path></svg><span class="nav-label">奖励中心</span></a>
+        
+      </div>
+      <div class="nav-item">
+        <a href="./client-personal.html" data-nav-id="client-personal" aria-label="个人中心" title="个人中心"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3"></circle><circle cx="17" cy="9" r="2.5"></circle><path d="M3 20a5 5 0 0 1 10 0"></path><path d="M14 19a4 4 0 0 1 7 0"></path></svg><span class="nav-label">个人中心</span></a>
+        
+      </div>
+      <div class="nav-item">
+        <a href="#" data-nav-id="documents" aria-label="Documents" title="Documents"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"></path><path d="M14 3v5h5"></path><path d="M9 13h6"></path><path d="M9 17h6"></path></svg><span class="nav-label">Documents</span></a>
+        
+      </div></section><section><h2>SERVICE</h2>
+      <div class="nav-item">
+        <a href="#" data-nav-id="messages" aria-label="Messages" title="Messages"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v10H8l-3 3z"></path><path d="M8 9h8"></path><path d="M8 12h5"></path></svg><span class="nav-label">Messages</span></a>
+        
+      </div>
+      <div class="nav-item">
+        <a href="#" data-nav-id="referrals" aria-label="Referrals" title="Referrals"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="2.5"></circle><circle cx="18" cy="6" r="2.5"></circle><circle cx="18" cy="18" r="2.5"></circle><path d="m8.2 10.8 7.6-3.6"></path><path d="m8.2 13.2 7.6 3.6"></path></svg><span class="nav-label">Referrals</span></a>
+        
+      </div></section></nav>
+
+        <div class="profile">
+          <div class="profile-name">Huang Jackie</div>
+          <div class="profile-email">n02badd@gmail.com</div>
+          <div class="badges">
+            <span class="badge blue" data-portal-badge="admin">ADMIN</span>
+            <span class="badge orange" data-portal-badge="sales">SALES</span>
+            <span class="badge purple" data-portal-badge="ib">IB</span>
+            <span class="badge green active-role" data-portal-badge="client">CLIENT</span>
+          </div>
+        </div>
+
+        <button class="logout" type="button"><span class="logout-icon"></span><span class="logout-label">Logout</span></button>
+      </aside>
+      <div class="mobile-nav-backdrop" data-mobile-nav-backdrop="" hidden=""></div><main class="app" data-layout-main="">
+      <header class="topbar" data-common-layout="topbar">
+        <div class="search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.3-4.3"></path><circle cx="11" cy="11" r="7"></circle></svg>
+          <span>搜索交易账号、资金记录、邀请链接...</span>
+          <kbd>⌘K</kbd>
+        </div>
+
+        <div class="top-actions">
+          <button class="icon-btn" type="button" aria-label="通知"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path><path d="M13.7 21a2 2 0 0 1-3.4 0"></path></svg></button><button class="icon-btn theme-toggle" type="button" data-theme-toggle="" aria-label="切换到黑夜模式" title="切换到黑夜模式" data-theme-current="light"><svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 15.3A8 8 0 1 1 8.7 4 6.2 6.2 0 0 0 20 15.3z"></path></svg><svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg></button><button class="language" type="button" aria-label="切换语言"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3c2 2.4 3 5.4 3 9s-1 6.6-3 9c-2-2.4-3-5.4-3-9s1-6.6 3-9z"></path></svg><span>🇺🇸</span><span>English</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"></path></svg></button>
+        </div>
+      </header>
+      <div class="tabbar common-tabbar" data-common-layout="tabbar" role="tablist">
+        
+        <div class="tab active-tab" role="tab" tabindex="0" data-tab-href="./01-client-home-original.html" data-tab-id="client-home.html" title="原首页" aria-selected="true"><span>原首页</span><button class="tab-close" type="button" aria-label="关闭 原首页" title="关闭页签">×</button></div>
+      </div>
+      <div class="page client-home-page">
+        <section class="client-shell block-container block-grid block-collapse-1280">
+          <header class="client-welcome block-span-12">
+            <div>
+              <h1>欢迎回来, Huang!</h1>
+              <p>Track your trading performance and manage your account.</p>
+            </div>
+            <div class="welcome-actions">
+              <button type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"></path><path d="M4 12h2"></path><path d="M18 12h2"></path><path d="m6.3 6.3 1.4 1.4"></path><path d="m16.3 16.3 1.4 1.4"></path><path d="M12 4v2"></path><path d="M12 18v2"></path><path d="m17.7 6.3-1.4 1.4"></path><path d="m7.7 16.3-1.4 1.4"></path></svg>
+                Customize Dashboard
+              </button>
+              <span>Sunday, May 3, 2026</span>
+            </div>
+          </header>
+
+          <section class="balance-overview block-card block-card-padded block-span-12" aria-label="账户总览">
+            <div class="overview-head">
+              <div>
+                <h2>账户总览</h2>
+              </div>
+              <div class="overview-tools">
+                <button class="overview-info" type="button" aria-label="余额折算说明" data-tooltip="统一折算为 USD 展示；非 USD 货币按汇率换算后计入合计。模拟账户不计入账户余额。">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5"></path><path d="M12 8h.01"></path></svg>
+                </button>
+              </div>
+            </div>
+            <div class="balance-metrics">
+              <article class="balance-metric primary">
+                <small>账户余额 (USD)</small>
+                <strong data-summary-total="">5,011,295.94</strong>
+              </article>
+              <article class="balance-metric">
+                <small>交易账号余额 (USD)</small>
+                <strong data-summary-accounts="">4,999,999.95</strong>
+              </article>
+              <article class="balance-metric">
+                <small>钱包余额 (USD)</small>
+                <strong data-summary-wallets="">11,295.99</strong>
+                <span data-summary-wallet-note="">EUR 已按汇率折算为 USD</span>
+              </article>
+            </div>
+            <div class="overview-fund-actions" aria-label="资金操作">
+              <a class="fund-action deposit" href="./deposit.html">
+                <span class="fund-icon">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 19h14"></path></svg>
+                </span>
+                <span>入金</span>
+              </a>
+              <a class="fund-action withdraw" href="#">
+                <span class="fund-icon">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21V9"></path><path d="m7 14 5-5 5 5"></path><path d="M5 5h14"></path></svg>
+                </span>
+                <span>出金</span>
+              </a>
+            </div>
+          </section>
+
+          <section class="account-progress-card block-card block-card-padded block-card-fill block-span-12" aria-label="账户开通进度">
+            <div class="progress-top">
+              <div>
+                <h2>账户开通进度 <span>0/3</span></h2>
+                <p>完成以下步骤即可开始真实账户交易</p>
+              </div>
+              <button class="icon-only" type="button" aria-label="关闭进度提示">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10"></path><path d="m17 7-10 10"></path></svg>
+              </button>
+            </div>
+            <div class="progress-track"><span></span></div>
+            <div class="progress-tasks">
+              <a class="progress-task active" href="./open-account.html">
+                <span>完善个人资料</span>
+                <i></i>
+              </a>
+              <a class="progress-task" href="#">
+                <span>身份认证 (KYC)</span>
+                <i></i>
+              </a>
+              <a class="progress-task" href="./deposit.html">
+                <span>首次入金</span>
+                <i></i>
+              </a>
+            </div>
+            <a class="progress-cta" href="./open-account.html">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+              去完成：完善个人资料
+            </a>
+          </section>
+
+          <section class="promo-banner block-card block-span-12" aria-label="热门推广活动">
+            <div class="promo-badge">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8"></path><path d="M12 17v4"></path><path d="M7 4h10v5a5 5 0 0 1-10 0z"></path><path d="M7 7H4a3 3 0 0 0 3 3"></path><path d="M17 7h3a3 3 0 0 1-3 3"></path></svg>
+            </div>
+            <div class="promo-copy">
+              <div><span>进行中</span><strong>5月盈利王挑战赛</strong></div>
+              <p>奖池 $9,600 · 剩余 28 days · 共 3 项活动</p>
+            </div>
+            <a href="./client-trading-contest.html">查看详情</a>
+          </section>
+
+          <section class="quick-panel block-card block-card-padded block-card-fill block-span-12" aria-label="快速操作">
+            <h2>快速操作</h2>
+            <div class="quick-actions block-action-grid">
+              <a class="quick-action block-action-tile" href="./open-account.html">
+                <span class="quick-icon blue">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"></circle><path d="M3.5 20a5.5 5.5 0 0 1 11 0"></path><path d="M18 8v6"></path><path d="M15 11h6"></path></svg>
+                </span>
+                <span>开新账户</span>
+              </a>
+              <a class="quick-action block-action-tile" href="./deposit.html">
+                <span class="quick-icon green">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 19h14"></path></svg>
+                </span>
+                <span>入金</span>
+              </a>
+              <a class="quick-action block-action-tile" href="#">
+                <span class="quick-icon warm">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21V9"></path><path d="m7 14 5-5 5 5"></path><path d="M5 5h14"></path></svg>
+                </span>
+                <span>出金</span>
+              </a>
+              <a class="quick-action block-action-tile" href="./client-wallet.html">
+                <span class="quick-icon purple">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h11"></path><path d="m15 4 3 3-3 3"></path><path d="M17 17H6"></path><path d="m9 14-3 3 3 3"></path></svg>
+                </span>
+                <span>转账</span>
+              </a>
+              <a class="quick-action block-action-tile" href="#">
+                <span class="quick-icon blue">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19h16"></path><path d="M6 16v3"></path><path d="M10 12v7"></path><path d="M14 14v5"></path><path d="M18 8v11"></path></svg>
+                </span>
+                <span>Transactions</span>
+              </a>
+              <a class="quick-action block-action-tile" href="./client-trading-history.html">
+                <span class="quick-icon red">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="4" width="12" height="16" rx="2"></rect><path d="M9 9h6"></path><path d="M9 13h4"></path></svg>
+                </span>
+                <span>Order History</span>
+              </a>
+              <a class="quick-action block-action-tile" href="./client-trading-records.html">
+                <span class="quick-icon cyan">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"></rect><path d="M8 9h8"></path><path d="M8 13h5"></path></svg>
+                </span>
+                <span>Positions</span>
+              </a>
+            </div>
+          </section>
+
+          <section class="refer-card block-card block-card-padded block-card-fill block-span-12" aria-label="邀请链接">
+            <div class="refer-head">
+              <div>
+                <h2>邀请链接</h2>
+              </div>
+              <div class="refer-stats">
+                <span><small>点击</small><b>123</b></span>
+                <span><small>CRM</small><b>123</b></span>
+                <span><small>TA</small><b>50</b></span>
+              </div>
+            </div>
+            <div class="refer-grid">
+              <div class="refer-field large">
+                <label>测试注册链接</label>
+                <span>http://user-1.hcs55.com:38080/regist-real?invitid=555555690-123</span>
+                <button type="button" aria-label="复制注册链接" data-copy-value="http://user-1.hcs55.com:38080/regist-real?invitid=555555690-123">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="5" width="10" height="14" rx="2"></rect><rect x="5" y="9" width="10" height="10" rx="2"></rect></svg>
+                </button>
+              </div>
+              <div class="refer-field">
+                <label>Refer Code</label>
+                <span>555555690-123</span>
+                <button type="button" aria-label="复制邀请码" data-copy-value="555555690-123">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="5" width="10" height="14" rx="2"></rect><rect x="5" y="9" width="10" height="10" rx="2"></rect></svg>
+                </button>
+              </div>
+              <button class="qr-button" type="button" aria-label="查看二维码">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4z"></path><path d="M14 4h6v6h-6z"></path><path d="M4 14h6v6H4z"></path><path d="M14 14h2v2h-2z"></path><path d="M18 14h2v2h-2z"></path><path d="M14 18h2v2h-2z"></path><path d="M18 18h2v2h-2z"></path></svg>
+              </button>
+            </div>
+          </section>
+
+          <section class="accounts-panel block-card block-span-12" id="accounts">
+            <div class="accounts-head">
+              <div class="accounts-title-row">
+                <div>
+                  <h2>交易账号</h2>
+                </div>
+                <div class="account-toolbar">
+                  <div class="account-filter" role="tablist" aria-label="账号类型筛选">
+                    <button class="active" data-account-filter="all" type="button">全部</button>
+                    <button data-account-filter="real" type="button">Live</button>
+                    <button data-account-filter="demo" type="button">Demo</button>
+                  </div>
+                  <div class="account-open-menu" data-account-open-menu="">
+    <button class="account-entry-trigger compact" data-account-entry-trigger="" type="button" aria-expanded="false" aria-label="展开开户操作">
+      <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></span>
+      <b>开户</b>
+      <i><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></i>
+    </button>
+    
+    <div class="account-entry-actions" hidden="">
+      <a class="account-entry-action compact primary" href="./open-account.html?type=real" tabindex="-1">
+        <span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="8" r="3"></circle><path d="M4 20a6 6 0 0 1 12 0"></path><path d="M18 8v6"></path><path d="M15 11h6"></path></svg></span>
+        <b>真实账号</b>
+      </a>
+      <a class="account-entry-action compact" href="./demo-open-account.html" tabindex="-1">
+        <span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="12" rx="2"></rect><path d="M8 21h8"></path><path d="M12 17v4"></path><path d="M8 9h8"></path></svg></span>
+        <b>模拟账号</b>
+      </a>
+      <button class="account-entry-action compact" data-bind-account="" type="button" tabindex="-1">
+        <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"></path><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"></path></svg></span>
+        <b>绑定账号</b>
+      </button>
+    </div>
+  
+  </div>
+                </div>
+              </div>
+              <div class="view-toggle" aria-label="交易账号展示方式">
+                <button class="active" data-view-mode="card" type="button" aria-label="卡片视图">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"></rect><rect x="13" y="4" width="7" height="7" rx="1.5"></rect><rect x="4" y="13" width="7" height="7" rx="1.5"></rect><rect x="13" y="13" width="7" height="7" rx="1.5"></rect></svg>
+                </button>
+                <button data-view-mode="list" type="button" aria-label="列表视图">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12"></path><path d="M8 12h12"></path><path d="M8 18h12"></path><path d="M4 6h.01"></path><path d="M4 12h.01"></path><path d="M4 18h.01"></path></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="accounts-card-view block-repeat-grid" data-accounts-card-view="">
+    <article class="trade-account-card" data-kind="real">
+      <div class="account-card-head">
+        <div class="account-card-title">
+          <div class="account-id-row">
+            <span class="account-status">Live</span>
+            <span class="account-number">80009</span>
+          </div>
+          <div class="account-platform">MT5 · HCHoldingsGroup</div>
+        </div>
+        <a class="account-menu" href="./client-trading-account-detail.html?account=80009" aria-label="查看账号详情"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"></circle><circle cx="12" cy="12" r="1.6"></circle><circle cx="19" cy="12" r="1.6"></circle></svg></a>
+      </div>
+      <div class="account-tags">
+        <span>Trade</span>
+      </div>
+      <div class="balance-box">
+        <strong>999,999.99</strong>
+        <span>余额(USD)</span>
+      </div>
+      <div class="account-meta">
+        <div><span>净值</span><b>1,002,480.64</b></div>
+        <div><span>信用金</span><b>7788.00</b></div>
+        <div><span>账号类型</span><b>ECN</b></div>
+        <div><span>预付款比例</span><b>286%</b></div>
+      </div>
+    </article>
+  
+    <article class="trade-account-card" data-kind="real">
+      <div class="account-card-head">
+        <div class="account-card-title">
+          <div class="account-id-row">
+            <span class="account-status">Live</span>
+            <span class="account-number">80010</span>
+          </div>
+          <div class="account-platform">MT5 · HCHoldingsGroup</div>
+        </div>
+        <a class="account-menu" href="./client-trading-account-detail.html?account=80010" aria-label="查看账号详情"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"></circle><circle cx="12" cy="12" r="1.6"></circle><circle cx="19" cy="12" r="1.6"></circle></svg></a>
+      </div>
+      <div class="account-tags">
+        <span>Trade</span><span>CopyTrading</span>
+      </div>
+      <div class="balance-box">
+        <strong>999,999.99</strong>
+        <span>余额(USD)</span>
+      </div>
+      <div class="account-meta">
+        <div><span>净值</span><b>1,001,185.20</b></div>
+        <div><span>信用金</span><b>7788.00</b></div>
+        <div><span>账号类型</span><b>ECN</b></div>
+        <div><span>预付款比例</span><b>312%</b></div>
+      </div>
+    </article>
+  
+    <article class="trade-account-card" data-kind="real">
+      <div class="account-card-head">
+        <div class="account-card-title">
+          <div class="account-id-row">
+            <span class="account-status">Live</span>
+            <span class="account-number">80011</span>
+          </div>
+          <div class="account-platform">MT5 · HCHoldingsGroup</div>
+        </div>
+        <a class="account-menu" href="./client-trading-account-detail.html?account=80011" aria-label="查看账号详情"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"></circle><circle cx="12" cy="12" r="1.6"></circle><circle cx="19" cy="12" r="1.6"></circle></svg></a>
+      </div>
+      <div class="account-tags">
+        <span>PAMM</span>
+      </div>
+      <div class="balance-box">
+        <strong>999,999.99</strong>
+        <span>余额(USD)</span>
+      </div>
+      <div class="account-meta">
+        <div><span>净值</span><b>997,640.32</b></div>
+        <div><span>信用金</span><b>7788.00</b></div>
+        <div><span>账号类型</span><b>ECN</b></div>
+        <div><span>预付款比例</span><b>248%</b></div>
+      </div>
+    </article>
+  
+    <article class="trade-account-card" data-kind="real">
+      <div class="account-card-head">
+        <div class="account-card-title">
+          <div class="account-id-row">
+            <span class="account-status">Live</span>
+            <span class="account-number">80012</span>
+          </div>
+          <div class="account-platform">MT5 · HCHoldingsGroup</div>
+        </div>
+        <a class="account-menu" href="./client-trading-account-detail.html?account=80012" aria-label="查看账号详情"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"></circle><circle cx="12" cy="12" r="1.6"></circle><circle cx="19" cy="12" r="1.6"></circle></svg></a>
+      </div>
+      <div class="account-tags">
+        <span>Trade</span>
+      </div>
+      <div class="balance-box">
+        <strong>999,999.99</strong>
+        <span>余额(USD)</span>
+      </div>
+      <div class="account-meta">
+        <div><span>净值</span><b>1,000,862.47</b></div>
+        <div><span>信用金</span><b>7788.00</b></div>
+        <div><span>账号类型</span><b>ECN</b></div>
+        <div><span>预付款比例</span><b>295%</b></div>
+      </div>
+    </article>
+  
+    <article class="trade-account-card" data-kind="real">
+      <div class="account-card-head">
+        <div class="account-card-title">
+          <div class="account-id-row">
+            <span class="account-status">Live</span>
+            <span class="account-number">80013</span>
+          </div>
+          <div class="account-platform">MT5 · HCHoldingsGroup</div>
+        </div>
+        <a class="account-menu" href="./client-trading-account-detail.html?account=80013" aria-label="查看账号详情"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"></circle><circle cx="12" cy="12" r="1.6"></circle><circle cx="19" cy="12" r="1.6"></circle></svg></a>
+      </div>
+      <div class="account-tags">
+        <span>CopyTrading</span>
+      </div>
+      <div class="balance-box">
+        <strong>999,999.99</strong>
+        <span>余额(USD)</span>
+      </div>
+      <div class="account-meta">
+        <div><span>净值</span><b>1,004,310.76</b></div>
+        <div><span>信用金</span><b>7788.00</b></div>
+        <div><span>账号类型</span><b>ECN</b></div>
+        <div><span>预付款比例</span><b>331%</b></div>
+      </div>
+    </article>
+  
+    <article class="trade-account-card" data-kind="demo">
+      <div class="account-card-head">
+        <div class="account-card-title">
+          <div class="account-id-row">
+            <span class="account-status demo">Demo</span>
+            <span class="account-number">90021</span>
+          </div>
+          <div class="account-platform">MT5 · HCHoldingsGroup</div>
+        </div>
+        <a class="account-menu" href="./client-demo-account-detail.html?account=90021" aria-label="查看账号详情"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"></circle><circle cx="12" cy="12" r="1.6"></circle><circle cx="19" cy="12" r="1.6"></circle></svg></a>
+      </div>
+      <div class="account-tags">
+        <span>Trade</span>
+      </div>
+      <div class="balance-box">
+        <strong>50,000.00</strong>
+        <span>余额(USD)</span>
+      </div>
+      <div class="account-meta">
+        <div><span>净值</span><b>50,000.00</b></div>
+        <div><span>信用金</span><b>0.00</b></div>
+        <div><span>账号类型</span><b>Demo</b></div>
+        <div><span>预付款比例</span><b>500%</b></div>
+      </div>
+    </article>
+  </div>
+            <div class="accounts-list-view" data-accounts-list-view="" hidden="" style="display: none;">
+    <table class="account-table">
+      <thead>
+        <tr>
+          <th>分类</th>
+          <th>账号</th>
+          <th>用途</th>
+          <th>平台</th>
+          <th>服务器</th>
+          <th>余额</th>
+          <th>净值</th>
+          <th>信用金</th>
+          <th>账号类型</th>
+          <th>预付款比例</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="account-status">Live</span></td>
+          <td><strong>80009</strong></td>
+          <td>Trade</td>
+          <td>MT5</td>
+          <td>HCHoldingsGroup</td>
+          <td><strong>999,999.99</strong> USD</td>
+          <td><strong>1,002,480.64</strong> USD</td>
+          <td>7788.00</td>
+          <td>ECN</td>
+          <td>286%</td>
+          <td>
+            <div class="table-actions">
+              <a href="./deposit.html">入金</a>
+              <a href="./client-trading-account-detail.html?account=80009">详情</a>
+            </div>
+          </td>
+        </tr>
+      
+        <tr>
+          <td><span class="account-status">Live</span></td>
+          <td><strong>80010</strong></td>
+          <td>Trade / CopyTrading</td>
+          <td>MT5</td>
+          <td>HCHoldingsGroup</td>
+          <td><strong>999,999.99</strong> USD</td>
+          <td><strong>1,001,185.20</strong> USD</td>
+          <td>7788.00</td>
+          <td>ECN</td>
+          <td>312%</td>
+          <td>
+            <div class="table-actions">
+              <a href="./deposit.html">入金</a>
+              <a href="./client-trading-account-detail.html?account=80010">详情</a>
+            </div>
+          </td>
+        </tr>
+      
+        <tr>
+          <td><span class="account-status">Live</span></td>
+          <td><strong>80011</strong></td>
+          <td>PAMM</td>
+          <td>MT5</td>
+          <td>HCHoldingsGroup</td>
+          <td><strong>999,999.99</strong> USD</td>
+          <td><strong>997,640.32</strong> USD</td>
+          <td>7788.00</td>
+          <td>ECN</td>
+          <td>248%</td>
+          <td>
+            <div class="table-actions">
+              <a href="./deposit.html">入金</a>
+              <a href="./client-trading-account-detail.html?account=80011">详情</a>
+            </div>
+          </td>
+        </tr>
+      
+        <tr>
+          <td><span class="account-status">Live</span></td>
+          <td><strong>80012</strong></td>
+          <td>Trade</td>
+          <td>MT5</td>
+          <td>HCHoldingsGroup</td>
+          <td><strong>999,999.99</strong> USD</td>
+          <td><strong>1,000,862.47</strong> USD</td>
+          <td>7788.00</td>
+          <td>ECN</td>
+          <td>295%</td>
+          <td>
+            <div class="table-actions">
+              <a href="./deposit.html">入金</a>
+              <a href="./client-trading-account-detail.html?account=80012">详情</a>
+            </div>
+          </td>
+        </tr>
+      
+        <tr>
+          <td><span class="account-status">Live</span></td>
+          <td><strong>80013</strong></td>
+          <td>CopyTrading</td>
+          <td>MT5</td>
+          <td>HCHoldingsGroup</td>
+          <td><strong>999,999.99</strong> USD</td>
+          <td><strong>1,004,310.76</strong> USD</td>
+          <td>7788.00</td>
+          <td>ECN</td>
+          <td>331%</td>
+          <td>
+            <div class="table-actions">
+              <a href="./deposit.html">入金</a>
+              <a href="./client-trading-account-detail.html?account=80013">详情</a>
+            </div>
+          </td>
+        </tr>
+      
+        <tr>
+          <td><span class="account-status demo">Demo</span></td>
+          <td><strong>90021</strong></td>
+          <td>Trade</td>
+          <td>MT5</td>
+          <td>HCHoldingsGroup</td>
+          <td><strong>50,000.00</strong> USD</td>
+          <td><strong>50,000.00</strong> USD</td>
+          <td>0.00</td>
+          <td>Demo</td>
+          <td>500%</td>
+          <td>
+            <div class="table-actions">
+              <a href="./deposit.html">入金</a>
+              <a href="./client-demo-account-detail.html?account=90021">详情</a>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+          </section>
+        </section>
+      </div>
+
+      <div class="client-toast" data-client-toast="" hidden=""></div>
+    </main>
+
+    
+    
+    
+  
+
+</body></html>

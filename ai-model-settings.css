@@ -232,10 +232,11 @@
 
 .ai-model-settings-hero {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 18px;
-  padding: 18px;
+  padding: 20px 22px;
+  background: linear-gradient(135deg, #f8fbff 0%, #ffffff 60%);
 }
 
 .ai-model-settings-hero h1 {
@@ -274,9 +275,44 @@
 
 .ai-model-settings-layout {
   display: grid;
-  grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+  grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
   gap: 16px;
   align-items: start;
+}
+
+.ai-model-settings-layout > aside {
+  position: sticky;
+  top: 16px;
+}
+
+.ai-model-option-grid button:hover,
+.ai-model-used-list button:hover,
+.ai-model-provider-grid button:hover {
+  border-color: #bcd3f5;
+  background: #f1f6ff;
+}
+
+.ai-model-settings-actions a:hover,
+.ai-model-settings-actions button:hover,
+.ai-model-dialog footer button:hover {
+  border-color: #bcd3f5;
+}
+
+.ai-model-current-card a:hover,
+.ai-model-settings-actions .primary:hover,
+.ai-model-dialog footer .primary:hover {
+  border-color: #1d4ed8;
+  background: #1d4ed8;
+}
+
+.ai-model-option-grid button:focus-visible,
+.ai-model-used-list button:focus-visible,
+.ai-model-provider-grid button:focus-visible,
+.ai-model-settings-actions a:focus-visible,
+.ai-model-settings-actions button:focus-visible,
+.ai-model-dialog footer button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
 }
 
 .ai-model-settings-panel {
@@ -296,6 +332,7 @@
 
 .ai-model-provider-grid {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -360,6 +397,29 @@
   grid-column: 1 / -1;
 }
 
+.ai-model-form-group {
+  grid-column: 1 / -1;
+  margin: 6px 0 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #eef2f9;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.04em;
+}
+
+.ai-model-form-group:first-child {
+  margin-top: 0;
+}
+
+.ai-model-settings-form input:focus-visible,
+.ai-model-settings-form select:focus-visible {
+  outline: none;
+  border-color: #2563eb;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16);
+}
+
 .ai-model-settings-note {
   display: grid;
   gap: 9px;
@@ -404,6 +464,11 @@
   .ai-model-current-card {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .ai-model-settings-layout > aside {
+    position: static;
+    top: auto;
   }
 }
 

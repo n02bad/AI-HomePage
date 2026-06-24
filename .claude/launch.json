@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Home AI Server",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["start"],
+      "port": 5174
+    },
+    {
+      "name": "Home AI Server (Mock)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "start:mock"],
+      "port": 5174
+    },
+    {
+      "name": "Home AI Server (Faithful)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "start:faithful"],
+      "port": 5174
+    }
+  ]
+}

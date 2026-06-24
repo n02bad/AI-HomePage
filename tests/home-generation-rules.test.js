@@ -522,6 +522,76 @@ async function run() {
   assert.strictEqual(normalizedComponentRefs.componentMorphs.QuickActions.referenceComponentId, "quickactions-command-ref");
   assert.strictEqual(normalizedComponentRefs.componentReferences[0].variantHint, "commandBar");
 
+  const normalizedStrongComponentRefs = home.normalizeConfig({
+    schemaVersion: 4,
+    sections: [
+      {
+        id: "activation-overview",
+        type: "split",
+        title: "账户启动区",
+        transition: "connected",
+        groupId: "activation_overview",
+        compositeId: "composite-activation_overview",
+        compositeTitle: "账户启动区",
+        compositeSurface: "connected-panel",
+        compositeRole: "primary",
+        slots: ["asset_overview", "quick_actions"],
+      },
+      {
+        id: "activation-onboarding",
+        type: "full",
+        title: "开户进度",
+        transition: "connected",
+        groupId: "activation_overview",
+        compositeId: "composite-activation_overview",
+        compositeTitle: "账户启动区",
+        compositeSurface: "connected-panel",
+        compositeRole: "primary",
+        slots: ["onboarding_guide"],
+      },
+    ],
+    componentRenderPolicy: {
+      mode: "strong-reference-snippet-fallback",
+      minimumRendererScore: 8,
+      fallbackWhenGeneratedScoreBelow: 68,
+      appliedModules: ["AssetOverview"],
+      source: "home-component-library",
+    },
+    componentReferences: [
+      {
+        componentId: "asset-overview-golden-strong",
+        name: "黄金资产概览",
+        family: "AssetOverview",
+        module: "AssetOverview",
+        component: "asset_overview",
+        score: 9,
+        referenceTier: "strong",
+        rendererMode: "high-score-component",
+        rendererHtml: '<section onclick="alert(1)"><script>alert(1)</script><strong>512,780.26 USD</strong></section>',
+        rendererCss: '@import "https://example.com/a.css"; .golden-asset{position:fixed;color:#172033}',
+      },
+      {
+        componentId: "quickactions-low-score",
+        name: "低分快捷入口",
+        family: "QuickActions",
+        module: "QuickActions",
+        component: "quick_actions",
+        score: 5,
+        referenceTier: "blocked",
+      },
+    ],
+  });
+  assert.strictEqual(normalizedStrongComponentRefs.layout[0].compositeId, "composite-activation_overview");
+  assert.strictEqual(normalizedStrongComponentRefs.layout[0].compositeSurface, "connected-panel");
+  assert.strictEqual(normalizedStrongComponentRefs.componentRenderPolicy.mode, "strong-reference-snippet-fallback");
+  assert.strictEqual(normalizedStrongComponentRefs.componentReferences.length, 1, "blocked component references must not survive runtime normalization");
+  assert.strictEqual(normalizedStrongComponentRefs.componentReferences[0].score, 9);
+  assert.strictEqual(normalizedStrongComponentRefs.componentReferences[0].rendererMode, "high-score-component");
+  assert(!normalizedStrongComponentRefs.componentReferences[0].rendererHtml.includes("<script"), "strong renderer HTML must be sanitized");
+  assert(!normalizedStrongComponentRefs.componentReferences[0].rendererHtml.includes("onclick"), "strong renderer HTML must strip inline handlers");
+  assert(!normalizedStrongComponentRefs.componentReferences[0].rendererCss.includes("@import"), "strong renderer CSS must strip imports");
+  assert(!normalizedStrongComponentRefs.componentReferences[0].rendererCss.includes("position:fixed"), "strong renderer CSS must strip fixed positioning");
+
   const normalizedSkeletonHtml = home.normalizeConfig({
     schemaVersion: 4,
     renderMode: "skeletonHtml",
@@ -1066,6 +1136,10 @@ async function run() {
   const componentLibrary = JSON.parse(fs.readFileSync(path.join(ROOT, "home-component-library.json"), "utf8"));
   const tradingAccountsBrick = componentLibrary.components.find((component) => component.id === "trading-accounts-separated-list");
   const tradingAccountsContract = tradingAccountsBrick?.sourcePrompt || serverSource;
+  const referralGrowthBrick = componentLibrary.components.find((component) => component.id === "referral-link-growth-console");
+  assert(referralGrowthBrick, "referral growth brick must stay available as a usable ReferralLinkCard reference");
+  assert.strictEqual(referralGrowthBrick.family, "ReferralLinkCard", "referral growth brick must use the canonical ReferralLinkCard family");
+  assert(!/Invite Link First|-- Opens|-- Accounts/i.test(referralGrowthBrick.html || ""), "referral growth brick must not contain English placeholder copy");
   assert(
     tradingAccountsContract.includes("不能上方摘要卡片下方再重复完整表格") || tradingAccountsContract.includes("摘要卡片和完整表格上下重复"),
     "TradingAccounts generation contract must forbid duplicate summary/table views",
@@ -1144,6 +1218,9 @@ async function run() {
 		  assert(serverSource.includes("purgeBlockedComponentReferencesFromConfig"), "homepage generation must directly purge low-scored component-library references");
 		  assert(serverSource.includes("已直接杜绝"), "homepage repair actions must record direct elimination of low-scored component references");
 		  assert(personalizationSource.includes("normalizeHomepageComponentReferences"), "homepage renderer must normalize top-level component-library references");
+		  assert(serverSource.includes("componentReferenceReleaseIssues"), "server must block high-score component references that contain template placeholders");
+		  assert(serverSource.includes("客户页出现英文模板或 -- 空数据占位"), "homepage quality gate must reject English placeholder copy");
+		  assert(personalizationSource.includes("componentReferenceRendererLooksPublishable"), "runtime must refuse unsafe high-score rendererHtml from old records");
 	  assert(personalizationSource.includes("dataset.componentReference"), "homepage renderer must expose component reference provenance on rendered slots");
 	  assert(serverSource.includes("implementationContract"), "AI HTML generation must require per-module implementation contracts");
 	  assert(serverSource.includes("无法证明 AI HTML 不是静态外观空壳"), "AI HTML quality gate must reject static shell drafts");
@@ -1159,13 +1236,21 @@ async function run() {
 			  const compactAiHtmlProviderFunction = serverSource.match(/function providerUsesCompactAiHtml[\s\S]*?\n}/)?.[0] || "";
 			  assert(!compactAiHtmlProviderFunction.includes('"gemini"'), "Gemini should use the full repaired AI HTML prompt so it receives richer component-library context");
 			  assert(serverSource.includes("aiHtmlComponentReferenceRegion"), "AI HTML quality gate must inspect each referenced brick region, not just whole-page signals");
-			  assert(serverSource.includes("score < 68"), "AI HTML should only fall back to high-score bricks when it falls below the repair floor");
+			  assert(serverSource.includes("score < homeAiFallbackMinScore()"), "AI HTML should only fall back to high-score bricks when it falls below the tunable repair floor");
 			  assert(serverSource.includes("function validateHomepageConfig"), "server must validate homepage config before HTML generation");
 			  assert(serverSource.includes("function repairHomepageConfig"), "server must repair homepage config before HTML generation");
 			  assert(serverSource.includes("function buildHomepageModulePolicy"), "server must build modulePolicy before homepage generation");
 			  assert(serverSource.includes("function validateHomepageModulePolicy"), "server must validate model output against modulePolicy");
 			  assert(serverSource.includes("modulePolicyScore"), "homepage quality must include modulePolicyScore");
 			  assert(serverSource.includes("buildHomepagePagePlan"), "server must create a pagePlan before final homepage assembly");
+		  assert(serverSource.includes("homepageGoldenSkeletonContractForPlan"), "server pagePlan must extract executable golden-sample skeleton contracts");
+		  assert(serverSource.includes("compositeBlocks"), "pagePlan must synthesize stitchable module groups as composite blocks");
+		  assert(serverSource.includes("enforceHomepagePagePlanMainVisualSections"), "pagePlan mainVisual must be repaired back into the core viewport");
+		  assert(serverSource.includes("homepagePlanQualityGateBlockingIssues"), "quality gate must block pagePlan/mainVisual structural misses");
+		  assert(serverSource.includes("strong-reference-snippet-fallback"), "normal componentized rendering must carry high-score component fallback policy");
+		  assert(personalizationSource.includes("renderHighScoreComponentReference"), "runtime normal renderer must be able to render high-score component snippets");
+		  assert(personalizationSource.includes("data-home-composite"), "runtime normal renderer must expose composite containers for stitched module groups");
+		  assert(personalizationCss.includes(".ai-home-composite"), "blueprint renderer must style synthesized composite containers");
 		  assert(serverSource.includes("HOMEPAGE_OPTIONAL_BLOCK_REQUEST_PATTERNS"), "optional homepage modules must preserve prompt request patterns");
 		  const removedMaterialAdmissionLabel = ["素材", "准入"].join("");
 		  assert(!adminHtmlSource.includes(removedMaterialAdmissionLabel), "guided builder must not render the removed material-admission section");
@@ -1222,10 +1307,12 @@ async function run() {
 	  assert(adminSource.includes("serverHtmlLooksModelGenerated"), "admin history must not mislabel model/free-html as fallback when server metadata is older");
 		  assert(adminSource.includes("积木保底"), "admin history must label brick-backed AI HTML as a fallback source");
 	  assert(adminSource.includes("prepareConfigForPublish"), "publishing must normalize skeleton drafts into a clean final customer config");
-	  assert(personalizationCss.includes(".home-skeleton-render-host.is-published-skeleton"), "published skeleton pages must hide editor shell markers");
-	  assert(personalizationCss.includes('data-home-skeleton-slot-chrome="flat"'), "published skeleton pages must support flat slot chrome without an extra card shell");
-	  assert(personalizationCss.includes('data-home-skeleton-section-chrome="connected"'), "published skeleton pages must support connected section chrome");
-	  assert(personalizationSource.includes("home-skeleton-module-loading"), "generating skeleton slots must render a module-level lazy-loading placeholder");
+		  assert(personalizationCss.includes(".home-skeleton-render-host.is-published-skeleton"), "published skeleton pages must hide editor shell markers");
+		  assert(personalizationCss.includes('data-home-skeleton-slot-chrome="flat"'), "published skeleton pages must support flat slot chrome without an extra card shell");
+		  assert(personalizationCss.includes('data-home-skeleton-section-chrome="connected"'), "published skeleton pages must support connected section chrome");
+		  assert(!personalizationCss.includes("margin-top: calc(var(--home-skeleton-contract-gap, 14px) * -1)"), "connected skeleton sections must keep visible breathing room");
+		  assert(!personalizationCss.includes("margin-top: -16px"), "published connected skeleton sections must not collapse their section gap");
+		  assert(personalizationSource.includes("home-skeleton-module-loading"), "generating skeleton slots must render a module-level lazy-loading placeholder");
 	  assert(personalizationCss.includes(".home-skeleton-section-split .home-skeleton-slot:only-child"), "single-slot split skeleton sections must span the full row");
 	  assert(personalizationCss.includes('body[data-home-preview="content-only"] > .sidebar'), "iframe previews must stay content-only");
 	  assert(!personalizationCss.includes('body[data-home-published="true"] > .sidebar'), "published customer pages must keep the shared sidebar");
@@ -1265,8 +1352,9 @@ async function run() {
     const originalDesignSamples = fs.readFileSync(designSamplesPath, "utf8");
     const originalReferenceAssets = fs.readFileSync(referenceAssetsPath, "utf8");
     const savedReferenceAssetPaths = [];
+    const savedGoldenSamplePaths = [];
     try {
-      const longContentHtml = `<html><head><style>.client-home-page{padding:24px}.late-marker{color:#2563eb}${"x".repeat(12000)}</style></head><body><div class="sidebar"><nav><h2>导航标题</h2></nav></div><main class="app" data-layout-main><div class="topbar">顶部搜索栏</div><div class="common-tabbar"><div data-tab-id="client-home">原首页</div></div><div class="page client-home-page"><section><h2>账户总览</h2><p>资产内容区</p></section><section><h2>交易账号</h2><p class="late-marker">${"内容区末尾标记".repeat(400)}</p></section></div></main></body></html>`;
+      const longContentHtml = `<html><head><style>:root{--blue:#2563eb;--surface:#ffffff;--border:#d8e1ef}.client-home-page{max-width:1280px;padding:24px;display:grid;gap:16px}.metric-panel{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:24px;border:1px solid var(--border);border-radius:12px;background:var(--surface);box-shadow:0 10px 24px rgba(15,23,42,.07)}.late-marker{color:#2563eb}@media(max-width:720px){.metric-panel{grid-template-columns:1fr}}${"x".repeat(12000)}</style></head><body><div class="sidebar"><nav><h2>导航标题</h2></nav></div><main class="app" data-layout-main><div class="topbar">顶部搜索栏</div><div class="common-tabbar"><div data-tab-id="client-home">原首页</div></div><div class="page client-home-page"><section class="asset-card metric-panel"><h2>账户总览</h2><strong>$152,306.00</strong><p>资产内容区</p></section><section class="account-card metric-panel"><h2>交易账号</h2><p class="late-marker">${"内容区末尾标记".repeat(400)}</p></section></div></main></body></html>`;
       const savedReference = await requestJson(port, "/api/home-ai/reference-assets", {
         asset: {
           name: "long-client-home-reference.html",
@@ -1298,6 +1386,10 @@ async function run() {
       assert(analyzedReference.analysis.cssSummary.htmlStructure.textExcerpt.includes("账户总览"));
       assert(!analyzedReference.analysis.cssSummary.htmlStructure.textExcerpt.includes("导航标题"));
       assert(analyzedReference.analysis.cssSummary.htmlStructure.headings.includes("交易账号"));
+      assert(analyzedReference.analysis.cssSummary.colorPalette.includes("#2563eb"));
+      assert(analyzedReference.analysis.cssSummary.layoutTokens.gridTemplates.some((item) => item.includes("repeat(3")));
+      assert(analyzedReference.analysis.cssSummary.componentCards.some((card) => card.heading === "账户总览" && card.role === "asset-card"));
+      assert(analyzedReference.analysis.themeTokens.cssVariables["--blue"] === "#2563eb");
 
       const savedGolden = await requestJson(port, "/api/home-ai/design-samples", {
         sample: {
@@ -1385,10 +1477,34 @@ async function run() {
           forbiddenReuse: "不要照搬截图里的品牌素材。",
         },
       });
-      assert.strictEqual(savedVisualOnly.sample.visualOnly, true);
-      assert.strictEqual(savedVisualOnly.sample.configSnapshot, null);
+	      assert.strictEqual(savedVisualOnly.sample.visualOnly, true);
+	      assert.strictEqual(savedVisualOnly.sample.configSnapshot, null);
 
-      const retrievedVisualOnly = await requestJson(port, `/api/home-ai/design-samples?prompt=${encodeURIComponent("极简白 移动端 开户")}`);
+      const savedHtmlVisualOnly = await requestJson(port, "/api/home-ai/design-samples", {
+        sample: {
+          id: "test-html-visual-token-golden",
+          sampleKind: "golden-page",
+          sourceType: "visual-only",
+          visualOnly: true,
+          isGolden: true,
+          name: "测试 HTML token 黄金样本",
+          prompt: "蓝色账户工作台",
+          referenceAssetId: longReferenceAsset.id,
+          renderEvidence: {
+            sourceUrl: longReferenceAsset.url,
+            cssSummary: { referenceAssetId: longReferenceAsset.id, referenceType: "html" },
+          },
+          humanScore: 94,
+        },
+      });
+      assert(savedHtmlVisualOnly.sample.renderEvidence.cssSummary.componentCards.some((card) => card.heading === "账户总览"), "saving a visual-only HTML golden sample must re-read source HTML and extract component cards");
+      assert(savedHtmlVisualOnly.sample.renderEvidence.cssSummary.layoutTokens.gridTemplates.some((item) => item.includes("repeat(3")), "saving a visual-only HTML golden sample must extract executable layout tokens");
+      assert.strictEqual(savedHtmlVisualOnly.sample.renderEvidence.themeTokens.cssVariables["--blue"], "#2563eb");
+      if (savedHtmlVisualOnly.sample.renderEvidence.screenshotPath) {
+        savedGoldenSamplePaths.push(path.join(ROOT, savedHtmlVisualOnly.sample.renderEvidence.screenshotPath));
+      }
+
+	      const retrievedVisualOnly = await requestJson(port, `/api/home-ai/design-samples?prompt=${encodeURIComponent("极简白 移动端 开户")}`);
       const visualGolden = retrievedVisualOnly.goldenSamples.find((sample) => sample.id === visualOnlyId);
       assert(visualGolden, "visual-only golden sample must be retrievable in goldenSamplePages");
       assert.strictEqual(visualGolden.visualOnly, true);
@@ -1437,6 +1553,13 @@ async function run() {
           fs.unlinkSync(filePath);
         } catch (error) {
           // Best effort cleanup for generated reference-asset fixtures.
+        }
+      });
+      savedGoldenSamplePaths.forEach((filePath) => {
+        try {
+          fs.unlinkSync(filePath);
+        } catch (error) {
+          // Best effort cleanup for generated golden-sample previews.
         }
       });
     }

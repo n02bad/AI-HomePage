@@ -109,6 +109,20 @@ const MINIMAX_CN_TYPED_ALIAS_BASE_URL = "https://api.minimaxi.cn/v1";
 const MINIMAX_GLOBAL_BASE_URL = "https://api.minimax.io/v1";
 const MINIMAX_OFFICIAL_BASE_URLS = [MINIMAX_CN_BASE_URL];
 const MINIMAX_MAX_COMPLETION_TOKENS = 2048;
+// A full homepage blueprint (sections + brickPlan + moduleStyles + moduleSettings + autoLayout)
+// routinely exceeds 6000 output tokens; too low a budget makes the model finish with
+// `length` mid-JSON, which fails JSON.parse and silently drops to the brick fallback.
+const HOMEPAGE_MAX_OUTPUT_DEFAULT = 8192;
+const HOMEPAGE_MAX_OUTPUT_CEILING = 16000;
+
+function providerMaxOutputDefault(providerId) {
+  return providerId === "minimax" ? MINIMAX_MAX_COMPLETION_TOKENS : HOMEPAGE_MAX_OUTPUT_DEFAULT;
+}
+
+function providerMaxOutputCeiling(providerId) {
+  return providerId === "minimax" ? MINIMAX_MAX_COMPLETION_TOKENS : HOMEPAGE_MAX_OUTPUT_CEILING;
+}
+
 const KIMI_CN_BASE_URL = "https://api.moonshot.cn/v1";
 const KIMI_GLOBAL_BASE_URL = "https://api.moonshot.ai/v1";
 
@@ -118,8 +132,8 @@ function getLanUrls(port) {
     .filter((address) => address && address.family === "IPv4" && !address.internal)
     .map((address) => `http://${address.address}:${port}/`);
 }
-const KIMI_DEFAULT_MODEL = "kimi-k2.6";
-const KIMI_LEGACY_MODELS = new Set(["kimi-k2.5"]);
+const KIMI_DEFAULT_MODEL = "kimi-k3";
+const KIMI_LEGACY_MODELS = new Set(["kimi-k2.6", "kimi-k2.5"]);
 const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
 const DEEPSEEK_PRO_MODEL = "deepseek-v4-pro";
 const DEEPSEEK_FLASH_MODEL = "deepseek-v4-flash";
@@ -132,8 +146,10 @@ const GEMINI_TEXT_MODELS = [
   "gemini-2.5-flash-lite",
   "gemini-2.5-pro",
   "gemini-3-flash-preview",
+  "gemini-3.1-flash",
   "gemini-3.1-flash-lite",
   "gemini-3.1-flash-lite-preview",
+  "gemini-3.1-pro",
   "gemini-3.1-pro-preview",
   "gemini-3.1-pro-preview-customtools",
 ];
@@ -166,7 +182,7 @@ const PROVIDERS = {
   minimax: {
     name: "MiniMax",
     apiMode: "openai-chat",
-    model: "MiniMax-M2.7",
+    model: "MiniMax-M3",
     baseUrl: MINIMAX_CN_BASE_URL,
     endpoint: "/chat/completions",
     keyEnv: ["MINIMAX_API_KEY"],
@@ -2452,8 +2468,8 @@ function normalizeProviderConfig(modelConfig = {}) {
   const endpoint = String(modelConfig.endpoint || envValue(preset.endpointEnv) || preset.endpoint).trim();
   const temperature = Number(modelConfig.temperature);
   const maxOutputTokens = Number(modelConfig.maxOutputTokens);
-  const defaultMaxOutputTokens = providerId === "minimax" ? MINIMAX_MAX_COMPLETION_TOKENS : 6000;
-  const maxOutputCeiling = providerId === "minimax" ? MINIMAX_MAX_COMPLETION_TOKENS : 12000;
+  const defaultMaxOutputTokens = providerId === "minimax" ? MINIMAX_MAX_COMPLETION_TOKENS : providerMaxOutputDefault(providerId);
+  const maxOutputCeiling = providerMaxOutputCeiling(providerId);
   const minOutputTokens = providerId === "minimax" ? 512 : 6000;
 
   return {
@@ -3019,12 +3035,14 @@ function componentReferenceScore(component, payload = {}) {
 function componentReferenceAdmission(component, payload = {}) {
   const score = componentReferenceScore(component, payload);
   const tier = componentReferenceTierFromScore(score);
+  const releaseIssues = componentReferenceReleaseIssues(component, payload);
   return {
     score,
     tier,
     label: componentReferenceTierLabel(tier),
     rule: componentReferenceRuleForTier(tier),
-    allowed: tier !== "blocked",
+    allowed: tier !== "blocked" && !releaseIssues.length,
+    releaseIssues,
   };
 }
 
@@ -3071,6 +3089,7 @@ function componentReferenceAllowedByPolicy(reference = {}, lookup = componentLib
   const id = cleanText(reference.componentId || reference.id, "", 96);
   const component = id ? lookup.get(id) : null;
   if (component) return componentReferenceAllowed(component);
+  if (componentReferenceReleaseIssues(reference).length) return false;
   const explicitTier = cleanText(reference.referenceTier || reference.tier, "", 24);
   if (explicitTier === "blocked") return false;
   if (Number.isFinite(Number(reference.score))) return componentReferenceTierFromScore(reference.score) !== "blocked";
@@ -3521,18 +3540,13 @@ function shouldRemoveComponentEyebrow(label, primaryTitle) {
 }
 
 function collapseDuplicateComponentTitles(value) {
-  const titlePattern = "((?:<strong\\b[^>]*>|<h[1-4]\\b[^>]*>)[^<]{1,180}<\\/(?:strong|h[1-4])>)";
-  const patterns = [
-    new RegExp(`(<(?:section|article|div)\\b[^>]*>\\s*)<(span|small|label)\\b[^>]*>([^<]{1,100})<\\/\\2>\\s*${titlePattern}`, "gi"),
-    new RegExp(`(<header\\b[^>]*>\\s*)<(span|small|label)\\b[^>]*>([^<]{1,100})<\\/\\2>\\s*${titlePattern}`, "gi"),
-  ];
-
-  return patterns.reduce(
-    (html, pattern) =>
-      html.replace(pattern, (match, prefix, tag, label, primaryTitle) =>
-        shouldRemoveComponentEyebrow(label, primaryTitle) ? `${prefix}${primaryTitle}` : match,
-      ),
-    String(value || ""),
+  const source = String(value || "");
+  if (!/<(?:span|small|label)\b/i.test(source) || !/<(?:strong|h[1-4])\b/i.test(source)) return source;
+  const pattern = /(<(?:section|article|div|header)\b[^>]{0,500}>\s*)<(span|small|label)\b[^>]{0,300}>([^<]{1,100})<\/\2>\s*((?:<strong\b[^>]{0,300}>|<h[1-4]\b[^>]{0,300}>)[^<]{1,180}<\/(?:strong|h[1-4])>)/gi;
+  return source.replace(
+    pattern,
+    (match, prefix, tag, label, primaryTitle) =>
+      shouldRemoveComponentEyebrow(label, primaryTitle) ? `${prefix}${primaryTitle}` : match,
   );
 }
 
@@ -3810,8 +3824,14 @@ function stripEditorArtifactsFromHtml(value) {
 }
 
 function stripEditorArtifactsFromCss(value) {
-  return String(value || "")
-    .replace(/[^{}]*\.ai-edit-note[^{}]*\{[^{}]*\}/gi, "")
+  const source = String(value || "");
+  const cleaned = /\.ai-edit-note\b/i.test(source)
+    ? source
+        .split("}")
+        .filter((rule) => !/\.ai-edit-note\b/i.test(rule.slice(0, rule.indexOf("{") >= 0 ? rule.indexOf("{") : rule.length)))
+        .join("}")
+    : source;
+  return cleaned
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
@@ -4092,11 +4112,35 @@ function generatedComponentVisibleText(component) {
   return stripHtmlTags(component?.html || "");
 }
 
+function componentReferenceReleaseIssues(component, payload = {}) {
+  const family = oneOfComponentFamily(component?.family || payload.family, "");
+  const visibleText = cleanText(component?.visibleText || generatedComponentVisibleText(component), "", 600);
+  const rendererText = cleanText(stripHtmlTags(component?.rendererHtml || component?.html || ""), "", 600);
+  const source = `${visibleText} ${rendererText} ${component?.name || ""} ${component?.description || ""}`;
+  const issues = [];
+
+  if (/Invite\s+Link\s+First|Link,\s*invite\s+code|conversion\s+metrics\s+stay\s+visible/i.test(source)) {
+    issues.push("组件参考含英文模板文案，不能作为中文首页发布参考。");
+  }
+  if (/--\s*(?:Opens|Accounts|Clicks|Registrations|点击|账户|开户|注册)\b/i.test(source) || /(?:^|\s)--(?:\s|$).*(?:^|\s)--(?:\s|$)/.test(source)) {
+    issues.push("组件参考含 -- 空数据占位，不能作为高分兜底 renderer。");
+  }
+  if (/\b(?:Primary Action|Lorem ipsum|Sample Data|AI\s+Style|Untitled Module)\b/i.test(source)) {
+    issues.push("组件参考含通用模板占位文案，不能进入可发布首页。");
+  }
+  if (family === "ReferralLinkCard" && !/(推广链接|开户链接|邀请|邀请码|复制|inviteUrl|inviteCode|referral)/i.test(source)) {
+    issues.push("ReferralLinkCard 缺少推广链接、邀请码或复制动作语义。");
+  }
+
+  return [...new Set(issues)].slice(0, 4);
+}
+
 function generatedComponentQualityIssues(component, payload = {}) {
   const family = oneOfComponentFamily(component?.family || payload.family);
   const issues = [];
   const explicitScore = generatedComponentExplicitScore(component, payload);
   const source = `${component?.name || ""} ${component?.description || ""} ${component?.html || ""} ${component?.css || ""}`;
+  componentReferenceReleaseIssues(component, payload).forEach((issue) => issues.push(issue));
   if (explicitScore != null && explicitScore <= COMPONENT_REFERENCE_SCORE_POLICY.blockedMax) {
     issues.push(`组件评分 ${explicitScore}/10 属于阻断档，不能作为当前 slot 填充或后续参考。`);
   }
@@ -4777,6 +4821,12 @@ function normalizeHomepageConfigComponentReferences(value) {
         morphHint: cleanText(item?.morphHint || item?.morph || item?.morphId, "", 48),
         styleHint: cleanText(item?.styleHint || item?.style, "", 48),
         styleFeature: cleanText(item?.styleFeature, "", 48),
+        rendererMode: cleanText(item?.rendererMode, "", 40),
+        rendererHtml: sanitizeAiHtmlMarkup(item?.rendererHtml || item?.html || ""),
+        rendererCss: sanitizeAiHtmlCss(item?.rendererCss || item?.css || ""),
+        rendererQualityFloor: Number.isFinite(Number(item?.rendererQualityFloor))
+          ? Math.max(1, Math.min(10, Math.round(Number(item.rendererQualityFloor))))
+          : undefined,
         reason: cleanText(item?.reason, "", 180),
         source: cleanText(item?.source, "home-component-library", 48),
         applied: Boolean(item?.applied),
@@ -4816,6 +4866,10 @@ function stripBlockedComponentReferenceFields(value = {}) {
     "referenceReason",
     "componentReferenceId",
     "componentReferenceName",
+    "rendererMode",
+    "rendererHtml",
+    "rendererCss",
+    "rendererQualityFloor",
   ].forEach((key) => {
     delete next[key];
   });
@@ -4918,17 +4972,21 @@ function applyComponentReferencesToHomepageConfig(config, prompt = "", options =
     .map(({ block, moduleId }) => {
       const familyComponents = components.filter((component) => component.family === moduleId);
       if (!familyComponents.length) return null;
+      const ranked = rankComponentReferences(familyComponents, {
+        prompt,
+        family: moduleId,
+        size: homepageBlockMeta(block).size || "",
+        limit: Math.min(familyComponents.length, 6),
+      });
       const selected =
-        rankComponentReferences(familyComponents, {
-          prompt,
-          family: moduleId,
-          size: homepageBlockMeta(block).size || "",
-          limit: Math.min(familyComponents.length, 4),
-        }).find((component) => !usedComponentIds.has(component.id)) || familyComponents[0];
+        ranked.find((component) => !usedComponentIds.has(component.id) && componentReferenceAdmission(component).tier === "strong") ||
+        ranked.find((component) => !usedComponentIds.has(component.id)) ||
+        familyComponents[0];
       if (!selected) return null;
       usedComponentIds.add(selected.id);
       const summary = summarizeComponentForPrompt(selected);
       const hints = inferHomepageComponentReferenceHints(moduleId, selected);
+      const strongRenderer = summary.referenceTier === "strong";
       return {
         componentId: summary.id,
         id: summary.id,
@@ -4948,6 +5006,10 @@ function applyComponentReferencesToHomepageConfig(config, prompt = "", options =
         morphHint: hints.morph,
         styleHint: hints.style,
         styleFeature: hints.styleFeature,
+        rendererMode: strongRenderer ? "high-score-component" : "",
+        rendererHtml: strongRenderer ? sanitizeAiHtmlMarkup(selected.html) : "",
+        rendererCss: strongRenderer ? sanitizeAiHtmlCss(selected.css) : "",
+        rendererQualityFloor: strongRenderer ? COMPONENT_REFERENCE_SCORE_POLICY.strongMin : undefined,
         source: "home-component-library",
         reason: cleanText(`参考「${summary.name}」的字段密度、比例和 ${hints.morph || hints.variant || "组件结构"}，并映射到 ${block}。`, "", 180),
         applied: false,
@@ -5008,6 +5070,20 @@ function applyComponentReferencesToHomepageConfig(config, prompt = "", options =
   });
 
   config.componentReferences = mergedReferences;
+  const rendererReferences = mergedReferences.filter(
+    (reference) =>
+      reference.referenceTier === "strong" &&
+      Number(reference.score) >= COMPONENT_REFERENCE_SCORE_POLICY.strongMin &&
+      reference.rendererHtml &&
+      reference.rendererCss,
+  );
+  config.componentRenderPolicy = {
+    mode: "strong-reference-snippet-fallback",
+    minimumRendererScore: COMPONENT_REFERENCE_SCORE_POLICY.strongMin,
+    fallbackWhenGeneratedScoreBelow: 68,
+    appliedModules: rendererReferences.map((reference) => reference.module).filter(Boolean),
+    source: "home-component-library",
+  };
   if (Array.isArray(config.brickPlan)) {
     config.brickPlan = config.brickPlan.map((brick) => {
       const component = canonicalHomeBlock(brick?.component || brick?.feature);
@@ -5135,7 +5211,7 @@ const HOME_SCENARIO_TAGS = [
   "移动端优先",
 ];
 
-const GOLDEN_SAMPLE_ANALYSIS_FILE_LIMIT = 3;
+const GOLDEN_SAMPLE_ANALYSIS_FILE_LIMIT = 6;
 
 function uniqueCleanValues(values = [], limit = 10, textLimit = 120) {
   const seen = new Set();
@@ -5250,41 +5326,159 @@ function extractGoldenHtmlStructure(files = []) {
 }
 
 function cssDeclarationValues(css = "", propertyPattern, limit = 10) {
-  return matchCleanValues(css, new RegExp(`(?:${propertyPattern})\\s*:\\s*([^;}]+)`, "gi"), limit, (match) => match[1], 80);
+  return matchCleanValues(css, new RegExp(`(?:^|[;{])\\s*(?:${propertyPattern})\\s*:\\s*([^;}]+)`, "gi"), limit, (match) => match[1], 80);
 }
 
-function extractGoldenCssSummary(files = [], htmlStructure = {}) {
+function goldenCssTextFromFiles(files = []) {
   const htmlCss = files
     .filter((file) => file.type === "html")
     .flatMap((file) => matchCleanValues(file.textContent, /<style\b[^>]*>([\s\S]*?)<\/style>/gi, 20, (match) => match[1], 5000));
   const inlineStyles = files
     .filter((file) => file.type === "html")
     .flatMap((file) => matchCleanValues(contentOnlyReferenceHtml(file.textContent), /\bstyle\s*=\s*["']([^"']+)["']/gi, 40, (match) => match[1], 500));
-  const css = [
+  return [
     ...files.filter((file) => file.type === "css").map((file) => file.textContent),
     ...htmlCss,
     ...inlineStyles,
   ].join("\n");
+}
+
+function extractGoldenCssVariables(css = {}) {
+  const tokens = {};
+  for (const match of String(css || "").matchAll(/(--[\w-]+)\s*:\s*([^;}]+)/g)) {
+    const key = cleanText(match[1], "", 80);
+    const value = cleanText(match[2], "", 160);
+    if (!key || !value || Object.keys(tokens).length >= 80) break;
+    tokens[key] = value;
+  }
+  return tokens;
+}
+
+function extractGoldenLayoutTokens(css = "", htmlStructure = {}) {
+  const gridTemplates = matchCleanValues(css, /grid-template-columns\s*:\s*([^;}]+)/gi, 10, (match) => match[1], 120);
+  const maxWidths = cssDeclarationValues(css, "(?:max-)?width", 12).filter((item) => /\d|clamp|minmax|calc|var\(/i.test(item));
+  const heights = cssDeclarationValues(css, "(?:min-|max-)?height", 10).filter((item) => /\d|clamp|minmax|calc|var\(/i.test(item));
+  const gapScale = cssDeclarationValues(css, "gap|row-gap|column-gap", 12);
+  const paddingScale = cssDeclarationValues(css, "padding|padding-inline|padding-block", 12);
+  const marginScale = cssDeclarationValues(css, "margin|margin-inline|margin-block", 10);
+  const breakpoints = matchCleanValues(css, /@media\s*([^{]+)/gi, 10, (match) => match[1], 120);
+  return {
+    maxWidths,
+    heights,
+    gridTemplates,
+    gapScale,
+    paddingScale,
+    marginScale,
+    breakpoints,
+    sectionCount: htmlStructure.sectionCount || 0,
+    hierarchyDepth: htmlStructure.headings?.length || 0,
+    hasNavigation: htmlStructure.tags?.includes("nav") || false,
+  };
+}
+
+function htmlAttributeValue(tag = "", name = "") {
+  const escaped = String(name || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = new RegExp(`\\b${escaped}\\s*=\\s*["']([^"']+)["']`, "i").exec(tag);
+  return cleanText(match?.[1], "", 500);
+}
+
+function classifyGoldenComponentCard(className = "", text = "") {
+  const source = `${className} ${text}`.toLowerCase();
+  if (/asset|balance|overview|equity|wallet|资产|余额|钱包|净值/.test(source)) return "asset-card";
+  if (/account|mt4|mt5|live|demo|交易账号|真实|模拟|杠杆/.test(source)) return "account-card";
+  if (/quick|action|deposit|withdraw|transfer|入金|出金|转账|快捷/.test(source)) return "action-card";
+  if (/progress|step|kyc|onboarding|开户|认证|进度/.test(source)) return "onboarding-card";
+  if (/chart|trend|performance|pnl|收益|曲线|表现/.test(source)) return "chart-card";
+  if (/copy|signal|leader|跟单|信号/.test(source)) return "copytrading-card";
+  if (/referral|invite|ib|推广|邀请/.test(source)) return "referral-card";
+  if (/faq|help|support|客服|帮助|问题/.test(source)) return "support-card";
+  return /table|row|list|item|列表|明细/.test(source) ? "list-card" : "content-card";
+}
+
+function cssRulesForClassNames(css = "", classNames = []) {
+  const selected = [];
+  const classes = (Array.isArray(classNames) ? classNames : []).slice(0, 8).map((item) => String(item || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  if (!classes.length) return selected;
+  const pattern = new RegExp(`(^|})\\s*[^{}]*\\.(${classes.join("|")})(?:[\\s.#:[>{,+~]|\\b)[^{]*\\{([^{}]{0,900})\\}`, "gi");
+  for (const match of String(css || "").matchAll(pattern)) {
+    selected.push(cleanText(match[0].replace(/^}/, ""), "", 900));
+    if (selected.length >= 8) break;
+  }
+  return uniqueCleanValues(selected, 8, 900);
+}
+
+function extractGoldenComponentCards(files = [], htmlStructure = {}, css = "") {
+  const html = files.filter((file) => file.type === "html").map((file) => contentOnlyReferenceHtml(file.textContent)).join("\n");
+  if (!html.trim()) return [];
+  const cards = [];
+  const elementPattern = /<(section|article|li|div)\b([^>]*)>([\s\S]{0,4200}?)<\/\1>/gi;
+  for (const match of html.matchAll(elementPattern)) {
+    const tag = match[1].toLowerCase();
+    const attrs = match[2] || "";
+    const body = match[3] || "";
+    const className = htmlAttributeValue(attrs, "class");
+    const dataHook = matchCleanValues(attrs, /\b(data-[\w-]+)\s*=\s*["']?([^"'\s>]+)/gi, 8, (item) => `${item[1]}=${item[2]}`, 100);
+    const visibleText = cleanText(stripHtmlTags(body), "", 360);
+    const candidateText = `${className} ${dataHook.join(" ")} ${visibleText}`;
+    const hasCardSignal = /card|panel|tile|widget|module|section|account|wallet|balance|overview|quick|action|progress|table|list|row|item|asset|feature|metric|账户|资产|钱包|快捷|开户|进度|交易|列表|卡片|面板/i.test(candidateText);
+    const hasStructure = /<(h[1-4]|strong|button|a|table|ul|ol|dl)\b/i.test(body);
+    if (!hasCardSignal && !hasStructure) continue;
+    const heading = matchCleanValues(body, /<(h[1-4]|strong|summary)\b[^>]*>([\s\S]{1,180}?)<\/\1>/gi, 2, (item) => stripHtmlTags(item[2]), 80)[0] || visibleText.split(/[。.!?\n]/)[0] || "样本卡片";
+    const classNames = className.split(/\s+/).filter(Boolean).slice(0, 8);
+    const styleRules = cssRulesForClassNames(css, classNames);
+    const metrics = matchCleanValues(visibleText, /(?:[$€¥]?\s?\d[\d,.]*%?|[A-Z]{2,6}\s?\d[\d,.]*)/g, 8, (item) => item[0], 40);
+    cards.push({
+      id: `sample-card-${cards.length + 1}`,
+      tag,
+      role: classifyGoldenComponentCard(className, visibleText),
+      heading: cleanText(heading, "样本卡片", 80),
+      classNames,
+      dataHooks: dataHook,
+      visibleText: cleanText(visibleText, "", 320),
+      metrics,
+      styleRules,
+    });
+    if (cards.length >= 12) break;
+  }
+  if (cards.length) return cards;
+  return htmlStructure.headings.slice(0, 6).map((heading, index) => ({
+    id: `sample-heading-${index + 1}`,
+    tag: "section",
+    role: "content-section",
+    heading,
+    classNames: [],
+    dataHooks: [],
+    visibleText: heading,
+    metrics: [],
+    styleRules: [],
+  }));
+}
+
+function extractGoldenCssSummary(files = [], htmlStructure = {}) {
+  const css = goldenCssTextFromFiles(files);
   const imageColors = files.flatMap((file) => file.dominantColors || []);
   const colors = uniqueCleanValues(
     [
-      ...matchCleanValues(css, /#[0-9a-f]{3,8}\b|rgba?\([^)]+\)|hsla?\([^)]+\)|var\(--[\w-]+\)/gi, 16, (match) => match[0], 40),
+      ...matchCleanValues(css, /#[0-9a-f]{3,8}\b|rgba?\([^)]+\)|hsla?\([^)]+\)|var\(--[\w-]+\)/gi, 36, (match) => match[0], 40),
       ...imageColors,
     ],
-    12,
+    24,
     40,
   );
   const spacingScale = uniqueCleanValues(
     [
-      ...cssDeclarationValues(css, "gap|padding|margin|inset|top|right|bottom|left", 16),
+      ...cssDeclarationValues(css, "gap|row-gap|column-gap|padding|padding-inline|padding-block|margin|margin-inline|margin-block|inset|top|right|bottom|left", 28),
       ...matchCleanValues(css, /\b(?:min-|max-)?(?:width|height)\s*:\s*([^;}]+)/gi, 10, (match) => match[1], 80),
     ],
-    12,
+    24,
     80,
   );
-  const radiusScale = cssDeclarationValues(css, "border-radius", 8);
-  const shadowStyle = cssDeclarationValues(css, "box-shadow|filter", 6);
-  const fontScale = cssDeclarationValues(css, "font-size|line-height|font-weight", 12);
+  const radiusScale = cssDeclarationValues(css, "border-radius", 16);
+  const shadowStyle = cssDeclarationValues(css, "box-shadow|filter", 12);
+  const fontScale = cssDeclarationValues(css, "font-size|line-height|font-weight|font-family", 20);
+  const cssVariables = extractGoldenCssVariables(css);
+  const layoutTokens = extractGoldenLayoutTokens(css, htmlStructure);
+  const componentCards = extractGoldenComponentCards(files, htmlStructure, css);
   const layoutSignals = uniqueCleanValues(
     [
       /display\s*:\s*grid/i.test(css) ? "grid layout" : "",
@@ -5295,6 +5489,7 @@ function extractGoldenCssSummary(files = [], htmlStructure = {}) {
       /\b(clamp|minmax|container-type)\b/i.test(css) ? "responsive sizing tokens" : "",
       htmlStructure.tags.includes("nav") ? "navigation present" : "",
       htmlStructure.sectionCount >= 4 ? "multi-section page" : "",
+      componentCards.length >= 3 ? "component card inventory" : "",
     ],
     10,
     80,
@@ -5309,6 +5504,7 @@ function extractGoldenCssSummary(files = [], htmlStructure = {}) {
       /button|btn|cta/i.test(`${css} ${htmlStructure.classNames.join(" ")}`) ? "明确 CTA / button 层级" : "",
       /card|panel|tile|widget/i.test(`${css} ${htmlStructure.classNames.join(" ")}`) ? "卡片/面板组件语言" : "",
       /table|list|row/i.test(`${css} ${htmlStructure.classNames.join(" ")}`) ? "列表/行式信息组件" : "",
+      componentCards.some((card) => card.metrics.length) ? "真实指标/数值卡片" : "",
     ],
     10,
     90,
@@ -5320,6 +5516,9 @@ function extractGoldenCssSummary(files = [], htmlStructure = {}) {
     radiusScale,
     shadowStyle,
     fontScale,
+    cssVariables,
+    layoutTokens,
+    componentCards,
     layoutSignals,
     componentStyleNotes,
     cssLength: css.length,
@@ -5436,7 +5635,16 @@ function buildGoldenSampleBlocks(functions = [], cssSummary = {}, htmlStructure 
     visualNotes: notes,
     dataFields: item.data || [],
   }));
-  if (blocks.length) return blocks;
+  const cardBlocks = (Array.isArray(cssSummary.componentCards) ? cssSummary.componentCards : []).slice(0, 8).map((card, index) => ({
+    id: card.id || `sample-card-${index + 1}`,
+    name: card.heading || card.role || `组件卡片 ${index + 1}`,
+    page: index === 0 ? "first-screen" : "content-section",
+    function: `从样本 HTML 中提取的 ${card.role || "组件卡片"}，用于学习卡片边界、内容密度和字段层级。`,
+    componentRefs: [],
+    visualNotes: uniqueCleanValues([card.role, ...(card.classNames || []), ...(notes || [])], 8, 90),
+    dataFields: card.metrics || [],
+  }));
+  if (blocks.length || cardBlocks.length) return blocks.concat(cardBlocks).slice(0, 12);
   return [
     {
       name: htmlStructure.headings[0] || "页面视觉骨架",
@@ -5571,6 +5779,9 @@ function buildGoldenSampleAnalysis(payload = {}) {
       radiusScale: cssSummary.radiusScale,
       shadowStyle: cssSummary.shadowStyle,
       fontScale: cssSummary.fontScale,
+      cssVariables: cssSummary.cssVariables,
+      layoutTokens: cssSummary.layoutTokens,
+      componentCards: cssSummary.componentCards,
     },
     domSnapshot: cleanText([htmlStructure.textExcerpt, files.filter((file) => file.type === "js").map((file) => file.textExcerpt).join(" ")].filter(Boolean).join(" "), "", 3000),
     promptSeeds: [prompt, ...htmlStructure.headings].filter(Boolean).slice(0, 8),
@@ -5627,8 +5838,8 @@ function normalizeGoldenSampleEvidence(sample = {}) {
     domSnapshot: safeEvidenceText(evidence.domSnapshot || evidence.renderedDom || sample.domSnapshot, 50_000),
     aiHtml: safeEvidenceText(evidence.aiHtml || sample.aiHtml, 30_000),
     aiCss: safeEvidenceText(evidence.aiCss || sample.aiCss, 30_000),
-    cssSummary: jsonCloneWithinLimit(cssSummary, {}, 8_000),
-    themeTokens: jsonCloneWithinLimit(themeTokens, {}, 8_000),
+    cssSummary: jsonCloneWithinLimit(cssSummary, {}, 60_000),
+    themeTokens: jsonCloneWithinLimit(themeTokens, {}, 40_000),
     capturedAt: cleanText(evidence.capturedAt || sample.capturedAt, "", 40),
     sourceUrl: cleanText(evidence.sourceUrl || sample.sourceUrl, "", 260),
   };
@@ -5978,8 +6189,205 @@ function saveGoldenSampleScreenshotAsset(sample = {}) {
   return draft;
 }
 
+function referenceAssetStorageFile(asset = {}) {
+  const storagePath = cleanText(asset.storagePath, "", 260);
+  if (!storagePath) return "";
+  const filePath = path.resolve(mutableStoragePath(storagePath));
+  return canAccessMutablePath(filePath, REFERENCE_ASSET_DIR) && fs.existsSync(filePath) ? filePath : "";
+}
+
+function linkedCssFilesForHtmlSource(htmlPath = "", html = "") {
+  const baseDir = path.dirname(htmlPath);
+  const files = [];
+  for (const match of String(html || "").matchAll(/<link\b[^>]*href\s*=\s*["']([^"']+\.css(?:[?#][^"']*)?)["'][^>]*>/gi)) {
+    const href = cleanText(match[1], "", 260);
+    if (!href || /^(?:https?:)?\/\//i.test(href) || /^data:/i.test(href)) continue;
+    let candidate = "";
+    try {
+      candidate = path.resolve(baseDir, decodeURIComponent(href.split(/[?#]/)[0]));
+    } catch (error) {
+      candidate = "";
+    }
+    if (!candidate || !candidate.startsWith(`${baseDir}${path.sep}`) || !fs.existsSync(candidate)) continue;
+    const css = sanitizeGeneratedCss(fs.readFileSync(candidate, "utf8"));
+    files.push({
+      name: path.basename(candidate),
+      mime: "text/css",
+      type: "css",
+      size: Buffer.byteLength(css, "utf8"),
+      textContent: css,
+      textExcerpt: cleanText(css, "", 900),
+    });
+    if (files.length >= 4) break;
+  }
+  return files;
+}
+
+function goldenAnalysisFileFromPath(filePath = "", name = "") {
+  if (!filePath || !fs.existsSync(filePath)) return null;
+  const fileName = cleanText(name || path.basename(filePath), "golden-source", 120);
+  const type = goldenAnalysisFileType({ name: fileName, mime: "" });
+  if (!["html", "css", "js"].includes(type)) return null;
+  const rawText = fs.readFileSync(filePath, "utf8");
+  const textContent =
+    type === "html"
+      ? sanitizeReferenceDocumentHtml(rawText)
+      : type === "css"
+        ? sanitizeGeneratedCss(rawText)
+        : rawText.slice(0, 80_000);
+  return {
+    name: fileName,
+    mime: type === "html" ? "text/html" : type === "css" ? "text/css" : "text/javascript",
+    type,
+    size: Buffer.byteLength(textContent, "utf8"),
+    textContent,
+    textExcerpt: cleanText(stripHtmlTags(type === "html" ? contentOnlyReferenceHtml(textContent) : textContent), "", 900),
+  };
+}
+
+function goldenSampleSourceAssetIds(sample = {}, evidence = {}) {
+  const cssSummary = evidence.cssSummary && typeof evidence.cssSummary === "object" ? evidence.cssSummary : {};
+  return [
+    sample.referenceAssetId,
+    sample.sourceReferenceAssetId,
+    cssSummary.referenceAssetId,
+    ...(Array.isArray(cssSummary.sourceAssetIds) ? cssSummary.sourceAssetIds : []),
+  ]
+    .map((id) => cleanText(id, "", 100))
+    .filter(Boolean);
+}
+
+function goldenSampleAnalysisFilesFromSources(sample = {}) {
+  const evidence = sample.renderEvidence && typeof sample.renderEvidence === "object" ? sample.renderEvidence : {};
+  const assetIds = new Set(goldenSampleSourceAssetIds(sample, evidence));
+  const assets = readReferenceAssets().filter((asset) => assetIds.has(asset.id));
+  const files = [];
+  assets.forEach((asset) => {
+    const filePath = referenceAssetStorageFile(asset);
+    const file = goldenAnalysisFileFromPath(filePath, asset.name);
+    if (file) {
+      files.push(file);
+      if (file.type === "html") files.push(...linkedCssFilesForHtmlSource(filePath, file.textContent));
+    }
+  });
+  const sourcePath = localAssetPathFromUrl(evidence.sourceUrl || sample.sourceUrl);
+  const sourceFile = goldenAnalysisFileFromPath(sourcePath, path.basename(sourcePath || ""));
+  if (sourceFile && !files.some((file) => file.name === sourceFile.name && file.size === sourceFile.size)) {
+    files.push(sourceFile);
+    if (sourceFile.type === "html") files.push(...linkedCssFilesForHtmlSource(sourcePath, sourceFile.textContent));
+  }
+  return files.slice(0, GOLDEN_SAMPLE_ANALYSIS_FILE_LIMIT);
+}
+
+function mergeGoldenTokenArrays(primary = [], secondary = [], limit = 24) {
+  return uniqueCleanValues([...(Array.isArray(primary) ? primary : []), ...(Array.isArray(secondary) ? secondary : [])], limit, 160);
+}
+
+function enrichGoldenSampleFromSourceFiles(sample = {}) {
+  const draft = sample && typeof sample === "object" ? { ...sample } : {};
+  const rawKind = cleanText(draft.sampleKind || draft.kind || draft.type, "", 40);
+  const sourceType = cleanText(draft.sourceType || draft.sampleSourceType, "", 40);
+  const evidence = draft.renderEvidence && typeof draft.renderEvidence === "object" ? { ...draft.renderEvidence } : {};
+  const shouldEnrich = Boolean(
+    draft.isGolden ||
+      draft.visualOnly ||
+      rawKind === "golden-page" ||
+      rawKind === "visual-only" ||
+      sourceType === "visual-only" ||
+      evidence.sourceUrl ||
+      goldenSampleSourceAssetIds(draft, evidence).length,
+  );
+  if (!shouldEnrich) return draft;
+  const files = goldenSampleAnalysisFilesFromSources({ ...draft, renderEvidence: evidence });
+  if (!files.length) return draft;
+  let analysis = null;
+  try {
+    analysis = buildGoldenSampleAnalysis({
+      files,
+      metadata: {
+        name: draft.name,
+        prompt: draft.prompt,
+        pageIntent: draft.pageIntent,
+        themePreset: draft.themePreset,
+        visualStyle: draft.visualStyle,
+        scenarioTags: draft.scenarioTags,
+        applicableScenarios: draft.applicableScenarios,
+        humanScore: draft.humanScore,
+        scoreDimensions: draft.scoreDimensions,
+      },
+    });
+  } catch (error) {
+    return draft;
+  }
+  const existingCss = evidence.cssSummary && typeof evidence.cssSummary === "object" ? evidence.cssSummary : {};
+  const analysisCss = analysis.cssSummary && typeof analysis.cssSummary === "object" ? analysis.cssSummary : {};
+  const existingTokens = evidence.themeTokens && typeof evidence.themeTokens === "object" ? evidence.themeTokens : {};
+  const analysisTokens = analysis.themeTokens && typeof analysis.themeTokens === "object" ? analysis.themeTokens : {};
+  const cssSummary = {
+    ...analysisCss,
+    ...existingCss,
+    colorPalette: mergeGoldenTokenArrays(analysisCss.colorPalette, existingCss.colorPalette, 30),
+    spacingScale: mergeGoldenTokenArrays(analysisCss.spacingScale, existingCss.spacingScale, 30),
+    radiusScale: mergeGoldenTokenArrays(analysisCss.radiusScale, existingCss.radiusScale, 20),
+    shadowStyle: mergeGoldenTokenArrays(analysisCss.shadowStyle, existingCss.shadowStyle, 16),
+    fontScale: mergeGoldenTokenArrays(analysisCss.fontScale, existingCss.fontScale, 24),
+    componentStyleNotes: mergeGoldenTokenArrays(analysisCss.componentStyleNotes, existingCss.componentStyleNotes, 12),
+    layoutSignals: mergeGoldenTokenArrays(analysisCss.layoutSignals, existingCss.layoutSignals, 12),
+    cssVariables: {
+      ...(analysisCss.cssVariables || {}),
+      ...(existingCss.cssVariables || {}),
+    },
+    layoutTokens: {
+      ...(analysisCss.layoutTokens || {}),
+      ...(existingCss.layoutTokens || {}),
+    },
+    componentCards: (Array.isArray(existingCss.componentCards) && existingCss.componentCards.length ? existingCss.componentCards : analysisCss.componentCards || []).slice(0, 12),
+    htmlStructure: analysisCss.htmlStructure || existingCss.htmlStructure || {},
+    sourceFiles: (analysisCss.sourceFiles || existingCss.sourceFiles || []).slice(0, 8),
+    sourceExtractionStatus: "auto-extracted",
+    sourceExtractionAt: new Date().toISOString(),
+  };
+  const themeTokens = {
+    ...analysisTokens,
+    ...existingTokens,
+    colorPalette: mergeGoldenTokenArrays(analysisTokens.colorPalette, existingTokens.colorPalette, 30),
+    spacingScale: mergeGoldenTokenArrays(analysisTokens.spacingScale, existingTokens.spacingScale, 30),
+    radiusScale: mergeGoldenTokenArrays(analysisTokens.radiusScale, existingTokens.radiusScale, 20),
+    shadowStyle: mergeGoldenTokenArrays(analysisTokens.shadowStyle, existingTokens.shadowStyle, 16),
+    fontScale: mergeGoldenTokenArrays(analysisTokens.fontScale, existingTokens.fontScale, 24),
+    cssVariables: {
+      ...(analysisTokens.cssVariables || {}),
+      ...(existingTokens.cssVariables || {}),
+    },
+    layoutTokens: {
+      ...(analysisTokens.layoutTokens || {}),
+      ...(existingTokens.layoutTokens || {}),
+    },
+    componentCards: (Array.isArray(existingTokens.componentCards) && existingTokens.componentCards.length ? existingTokens.componentCards : analysisTokens.componentCards || []).slice(0, 12),
+  };
+  draft.renderEvidence = {
+    ...evidence,
+    domSnapshot: evidence.domSnapshot || analysis.domSnapshot || "",
+    cssSummary,
+    themeTokens,
+  };
+  if (!Array.isArray(draft.functions) || !draft.functions.length) draft.functions = analysis.functions || [];
+  if (!Array.isArray(draft.sampleBlocks) || !draft.sampleBlocks.length) draft.sampleBlocks = analysis.sampleBlocks || [];
+  else {
+    draft.sampleBlocks = draft.sampleBlocks.concat((analysis.sampleBlocks || []).filter((block) => !draft.sampleBlocks.some((item) => item.id && item.id === block.id))).slice(0, 12);
+  }
+  if (!Array.isArray(draft.goodPatterns) || !draft.goodPatterns.length) draft.goodPatterns = analysis.goodPatterns || [];
+  if (!Array.isArray(draft.promptSeeds) || !draft.promptSeeds.length) draft.promptSeeds = analysis.promptSeeds || [];
+  if (!draft.visualStyle) draft.visualStyle = analysis.visualStyle || "";
+  if (!draft.themePreset) draft.themePreset = analysis.themePreset || "";
+  if (!draft.pageIntent) draft.pageIntent = analysis.pageIntent || "";
+  return draft;
+}
+
 function prepareDesignSampleForSave(sample = {}) {
-  return captureGoldenSampleSourceScreenshot(saveGoldenSampleScreenshotAsset(sample));
+  const withScreenshotAsset = saveGoldenSampleScreenshotAsset(sample);
+  const enriched = enrichGoldenSampleFromSourceFiles(withScreenshotAsset);
+  return captureGoldenSampleSourceScreenshot(enriched);
 }
 
 function saveDesignSample(sample) {
@@ -6139,7 +6547,77 @@ function rankLowScoreAntiExamplesForPrompt(prompt, limit = 3) {
   return ranked.slice();
 }
 
+function limitedObjectEntries(value = {}, limit = 18, textLimit = 120) {
+  return Object.fromEntries(
+    Object.entries(value && typeof value === "object" && !Array.isArray(value) ? value : {})
+      .slice(0, limit)
+      .map(([key, item]) => [cleanText(key, "", 80), cleanText(item, "", textLimit)])
+      .filter(([key, item]) => key && item),
+  );
+}
+
+function summarizeGoldenLayoutTokens(tokens = {}) {
+  const source = tokens && typeof tokens === "object" && !Array.isArray(tokens) ? tokens : {};
+  return {
+    maxWidths: cssSummaryList(source.maxWidths).slice(0, 8),
+    heights: cssSummaryList(source.heights).slice(0, 6),
+    gridTemplates: cssSummaryList(source.gridTemplates).slice(0, 8),
+    gapScale: cssSummaryList(source.gapScale).slice(0, 8),
+    paddingScale: cssSummaryList(source.paddingScale).slice(0, 8),
+    marginScale: cssSummaryList(source.marginScale).slice(0, 6),
+    breakpoints: cssSummaryList(source.breakpoints).slice(0, 6),
+    sectionCount: Number(source.sectionCount) || 0,
+    hierarchyDepth: Number(source.hierarchyDepth) || 0,
+    hasNavigation: Boolean(source.hasNavigation),
+  };
+}
+
+function summarizeGoldenComponentCard(card = {}) {
+  return {
+    id: cleanText(card.id, "", 80),
+    role: cleanText(card.role, "", 60),
+    heading: cleanText(card.heading, "", 80),
+    classNames: (Array.isArray(card.classNames) ? card.classNames : []).map((item) => cleanText(item, "", 60)).filter(Boolean).slice(0, 8),
+    dataHooks: (Array.isArray(card.dataHooks) ? card.dataHooks : []).map((item) => cleanText(item, "", 80)).filter(Boolean).slice(0, 6),
+    metrics: (Array.isArray(card.metrics) ? card.metrics : []).map((item) => cleanText(item, "", 40)).filter(Boolean).slice(0, 8),
+    visibleText: cleanText(card.visibleText, "", 160),
+    styleRules: (Array.isArray(card.styleRules) ? card.styleRules : []).map((item) => cleanText(item, "", 220)).filter(Boolean).slice(0, 3),
+  };
+}
+
+function summarizeGoldenEvidence(cssSummary = {}, themeTokens = {}) {
+  const css = cssSummary && typeof cssSummary === "object" ? cssSummary : {};
+  const tokens = themeTokens && typeof themeTokens === "object" ? themeTokens : {};
+  const layoutTokens = summarizeGoldenLayoutTokens({
+    ...(tokens.layoutTokens || {}),
+    ...(css.layoutTokens || {}),
+  });
+  const componentCards = (Array.isArray(css.componentCards) && css.componentCards.length ? css.componentCards : tokens.componentCards || [])
+    .slice(0, 8)
+    .map(summarizeGoldenComponentCard);
+  return {
+    colorPalette: mergeGoldenTokenArrays(css.colorPalette, tokens.colorPalette, 16),
+    spacingScale: mergeGoldenTokenArrays(css.spacingScale, tokens.spacingScale, 16),
+    radiusScale: mergeGoldenTokenArrays(css.radiusScale, tokens.radiusScale, 10),
+    shadowStyle: mergeGoldenTokenArrays(css.shadowStyle, tokens.shadowStyle, 8),
+    fontScale: mergeGoldenTokenArrays(css.fontScale, tokens.fontScale, 10),
+    cssVariables: {
+      ...limitedObjectEntries(css.cssVariables, 16, 120),
+      ...limitedObjectEntries(tokens.cssVariables, 16, 120),
+    },
+    layoutTokens,
+    componentCards,
+    layoutSignals: mergeGoldenTokenArrays(css.layoutSignals, tokens.layoutSignals, 10),
+    componentStyleNotes: mergeGoldenTokenArrays(css.componentStyleNotes, tokens.componentStyleNotes, 10),
+    sourceFiles: (Array.isArray(css.sourceFiles) ? css.sourceFiles : []).map((item) => cleanText(item, "", 120)).filter(Boolean).slice(0, 6),
+    sourceExtractionStatus: cleanText(css.sourceExtractionStatus, "", 40),
+  };
+}
+
 function summarizeDesignSampleForPrompt(sample) {
+  const evidence = sample.renderEvidence || {};
+  const cssSummary = evidence.cssSummary || {};
+  const themeTokens = evidence.themeTokens || {};
   return {
     id: sample.id,
     sampleKind: sample.sampleKind,
@@ -6168,13 +6646,12 @@ function summarizeDesignSampleForPrompt(sample) {
     applicableScenarios: sample.applicableScenarios.slice(0, 6),
     forbiddenReuse: cleanText(sample.forbiddenReuse, "", 260),
     evidence: {
-      screenshotPath: sample.renderEvidence?.screenshotPath || "",
-      screenshotUrl: sample.renderEvidence?.screenshotUrl || "",
-      sourceUrl: sample.renderEvidence?.sourceUrl || "",
-      hasDomSnapshot: Boolean(sample.renderEvidence?.domSnapshot),
-      hasAiHtml: Boolean(sample.renderEvidence?.aiHtml),
-      cssSummary: sample.renderEvidence?.cssSummary || {},
-      themeTokens: sample.renderEvidence?.themeTokens || {},
+      screenshotPath: evidence.screenshotPath || "",
+      screenshotUrl: evidence.screenshotUrl || "",
+      sourceUrl: evidence.sourceUrl || "",
+      hasDomSnapshot: Boolean(evidence.domSnapshot),
+      hasAiHtml: Boolean(evidence.aiHtml),
+      goldenTokens: summarizeGoldenEvidence(cssSummary, themeTokens),
       configSnapshot: sample.configSnapshot || null,
       configSnapshotStatus: sample.configSnapshot ? "available" : sample.visualOnly ? "empty-visual-reference-only" : "empty",
     },
@@ -6320,16 +6797,16 @@ function extractGoldenStyleContractFromSample(sample = {}) {
       cardShadow,
     },
     chromePolicy: {
-      mode: "flatConnected",
-      sectionChrome: "connected",
-      defaultSlotChrome: "flat",
-      componentBoundary: "page-owned",
+      mode: "cardedDashboard",
+      sectionChrome: "group",
+      defaultSlotChrome: "contained",
+      componentBoundary: "component-contained",
       sectionOverrides: {
         "welcome-header": "connected",
         "deposit-hero": "connected",
-        "deposit-actions": "connected",
-        "deposit-activation": "connected",
-        "deposit-kyc-status": "connected",
+        "deposit-actions": "plain",
+        "deposit-activation": "plain",
+        "deposit-kyc-status": "plain",
         "deposit-copytrading": "band",
         "deposit-referral-faq": "band",
         "deposit-performance": "workbench",
@@ -6351,15 +6828,15 @@ function extractGoldenStyleContractFromSample(sample = {}) {
         faq_section: "bare",
         risk_disclosure: "legalStrip",
       },
-      promptRule: "黄金样式不是普通白卡堆叠：页面父级负责共享表面、分隔线和背景，slot 组件优先输出内容片段或轻量表格表面。",
+      promptRule: "黄金样式不是把白卡糊成连续色块：页面背景、模块表面和模块边界要清楚分层，asset_overview 与 quick_actions 必须像两个模块。",
     },
     layoutRules: {
       maxWidth: "1280px",
       gridColumns: 12,
       rowRecipes: ["12", "8+4", "6+6"],
-      sectionGrouping: "每 1-2 个相关模块组成一个业务组；避免每个模块独立漂浮成白卡。",
+      sectionGrouping: "每 1-2 个相关模块组成一个业务组；同屏可以靠近，但不同业务模块必须保留清晰边界。",
       backgroundRule: "背景必须是浅蓝灰连续页面底，不使用默认蓝绿空气感背景。",
-      blockRelation: "同组模块通过共享父级、分隔线、等高和统一 padding 衔接；不同叙事组必须使用 hard-break 或 workbench 明确断开。",
+      blockRelation: "同组模块通过一致间距、等高和对齐衔接；不同业务模块不要共享一块模糊背景，叙事组之间用 hard-break 或 workbench 明确断开。",
     },
     componentRules: [
       "主色使用 #2f66e8 / #275bd5 一组蓝，不再混入默认青绿色作为主视觉。",
@@ -6371,7 +6848,7 @@ function extractGoldenStyleContractFromSample(sample = {}) {
       "主 CTA 只保留一个强蓝按钮，其他操作降级为描边、文本或轻量工具按钮。",
       "资金、开户、交易动作不能在多个模块里同时放大抢焦点。",
     ],
-    moduleGrammar: "浅蓝灰页面底、共享业务表面、薄边框表格/列表、轻量趋势图和统一按钮层级。",
+    moduleGrammar: "浅蓝灰页面底、清晰模块表面、薄边框表格/列表、轻量趋势图和统一按钮层级。",
     differenceRule: "差异来自黄金参考稿的整页节奏、背景和块关系，而不是只替换颜色或文案。",
   };
 }
@@ -6409,7 +6886,8 @@ function homepageSectionTransition(section = {}, index = 0) {
   if (explicit) return explicit;
   const id = cleanText(section.id, "", 64);
   const slots = Array.isArray(section.slots) ? section.slots.map((slot) => canonicalHomeBlock(slot) || cleanText(slot, "", 80)) : [];
-  if (["welcome-header", "deposit-hero", "deposit-actions", "deposit-activation", "deposit-kyc-status"].includes(id)) return "connected";
+  if (["welcome-header", "deposit-hero"].includes(id)) return "connected";
+  if (["deposit-actions", "deposit-activation", "deposit-kyc-status"].includes(id)) return "plain";
   if (id === "deposit-accounts" || slots.includes("trading_accounts_list")) {
     return slots.includes("trading_accounts_list") && index > 0 ? "connected" : "workbench";
   }
@@ -6466,7 +6944,7 @@ function applyGoldenStyleContractToHomepageConfig(config, prompt = "", actions =
       ...new Set(
         [
           ...(Array.isArray(pagePlan.compositionRules) ? pagePlan.compositionRules : []),
-          "黄金样式契约要求同组模块共享父级表面，不要继续生成孤立白卡堆叠。",
+          "黄金样式契约要求模块与页面背景清楚分层；同屏模块可以靠近，但不要共享一块模糊父级表面。",
           "背景、边框、按钮、圆角、间距必须从 styleContract.tokens 继承。",
         ].filter(Boolean),
       ),
@@ -7259,6 +7737,29 @@ function aestheticMustAvoidIssues(antiExamples = [], feedback = []) {
     .slice(0, 10);
 }
 
+// 开闸②：把最相似金样的"首屏重心 + 模块顺序"提到 prompt 顶层显式下发，
+// 而不是埋在 goldenSamplePages[].sampleBlocks 里让模型自己猜。直接解决
+// "信号源/活动抢首屏、资产概览沉到中间" 的排序问题。
+function goldenLayoutDirectiveFromSamples(goldenSamplePages = []) {
+  const top = goldenSamplePages[0];
+  if (!top) return null;
+  const blocks = Array.isArray(top.sampleBlocks) ? top.sampleBlocks : [];
+  const firstScreen = blocks
+    .filter((b) => /first-screen/i.test(b?.page || ""))
+    .map((b) => cleanText(b?.name, "", 40))
+    .filter(Boolean);
+  const moduleOrder = blocks.map((b) => cleanText(b?.name, "", 40)).filter(Boolean);
+  const focus = (firstScreen.length ? firstScreen : moduleOrder.slice(0, 2)).slice(0, 3);
+  if (!focus.length) return null;
+  return {
+    sourceSample: cleanText(top.name, "", 80),
+    sourceLayout: cleanText(top.page?.layout, "", 200),
+    firstScreenFocus: focus,
+    modulePalette: [...new Set(moduleOrder)].slice(0, 10),
+    rule: `本次首屏重心必须对齐黄金样本「${cleanText(top.name, "金样", 60)}」：把「${focus.slice(0, 2).join("、")}」放在首屏最前并作为最高视觉权重，首屏只保留 1-2 个重点模块；信号源、活动 banner、FAQ、推广链接等次级模块一律排在主操作区之后，除非本次 prompt 明确要求它们抢占首屏。整页模块顺序、分栏比例(如 8+4 / 主区+侧栏)和首屏节奏优先模仿该金样，再按本次业务意图微调，不要把所有模块做成等权白卡平铺。`,
+  };
+}
+
 function aestheticTrainingContext(payloadOrPrompt = {}, options = {}) {
   const prompt = typeof payloadOrPrompt === "string" ? payloadOrPrompt : cleanText(payloadOrPrompt.prompt, "", 1200);
   const referenceAssetIds = typeof payloadOrPrompt === "object" && Array.isArray(payloadOrPrompt.referenceAssetIds) ? payloadOrPrompt.referenceAssetIds : [];
@@ -7279,6 +7780,7 @@ function aestheticTrainingContext(payloadOrPrompt = {}, options = {}) {
     componentReferencePolicy: componentReferencePolicyPrompt(readComponentLibrary().components, { prompt }),
     referenceAssets: referenceAssetsForPrompt(prompt, { limit: options.referenceLimit || 4, referenceAssetIds }),
     goldenStyleContract,
+    goldenLayoutDirective: goldenLayoutDirectiveFromSamples(goldenSamplePages),
     goldenSamplePages,
     samplePages: samples,
     beautifulComponents: beautifulComponentReferences({ prompt, limit: options.componentLimit || 8 }),
@@ -8067,18 +8569,18 @@ function evaluateAiHtmlQuality(scheme, payload = {}, config = {}) {
   if (!/var\(--home-/i.test(css)) miss(12, "CSS 没有充分使用首页主题 token，容易和组件库视觉脱节。");
   else pass("使用首页主题 token 承接品牌视觉。");
   const hardcodedColors = [...new Set(css.match(/#[0-9a-f]{3,8}\b/gi) || [])].filter((color) => !["#fff", "#ffffff", "#000", "#000000"].includes(color.toLowerCase()));
-  if (hardcodedColors.length > 10) miss(8, "硬编码颜色过多，未充分遵守 design.md 的 token 化视觉约束。");
+  if (hardcodedColors.length > 10) miss(4, "硬编码颜色过多，未充分遵守 design.md 的 token 化视觉约束。");
   else pass("硬编码颜色受控，主要依赖主题 token。");
   const gradientCount = countAiHtmlMatches(css, /\b(?:linear|radial)-gradient\s*\(/gi);
-  if (gradientCount > 4) miss(8, "装饰性渐变过多，容易偏向营销页而不是金融 CRM 工作台。");
+  if (gradientCount > 4) miss(4, "装饰性渐变过多，容易偏向营销页而不是金融 CRM 工作台。");
   const largeRadiusValues = (css.match(/border-radius\s*:\s*([0-9.]+)px/gi) || [])
     .map((item) => Number((item.match(/([0-9.]+)px/i) || [])[1]))
     .filter((value) => Number.isFinite(value) && value > 18);
-  if (largeRadiusValues.length) miss(6, "圆角过大，容易脱离 CRM 组件规范。");
+  if (largeRadiusValues.length) miss(3, "圆角过大，容易脱离 CRM 组件规范。");
   const oversizedTypeValues = (css.match(/font-size\s*:\s*([0-9.]+)px/gi) || [])
     .map((item) => Number((item.match(/([0-9.]+)px/i) || [])[1]))
     .filter((value) => Number.isFinite(value) && value > 48);
-  if (oversizedTypeValues.length) miss(6, "标题字号过大，页面可能偏营销 hero 而非工作台界面。");
+  if (oversizedTypeValues.length) miss(3, "标题字号过大，页面可能偏营销 hero 而非工作台界面。");
   if (!/(display\s*:\s*grid|display\s*:\s*flex|grid-template-columns)/i.test(css)) miss(12, "布局缺少 grid/flex/栅格表达，容易退化成基础上下堆叠。");
   else pass("具备 grid/flex 布局结构。");
   if (!/@media/i.test(css)) miss(8, "缺少响应式规则，大屏/移动端美观性不可控。");
@@ -8104,8 +8606,11 @@ function evaluateAiHtmlQuality(scheme, payload = {}, config = {}) {
   if (!visualSignals.test(`${html} ${css}`)) miss(12, "缺少图表、趋势、指标或状态结构，交易平台质感不足。");
   else pass("有指标、趋势或状态视觉结构。");
 
-  const placeholderCount = countAiHtmlMatches(visibleText, /--/g);
-  if (placeholderCount > 5) miss(8, "占位符过多，预览会显得空和基础。");
+	  const placeholderCount = countAiHtmlMatches(visibleText, /--/g);
+	  if (placeholderCount > 5) miss(8, "占位符过多，预览会显得空和基础。");
+	  if (/Invite\s+Link\s+First|Link,\s*invite\s+code|conversion\s+metrics\s+stay\s+visible|--\s*(?:Opens|Accounts|Clicks|Registrations)/i.test(combinedText)) {
+	    miss(28, "客户页出现英文模板或 -- 空数据占位，不能作为可发布首页。");
+	  }
 
 	  const missingModules = requiredModules.filter((item) => !textContainsAnySignal(combinedText, item.signals));
 	  const thinVisibleModules = requiredModules.filter((item) => {
@@ -8134,7 +8639,7 @@ function evaluateAiHtmlQuality(scheme, payload = {}, config = {}) {
 		    const requiredFamilies = [...new Set(requiredModules.map((item) => item.family).filter(Boolean))];
 		    const coveredFamilies = requiredFamilies.filter((family) => componentReferences.some((reference) => aiHtmlReferenceCoversFamily(reference, family)));
 		    if (!componentReferences.length) {
-		      miss(10, "缺少 componentReferences，无法证明 AI HTML 参考了组件库。");
+		      miss(5, "缺少 componentReferences，无法证明 AI HTML 参考了组件库。");
 		    } else if (coveredFamilies.length < Math.min(3, requiredFamilies.length)) {
 	      miss(6, `componentReferences 覆盖组件家族不足：${coveredFamilies.length}/${requiredFamilies.length}。`);
 	    } else {
@@ -8153,7 +8658,7 @@ function evaluateAiHtmlQuality(scheme, payload = {}, config = {}) {
   }
 
   if (!implementationContract.length) {
-    miss(18, "缺少 implementationContract，无法证明 AI HTML 不是静态外观空壳。");
+    miss(10, "缺少 implementationContract，无法证明 AI HTML 不是静态外观空壳。");
   } else {
     const missingImplementation = [];
     const thinImplementation = [];
@@ -8221,13 +8726,16 @@ function evaluateAiHtmlQuality(scheme, payload = {}, config = {}) {
 	  }
 
 	  const normalizedScore = Math.max(0, Math.min(100, Math.round(score)));
+  // needs-repair（会触发积木同款兜底）只保留给真正低于返修门槛的输出；
+  // 门槛与 homeAiFallbackMinScore() 对齐，避免"分数高于兜底线却仍被判 needs-repair"的矛盾。
+  const repairFloor = homeAiFallbackMinScore();
   const qualityStatus = issues.length
-    ? normalizedScore >= 68
+    ? normalizedScore >= repairFloor
       ? "needs-polish"
       : "needs-repair"
     : normalizedScore >= 82
       ? "passed"
-      : normalizedScore >= 68
+      : normalizedScore >= repairFloor
         ? "needs-polish"
         : "needs-repair";
   return {
@@ -8563,6 +9071,19 @@ function collectHomepageFamilies(config = {}) {
         .filter(Boolean),
     ),
   ];
+}
+
+function homepageComponentReferenceQualityIssues(config = {}) {
+  return normalizeHomepageConfigComponentReferences(config.componentReferences)
+    .flatMap((reference) =>
+      componentReferenceReleaseIssues({
+        ...reference,
+        html: reference.rendererHtml,
+        css: reference.rendererCss,
+        family: reference.family || reference.module,
+      }).map((issue) => `${reference.name || reference.componentId}: ${issue}`),
+    )
+    .slice(0, 8);
 }
 
 function htmlClassVariety(html = "") {
@@ -8938,6 +9459,12 @@ function homepageValidationHasBlockingErrors(validation = {}) {
   );
 }
 
+function homepagePlanQualityGateBlockingIssues(planCritic = {}) {
+  return (Array.isArray(planCritic.issues) ? planCritic.issues : []).filter((issue) =>
+    /pagePlan\.mainVisual=.*没有进入前两个核心|heroFocus .*not in the first two core sections/i.test(String(issue || "")),
+  );
+}
+
 function homepagePromptMentionsReferral(text) {
   return /推广链接|邀请链接|开户链接|注册链接|邀请码|referral|invite code|referral link|代理|agent|ib|partner|affiliate/i.test(String(text || ""));
 }
@@ -9053,6 +9580,7 @@ function finalizeHomepageQuality(payload = {}, config = {}, htmlScheme = null) {
   const aesthetic = evaluateHomepageAesthetic(payload, { ...config, ...(htmlScheme ? { htmlScheme } : {}) });
   const planCritic = evaluateHomepagePlanCritic(payload, config);
   const productWarnings = homepageProductWarnings(payload, config, guidedSnapshot);
+  const componentReferenceIssues = homepageComponentReferenceQualityIssues(config);
   const htmlScore = Number(htmlScheme?.qualityScore);
   const baseScore = Number.isFinite(htmlScore) ? Math.max(0, Math.min(100, Math.round(htmlScore))) : aesthetic.score;
   const modulePolicyScore = Number.isFinite(Number(validation.modulePolicy?.score ?? config.modulePolicyScore))
@@ -9060,10 +9588,15 @@ function finalizeHomepageQuality(payload = {}, config = {}, htmlScheme = null) {
     : 100;
   const productPenalty = Math.min(24, productWarnings.length * 8);
   const warningPenalty = Math.min(20, (validation.warnings || []).length * 4);
-  const score = Math.max(0, Math.min(baseScore, planCritic.score, modulePolicyScore) - productPenalty - warningPenalty);
-  const blockingStructure = homepageValidationHasBlockingErrors(validation);
+  const componentReferencePenalty = Math.min(32, componentReferenceIssues.length * 12);
+  const planGateIssues = homepagePlanQualityGateBlockingIssues(planCritic);
+  const rawScore = Math.max(0, Math.min(baseScore, planCritic.score, modulePolicyScore) - productPenalty - warningPenalty - componentReferencePenalty);
+  const score = planGateIssues.length ? Math.min(rawScore, 62) : rawScore;
+  const blockingStructure = homepageValidationHasBlockingErrors(validation) || Boolean(planGateIssues.length) || Boolean(componentReferenceIssues.length);
   const status = blockingStructure ? "needs-repair" : homepageQualityStatusFromScore(score);
   const structuralIssues = [
+    ...planGateIssues.map((issue) => `质量门禁: ${issue}`),
+    ...componentReferenceIssues.map((issue) => `组件参考质量: ${issue}`),
     ...(validation.missingRequiredModules || []).map((slot) => `缺少必选模块 ${slot}`),
     ...(validation.invalidSections || []).map((item) => `非法 section: ${item.section || item.reason}`),
     ...(validation.duplicateHeroSections || []).map((item) => `重复 hero section: ${item.section || item.index}`),
@@ -9084,6 +9617,7 @@ function finalizeHomepageQuality(payload = {}, config = {}, htmlScheme = null) {
       modulePolicyScore,
       modulePolicyStatus: validation.modulePolicy?.status || "passed",
       structuralStatus: blockingStructure ? "needs-repair" : "passed",
+      planQualityGateStatus: planGateIssues.length ? "blocked" : "passed",
       visualStatus: homepageQualityStatusFromScore(score),
       productWarnings,
       issues: [...new Set([...structuralIssues, ...(planCritic.issues || []), ...(aesthetic.issues || [])])].slice(0, 10),
@@ -9364,10 +9898,53 @@ function fourColumnTradingAccountsBrickHtml() {
 }
 
 function brickBackedSlotComponentHtml(slot, component, payload = {}, config = {}) {
-  if (canonicalHomeBlock(slot) === "trading_accounts_list" && wantsServerFourColumnAccountCards(payload.prompt || config.sourcePrompt || "")) {
+  // 交易账号列表统一走结构化四卡网格：部分保存积木只存了内联字段的 HTML、行布局 CSS 缺失，
+  // 直接装配会把字段挤成一行纯文本。兜底用已带完整栅格/卡片样式的版本，保证可读。
+  if (canonicalHomeBlock(slot) === "trading_accounts_list") {
     return fourColumnTradingAccountsBrickHtml();
   }
   return component.html;
+}
+
+// 把保存积木 CSS 里的装饰性渐变背景压平成纯色（design.md 禁止大面积渐变）。
+// 只处理 CSS 的 *-gradient() 函数，不会触碰 SVG 里的 <linearGradient>（图表填充等数据可视化）。
+function flattenCssGradients(css = "") {
+  const src = String(css);
+  const re = /(?:repeating-)?(?:linear|radial|conic)-gradient\(/gi;
+  let out = "";
+  let last = 0;
+  let m;
+  while ((m = re.exec(src))) {
+    let depth = 0;
+    let j = m.index + m[0].length - 1; // points at the opening '('
+    for (; j < src.length; j++) {
+      if (src[j] === "(") depth++;
+      else if (src[j] === ")") {
+        depth--;
+        if (depth === 0) break;
+      }
+    }
+    const inner = src.slice(m.index + m[0].length, j);
+    const colorVar = inner.match(/var\(--[a-z0-9-]+(?:\s*,\s*[^,)]+)?\)/i);
+    const hex = inner.match(/#[0-9a-f]{3,8}\b/i);
+    const rgb = inner.match(/rgba?\([^)]*\)/i);
+    const solid = (colorVar && colorVar[0]) || (hex && hex[0]) || (rgb && rgb[0]) || "var(--home-card-bg,#fff)";
+    out += src.slice(last, m.index) + solid;
+    last = j + 1;
+    re.lastIndex = j + 1;
+  }
+  return out + src.slice(last);
+}
+
+// 兜底页也要服从 12 列栅格契约：按 section 类型和槽位数给出 8+4 / 6+6 / 4+4+4 的 span，
+// 避免回退页退化成单列长条。
+function brickBackedSlotSpans(sectionType, slotCount) {
+  const type = String(sectionType || "full");
+  if (slotCount <= 1) return [12];
+  if (slotCount === 2) return type === "hero" ? [8, 4] : [6, 6];
+  if (slotCount === 3) return [4, 4, 4];
+  if (slotCount === 4) return [6, 6, 6, 6];
+  return Array.from({ length: slotCount }, () => 6);
 }
 
 function brickBackedAiHtmlScheme(payload = {}, config = {}, providerConfig = {}, options = {}) {
@@ -9410,22 +9987,28 @@ function brickBackedAiHtmlScheme(payload = {}, config = {}, providerConfig = {},
 
   const sectionMarkup = sections
     .map((section) => {
+      const spans = brickBackedSlotSpans(section.type, section.slots.length);
       const slots = section.slots
-        .map((slot) => {
+        .map((slot, slotIndex) => {
+          const span = spans[slotIndex] || 12;
           const selected = selectedByBlock.get(slot);
-          if (!selected) return brickBackedContractSlotMarkup(slot);
-          const component = selected.component;
-          const componentHtml = brickBackedSlotComponentHtml(slot, component, payload, config);
+          const inner = selected
+            ? brickBackedSlotComponentHtml(slot, selected.component, payload, config)
+            : brickBackedContractSlotMarkup(slot);
+          if (!inner) return "";
+          const refAttrs = selected
+            ? ` data-component-reference="${escapeHtmlText(selected.component.id)}" data-reference-score="${selected.admission.score}"`
+            : "";
           return `
-            <article class="ai-html-brick-slot" data-ai-html-module="${escapeHtmlText(slot)}" data-component-reference="${escapeHtmlText(component.id)}" data-reference-score="${selected.admission.score}">
-              ${componentHtml}
+            <article class="ai-html-brick-slot" data-ai-html-module="${escapeHtmlText(slot)}" data-ai-html-span="${span}"${refAttrs}>
+              ${inner}
             </article>
           `;
         })
         .filter(Boolean)
         .join("\n");
       return `
-        <section class="ai-html-brick-section ai-html-brick-section-${escapeHtmlText(section.type)}" data-ai-html-section="${escapeHtmlText(section.id)}">
+        <section class="ai-html-brick-section ai-html-brick-section-${escapeHtmlText(section.type)}" data-ai-html-section="${escapeHtmlText(section.id)}" data-ai-html-grid="12">
           ${slots}
         </section>
       `;
@@ -9433,7 +10016,7 @@ function brickBackedAiHtmlScheme(payload = {}, config = {}, providerConfig = {},
     .join("\n");
 
   const title = escapeHtmlText(cleanText(config.name, "高分积木约束首页", 48));
-  const componentCss = [...new Set([...selectedByBlock.values()].map((item) => sanitizeAiHtmlCss(item.component.css).trim()).filter(Boolean))].join("\n\n");
+  const componentCss = flattenCssGradients([...new Set([...selectedByBlock.values()].map((item) => sanitizeAiHtmlCss(item.component.css).trim()).filter(Boolean))].join("\n\n"));
   const html = `
     <section class="ai-html-page ai-html-brick-backed-page" data-ai-html-source="high-score-bricks" data-ai-html-pipeline="high-score-brick-backed-html">
       <header class="ai-html-brick-backed-head">
@@ -9456,10 +10039,11 @@ function brickBackedAiHtmlScheme(payload = {}, config = {}, providerConfig = {},
     .ai-html-brick-backed-head p{margin:0;color:var(--home-text-muted,#64748b);line-height:1.6}
     .ai-html-brick-backed-head small{color:var(--home-primary,#2563eb);font-weight:900}
     .ai-html-brick-backed-flow{display:grid;gap:16px}
-    .ai-html-brick-section{display:grid;gap:14px}
-    .ai-html-brick-section-hero,.ai-html-brick-section-split{grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch}
-    .ai-html-brick-section-full{grid-template-columns:1fr}
-    .ai-html-brick-slot{min-width:0;display:block}
+    .ai-html-brick-section{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px;align-items:stretch}
+    .ai-html-brick-slot{min-width:0;display:block;grid-column:span 12}
+    .ai-html-brick-slot[data-ai-html-span="8"]{grid-column:span 8}
+    .ai-html-brick-slot[data-ai-html-span="6"]{grid-column:span 6}
+    .ai-html-brick-slot[data-ai-html-span="4"]{grid-column:span 4}
     .ai-html-contract-filler{display:grid;gap:10px;padding:16px;border:1px dashed var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-card-bg,#fff)}
     .ai-html-contract-filler p{margin:0;color:var(--home-text-muted,#64748b);line-height:1.6}
     .ai-html-brick-backed-page a[data-home-action],.ai-html-brick-backed-page button{min-height:40px;display:inline-grid;place-items:center;width:max-content;max-width:100%;padding:0 14px;border:1px solid var(--home-button-border,var(--home-primary,#2563eb));border-radius:var(--home-radius-sm,8px);background:var(--home-button-bg,var(--home-primary,#2563eb));color:var(--home-button-text,#fff);font:inherit;font-weight:900;text-decoration:none}
@@ -9469,17 +10053,17 @@ function brickBackedAiHtmlScheme(payload = {}, config = {}, providerConfig = {},
     .ai-html-trading-four-card-grid>header strong{display:block;margin-top:4px;font-size:20px;color:var(--home-text-strong,#0f172a)}
     .ai-html-trading-four-card-grid>header div:last-child{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
     .ai-html-ta-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-    .ai-html-ta-card{display:grid;gap:10px;min-width:0;padding:14px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:linear-gradient(180deg,#fff,#f8fbff)}
+    .ai-html-ta-card{display:grid;gap:10px;min-width:0;padding:14px;border:1px solid var(--home-border,#dbe4ef);border-radius:var(--home-radius-sm,8px);background:var(--home-card-bg,#fff)}
     .ai-html-ta-card header{display:flex;align-items:center;justify-content:space-between;gap:8px}
     .ai-html-ta-card header strong{font-size:17px;color:var(--home-text-strong,#0f172a)}
-    .ai-html-ta-badge{display:inline-grid;place-items:center;min-height:22px;padding:0 8px;border-radius:6px;background:#dcfce7;color:#047857;font-size:11px;font-weight:950}
+    .ai-html-ta-badge{display:inline-grid;place-items:center;min-height:22px;padding:0 8px;border-radius:var(--home-radius-sm,8px);background:#dcfce7;color:#047857;font-size:11px;font-weight:950}
     .ai-html-ta-card.demo .ai-html-ta-badge{background:#e5e7eb;color:#4b5563}
     .ai-html-ta-card p{min-width:0;margin:0;color:var(--home-text-muted,#64748b);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .ai-html-ta-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
     .ai-html-ta-metrics span{display:grid;gap:2px;min-width:0}
     .ai-html-ta-metrics small{color:var(--home-text-muted,#64748b);font-size:11px}
     .ai-html-ta-metrics b{min-width:0;color:var(--home-text-strong,#0f172a);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    @media(max-width:860px){.ai-html-brick-backed-page{padding:12px}.ai-html-brick-section-hero,.ai-html-brick-section-split{grid-template-columns:1fr}.ai-html-brick-backed-head h1{font-size:24px}.ai-html-brick-backed-page a[data-home-action],.ai-html-brick-backed-page button{width:100%}}
+    @media(max-width:860px){.ai-html-brick-backed-page{padding:12px}.ai-html-brick-section{grid-template-columns:1fr}.ai-html-brick-slot,.ai-html-brick-slot[data-ai-html-span]{grid-column:1/-1}.ai-html-brick-backed-head h1{font-size:24px}.ai-html-brick-backed-page a[data-home-action],.ai-html-brick-backed-page button{width:100%}}
     @media(max-width:1180px){.ai-html-ta-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
     @media(max-width:680px){.ai-html-ta-grid{grid-template-columns:1fr}.ai-html-trading-four-card-grid>header{display:grid}.ai-html-trading-four-card-grid>header div:last-child{justify-content:stretch}.ai-html-trading-four-card-grid>header div:last-child button{width:100%}}
     ${componentCss}
@@ -9591,14 +10175,40 @@ function configBackedAiHtmlScheme(payload = {}, config = {}, providerConfig = {}
   );
 }
 
+// 忠实模式：HOME_AI_FAITHFUL=true 时不再用高分积木模板替换模型 HTML，
+// 即使质量门禁未达标也保留模型真实输出（只在 correctionNotes 里标注），
+// 用来观察模型实际生成能力，避免“不管输入什么都回退到同一套模板”。
+function homeAiFaithfulMode() {
+  return process.env.HOME_AI_FAITHFUL === "true";
+}
+
+// 触发积木同款兜底的最低分数门槛，可用 HOME_AI_FALLBACK_MIN_SCORE 调松/调严。
+// 默认 55：兜底是"破损输出"的安全网（空壳、提示词泄漏、英文模板占位），
+// 不是"不够完美"的质量线。55~81 这一段属于"可发布但需打磨"，应保留模型真实产出，
+// 而不是一律替换成同一套高分积木模板，否则会出现"不管输入什么都回退到同一页"。
+function homeAiFallbackMinScore() {
+  const raw = Number(process.env.HOME_AI_FALLBACK_MIN_SCORE);
+  return Number.isFinite(raw) ? Math.max(0, Math.min(100, raw)) : 55;
+}
+
+// 真正破损、无论分数高低都不能发布的硬信号（与质量门里的 issue 文案对应）。
+// 注意：这里只保留"页面本身不可发布"的信号（空壳 / 提示词泄漏 / 英文模板占位）。
+// "命中积木结构继承不足 / 普通白卡 / 弱占位" 属于"没照抄参考积木"，不是页面破损——
+// 把它们从强制兜底里移出，改为只参与质量分扣分（开闸①）。否则模型自己产出的、
+// 设计合理但没逐块继承积木的页面会被无条件换成单一积木模板，导致"千页一面"。
+const AI_HTML_HARD_BROKEN_ISSUE_PATTERN =
+  /HTML 或 CSS 为空|渲染了管理员提示词原文|英文模板或 -- 空数据占位/;
+
 function aiHtmlNeedsBrickBackedFallback(scheme = {}) {
   if (!scheme?.enabled || scheme.sourceType === "brick-library-backed") return false;
   if (scheme.mock || scheme.isFallback) return false;
+  if (homeAiFaithfulMode()) return false;
   const score = Number(scheme.qualityScore);
   const issues = Array.isArray(scheme.qualityIssues) ? scheme.qualityIssues.join(" ") : "";
+  // 破损信号优先：空壳 / 提示词泄漏 / 英文模板占位，即使分数侥幸过线也必须兜底。
+  if (AI_HTML_HARD_BROKEN_ISSUE_PATTERN.test(issues)) return true;
   if (scheme.qualityStatus === "needs-repair") return true;
-  if (Number.isFinite(score) && score < 68) return true;
-  if (/命中积木没有落实到 HTML|命中积木结构继承不足|普通白卡|弱占位/.test(issues)) return true;
+  if (Number.isFinite(score) && score < homeAiFallbackMinScore()) return true;
   return false;
 }
 
@@ -10229,8 +10839,9 @@ function sortComponentsForAiUse(components, payload = {}) {
       score: payloadComponentScore(component, payload),
       referenceTier: componentReferenceAdmission(component, payload).tier,
       referenceRule: componentReferenceAdmission(component, payload).rule,
+      referenceReleaseIssues: componentReferenceAdmission(component, payload).releaseIssues,
     }))
-    .filter((component) => component.referenceTier !== "blocked")
+    .filter((component) => componentReferenceAdmission(component, payload).allowed)
     .sort((a, b) => {
       const tierDelta = componentReferenceTierPriority(b.referenceTier) - componentReferenceTierPriority(a.referenceTier);
       if (tierDelta) return tierDelta;
@@ -11106,6 +11717,20 @@ const HOMEPAGE_PAGE_GOAL_PRESETS = {
     primaryCta: "查看交易账号",
     mainVisual: "trading_accounts_list",
   },
+  copytrading: {
+    label: "CopyTrading 信号源",
+    primaryIntent: "copytrading",
+    primaryAction: "copytrading",
+    primaryCta: "查看信号源",
+    mainVisual: "copytrading_signals",
+  },
+  pamm: {
+    label: "PAMM 产品",
+    primaryIntent: "pamm",
+    primaryAction: "pamm",
+    primaryCta: "查看 PAMM 产品",
+    mainVisual: "pamm_products",
+  },
   contactSupport: {
     label: "联系客服",
     primaryIntent: "brand",
@@ -11148,6 +11773,32 @@ function homepageGoalPresetFromPayload(payload = {}, intentProfile = {}) {
   const inferred = Object.entries(HOMEPAGE_PAGE_GOAL_PRESETS).find(([, preset]) => preset.primaryIntent === intent);
   if (inferred) return { id: inferred[0], ...inferred[1] };
   return { id: "learnMore", ...HOMEPAGE_PAGE_GOAL_PRESETS.learnMore };
+}
+
+function homepagePayloadPromptText(payload = {}) {
+  const context = payload.context && typeof payload.context === "object" ? payload.context : {};
+  return [
+    payload.prompt,
+    payload.instruction,
+    payload.adjustmentPrompt,
+    context.prompt,
+    context.intent,
+    context.goal,
+    context.pageGoal,
+    context.userRole,
+    context.audience,
+  ]
+    .map((item) => (typeof item === "string" ? item : ""))
+    .filter(Boolean)
+    .join("\n");
+}
+
+function homepagePayloadRequestsOptionalBlock(block, payload = {}, explicitBlocks = new Set()) {
+  const canonical = canonicalHomeBlock(block);
+  if (!canonical) return false;
+  if (explicitBlocks?.has?.(canonical)) return true;
+  const pattern = HOMEPAGE_OPTIONAL_BLOCK_REQUEST_PATTERNS[canonical];
+  return Boolean(pattern && pattern.test(homepagePayloadPromptText(payload)));
 }
 
 function canonicalHomeBlockLoose(value) {
@@ -11607,7 +12258,7 @@ function homepageCompositionGroupsForPlan(visibleModules = [], mainVisual = "", 
       role: "primary",
       modules: pick(["welcome_header", "onboarding_guide", "asset_overview", "quick_actions", "kyc_status_card"]),
       surface: "connected-panel",
-      guidance: "欢迎、开户进度、资产状态和下一步动作共享首屏表面，用连续路径而不是多张独立卡片。",
+      guidance: "欢迎、开户进度、资产状态和下一步动作可以同屏成组，但资产概览和快捷入口必须保留独立模块边界，不用共享外壳硬粘。",
     },
     {
       id: "account_workspace",
@@ -11651,6 +12302,8 @@ function homepageCompositionGroupsForPlan(visibleModules = [], mainVisual = "", 
     .filter((group) => group.modules.length)
     .map((group) => ({
       ...group,
+      compositeId: group.modules.length > 1 ? `composite-${group.id}` : "",
+      renderMode: group.modules.length > 1 ? "composite" : "single",
       visualWeight: Math.max(...group.modules.map((slot) => homepagePlanWeightForBlock(slot, mainVisual))),
     }))
     .sort((a, b) => {
@@ -11660,6 +12313,61 @@ function homepageCompositionGroupsForPlan(visibleModules = [], mainVisual = "", 
       return order.indexOf(a.id) - order.indexOf(b.id);
     })
     .slice(0, 4);
+}
+
+function homepageGoldenCompositeBlocksForPlan(compositionGroups = [], mainVisual = "") {
+  return (Array.isArray(compositionGroups) ? compositionGroups : [])
+    .filter((group) => Array.isArray(group.modules) && group.modules.length > 1)
+    .map((group, index) => ({
+      id: group.compositeId || `composite-${group.id || index + 1}`,
+      groupId: cleanText(group.id, `group-${index + 1}`, 48),
+      title: cleanText(group.title, "业务组合", 60),
+      role: cleanText(group.role, index === 0 ? "primary" : "support", 24),
+      surface: cleanText(group.surface, index === 0 ? "connected-panel" : "shared-workbench", 32),
+      renderMode: "composite",
+      source: "golden-sample-synthesis",
+      modules: group.modules,
+      mainVisualInside: group.modules.includes(mainVisual),
+      instruction: cleanText(
+        group.guidance,
+        "把同一业务组综合成一个大组件表面，子模块共享标题、边界、留白和视觉节奏。",
+        180,
+      ),
+    }))
+    .slice(0, 6);
+}
+
+function homepageGoldenSkeletonContractForPlan(visibleModules = [], mainVisual = "", pageGoal = "", compositionGroups = []) {
+  const modules = (Array.isArray(visibleModules) ? visibleModules : []).map(canonicalHomeBlock).filter(Boolean);
+  const compositeBlocks = homepageGoldenCompositeBlocksForPlan(compositionGroups, mainVisual);
+  const sampleId =
+    pageGoal === "openAccount"
+      ? "golden-home-03-onboarding-workbench"
+      : pageGoal === "deposit"
+        ? "golden-home-04-funding-sidebar"
+        : pageGoal === "trading" || pageGoal === "startTrading"
+          ? "golden-home-02-account-dashboard"
+          : "golden-home-05-dense-wallet-account";
+  return {
+    id: sampleId,
+    source: "golden-samples",
+    referenceRatio: "strong",
+    mainVisual,
+    screenOrder: modules.slice(0, 8),
+    compositeBlocks,
+    extractionRules: [
+      "先抽黄金样本的首屏比例、模块密度、背景/模块分层和操作入口节奏，再填充当前业务模块。",
+      "允许把连续的启动区、账户区、机会区组织成业务组；但 asset_overview 与 quick_actions 这类不同语义模块不能合成一个视觉模块。",
+      "首屏核心只允许一个最高权重主视觉，主 CTA 跟随 pagePlan.primaryAction。",
+      "普通配置渲染也必须优先引用 8 分及以上组件库结构；AI 生成低于门槛时用高分组件强制兜底。",
+    ],
+    qualityGates: [
+      { id: "mainVisualCore", severity: "blocking", rule: "pagePlan.mainVisual 必须落在前两个核心 section。" },
+      { id: "compositeSurface", severity: "repair", rule: "同组模块必须携带 group/composite 元数据，但不同语义模块要保留可见边界。" },
+      { id: "strongComponentFallback", severity: "repair", rule: "普通配置渲染必须保留 8 分及以上组件 HTML/CSS 兜底。" },
+      { id: "goldenReferenceRatio", severity: "blocking", rule: "黄金样本必须作为骨架契约参与排序、组合和质量评分。" },
+    ],
+  };
 }
 
 function buildHomepagePagePlan(payload = {}, config = {}) {
@@ -11694,8 +12402,26 @@ function buildHomepagePagePlan(payload = {}, config = {}) {
     visibleModules.push(block);
   });
 
-  const mainVisual = visibleModules.includes(goal.mainVisual)
-    ? goal.mainVisual
+  const promptWantsGoalVisual = homepagePayloadRequestsOptionalBlock(goal.mainVisual, payload, explicitBlocks);
+  const guidedHeroFocus = canonicalHomeBlock(guidedIntake?.canonical?.heroFocus || guidedIntake?.heroFocus);
+  const configHeroFocus = canonicalHomeBlock(config.heroFocus || config.pageIntent?.heroFocus || config.pageIntent?.mainVisual);
+  const intentHeroFocus = canonicalHomeBlock(intentProfile.heroFocus);
+  let preferredMainVisual =
+    guidedHeroFocus && visibleModules.includes(guidedHeroFocus)
+      ? guidedHeroFocus
+      : configHeroFocus && visibleModules.includes(configHeroFocus) && configHeroFocus !== "asset_overview"
+        ? configHeroFocus
+      : intentHeroFocus && visibleModules.includes(intentHeroFocus) && intentHeroFocus !== "asset_overview"
+        ? intentHeroFocus
+        : goal.mainVisual;
+  if (goal.mainVisual === "promo_banner" && !promptWantsGoalVisual) {
+    preferredMainVisual =
+      [intentProfile.heroFocus, guidedIntake?.canonical?.heroFocus, "onboarding_guide", "asset_overview"]
+        .map(canonicalHomeBlock)
+        .find((slot) => slot && visibleModules.includes(slot)) || goal.mainVisual;
+  }
+  const mainVisual = visibleModules.includes(preferredMainVisual)
+    ? preferredMainVisual
     : visibleModules.includes(intentProfile.heroFocus)
       ? intentProfile.heroFocus
       : visibleModules[0] || intentProfile.heroFocus || "asset_overview";
@@ -11705,6 +12431,8 @@ function buildHomepagePagePlan(payload = {}, config = {}) {
   const optionalModules = visibleModules.filter((block) => GUIDED_EXPLICIT_ONLY_BLOCKS.has(block) || HOMEPAGE_OPTIONAL_BLOCK_REQUEST_PATTERNS[block]);
   const requiredModules = visibleModules.filter((block) => !optionalModules.includes(block));
   const compositionGroups = homepageCompositionGroupsForPlan(visibleModules, mainVisual, goal.id);
+  const compositeBlocks = homepageGoldenCompositeBlocksForPlan(compositionGroups, mainVisual);
+  const goldenSkeleton = homepageGoldenSkeletonContractForPlan(visibleModules, mainVisual, goal.id, compositionGroups);
 
   return {
     planVersion: 1,
@@ -11720,6 +12448,8 @@ function buildHomepagePagePlan(payload = {}, config = {}) {
     visualHierarchy,
     layoutStrategy: "grouped-workbench",
     compositionGroups,
+    compositeBlocks,
+    goldenSkeleton,
     moduleRoles: Object.fromEntries(
       visibleModules.map((block) => [
         block,
@@ -11733,10 +12463,13 @@ function buildHomepagePagePlan(payload = {}, config = {}) {
       "全页只能有一个最高视觉权重模块。",
       "Hero/首屏只表达一个主目标和一个主 CTA。",
       "页面优先组织成 3-4 个业务组，不要把每个 slot 拆成独立 section。",
-      "同一业务组共享父级表面和标题，子模块用分割线、留白、指标行或工具栏衔接，避免重复白卡、厚边框和阴影。",
+      "同一业务组共享节奏、间距和标题层级，但不同业务模块必须保留可见卡片边界；asset_overview 与 quick_actions 只允许同屏分栏，不合成一个视觉模块。",
       "Features/Proof/Pricing/FAQ/Support 等辅助模块不得使用强于主视觉的标题、背景或 CTA。",
       "FAQ、风险披露、客服、活动等低权重模块必须合并到低干扰辅助区，不要独占强卡片或强 CTA。",
       "未选择或被 modulePolicy 禁止的选填模块不得为了填满页面而生成。",
+      "黄金样本已经是骨架强参考：首屏比例、背景/模块分层、分区密度和操作入口节奏必须在 sections/layout 中执行。",
+      "如果多个模块同屏成组，用 compositeBlocks 表达业务关系；渲染时仍要避免把不同语义模块糊成一个大色块。",
+      "普通组件化渲染必须携带 8 分及以上组件库参考；组件质量不达标时优先采用高分组件结构兜底。",
     ],
   };
 }
@@ -11758,6 +12491,23 @@ function applyHomepageCompositionGroupsToSections(sections = [], pagePlan = {}) 
       }
     });
   };
+  const compositeSection = (section, group = {}, order = 0, groupIndex = 0) => {
+    const modules = Array.isArray(group.modules) ? group.modules : [];
+    const compositeId = cleanText(group.compositeId || (modules.length > 1 ? `composite-${group.id || groupIndex + 1}` : ""), "", 64);
+    if (!compositeId) return section;
+    const surface = cleanText(group.surface, "", 32);
+    const keepsVisibleBoundaries = ["connected-panel", "light-section"].includes(surface);
+    return {
+      ...section,
+      groupId: cleanText(group.id, "", 48),
+      compositeId,
+      compositeTitle: cleanText(group.title, "", 60),
+      compositeSurface: surface,
+      compositeRole: cleanText(group.role, "", 24),
+      compositeIndex: order,
+      transition: keepsVisibleBoundaries ? (order === 0 ? "plain" : "soft-break") : order === 0 ? (groupIndex === 0 ? "connected" : "hard-break") : "connected",
+    };
+  };
   const firstSectionSlots = (Array.isArray(sections[0]?.slots) ? sections[0].slots : [])
     .map(canonicalHomeBlock)
     .filter(Boolean);
@@ -11769,57 +12519,79 @@ function applyHomepageCompositionGroupsToSections(sections = [], pagePlan = {}) 
       slots: ["announcements"],
     });
   }
-  const pushCompactSections = (group, slots, groupIndex) => {
-    if (!slots.length) return;
-    let pending = slots;
-    const mainVisual = canonicalHomeBlock(pagePlan.mainVisual);
-    if (groupIndex === 0 && mainVisual && pending.includes(mainVisual)) {
-      const ordered = [mainVisual, ...pending.filter((slot) => slot !== mainVisual)];
-      const heroSlots = ordered.slice(0, 2);
-      pushSection({
-        id: cleanText(group.id || "primary-group", "primary-group", 42),
-        type: "hero",
-        title: cleanText(group.title || "首屏", "首屏", 60),
-        slots: heroSlots,
-      });
-      pending = ordered.slice(2);
-    }
-    for (let index = 0; index < pending.length; index += 2) {
-      const pair = pending.slice(index, index + 2);
-      pushSection({
-        id: cleanText(`${group.id || "group"}-${Math.floor(index / 2) + 1}`, `group-${next.length + 1}`, 42),
-        type: pair.length === 2 ? "split" : "full",
-        title: cleanText(group.title || "业务区", "业务区", 60),
-        slots: pair,
-      });
-    }
-  };
 
   pagePlan.compositionGroups.forEach((group, groupIndex) => {
-    const modules = (Array.isArray(group?.modules) ? group.modules : [])
+    let modules = (Array.isArray(group?.modules) ? group.modules : [])
       .map(canonicalHomeBlock)
       .filter((slot) => slot && existingSet.has(slot) && !used.has(slot));
     if (!modules.length) return;
-    const footerSlots = modules.filter((slot) => slot === "risk_disclosure");
-    const largeSlots = modules.filter((slot) => LARGE_FULL_ROW_HOME_BLOCKS.has(slot));
-    const compactSlots = modules.filter((slot) => !LARGE_FULL_ROW_HOME_BLOCKS.has(slot) && slot !== "risk_disclosure");
-    pushCompactSections(group, compactSlots, groupIndex);
-    largeSlots.forEach((slot) => {
-      pushSection({
-        id: homepageSectionIdForSlot(group.id, slot, `full-row-${next.length + 1}`),
-        type: "full",
-        title: homepageSectionTitleForSlot(slot, group.title || ""),
-        slots: [slot],
-      });
+    const mainVisual = canonicalHomeBlock(pagePlan.mainVisual);
+    if (groupIndex === 0 && mainVisual && modules.includes(mainVisual)) {
+      modules = [mainVisual, ...modules.filter((slot) => slot !== mainVisual)];
+    }
+    let compactSlots = [];
+    let compositeOrder = 0;
+    const flushCompactSlots = () => {
+      if (!compactSlots.length) return;
+      for (let index = 0; index < compactSlots.length; index += 2) {
+        const pair = compactSlots.slice(index, index + 2);
+        const type = groupIndex === 0 && (pair.includes(mainVisual) || !next.length) ? "hero" : pair.length === 2 ? "split" : "full";
+        pushSection(
+          compositeSection(
+            {
+              id: cleanText(`${group.id || "group"}-${Math.floor(index / 2) + 1}`, `group-${next.length + 1}`, 42),
+              type,
+              title: cleanText(group.title || "业务区", "业务区", 60),
+              slots: pair,
+            },
+            group,
+            compositeOrder++,
+            groupIndex,
+          ),
+        );
+      }
+      compactSlots = [];
+    };
+
+    modules.forEach((slot) => {
+      if (slot === "risk_disclosure") {
+        flushCompactSlots();
+        pushSection(
+          compositeSection(
+            {
+              id: homepageSectionIdForSlot(group.id, slot, `footer-${next.length + 1}`),
+              type: "full",
+              title: homepageSectionTitleForSlot(slot, group.title || "风险提示"),
+              slots: [slot],
+            },
+            group,
+            compositeOrder++,
+            groupIndex,
+          ),
+        );
+        return;
+      }
+      if (LARGE_FULL_ROW_HOME_BLOCKS.has(slot)) {
+        flushCompactSlots();
+        pushSection(
+          compositeSection(
+            {
+              id: homepageSectionIdForSlot(group.id, slot, `full-row-${next.length + 1}`),
+              type: "full",
+              title: homepageSectionTitleForSlot(slot, group.title || ""),
+              slots: [slot],
+            },
+            group,
+            compositeOrder++,
+            groupIndex,
+          ),
+        );
+        return;
+      }
+      compactSlots.push(slot);
+      if (compactSlots.length === 2) flushCompactSlots();
     });
-    footerSlots.forEach((slot) => {
-      pushSection({
-        id: homepageSectionIdForSlot(group.id, slot, `footer-${next.length + 1}`),
-        type: "full",
-        title: homepageSectionTitleForSlot(slot, group.title || "风险提示"),
-        slots: [slot],
-      });
-    });
+    flushCompactSlots();
   });
 
   existingSlots
@@ -11853,6 +12625,19 @@ function removeHomepageBlocksByPlan(config, blocks = [], actions = []) {
   return next;
 }
 
+function enforceHomepagePagePlanMainVisualSections(sections = [], pagePlan = {}, actions = []) {
+  const mainVisual = canonicalHomeBlock(pagePlan.mainVisual);
+  if (!mainVisual || !homepageSectionsContainSlot(sections, mainVisual)) return sections;
+  const before = (Array.isArray(sections) ? sections : []).map(homepageSectionSignature).join("|");
+  let next = moveHomepageHeroFocusIntoCore(sections, mainVisual);
+  next = normalizeHomepageHeroSectionCount(next);
+  const after = next.map(homepageSectionSignature).join("|");
+  if (after !== before && Array.isArray(actions)) {
+    actions.push(`质量门禁：已将 pagePlan.mainVisual=${mainVisual} 拉回前两个核心 section。`);
+  }
+  return next;
+}
+
 function applyHomepagePagePlan(config, payload = {}, actions = []) {
   let next = ensureObject(config);
   const initialPlan = buildHomepagePagePlan(payload, next);
@@ -11870,6 +12655,9 @@ function applyHomepagePagePlan(config, payload = {}, actions = []) {
     if (next.sections.map(homepageSectionSignature).join("|") !== beforeGroupedSections && actions) {
       actions.push("已按 pagePlan.compositionGroups 合并相关模块，减少孤立 section。");
     }
+  }
+  if (Array.isArray(next.sections)) {
+    next.sections = enforceHomepagePagePlanMainVisualSections(next.sections, pagePlan, actions);
   }
   const plannedAction = typeof pagePlan.primaryAction === "string"
     ? pagePlan.primaryAction
@@ -11892,11 +12680,12 @@ function applyHomepagePagePlan(config, payload = {}, actions = []) {
   };
 	  const currentHeroFocus = canonicalHomeBlock(next.heroFocus);
 	  const remainingBlocks = collectHomepageBlocks(next);
-	  next.heroFocus = currentHeroFocus && remainingBlocks.includes(currentHeroFocus) ? currentHeroFocus : pagePlan.mainVisual;
+	  next.heroFocus = pagePlan.mainVisual && remainingBlocks.includes(pagePlan.mainVisual) ? pagePlan.mainVisual : currentHeroFocus && remainingBlocks.includes(currentHeroFocus) ? currentHeroFocus : pagePlan.mainVisual;
 	  if (Array.isArray(next.sections) && homepageSectionsContainSlot(next.sections, "welcome_header")) {
 	    const beforeWelcomeFirst = next.sections.map(homepageSectionSignature).join("|");
 	    next.sections = enforceWelcomeFirstSection(next.sections, next.heroFocus);
 	    next.sections = enforceAssetOverviewHeroFocusSections(next.sections, next.heroFocus);
+	    next.sections = enforceHomepagePagePlanMainVisualSections(next.sections, pagePlan, actions);
 	    if (next.sections.map(homepageSectionSignature).join("|") !== beforeWelcomeFirst && actions) {
 	      actions.push("已将欢迎模块固定到第一栏，并保持 heroFocus 在首屏核心区。");
 	    }
@@ -12034,8 +12823,8 @@ function buildMiniMaxPrompt(payload) {
     "账号、钱包列表、推荐信号源、PAMM、表格、8 个快捷入口、首屏轮播属于高风险模块，必须按 layoutGrammar.moduleSizing 选择 size 和 zone。",
     "如果布局美观度和模块数量冲突，优先保证行配方完整、同高、少空白，再减少辅助模块。",
     "必须先遵守服务端提供的 pageIntent 和 pagePlan；pagePlan.mainVisual 是唯一最高视觉权重模块，其它模块只能解释、证明或收口。",
-    "页面美观规则：先按 pagePlan.compositionGroups 组织 3-4 个业务组，再决定每组 slots；不要把每个模块拆成独立 section。",
-    "同一 composition group 内共享父级表面、标题和间距，子模块用分割线、指标行、工具栏或留白衔接，避免重复白卡、厚边框和阴影。",
+    "页面美观规则：先按 pagePlan.compositionGroups 组织 3-4 个业务组，再决定每组 slots；不要把每个模块拆成孤立 section，也不要把不同业务模块糊成一个无边界色块。",
+    "同一 composition group 内共享节奏、标题层级和间距；asset_overview 与 quick_actions 必须是两个清楚模块，用间距、边框和等高对齐衔接，不共享父级外壳。",
     "低权重 support/decision 模块必须服从 pagePlan.moduleRoles，不得独占强背景、强标题或强 CTA。",
     "如果请求包含引导式结构化选择 guidedIntake，它是管理员显式选择，优先级高于拼接后的自然语言 prompt。",
     "guidedIntake 中的 canonical.primaryIntent、heroFocus、layoutPreset、mustHave 是硬约束；modules[].canonicalTargets 是可用首页积木承接方式。",
@@ -12540,7 +13329,7 @@ function buildLowLatencyHomepagePrompt(payload, config = {}) {
     "组件库评分必须执行：8-10 分强参考，6-7 分适度参考，5 分及以下禁止参考。",
     "视觉模式必须返回 colorMode=\"auto\"，除非管理员只要求白天或只要求暗夜；minimalWhite、blueFinance、lightGold 的白天模式不得使用大面积黑色/终端色块，暗色只在 darkTech 或 colorMode=dark 时出现。",
     "必须按 pagePlan.compositionGroups 组织 3-4 个业务组；sections 应优先对应业务组，不要把每个 slot 拆成独立 section。",
-    "同一业务组共享父级表面，子模块用分割线、指标行、工具栏或留白衔接；support/decision 模块不得使用强卡片、强背景或强 CTA。",
+    "同一业务组共享节奏和对齐关系，子模块用间距、边框、指标行或工具栏衔接；support/decision 模块不得使用强卡片、强背景或强 CTA。",
     `空间利用是硬约束：桌面 12 栅格紧凑填充，${COMPONENT_SIZE_GUIDE} 优先宽幅积木独占、2x+1x、2x+2x；移动端自然单列。`,
     `${providerName} 请求会走短上下文模式；不要复述规则，只返回最终 JSON。`,
   ].join("\n");
@@ -12636,7 +13425,7 @@ function buildMiniMaxHomepagePatchPrompt(payload, config = {}) {
     "所有 sections[].slots 和 brickPlan[].component 只能使用 allowedBlocks；quickActions.actions 必须是空数组。",
     "遵守 design.md 设计治理：只做金融 CRM 工作台式美化，不做营销式大 hero、卡片套卡片或随机渐变。",
     "必须按 pagePlan.compositionGroups 合并相关模块；sections 最多 4 个业务组，不要一 slot 一 section。",
-    "同组模块共享父级表面和标题，低权重 support/decision 模块只做收口或辅助，不得独占强卡片。",
+    "同组模块共享标题层级和间距，低权重 support/decision 模块只做收口或辅助；不同语义模块必须保留清晰边界，不得独占强卡片。",
     `${providerName} 如果不确定字段，宁可少写，不能写白名单外模块或让 JSON 截断。`,
   ].join("\n");
 
@@ -12766,6 +13555,7 @@ function buildPrompt(payload, config = {}) {
     "必须先选择 designGenome 和 pageStory，再选择积木：magazineCampaign=活动专题封面，tradingCommand=交易指挥中心，onboardingJourney=新客旅程，privateWealthDesk=私行服务台，accountOpsConsole=账户运营控制台。",
     "生成模块表达时必须参考已保存组件库积木：先吸收其字段、尺寸、按钮、标签、卡片密度和视觉层级，再结合管理员意图做新组合或新变体。",
     "黄金样式不是提示词装饰：如果上下文提供 aestheticTraining.goldenStyleContract，必须保留 styleContract/goldenStyleContract，并用 themeCustom、pagePlan 和 chromePolicy 执行参考稿的背景、颜色、间距、块关系和父级表面。",
+    "如果上下文提供 aestheticTraining.goldenLayoutDirective，必须执行其 rule：sections 顺序和 pagePlan.mainVisual 要把 firstScreenFocus 放在首屏最前并作为最高视觉权重，首屏只保留 1-2 个重点模块；信号源、活动 banner、FAQ、推广链接等次级模块排在主操作区之后，不得抢占首屏，除非本次需求明确要求。整页分栏比例和模块顺序优先模仿该金样。",
     "组件库只是形态和灵感参考，不能授权新增首页白名单以外的业务模块，也不能把组件 HTML/CSS 直接作为首页输出。",
     "组件形态不能都用普通卡片；componentMorphs 是渲染契约，不是展示说明。",
     "核心可见模块必须选择 componentMorphs：AssetOverview、WalletList、QuickActions、TradingAccounts、OnboardingProgress、AccountPerformance、PromotionBanner、ReferralLinkCard、RiskDisclosure 只要出现在 sections/brickPlan/layout 中，就必须从 componentMorphPool 对应 10 种 DOM morph 池里选择 morph/morphId。",
@@ -12789,7 +13579,7 @@ function buildPrompt(payload, config = {}) {
     "如果管理员提到空白、少留白、空间利用或压缩高度，density 必须是 compact 或 balanced，不得使用 spacious；onboarding_guide 优先使用 compact/checklist/ribbon-rail 或紧凑 guide-cards。",
     "必须先遵守服务端提供的 pagePlan：pageGoal 决定唯一主 CTA，mainVisual 是最高视觉权重模块，visualHierarchy 决定辅助模块降权；不要让 hero、feature、proof、pricing/FAQ、CTA 同时抢戏。",
     "必须按 pagePlan.compositionGroups 组织页面：相关模块合并为 3-4 个业务组，sections 优先对应业务组，不要把每个 slot 拆成独立 section。",
-    "同一业务组共享父级表面、标题、间距和按钮语言，slot 内只表达内容片段；FAQ、风险、客服、活动等低权重模块只能低干扰收口。",
+    "同一业务组共享标题层级、间距和按钮语言；slot 内可以降噪，但不同语义模块必须有清楚卡片边界，FAQ、风险、客服、活动等低权重模块只能低干扰收口。",
     "如果管理员提到小屏幕、手机端、移动端或适配，autoLayout.strategy 必须保持 responsive-grid 或 mobile-first-stack，并优先让 paired rows collapse 为单列。",
     "如果管理员要求活动增长、交易大赛、奖池，并明确说明租户已配置活动，必须使用 promo_banner 作为活动模块；如果有 welcome_header，promo_banner 可紧跟在 welcome_header 后面。",
     "如果管理员要求欢迎模块、欢迎区或 welcome，保留轻量 welcome_header 首行；welcome 必须固定在页面最顶部，只提供用户上下文，不展示重复的个性化入口，也不改变业务 heroFocus。",
@@ -15745,9 +16535,9 @@ function enforceServerDepositConversionContract(config, prompt = "", variant = 0
   const sections = [];
   if (wantsWelcomeHeader) sections.push({ id: "welcome-header", type: "full", title: "欢迎", transition: "connected", slots: ["welcome_header"] });
   sections.push({ id: "deposit-hero", type: "full", title: "首次入金", transition: "connected", slots: ["promo_banner"] });
-  sections.push({ id: "deposit-actions", type: "split", title: "账户与快捷入口", transition: "connected", slots: ["asset_overview", "quick_actions"] });
-  sections.push({ id: "deposit-activation", type: "full", title: "开户引导", transition: "connected", slots: ["onboarding_guide"] });
-  if (hasOptional("kyc_status_card")) sections.push({ id: "deposit-kyc-status", type: "rail", title: "KYC 状态", transition: "connected", slots: ["kyc_status_card"] });
+  sections.push({ id: "deposit-actions", type: "split", title: "账户与快捷入口", transition: "plain", slots: ["asset_overview", "quick_actions"] });
+  sections.push({ id: "deposit-activation", type: "full", title: "开户引导", transition: "plain", slots: ["onboarding_guide"] });
+  if (hasOptional("kyc_status_card")) sections.push({ id: "deposit-kyc-status", type: "rail", title: "KYC 状态", transition: "plain", slots: ["kyc_status_card"] });
   if (hasOptional("copytrading_signals")) sections.push({ id: "deposit-copytrading", type: "full", title: "CopyTrading", transition: "hard-break", slots: ["copytrading_signals"] });
   if (hasOptional("pamm_products")) sections.push({ id: "deposit-pamm", type: "full", title: "PAMM", transition: "hard-break", slots: ["pamm_products"] });
   const referralFaqSlots = ["referral_link_card", "faq_section"].filter(hasOptional);
@@ -17060,6 +17850,16 @@ async function requestAndParseProviderJson(config, apiKey, promptParts, schema, 
       attempts: providerResult.attempts,
       previousAttempt: previousError?.details || null,
     });
+    // If the model ran out of output budget mid-JSON, retry the SAME model with a higher
+    // token ceiling before degrading to a weaker model or the brick fallback. Truncation is a
+    // budget problem, not a model-capability problem, so a downgrade would only lose quality.
+    if (enriched.details?.likelyTruncated && !usedConfig.tokenBumped) {
+      const ceiling = providerMaxOutputCeiling(usedConfig.provider);
+      if (ceiling > (usedConfig.maxOutputTokens || 0)) {
+        const retryConfig = { ...usedConfig, maxOutputTokens: ceiling, tokenBumped: true };
+        return requestAndParseProviderJson(retryConfig, apiKey, promptParts, schema, schemaName, enriched);
+      }
+    }
     if (usedConfig.provider === "deepseek" && usedConfig.model === DEEPSEEK_PRO_MODEL) {
       const retryConfig = { ...usedConfig, model: DEEPSEEK_FLASH_MODEL, fallbackFromModel: DEEPSEEK_PRO_MODEL };
       return requestAndParseProviderJson(retryConfig, apiKey, promptParts, schema, schemaName, enriched);
@@ -18667,6 +19467,23 @@ async function callProvider(payload) {
         ].slice(0, 8),
       };
     }
+  } else if (
+    homeAiFaithfulMode() &&
+    renderModeWantsAiHtml(renderMode) &&
+    htmlScheme?.enabled &&
+    htmlScheme.sourceType !== "brick-library-backed" &&
+    !htmlScheme.isFallback &&
+    Number.isFinite(Number(htmlScheme.qualityScore)) &&
+    Number(htmlScheme.qualityScore) < homeAiFallbackMinScore()
+  ) {
+    // 忠实模式：分数低于门槛本应回退积木，但这里保留模型真实 HTML，仅做标注。
+    htmlScheme = {
+      ...htmlScheme,
+      correctionNotes: [
+        ...(Array.isArray(htmlScheme.correctionNotes) ? htmlScheme.correctionNotes : []),
+        `忠实模式 (HOME_AI_FAITHFUL=true)：质量门禁 ${htmlScheme.qualityScore}/100 未达标，但保留模型真实 HTML、未启用积木同款兜底。`,
+      ].slice(0, 8),
+    };
   }
 
   const finalQuality = finalizeHomepageQuality(policyPayload, homepageConfig, htmlScheme);

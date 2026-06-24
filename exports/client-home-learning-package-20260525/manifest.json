@@ -1,0 +1,55 @@
+{
+  "name": "client-home-learning-package",
+  "createdAt": "2026-05-25",
+  "sourceRoot": "/Users/n02g00d/Documents/New project 2",
+  "sourceEntrypoint": "client-home.html",
+  "entrypoints": [
+    "client-home.html",
+    "index.html"
+  ],
+  "copiedAsIs": true,
+  "originalInterfaceModified": false,
+  "runtimeNote": "Open through a static server so relative CSS and JS paths resolve consistently.",
+  "files": [
+    {
+      "path": "client-home.html",
+      "role": "Homepage DOM structure and original module template"
+    },
+    {
+      "path": "index.html",
+      "role": "Convenience duplicate of client-home.html"
+    },
+    {
+      "path": "client-home.css",
+      "role": "Client homepage visual styling"
+    },
+    {
+      "path": "client-home.js",
+      "role": "Client homepage data and interactions"
+    },
+    {
+      "path": "home-personalization.js",
+      "role": "AI homepage config, blueprint normalization, and rendering"
+    },
+    {
+      "path": "home-personalization.css",
+      "role": "AI blueprint and personalized homepage styling"
+    },
+    {
+      "path": "common-layout.js",
+      "role": "Shared sidebar, topbar, and tabbar shell"
+    },
+    {
+      "path": "theme.js",
+      "role": "Theme and tenant-theme runtime"
+    },
+    {
+      "path": "theme.css",
+      "role": "Theme token CSS"
+    },
+    {
+      "path": "styles.css",
+      "role": "Shared base styles"
+    }
+  ]
+}

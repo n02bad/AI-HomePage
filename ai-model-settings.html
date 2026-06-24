@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="./theme.css?v=tenant-home-4" />
     <link rel="stylesheet" href="./client-home.css?v=tenant-home-4" />
     <link rel="stylesheet" href="./home-personalization.css?v=tenant-home-5" />
-    <link rel="stylesheet" href="./ai-model-settings.css?v=ai-model-settings-1" />
+    <link rel="stylesheet" href="./ai-model-settings.css?v=ai-model-settings-2" />
   </head>
   <body data-layout-page="ai-model-settings">
     <main class="app" data-layout-main>
@@ -61,6 +61,7 @@
               </div>
 
               <form class="ai-model-settings-form" data-model-settings-form>
+                <p class="ai-model-form-group">模型选择</p>
                 <label>
                   厂商
                   <select data-model-settings-field="provider">
@@ -76,18 +77,8 @@
                   模型 ID
                   <select data-model-settings-field="model" data-model-settings-model-options></select>
                 </label>
-                <label class="wide">
-                  API Base URL
-                  <input data-model-settings-field="baseUrl" autocomplete="off" />
-                </label>
-                <label>
-                  Endpoint
-                  <input data-model-settings-field="endpoint" autocomplete="off" />
-                </label>
-                <label>
-                  API Mode
-                  <input data-model-settings-field="apiMode" autocomplete="off" />
-                </label>
+
+                <p class="ai-model-form-group">生成参数</p>
                 <label>
                   调用方式
                   <select data-model-settings-field="callMode">
@@ -102,6 +93,20 @@
                 <label>
                   最大输出 Tokens
                   <input data-model-settings-field="maxOutputTokens" type="number" min="512" max="12000" step="256" />
+                </label>
+
+                <p class="ai-model-form-group">连接信息</p>
+                <label class="wide">
+                  API Base URL
+                  <input data-model-settings-field="baseUrl" autocomplete="off" />
+                </label>
+                <label>
+                  Endpoint
+                  <input data-model-settings-field="endpoint" autocomplete="off" />
+                </label>
+                <label>
+                  API Mode
+                  <input data-model-settings-field="apiMode" autocomplete="off" />
                 </label>
                 <label class="wide">
                   API Key

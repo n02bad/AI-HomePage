@@ -1347,7 +1347,7 @@
   }
 
   function selectedGoldenFiles() {
-    return (state.goldenPendingFiles.length ? state.goldenPendingFiles : [...(els.goldenFile?.files || [])]).slice(0, 3);
+    return (state.goldenPendingFiles.length ? state.goldenPendingFiles : [...(els.goldenFile?.files || [])]).slice(0, 6);
   }
 
   function setGoldenAnalysisStatus(message) {
@@ -1395,16 +1395,26 @@
       els.goldenAnalysisSummary.innerHTML = "";
       return;
     }
-    const files = (analysis.sourceFileSummary || []).slice(0, 3);
+    const files = (analysis.sourceFileSummary || []).slice(0, 6);
     const patterns = (analysis.goodPatterns || []).slice(0, 5);
     const functions = (analysis.functions || []).map((item) => item.name).filter(Boolean).slice(0, 6);
+    const tokens = [
+      ...(analysis.themeTokens?.colorPalette || []).slice(0, 6),
+      ...(analysis.themeTokens?.spacingScale || []).slice(0, 4),
+    ].slice(0, 10);
+    const cards = (analysis.cssSummary?.componentCards || analysis.themeTokens?.componentCards || [])
+      .map((item) => item.heading || item.role)
+      .filter(Boolean)
+      .slice(0, 6);
     els.goldenAnalysisSummary.hidden = false;
     els.goldenAnalysisSummary.innerHTML = `
       <h4>${escapeHtml(analysis.name || "自动提取结果")}</h4>
       <p>${escapeHtml(analysis.page?.layout || analysis.whyGood || "已提取可学习的视觉黄金样本内容。")}</p>
       ${chipRow([analysis.pageIntent, analysis.themePreset, analysis.visualStyle, ...(analysis.scenarioTags || [])].filter(Boolean), "context-tags")}
       ${files.length ? `<p>文件：${escapeHtml(files.join("；"))}</p>` : ""}
+      ${tokens.length ? `<p>Token：${escapeHtml(tokens.join(" / "))}</p>` : ""}
       ${functions.length ? `<p>功能组件：${escapeHtml(functions.join("、"))}</p>` : ""}
+      ${cards.length ? `<p>组件卡片：${escapeHtml(cards.join("、"))}</p>` : ""}
       ${patterns.length ? `<ul>${patterns.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}
     `;
   }
@@ -1412,12 +1422,12 @@
   async function analyzeGoldenFiles() {
     const files = selectedGoldenFiles();
     if (!files.length) {
-      showToast("请先选择 1-3 个黄金样本文件");
+      showToast("请先选择 1-6 个黄金样本文件");
       setGoldenAnalysisStatus("还没有文件可分析。");
       return;
     }
-    if (files.length > 3) {
-      showToast("一次最多分析 3 个文件");
+    if (files.length > 6) {
+      showToast("一次最多分析 6 个文件");
       return;
     }
     if (els.analyzeGoldenFiles) els.analyzeGoldenFiles.disabled = true;
@@ -1790,7 +1800,7 @@
           ? `已选择 ${state.goldenPendingFiles.length} 个文件，点击自动提取生成黄金样本内容。`
           : "等待选择文件。会提取界面骨架、结构、间距、留白、功能组件和视觉 token。",
       );
-      if ((els.goldenFile.files || []).length > 3) showToast("一次最多分析并保存前 3 个文件");
+      if ((els.goldenFile.files || []).length > 6) showToast("一次最多分析并保存前 6 个文件");
     });
     [
       els.sampleFilterScenario,

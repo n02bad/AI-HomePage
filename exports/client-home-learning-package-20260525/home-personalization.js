@@ -1,7 +1,6 @@
 (function () {
   const STORAGE_KEY = "forexcrm.home.personalization";
   const DRAFT_STORAGE_KEY = "forexcrm.home.personalization.draft";
-  const VOLATILE_STORAGE_KEYS = ["forexcrm.home.ai.call.history", "forexcrm.home.ai.suggestion.history"];
   const ECHARTS_RUNTIME_URL = "https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js";
   let chartRuntimePromise = null;
   const chartInstances = new WeakMap();
@@ -1245,15 +1244,13 @@
       themePreset: { enum: Object.keys(THEMES) },
       theme: { enum: Object.keys(THEMES) },
       colorMode: { enum: ["auto", "light", "dark"] },
-	      themeCustom: {
-	        type: "object",
-	        properties: {
-	          input: { type: "string" },
-	          primaryColor: { type: "string" },
-	        },
-	      },
-	      styleContract: { type: "object" },
-	      goldenStyleContract: { type: "object" },
+      themeCustom: {
+        type: "object",
+        properties: {
+          input: { type: "string" },
+          primaryColor: { type: "string" },
+        },
+      },
       personalizationStrength: { enum: ["subtle", "medium", "strong"] },
       modules: {
         type: "object",
@@ -2149,11 +2146,9 @@
     layoutPreset: "onboardingJourney",
     designGenome: "onboardingJourney",
     pageStory: "accountActivation",
-	    themePreset: "blueFinance",
-	    theme: "blueFinance",
-	    themeCustom: null,
-	    styleContract: null,
-	    goldenStyleContract: null,
+    themePreset: "blueFinance",
+    theme: "blueFinance",
+    themeCustom: null,
     personalizationStrength: "strong",
     density: "balanced",
     heroFocus: "copytrading_signals",
@@ -2489,9 +2484,9 @@
         cardShadow: "none",
       },
       chromePolicy: {
-        mode: "cardedDashboard",
-        sectionChrome: "group",
-        defaultSlotChrome: "contained",
+        mode: "flatConnected",
+        sectionChrome: "connected",
+        defaultSlotChrome: "flat",
         slotOverrides: {
           trading_account_highlight: "tableSurface",
           trading_accounts_list: "tableSurface",
@@ -2500,8 +2495,8 @@
           support_contact: "rail",
           app_download: "rail",
         },
-        componentBoundary: "component-contained",
-        promptRule: "页面背景、模块表面和模块边界必须清楚分层；普通 slot 保留轻量卡片边界，不把不同业务模块融成一个外壳。",
+        componentBoundary: "page-owned",
+        promptRule: "页面骨架负责外壳、分隔线和区块衔接，普通 slot 输出无重卡片内容片段。",
       },
       componentRules: [
         "所有业务模块保持薄边框、低阴影、紧凑标题栏和一致的指标字号。",
@@ -2686,18 +2681,6 @@
         mode: "sectionBand",
         sectionChrome: "band",
         defaultSlotChrome: "flat",
-        sectionOverrides: {
-          "welcome-header": "connected",
-          "deposit-hero": "connected",
-          "deposit-actions": "plain",
-          "deposit-activation": "plain",
-          "deposit-kyc-status": "plain",
-          "deposit-copytrading": "band",
-          "deposit-referral-faq": "band",
-          "deposit-performance": "workbench",
-          "deposit-accounts": "workbench",
-          "risk-disclosure-footer": "band",
-        },
         slotOverrides: {
           promo_banner: "featured",
           asset_overview: "inline",
@@ -2707,7 +2690,7 @@
           risk_disclosure: "legalStrip",
         },
         componentBoundary: "page-owned",
-        promptRule: "入金路径可以按顺序靠近，但奖励、账户摘要和快捷入口必须保留可识别模块边界；不要用连续浅色带把不同业务模块糊成一个外壳。",
+        promptRule: "入金路径由连续内容带串联，奖励、账户摘要和下一步动作共享外壳；辅助 slot 不再自带重卡片。",
       },
       componentRules: [
         "入金奖励和账户摘要是首屏主线，钱包长列表、出金和复杂图表必须降级。",
@@ -2720,9 +2703,6 @@
       ],
       moduleGrammar: "奖励阶梯、资产摘要、新手路径、账号证明和规则说明共同组成入金转化页。",
       differenceRule: "本方案差异必须体现入金路径，不要只是把普通首页顶部换成活动文案。",
-      layoutRules: {
-        blockRelation: "欢迎、奖励、账户摘要和开户路径必须连续成组；CopyTrading、推广帮助、账号证明和风险披露之间使用明确硬断点。",
-      },
     },
   };
 
@@ -5255,18 +5235,18 @@
         riskNotice: { enabled: false },
       }));
 		      next.sections = [
-		        ...(wantsWelcomeHeader ? [{ id: "welcome-header", type: "full", title: "欢迎", transition: "connected", slots: ["welcome_header"] }] : []),
-		        { id: "deposit-hero", type: "full", title: "首次入金", transition: "connected", slots: ["promo_banner"] },
-		        { id: "deposit-actions", type: "split", title: "账户与快捷入口", transition: "plain", slots: ["asset_overview", "quick_actions"] },
-		        { id: "deposit-activation", type: "full", title: "开户引导", transition: "plain", slots: ["onboarding_guide"] },
-		        ...(slotVisibleInConfig(next, "kyc_status_card") ? [{ id: "deposit-kyc-status", type: "rail", title: "KYC 状态", transition: "plain", slots: ["kyc_status_card"] }] : []),
-		        ...(slotVisibleInConfig(next, "copytrading_signals") ? [{ id: "deposit-copytrading", type: "full", title: "CopyTrading", transition: "hard-break", slots: ["copytrading_signals"] }] : []),
+		        ...(wantsWelcomeHeader ? [{ id: "welcome-header", type: "full", title: "欢迎", slots: ["welcome_header"] }] : []),
+		        { id: "deposit-hero", type: "full", title: "首次入金", slots: ["promo_banner"] },
+		        { id: "deposit-actions", type: "split", title: "账户与快捷入口", slots: ["asset_overview", "quick_actions"] },
+		        { id: "deposit-activation", type: "full", title: "开户引导", slots: ["onboarding_guide"] },
+		        ...(slotVisibleInConfig(next, "kyc_status_card") ? [{ id: "deposit-kyc-status", type: "rail", title: "KYC 状态", slots: ["kyc_status_card"] }] : []),
+		        ...(slotVisibleInConfig(next, "copytrading_signals") ? [{ id: "deposit-copytrading", type: "full", title: "CopyTrading", slots: ["copytrading_signals"] }] : []),
 		        ...(slotVisibleInConfig(next, "referral_link_card") || slotVisibleInConfig(next, "faq_section")
-		          ? [{ id: "deposit-referral-faq", type: "split", title: "推广与帮助", transition: "hard-break", slots: ["referral_link_card", "faq_section"].filter((slot) => slotVisibleInConfig(next, slot)) }]
+		          ? [{ id: "deposit-referral-faq", type: "split", title: "推广与帮助", slots: ["referral_link_card", "faq_section"].filter((slot) => slotVisibleInConfig(next, slot)) }]
 		          : []),
-		        { id: "deposit-performance", type: "full", title: "账号表现", transition: "hard-break", slots: ["trading_account_highlight"] },
-		        { id: "deposit-accounts", type: "full", title: "交易账号", transition: "connected", slots: ["trading_accounts_list"] },
-		        ...(slotVisibleInConfig(next, "risk_disclosure") ? [{ id: "risk-disclosure-footer", type: "full", title: "风险提示", transition: "hard-break", slots: ["risk_disclosure"] }] : []),
+		        { id: "deposit-performance", type: "full", title: "账号表现", slots: ["trading_account_highlight"] },
+		        { id: "deposit-accounts", type: "full", title: "交易账号", slots: ["trading_accounts_list"] },
+		        ...(slotVisibleInConfig(next, "risk_disclosure") ? [{ id: "risk-disclosure-footer", type: "full", title: "风险提示", slots: ["risk_disclosure"] }] : []),
 		      ];
 	      next.brickPlan = depositGovernedBrickPlan(depositMode);
       next.layout = enforceHomepageLayoutSafety(
@@ -5806,179 +5786,69 @@
     return "2x1";
   }
 
-	  function skeletonContractArray(value, fallback = []) {
-	    const source = Array.isArray(value) ? value : fallback;
-	    return source.map((item) => cleanMetaText(item, "", 180)).filter(Boolean).slice(0, 8);
-	  }
+  function skeletonContractArray(value, fallback = []) {
+    const source = Array.isArray(value) ? value : fallback;
+    return source.map((item) => cleanMetaText(item, "", 180)).filter(Boolean).slice(0, 8);
+  }
 
-	  function skeletonContractToken(value, fallback = "", limit = 120) {
-	    return cleanMetaText(value, fallback, limit);
-	  }
+  function normalizeSkeletonDesignContract(source, fallback = {}) {
+    const contract = source && typeof source === "object" ? source : fallback && typeof fallback === "object" ? fallback : {};
+    const fallbackTokens = fallback.tokens && typeof fallback.tokens === "object" ? fallback.tokens : {};
+    const tokens = contract.tokens && typeof contract.tokens === "object" ? contract.tokens : fallbackTokens;
+    const chromePolicy = normalizeSkeletonChromePolicy(contract.chromePolicy, fallback.chromePolicy);
+    return {
+      id: cleanMetaText(contract.id || fallback.id, "ops-console", 48),
+      label: cleanMetaText(contract.label || fallback.label, "账户运营控制台契约", 80),
+      personality: cleanMetaText(contract.personality || fallback.personality, "ops-console", 48),
+      tone: cleanMetaText(contract.tone || fallback.tone, "冷静、清晰、可扫描", 120),
+      surface: cleanMetaText(contract.surface || fallback.surface, "薄边框白底模块，浅蓝灰背景，只用一套主色强调状态和主操作。", 180),
+      narrative: cleanMetaText(contract.narrative || fallback.narrative, "先决定整页叙事，再按 slot 填充模块。", 180),
+      density: cleanMetaText(contract.density || fallback.density, "balanced", 32),
+      theme: cleanMetaText(contract.theme || fallback.theme, "blueFinance", 48),
+      tokens: {
+        cardRadius: cleanMetaText(tokens.cardRadius, "8px", 24),
+        buttonRadius: cleanMetaText(tokens.buttonRadius, "8px", 24),
+        sectionGap: cleanMetaText(tokens.sectionGap, "14px", 24),
+        cardPadding: cleanMetaText(tokens.cardPadding, "16px", 24),
+        cardShadow: cleanMetaText(tokens.cardShadow, "none", 80),
+      },
+      componentRules: skeletonContractArray(contract.componentRules, fallback.componentRules),
+      ctaRules: skeletonContractArray(contract.ctaRules, fallback.ctaRules),
+      moduleGrammar: cleanMetaText(contract.moduleGrammar || fallback.moduleGrammar, "用统一模块语法组织整页。", 220),
+      differenceRule: cleanMetaText(contract.differenceRule || fallback.differenceRule, "差异来自整页叙事和结构分叉，不靠随机换色。", 220),
+      chromePolicy,
+    };
+  }
 
-	  function normalizeSkeletonLayoutRules(source = {}, fallback = {}) {
-	    const rules = source && typeof source === "object" ? source : {};
-	    const fallbackRules = fallback && typeof fallback === "object" ? fallback : {};
-	    return {
-	      maxWidth: cleanMetaText(rules.maxWidth || fallbackRules.maxWidth, "1280px", 24),
-	      gridColumns: Number(rules.gridColumns || fallbackRules.gridColumns || HOME_GRID_COLUMNS) || HOME_GRID_COLUMNS,
-	      rowRecipes: (Array.isArray(rules.rowRecipes) ? rules.rowRecipes : fallbackRules.rowRecipes || [])
-	        .map((item) => cleanMetaText(item, "", 24))
-	        .filter(Boolean)
-	        .slice(0, 6),
-	      sectionGrouping: cleanMetaText(rules.sectionGrouping || fallbackRules.sectionGrouping, "", 180),
-	      backgroundRule: cleanMetaText(rules.backgroundRule || fallbackRules.backgroundRule, "", 180),
-	      blockRelation: cleanMetaText(rules.blockRelation || fallbackRules.blockRelation, "", 180),
-	    };
-	  }
-
-	  function compactSkeletonThemeCustom(source = {}, fallback = {}) {
-	    const theme = source && typeof source === "object" ? source : {};
-	    const fallbackTheme = fallback && typeof fallback === "object" ? fallback : {};
-	    return compactThemeObject({
-	      input: cleanMetaText(theme.input || fallbackTheme.input, "", 96),
-	      primaryColor: cleanMetaText(theme.primaryColor || fallbackTheme.primaryColor, "", 40),
-	      primaryStrong: cleanMetaText(theme.primaryStrong || fallbackTheme.primaryStrong, "", 40),
-	      primaryText: cleanMetaText(theme.primaryText || fallbackTheme.primaryText, "", 40),
-	      accentColor: cleanMetaText(theme.accentColor || fallbackTheme.accentColor, "", 40),
-	      backgroundStyle: cleanMetaText(theme.backgroundStyle || fallbackTheme.backgroundStyle, "", 180),
-	      cardStyle: cleanMetaText(theme.cardStyle || fallbackTheme.cardStyle, "", 80),
-	      surfaceColor: cleanMetaText(theme.surfaceColor || fallbackTheme.surfaceColor, "", 80),
-	      surfaceSoft: cleanMetaText(theme.surfaceSoft || fallbackTheme.surfaceSoft, "", 80),
-	      surfaceMuted: cleanMetaText(theme.surfaceMuted || fallbackTheme.surfaceMuted, "", 80),
-	      textStrong: cleanMetaText(theme.textStrong || fallbackTheme.textStrong, "", 40),
-	      textColor: cleanMetaText(theme.textColor || fallbackTheme.textColor, "", 40),
-	      textSoft: cleanMetaText(theme.textSoft || fallbackTheme.textSoft, "", 40),
-	      textMuted: cleanMetaText(theme.textMuted || fallbackTheme.textMuted, "", 40),
-	      borderColor: cleanMetaText(theme.borderColor || fallbackTheme.borderColor, "", 80),
-	      borderSoft: cleanMetaText(theme.borderSoft || fallbackTheme.borderSoft, "", 80),
-	      buttonStyle: cleanMetaText(theme.buttonStyle || fallbackTheme.buttonStyle, "", 160),
-	      buttonText: cleanMetaText(theme.buttonText || fallbackTheme.buttonText, "", 40),
-	      cardShadow: cleanMetaText(theme.cardShadow || fallbackTheme.cardShadow, "", 120),
-	    });
-	  }
-
-	  function mergeSkeletonDesignContracts(base = {}, override = {}) {
-	    const source = base && typeof base === "object" ? base : {};
-	    const patch = override && typeof override === "object" ? override : {};
-	    return {
-	      ...source,
-	      ...patch,
-	      tokens: {
-	        ...(source.tokens && typeof source.tokens === "object" ? source.tokens : {}),
-	        ...(patch.tokens && typeof patch.tokens === "object" ? patch.tokens : {}),
-	      },
-	      chromePolicy: {
-	        ...(source.chromePolicy && typeof source.chromePolicy === "object" ? source.chromePolicy : {}),
-	        ...(patch.chromePolicy && typeof patch.chromePolicy === "object" ? patch.chromePolicy : {}),
-	        slotOverrides: {
-	          ...(source.chromePolicy?.slotOverrides && typeof source.chromePolicy.slotOverrides === "object" ? source.chromePolicy.slotOverrides : {}),
-	          ...(patch.chromePolicy?.slotOverrides && typeof patch.chromePolicy.slotOverrides === "object" ? patch.chromePolicy.slotOverrides : {}),
-	        },
-	        sectionOverrides: {
-	          ...(source.chromePolicy?.sectionOverrides && typeof source.chromePolicy.sectionOverrides === "object" ? source.chromePolicy.sectionOverrides : {}),
-	          ...(patch.chromePolicy?.sectionOverrides && typeof patch.chromePolicy.sectionOverrides === "object" ? patch.chromePolicy.sectionOverrides : {}),
-	        },
-	      },
-	      layoutRules: {
-	        ...(source.layoutRules && typeof source.layoutRules === "object" ? source.layoutRules : {}),
-	        ...(patch.layoutRules && typeof patch.layoutRules === "object" ? patch.layoutRules : {}),
-	      },
-	      themeCustom: {
-	        ...(source.themeCustom && typeof source.themeCustom === "object" ? source.themeCustom : {}),
-	        ...(patch.themeCustom && typeof patch.themeCustom === "object" ? patch.themeCustom : {}),
-	      },
-	    };
-	  }
-
-	  function normalizeSkeletonDesignContract(source, fallback = {}) {
-	    const contract = source && typeof source === "object" ? source : fallback && typeof fallback === "object" ? fallback : {};
-	    const fallbackTokens = fallback.tokens && typeof fallback.tokens === "object" ? fallback.tokens : {};
-	    const tokens = contract.tokens && typeof contract.tokens === "object" ? contract.tokens : fallbackTokens;
-	    const chromePolicy = normalizeSkeletonChromePolicy(contract.chromePolicy, fallback.chromePolicy);
-	    const layoutRules = normalizeSkeletonLayoutRules(contract.layoutRules, fallback.layoutRules);
-	    return {
-	      id: cleanMetaText(contract.id || fallback.id, "ops-console", 48),
-	      label: cleanMetaText(contract.label || fallback.label, "账户运营控制台契约", 80),
-	      sourceSampleId: cleanMetaText(contract.sourceSampleId || fallback.sourceSampleId, "", 80),
-	      sourceSampleName: cleanMetaText(contract.sourceSampleName || fallback.sourceSampleName, "", 100),
-	      sourceSampleIds: (Array.isArray(contract.sourceSampleIds) ? contract.sourceSampleIds : fallback.sourceSampleIds || [])
-	        .map((item) => cleanMetaText(item, "", 80))
-	        .filter(Boolean)
-	        .slice(0, 5),
-	      sourceSampleNames: (Array.isArray(contract.sourceSampleNames) ? contract.sourceSampleNames : fallback.sourceSampleNames || [])
-	        .map((item) => cleanMetaText(item, "", 100))
-	        .filter(Boolean)
-	        .slice(0, 5),
-	      personality: cleanMetaText(contract.personality || fallback.personality, "ops-console", 48),
-	      tone: cleanMetaText(contract.tone || fallback.tone, "冷静、清晰、可扫描", 120),
-	      surface: cleanMetaText(contract.surface || fallback.surface, "薄边框白底模块，浅蓝灰背景，只用一套主色强调状态和主操作。", 180),
-	      narrative: cleanMetaText(contract.narrative || fallback.narrative, "先决定整页叙事，再按 slot 填充模块。", 180),
-	      density: cleanMetaText(contract.density || fallback.density, "balanced", 32),
-	      theme: cleanMetaText(contract.theme || fallback.theme, "blueFinance", 48),
-	      tokens: {
-	        pageMaxWidth: skeletonContractToken(tokens.pageMaxWidth || layoutRules.maxWidth, "1320px", 24),
-	        pageGutter: skeletonContractToken(tokens.pageGutter, "16px", 24),
-	        cardRadius: skeletonContractToken(tokens.cardRadius, "8px", 24),
-	        buttonRadius: skeletonContractToken(tokens.buttonRadius, "8px", 24),
-	        sectionGap: skeletonContractToken(tokens.sectionGap, "14px", 24),
-	        rowGap: skeletonContractToken(tokens.rowGap || tokens.sectionGap, "14px", 24),
-	        cardPadding: skeletonContractToken(tokens.cardPadding, "16px", 24),
-	        cardShadow: skeletonContractToken(tokens.cardShadow, "none", 100),
-	        cardBorder: skeletonContractToken(tokens.cardBorder, "var(--home-border-soft)", 80),
-	        background: skeletonContractToken(tokens.background, "var(--home-bg)", 180),
-	        surface: skeletonContractToken(tokens.surface, "var(--home-card-bg)", 80),
-	        surfaceSoft: skeletonContractToken(tokens.surfaceSoft, "var(--home-surface-soft)", 80),
-	        surfaceMuted: skeletonContractToken(tokens.surfaceMuted, "var(--home-surface-muted)", 80),
-	        primaryColor: skeletonContractToken(tokens.primaryColor, "var(--home-primary)", 40),
-	        primaryStrong: skeletonContractToken(tokens.primaryStrong, "var(--home-primary-strong)", 40),
-	        accentColor: skeletonContractToken(tokens.accentColor, "var(--home-accent)", 40),
-	        textStrong: skeletonContractToken(tokens.textStrong, "var(--home-text-strong)", 40),
-	        textMuted: skeletonContractToken(tokens.textMuted, "var(--home-text-muted)", 40),
-	      },
-	      componentRules: skeletonContractArray(contract.componentRules, fallback.componentRules),
-	      ctaRules: skeletonContractArray(contract.ctaRules, fallback.ctaRules),
-	      moduleGrammar: cleanMetaText(contract.moduleGrammar || fallback.moduleGrammar, "用统一模块语法组织整页。", 220),
-	      differenceRule: cleanMetaText(contract.differenceRule || fallback.differenceRule, "差异来自整页叙事和结构分叉，不靠随机换色。", 220),
-	      layoutRules,
-	      themeCustom: compactSkeletonThemeCustom(contract.themeCustom, fallback.themeCustom),
-	      chromePolicy,
-	    };
-	  }
-
-	  function buildSkeletonDesignContract(config = {}) {
-	    const source = config && typeof config === "object" ? config : {};
-	    const layoutPreset = normalizeLayoutPreset(source.layoutPreset || (typeof source.layout === "string" ? source.layout : ""));
-	    const designGenome = normalizeDesignGenome(source.designGenome || source.layoutGene || source.genome, designGenomeForLayout(layoutPreset));
-	    const genome = DESIGN_GENOMES[designGenome] || DESIGN_GENOMES.accountOpsConsole;
-	    const storyId = normalizePageStory(source.pageStory || source.heroNarrative || source.story, genome.story || "opsClarity");
-	    const story = PAGE_STORIES[storyId] || PAGE_STORIES.opsClarity;
-	    const template = SKELETON_STYLE_CONTRACTS[designGenome] || SKELETON_STYLE_CONTRACTS[genome.id] || SKELETON_STYLE_CONTRACTS.accountOpsConsole;
-	    const density = ["compact", "comfortable", "balanced", "spacious"].includes(source.density) ? source.density : genome.density || DEFAULT_CONFIG.density;
-	    const theme = normalizeThemeId(source.themePreset || source.theme || genome.themePreset || DEFAULT_CONFIG.themePreset);
-	    const explicitContract =
-	      (source.styleContract && typeof source.styleContract === "object" ? source.styleContract : null) ||
-	      (source.goldenStyleContract && typeof source.goldenStyleContract === "object" ? source.goldenStyleContract : null);
-	    const baseContract = explicitContract ? mergeSkeletonDesignContracts(template, explicitContract) : template;
-	    return normalizeSkeletonDesignContract(
-	      {
-	        ...baseContract,
-	        narrative: explicitContract?.narrative || `${story.label || storyId}：${story.summary || baseContract.differenceRule || template.differenceRule}`,
-	        density: explicitContract?.density || density,
-	        theme: explicitContract?.theme || theme,
-	      },
-	      SKELETON_STYLE_CONTRACTS.accountOpsConsole,
-	    );
-	  }
+  function buildSkeletonDesignContract(config = {}) {
+    const source = config && typeof config === "object" ? config : {};
+    const layoutPreset = normalizeLayoutPreset(source.layoutPreset || (typeof source.layout === "string" ? source.layout : ""));
+    const designGenome = normalizeDesignGenome(source.designGenome || source.layoutGene || source.genome, designGenomeForLayout(layoutPreset));
+    const genome = DESIGN_GENOMES[designGenome] || DESIGN_GENOMES.accountOpsConsole;
+    const storyId = normalizePageStory(source.pageStory || source.heroNarrative || source.story, genome.story || "opsClarity");
+    const story = PAGE_STORIES[storyId] || PAGE_STORIES.opsClarity;
+    const template = SKELETON_STYLE_CONTRACTS[designGenome] || SKELETON_STYLE_CONTRACTS[genome.id] || SKELETON_STYLE_CONTRACTS.accountOpsConsole;
+    const density = ["compact", "comfortable", "balanced", "spacious"].includes(source.density) ? source.density : genome.density || DEFAULT_CONFIG.density;
+    const theme = normalizeThemeId(source.themePreset || source.theme || genome.themePreset || DEFAULT_CONFIG.themePreset);
+    return normalizeSkeletonDesignContract(
+      {
+        ...template,
+        narrative: `${story.label || storyId}：${story.summary || template.differenceRule}`,
+        density,
+        theme,
+      },
+      SKELETON_STYLE_CONTRACTS.accountOpsConsole,
+    );
+  }
 
   function skeletonDesignContractPrompt(contract = {}) {
     const normalized = normalizeSkeletonDesignContract(contract, SKELETON_STYLE_CONTRACTS.accountOpsConsole);
     return [
-	      `整页风格契约：${normalized.label} / ${normalized.tone}`,
-	      `叙事规则：${normalized.narrative}`,
-	      `视觉表面：${normalized.surface}`,
-	      `全局 token：页面宽度 ${normalized.tokens.pageMaxWidth}，背景 ${normalized.tokens.background}，圆角 ${normalized.tokens.cardRadius}，按钮圆角 ${normalized.tokens.buttonRadius}，区块间距 ${normalized.tokens.sectionGap}，行间距 ${normalized.tokens.rowGap}，卡片内距 ${normalized.tokens.cardPadding}，边框 ${normalized.tokens.cardBorder}，阴影 ${normalized.tokens.cardShadow}`,
-	      normalized.layoutRules.blockRelation ? `块关系：${normalized.layoutRules.blockRelation}` : "",
-	      normalized.componentRules.length ? `组件统一规则：${normalized.componentRules.join("；")}` : "",
+      `整页风格契约：${normalized.label} / ${normalized.tone}`,
+      `叙事规则：${normalized.narrative}`,
+      `视觉表面：${normalized.surface}`,
+      `全局 token：圆角 ${normalized.tokens.cardRadius}，按钮圆角 ${normalized.tokens.buttonRadius}，区块间距 ${normalized.tokens.sectionGap}，卡片内距 ${normalized.tokens.cardPadding}，阴影 ${normalized.tokens.cardShadow}`,
+      normalized.componentRules.length ? `组件统一规则：${normalized.componentRules.join("；")}` : "",
       normalized.ctaRules.length ? `CTA 统一规则：${normalized.ctaRules.join("；")}` : "",
       `模块语法：${normalized.moduleGrammar}`,
       `外壳策略：${normalized.chromePolicy.mode} / ${normalized.chromePolicy.componentBoundary}。${normalized.chromePolicy.promptRule}`,
@@ -5988,31 +5858,20 @@
       .join("\n");
   }
 
-	  function skeletonContractCssValue(value, fallback) {
-	    const source = String(value || fallback || "").trim();
-	    return /^[#\w\s.,:%()+-]+$/.test(source) ? source.slice(0, 180) : fallback;
-	  }
+  function skeletonContractCssValue(value, fallback) {
+    const source = String(value || fallback || "").trim();
+    return /^[#\w\s.,:%()+-]+$/.test(source) ? source.slice(0, 90) : fallback;
+  }
 
-	  function applySkeletonContractStyleVars(node, contract = {}) {
-	    if (!node?.style) return;
-	    const normalized = normalizeSkeletonDesignContract(contract, SKELETON_STYLE_CONTRACTS.accountOpsConsole);
-	    node.style.setProperty("--home-skeleton-contract-max-width", skeletonContractCssValue(normalized.tokens.pageMaxWidth, "1320px"));
-	    node.style.setProperty("--home-skeleton-contract-page-gutter", skeletonContractCssValue(normalized.tokens.pageGutter, "16px"));
-	    node.style.setProperty("--home-skeleton-contract-radius", skeletonContractCssValue(normalized.tokens.cardRadius, "8px"));
-	    node.style.setProperty("--home-skeleton-contract-button-radius", skeletonContractCssValue(normalized.tokens.buttonRadius, "8px"));
-	    node.style.setProperty("--home-skeleton-contract-gap", skeletonContractCssValue(normalized.tokens.sectionGap, "14px"));
-	    node.style.setProperty("--home-skeleton-contract-row-gap", skeletonContractCssValue(normalized.tokens.rowGap, "14px"));
-	    node.style.setProperty("--home-skeleton-contract-padding", skeletonContractCssValue(normalized.tokens.cardPadding, "16px"));
-	    node.style.setProperty("--home-skeleton-contract-shadow", skeletonContractCssValue(normalized.tokens.cardShadow, "none"));
-	    node.style.setProperty("--home-skeleton-contract-border", skeletonContractCssValue(normalized.tokens.cardBorder, "var(--home-border-soft)"));
-	    node.style.setProperty("--home-skeleton-contract-bg", skeletonContractCssValue(normalized.tokens.background, "var(--home-bg)"));
-	    node.style.setProperty("--home-skeleton-contract-surface", skeletonContractCssValue(normalized.tokens.surface, "var(--home-card-bg)"));
-	    node.style.setProperty("--home-skeleton-contract-surface-soft", skeletonContractCssValue(normalized.tokens.surfaceSoft, "var(--home-surface-soft)"));
-	    node.style.setProperty("--home-skeleton-contract-surface-muted", skeletonContractCssValue(normalized.tokens.surfaceMuted, "var(--home-surface-muted)"));
-	    node.style.setProperty("--home-skeleton-contract-primary", skeletonContractCssValue(normalized.tokens.primaryColor, "var(--home-primary)"));
-	    node.style.setProperty("--home-skeleton-contract-primary-strong", skeletonContractCssValue(normalized.tokens.primaryStrong, "var(--home-primary-strong)"));
-	    node.style.setProperty("--home-skeleton-contract-accent", skeletonContractCssValue(normalized.tokens.accentColor, "var(--home-accent)"));
-	  }
+  function applySkeletonContractStyleVars(node, contract = {}) {
+    if (!node?.style) return;
+    const normalized = normalizeSkeletonDesignContract(contract, SKELETON_STYLE_CONTRACTS.accountOpsConsole);
+    node.style.setProperty("--home-skeleton-contract-radius", skeletonContractCssValue(normalized.tokens.cardRadius, "8px"));
+    node.style.setProperty("--home-skeleton-contract-button-radius", skeletonContractCssValue(normalized.tokens.buttonRadius, "8px"));
+    node.style.setProperty("--home-skeleton-contract-gap", skeletonContractCssValue(normalized.tokens.sectionGap, "14px"));
+    node.style.setProperty("--home-skeleton-contract-padding", skeletonContractCssValue(normalized.tokens.cardPadding, "16px"));
+    node.style.setProperty("--home-skeleton-contract-shadow", skeletonContractCssValue(normalized.tokens.cardShadow, "none"));
+  }
 
   function skeletonSectionChrome(section = {}, designContract = {}) {
     const contract = normalizeSkeletonDesignContract(designContract, SKELETON_STYLE_CONTRACTS.accountOpsConsole);
@@ -6040,23 +5899,6 @@
     return normalizeSkeletonSlotChrome(policy.defaultSlotChrome, "contained");
   }
 
-  function normalizeSectionTransition(value, fallback = "") {
-    const raw = cleanMetaText(value, "", 24);
-    return ["connected", "soft-break", "hard-break", "workbench", "plain"].includes(raw) ? raw : fallback;
-  }
-
-  function skeletonSectionTransition(section = {}, sectionChrome = "", index = 0, designContract = {}) {
-    const explicit = normalizeSectionTransition(section.transition);
-    if (explicit) return explicit;
-    const contract = normalizeSkeletonDesignContract(designContract, SKELETON_STYLE_CONTRACTS.accountOpsConsole);
-    const sectionId = cleanMetaText(section.id, "", 64);
-    if (/risk|disclosure|footer|copytrading|referral|faq|performance/i.test(sectionId) && index > 0) return "hard-break";
-    if (sectionChrome === "connected") return "connected";
-    if (sectionChrome === "workbench") return "workbench";
-    if (sectionChrome === "band" && contract.chromePolicy?.mode === "sectionBand") return index <= 3 ? "connected" : "hard-break";
-    return index === 0 ? "plain" : "soft-break";
-  }
-
   function buildSkeletonHtmlMarkup(sections, slots, designContract = {}) {
     const contract = normalizeSkeletonDesignContract(designContract, SKELETON_STYLE_CONTRACTS.accountOpsConsole);
     const slotByKey = Object.fromEntries(slots.map((slot) => [slot.id, slot]));
@@ -6073,9 +5915,8 @@
               const sectionSlots = (section.slots || []).map((slot) => slotByKey[skeletonSlotKey(slot)]).filter(Boolean);
               if (!sectionSlots.length) return "";
               const sectionChrome = skeletonSectionChrome(section, contract);
-              const sectionTransition = skeletonSectionTransition(section, sectionChrome, sectionIndex, contract);
               return `
-                <section class="home-skeleton-section ${skeletonSectionClass(section.type)}" data-home-skeleton-section="${escapeHtml(section.id || `section-${sectionIndex + 1}`)}" data-home-skeleton-section-type="${escapeHtml(section.type || "full")}" data-home-skeleton-section-chrome="${escapeHtml(sectionChrome)}" data-home-skeleton-section-transition="${escapeHtml(sectionTransition)}">
+                <section class="home-skeleton-section ${skeletonSectionClass(section.type)}" data-home-skeleton-section="${escapeHtml(section.id || `section-${sectionIndex + 1}`)}" data-home-skeleton-section-type="${escapeHtml(section.type || "full")}" data-home-skeleton-section-chrome="${escapeHtml(sectionChrome)}">
                   <header class="home-skeleton-section-head">
                     <span>${escapeHtml(sectionChrome)}</span>
                     <strong>${escapeHtml(section.title || `Section ${sectionIndex + 1}`)}</strong>
@@ -7799,16 +7640,6 @@
           slot: slotFromSectionType(section.type, component, slotIndex),
           priority: 20 + sectionIndex * 100 + slotIndex * 10,
           props: clone(COMPONENT_PROPS_SCHEMA[component]),
-          sectionId: cleanMetaText(section.id, "", 64),
-          sectionTitle: cleanMetaText(section.title, "", 80),
-          sectionType: cleanMetaText(section.type, "", 24),
-          sectionTransition: cleanMetaText(section.transition, "", 24),
-          groupId: cleanMetaText(section.groupId, "", 48),
-          compositeId: cleanMetaText(section.compositeId, "", 64),
-          compositeTitle: cleanMetaText(section.compositeTitle, "", 80),
-          compositeSurface: cleanMetaText(section.compositeSurface, "", 32),
-          compositeRole: cleanMetaText(section.compositeRole, "", 24),
-          compositeIndex: Number.isFinite(Number(section.compositeIndex)) ? Number(section.compositeIndex) : sectionIndex,
         });
       });
     });
@@ -7874,16 +7705,6 @@
         brickSize: cleanMetaText(block.brickSize, "", 12),
         brickZone: cleanMetaText(block.brickZone, "", 24),
         brickReason: cleanMetaText(block.brickReason, "", 180),
-        sectionId: cleanMetaText(block.sectionId, "", 64),
-        sectionTitle: cleanMetaText(block.sectionTitle, "", 80),
-        sectionType: cleanMetaText(block.sectionType, "", 24),
-        sectionTransition: cleanMetaText(block.sectionTransition, "", 24),
-        groupId: cleanMetaText(block.groupId, "", 48),
-        compositeId: cleanMetaText(block.compositeId, "", 64),
-        compositeTitle: cleanMetaText(block.compositeTitle, "", 80),
-        compositeSurface: cleanMetaText(block.compositeSurface, "", 32),
-        compositeRole: cleanMetaText(block.compositeRole, "", 24),
-        compositeIndex: Number.isFinite(Number(block.compositeIndex)) ? Number(block.compositeIndex) : index,
       });
     });
 
@@ -7968,33 +7789,24 @@
     });
   }
 
-  function normalizeSections(sections) {
-    const source = Array.isArray(sections) && sections.length ? sections : DEFAULT_CONFIG.sections;
-    const normalized = source
-      .map((section, index) => {
-        const slots = uniqueValidSlots(section.slots);
-        if (!slots.length) return null;
+	  function normalizeSections(sections) {
+	    const source = Array.isArray(sections) && sections.length ? sections : DEFAULT_CONFIG.sections;
+	    const normalized = source
+	      .map((section, index) => {
+	        const slots = uniqueValidSlots(section.slots);
+	        if (!slots.length) return null;
 
         return {
           id: String(section.id || `section-${index + 1}`).slice(0, 32),
           type: ["hero", "rail", "split", "full"].includes(section.type) ? section.type : "full",
           title: String(section.title || "").slice(0, 28),
           variant: String(section.variant || "").slice(0, 24),
-          transition: ["connected", "soft-break", "hard-break", "workbench", "plain"].includes(section.transition)
-            ? section.transition
-            : "",
-          groupId: cleanMetaText(section.groupId, "", 48),
-          compositeId: cleanMetaText(section.compositeId, "", 64),
-          compositeTitle: cleanMetaText(section.compositeTitle, "", 80),
-          compositeSurface: cleanMetaText(section.compositeSurface, "", 32),
-          compositeRole: cleanMetaText(section.compositeRole, "", 24),
-          compositeIndex: Number.isFinite(Number(section.compositeIndex)) ? Number(section.compositeIndex) : index,
           slots,
-        };
-      })
-      .filter(Boolean);
+	        };
+	      })
+	      .filter(Boolean);
     return splitLargeFullRowSections(normalized);
-  }
+	  }
 
   function normalizeAutoLayoutBreakpoint(source, fallback) {
     const value = source && typeof source === "object" ? source : {};
@@ -8171,25 +7983,25 @@
 	            buttonText: "#06111f",
 	            cardShadow: "0 22px 52px rgba(0, 0, 0, 0.3)",
 	          }
-		        : includesAny(text, ["清爽", "科技", "高级", "国际", "金融", "蓝", "fresh", "clean", "global"])
-		        ? {
-		            primaryColor: "#2f66e8",
-		            accentColor: "#275bd5",
-		            backgroundStyle: "linear-gradient(180deg, #f8fbff 0%, #eef4ff 52%, #f7faff 100%)",
-		            cardStyle: "#ffffff",
-		            surfaceColor: "#ffffff",
-		            surfaceSoft: "#f7faff",
-		            surfaceMuted: "#eef4ff",
-		            textStrong: "#0f172a",
-		            textColor: "#172033",
-		            textSoft: "#475569",
-		            textMuted: "#64748b",
-		            borderColor: "#d8e1ef",
-		            borderSoft: "#e8edf5",
-		            buttonStyle: "linear-gradient(135deg, #2f66e8, #275bd5)",
-		            buttonText: "#ffffff",
-		            cardShadow: "0 10px 24px rgba(15, 23, 42, 0.07)",
-		          }
+	        : includesAny(text, ["清爽", "科技", "高级", "国际", "金融", "蓝", "fresh", "clean", "global"])
+	        ? {
+	            primaryColor: "#0ea5e9",
+	            accentColor: "#14b8a6",
+	            backgroundStyle: "radial-gradient(circle at 78% 8%, rgba(14, 165, 233, 0.12), transparent 30%), linear-gradient(180deg, #ffffff 0%, #eef8fb 100%)",
+	            cardStyle: "rgba(255, 255, 255, 0.98)",
+	            surfaceColor: "#ffffff",
+	            surfaceSoft: "#f0f9ff",
+	            surfaceMuted: "#eaf7f6",
+	            textStrong: "#0f172a",
+	            textColor: "#172033",
+	            textSoft: "#475569",
+	            textMuted: "#64748b",
+	            borderColor: "#bde7f6",
+	            borderSoft: "#d9f0f7",
+	            buttonStyle: "linear-gradient(135deg, #0ea5e9, #14b8a6)",
+	            buttonText: "#ffffff",
+	            cardShadow: "0 16px 34px rgba(14, 165, 233, 0.1)",
+	          }
 	        : includesAny(text, ["极简", "minimal", "白", "留白", "克制"])
 	        ? {
 	            primaryColor: "#475569",
@@ -8248,10 +8060,10 @@
 	  function normalizeThemeCustom(value) {
 	    const source = typeof value === "string" ? { input: value } : value && typeof value === "object" ? value : null;
 	    const input = String(source?.input || source?.value || "").trim().slice(0, 96);
-		    const primaryColor = normalizeHexColor(source?.primaryColor || input);
-		    const palette = themeCustomPaletteForText(input, primaryColor);
-		    return input ? compactThemeObject({ ...palette, ...source, input, primaryColor: primaryColor || palette?.primaryColor || source?.primaryColor || "" }) : null;
-		  }
+	    const primaryColor = normalizeHexColor(source?.primaryColor || input);
+	    const palette = themeCustomPaletteForText(input, primaryColor);
+	    return input ? compactThemeObject({ input, ...palette, primaryColor: primaryColor || palette?.primaryColor || "" }) : null;
+	  }
 
   function normalizeLayoutPreset(value) {
     const layout = LEGACY_LAYOUT_MAP[value] || value;
@@ -8366,46 +8178,27 @@
     ).toLowerCase();
   }
 
-	  function inferComponentReferenceHints(moduleId, reference) {
-	    const text = componentReferenceText(reference);
-	    const rule = (COMPONENT_REFERENCE_RULES[moduleId] || []).find((item) => item.keys.some((key) => text.includes(String(key || "").toLowerCase())));
-	    return {
-	      variant: rule?.variant || "",
+  function inferComponentReferenceHints(moduleId, reference) {
+    const text = componentReferenceText(reference);
+    const rule = (COMPONENT_REFERENCE_RULES[moduleId] || []).find((item) => item.keys.some((key) => text.includes(String(key || "").toLowerCase())));
+    return {
+      variant: rule?.variant || "",
       morph: rule?.morph || "",
       style: rule?.style || "",
       styleFeature: (COMPONENT_REFERENCE_STYLE_FEATURES[moduleId] || [])[0] || "",
-	    };
-	  }
+    };
+  }
 
-	  function componentReferenceRendererVisibleText(reference = {}) {
-	    return cleanMetaText(
-	      reference.visibleText ||
-	        sanitizeAiHtmlMarkup(reference.rendererHtml || reference.html || "")
-	          .replace(/<[^>]*>/g, " ")
-	          .replace(/\s+/g, " "),
-	      "",
-	      600,
-	    );
-	  }
-
-	  function componentReferenceRendererLooksPublishable(reference = {}) {
-	    const source = `${componentReferenceRendererVisibleText(reference)} ${reference.rendererHtml || reference.html || ""}`;
-	    return !/Invite\s+Link\s+First|Link,\s*invite\s+code|conversion\s+metrics\s+stay\s+visible|--\s*(?:Opens|Accounts|Clicks|Registrations)|\b(?:Primary Action|Lorem ipsum|Sample Data|Untitled Module)\b/i.test(source);
-	  }
-
-	  function normalizeHomepageComponentReferences(value) {
-	    return (Array.isArray(value) ? value : [])
-	      .map((item) => {
-	        const moduleId = moduleKeyFor(item?.module || item?.moduleId || item?.family || item?.component || item?.feature);
+  function normalizeHomepageComponentReferences(value) {
+    return (Array.isArray(value) ? value : [])
+      .map((item) => {
+        const moduleId = moduleKeyFor(item?.module || item?.moduleId || item?.family || item?.component || item?.feature);
         if (!moduleId) return null;
         const hints = inferComponentReferenceHints(moduleId, item);
         const requestedVariant = cleanMetaText(item?.variantHint || item?.variant || hints.variant, "", 48);
         const requestedMorph = cleanMetaText(item?.morphHint || item?.morph || item?.morphId || hints.morph, "", 48);
-	        const styleHint = cleanMetaText(item?.styleHint || item?.style || hints.style, "", 48);
-	        const score = Number.isFinite(Number(item?.score)) ? Math.max(1, Math.min(10, Math.round(Number(item.score)))) : null;
-	        const referenceTier = cleanMetaText(item?.referenceTier || item?.tier, score != null && score >= 8 ? "strong" : score != null && score <= 5 ? "blocked" : "", 24);
-	        const canRenderStrongReference = referenceTier !== "blocked" && score != null && score >= 8 && componentReferenceRendererLooksPublishable(item);
-	        return {
+        const styleHint = cleanMetaText(item?.styleHint || item?.style || hints.style, "", 48);
+        return {
           componentId: cleanMetaText(item?.componentId || item?.id, "", 96),
           id: cleanMetaText(item?.id || item?.componentId, "", 96),
           name: cleanMetaText(item?.name, "", 80),
@@ -8413,9 +8206,6 @@
           module: moduleId,
           component: componentFromFeature(item?.component || item?.feature || PROTOCOL_MODULES[moduleId]?.component || ""),
           size: cleanMetaText(item?.size, "", 16),
-          score,
-          referenceTier,
-          referenceRule: cleanMetaText(item?.referenceRule, "", 180),
           tags: (Array.isArray(item?.tags) ? item.tags : []).map((tag) => cleanMetaText(tag, "", 32)).filter(Boolean).slice(0, 8),
           layoutHints: (Array.isArray(item?.layoutHints) ? item.layoutHints : []).map((hint) => cleanMetaText(hint, "", 120)).filter(Boolean).slice(0, 6),
           styleSignals: (Array.isArray(item?.styleSignals) ? item.styleSignals : []).map((signal) => cleanMetaText(signal, "", 80)).filter(Boolean).slice(0, 8),
@@ -8424,18 +8214,14 @@
           morphHint: requestedMorph,
           styleHint,
           styleFeature: cleanMetaText(item?.styleFeature || hints.styleFeature, "", 48),
-          rendererMode: canRenderStrongReference ? cleanMetaText(item?.rendererMode || "high-score-component", "high-score-component", 40) : "",
-          rendererHtml: canRenderStrongReference ? sanitizeAiHtmlMarkup(item?.rendererHtml || item?.html) : "",
-          rendererCss: canRenderStrongReference ? sanitizeAiHtmlCss(item?.rendererCss || item?.css) : "",
-          rendererQualityFloor: canRenderStrongReference ? 8 : null,
           reason: cleanMetaText(item?.reason, "", 180),
           source: cleanMetaText(item?.source, "home-component-library", 48),
           applied: Boolean(item?.applied),
         };
       })
-	      .filter((item) => item && item.componentId && item.name && item.referenceTier !== "blocked" && componentReferenceRendererLooksPublishable(item))
-	      .slice(0, 12);
-	  }
+      .filter((item) => item && item.componentId && item.name)
+      .slice(0, 12);
+  }
 
   function shouldApplyComponentReferenceVariant(source, moduleId, variant) {
     if (!validModuleVariant(moduleId, variant)) return false;
@@ -9505,7 +9291,7 @@
         title: "账户启动区",
         role: "primary",
         surface: "connected-panel",
-        guidance: "欢迎、开户进度、资产状态和下一步动作可以同屏成组，但资产概览和快捷入口必须保留独立模块边界，不用共享外壳硬粘。",
+        guidance: "欢迎、开户进度、资产状态和下一步动作共享首屏表面，不拆成孤立白卡。",
         modules: pick(["welcome_header", "onboarding_guide", "asset_overview", "quick_actions", "kyc_status_card"]),
       },
       {
@@ -9613,7 +9399,7 @@
       compositionRules: [
         "全页只能有一个最高视觉权重模块。",
         "页面优先组织成 3-4 个业务组，不要把每个 slot 拆成独立 section。",
-        "同一业务组共享节奏和间距，但不同业务模块必须保留可见卡片边界；asset_overview 与 quick_actions 只允许同屏分栏，不合成一个视觉模块。",
+        "同一业务组共享父级表面，子模块用分割线、留白、指标行或工具栏衔接。",
         "FAQ、风险、客服、活动等低权重模块必须低干扰收口。",
       ],
     };
@@ -9644,16 +9430,11 @@
       (!source.sections || explicitLayoutCoversSections);
     const normalizedLayout = normalizeHomepageLayout(shouldUseExplicitLayout ? source.layout : null, sections);
     const moduleStyles = normalizeModuleStyles(source.moduleStyles, modules, componentReferences);
-	    const themePreset = normalizeThemeId(source.themePreset || source.theme);
-	    const personalizationStrength = normalizePersonalizationStrength(source.personalizationStrength);
-	    const designGenome = normalizeDesignGenome(source.designGenome || source.layoutGene || source.genome, designGenomeForLayout(layoutPreset));
-	    const pageStory = normalizePageStory(source.pageStory || source.heroNarrative || source.story, DESIGN_GENOMES[designGenome]?.story || "opsClarity");
-	    const rawStyleContract =
-	      (source.styleContract && typeof source.styleContract === "object" ? source.styleContract : null) ||
-	      (source.goldenStyleContract && typeof source.goldenStyleContract === "object" ? source.goldenStyleContract : null);
-	    const styleContract = rawStyleContract ? normalizeSkeletonDesignContract(rawStyleContract, SKELETON_STYLE_CONTRACTS.accountOpsConsole) : null;
-	    const themeCustomSource = source.themeCustom || source.customTheme || source.themeCustomInput || styleContract?.themeCustom;
-	    const shouldHydrateBricks =
+    const themePreset = normalizeThemeId(source.themePreset || source.theme);
+    const personalizationStrength = normalizePersonalizationStrength(source.personalizationStrength);
+    const designGenome = normalizeDesignGenome(source.designGenome || source.layoutGene || source.genome, designGenomeForLayout(layoutPreset));
+    const pageStory = normalizePageStory(source.pageStory || source.heroNarrative || source.story, DESIGN_GENOMES[designGenome]?.story || "opsClarity");
+    const shouldHydrateBricks =
       source.generationMode === "brick-v2" ||
       Number(source.blueprintVersion) >= 5 ||
       sourceBrickPlan.length > 0 ||
@@ -9689,13 +9470,11 @@
       layoutPreset,
       designGenome,
       pageStory,
-	      layout: layout.map((block) => attachModuleMetadata(block, modules)),
-	      themePreset,
-	      theme: themePreset,
-	      themeCustom: normalizeThemeCustom(themeCustomSource),
-	      styleContract,
-	      goldenStyleContract: source.goldenStyleContract && typeof source.goldenStyleContract === "object" ? styleContract : null,
-	      colorMode: normalizeHomeColorMode(source.colorMode || source.themeMode || source.appearanceMode || source.homeColorMode),
+      layout: layout.map((block) => attachModuleMetadata(block, modules)),
+      themePreset,
+      theme: themePreset,
+      themeCustom: normalizeThemeCustom(source.themeCustom || source.customTheme || source.themeCustomInput),
+      colorMode: normalizeHomeColorMode(source.colorMode || source.themeMode || source.appearanceMode || source.homeColorMode),
       personalizationStrength,
       modules,
       moduleVariants: Object.keys(modules).reduce((variants, moduleId) => {
@@ -9721,23 +9500,6 @@
       sourcePrompt: cleanMetaText(source.sourcePrompt, "", 1000),
       brickPlan,
       componentReferences,
-      componentRenderPolicy:
-        source.componentRenderPolicy && typeof source.componentRenderPolicy === "object"
-          ? {
-              mode: cleanMetaText(source.componentRenderPolicy.mode, "", 48),
-              minimumRendererScore: Number.isFinite(Number(source.componentRenderPolicy.minimumRendererScore))
-                ? Math.max(1, Math.min(10, Math.round(Number(source.componentRenderPolicy.minimumRendererScore))))
-                : 8,
-              fallbackWhenGeneratedScoreBelow: Number.isFinite(Number(source.componentRenderPolicy.fallbackWhenGeneratedScoreBelow))
-                ? Math.max(0, Math.min(100, Math.round(Number(source.componentRenderPolicy.fallbackWhenGeneratedScoreBelow))))
-                : 68,
-              appliedModules: (Array.isArray(source.componentRenderPolicy.appliedModules) ? source.componentRenderPolicy.appliedModules : [])
-                .map((module) => moduleKeyFor(module))
-                .filter(Boolean)
-                .slice(0, 12),
-              source: cleanMetaText(source.componentRenderPolicy.source, "", 48),
-            }
-          : null,
       brickTrace: normalizeBrickTrace(source.brickTrace),
       dataContract: normalizeDataContract(source.dataContract),
       pageIntent: source.pageIntent && typeof source.pageIntent === "object" ? clone(source.pageIntent) : null,
@@ -9753,20 +9515,10 @@
       publishedRenderMode: normalizeHomepageRenderMode(source.publishedRenderMode, ""),
       publishedRenderModeLabel: cleanMetaText(source.publishedRenderModeLabel, "", 32),
       publishedAt: cleanMetaText(source.publishedAt, "", 48),
-	      validationErrors: normalizedLayout.validationErrors,
-	    };
+      validationErrors: normalizedLayout.validationErrors,
+    };
 
-	    if (normalized.styleContract && normalized.skeletonHtmlScheme?.enabled) {
-	      normalized.skeletonHtmlScheme = {
-	        ...normalized.skeletonHtmlScheme,
-	        designContract: normalizeSkeletonDesignContract(
-	          mergeSkeletonDesignContracts(normalized.skeletonHtmlScheme.designContract, normalized.styleContract),
-	          normalized.styleContract,
-	        ),
-	      };
-	    }
-
-	    if (renderModeWantsSkeletonHtml(renderMode) && !normalized.skeletonHtmlScheme.enabled) {
+    if (renderModeWantsSkeletonHtml(renderMode) && !normalized.skeletonHtmlScheme.enabled) {
       normalized.skeletonHtmlScheme = buildSkeletonHtmlScheme(normalized, {
         reason: "按当前首页配置生成整页 slot 骨架。",
         sourceType: "local-skeleton",
@@ -10501,25 +10253,6 @@
     }
   }
 
-  function writeStoredConfig(key, config) {
-    const payload = JSON.stringify(config);
-    try {
-      window.localStorage.setItem(key, payload);
-      return;
-    } catch (error) {
-      VOLATILE_STORAGE_KEYS.forEach((storageKey) => {
-        if (storageKey !== key) {
-          try {
-            window.localStorage.removeItem(storageKey);
-          } catch (removeError) {
-            // Continue clearing the remaining volatile caches.
-          }
-        }
-      });
-      window.localStorage.setItem(key, payload);
-    }
-  }
-
   function loadConfig() {
     return readStoredConfig(STORAGE_KEY, DEFAULT_CONFIG);
   }
@@ -10527,7 +10260,7 @@
   function saveConfig(config) {
     const candidate = normalizeConfig(config);
     const normalized = candidate.validationErrors.length ? normalizeConfig(DEFAULT_CONFIG) : candidate;
-    writeStoredConfig(STORAGE_KEY, normalized);
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
     return normalized;
   }
 
@@ -10538,7 +10271,7 @@
   function saveDraft(config) {
     const candidate = normalizeConfig(config);
     const normalized = candidate.validationErrors.length ? normalizeConfig(DEFAULT_CONFIG) : candidate;
-    writeStoredConfig(DRAFT_STORAGE_KEY, normalized);
+    window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(normalized));
     return normalized;
   }
 
@@ -10901,57 +10634,6 @@
     if (!moduleId) return null;
     const references = Array.isArray(config?.componentReferences) ? config.componentReferences : [];
     return references.find((reference) => reference.module === moduleId || moduleKeyFor(reference.component) === moduleId) || null;
-  }
-
-  function highScoreComponentReferenceForModule(config, slot) {
-    const moduleId = moduleKeyFor(slot);
-    if (!moduleId) return null;
-    const minimumScore = Number(config?.componentRenderPolicy?.minimumRendererScore) || 8;
-    const references = Array.isArray(config?.componentReferences) ? config.componentReferences : [];
-    return references
-      .filter((reference) => reference.module === moduleId || moduleKeyFor(reference.component) === moduleId)
-      .filter(
-	        (reference) =>
-	          reference.referenceTier !== "blocked" &&
-	          Number(reference.score) >= minimumScore &&
-	          reference.rendererHtml &&
-	          reference.rendererCss &&
-	          componentReferenceRendererLooksPublishable(reference),
-	      )
-      .sort((a, b) => Number(b.score || 0) - Number(a.score || 0))[0] || null;
-  }
-
-  function renderHighScoreComponentReference(doc, slot, config) {
-    const reference = highScoreComponentReferenceForModule(config, slot);
-    if (!reference) return null;
-    const element = wrapFeature(doc, slot, "ai-reference-feature", config);
-    element.dataset.componentReferenceRenderer = reference.rendererMode || "high-score-component";
-    element.dataset.componentReferenceScore = String(reference.score || "");
-    element.dataset.componentReferenceTier = reference.referenceTier || "";
-    const css = sanitizeAiHtmlCss(reference.rendererCss);
-    const html = sanitizeAiHtmlMarkup(reference.rendererHtml);
-    if (!html || !css) return null;
-    if (typeof element.attachShadow === "function") {
-      const shadow = element.attachShadow({ mode: "open" });
-      shadow.innerHTML = `
-        <style>
-          :host{display:block;height:100%;min-width:0;color:var(--home-text,#172033);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;}
-          *,*::before,*::after{box-sizing:border-box;}
-          .ai-reference-component-host{height:100%;min-width:0;}
-          ${css}
-        </style>
-        <div class="ai-reference-component-host">${html}</div>
-      `;
-      return element;
-    }
-    const style = doc.createElement("style");
-    style.textContent = css;
-    const host = doc.createElement("div");
-    host.className = "ai-reference-component-host";
-    host.innerHTML = html;
-    element.appendChild(style);
-    element.appendChild(host);
-    return element;
   }
 
   function wrapFeature(doc, slot, className, config) {
@@ -13108,8 +12790,6 @@
   }
 
 	  function renderSlot(doc, slot, config) {
-    const highScoreReference = renderHighScoreComponentReference(doc, slot, config);
-    if (highScoreReference) return highScoreReference;
     if (slot === "welcome_header") return renderWelcomeHeader(doc, config);
     if (slot === "asset_overview") return renderBalanceTotal(doc, config);
     if (slot === "quick_actions") return renderQuickActions(doc, config);
@@ -13440,7 +13120,7 @@
     shell.appendChild(host);
   }
 
-	  function componentEnabled(component, config) {
+  function componentEnabled(component, config) {
     const settings = config.moduleSettings;
     if (component === "welcome_header") return true;
     if (component === "asset_overview") return settings.assets.enabled;
@@ -13473,158 +13153,53 @@
     if (component === "create_account_form") return openAccountChoices(config).length > 0;
     if (component === "account_performance") return settings.tradingAccounts.enabled || settings.assets.enabled;
     if (component === "risk_notice") return settings.riskDisclosure?.enabled || settings.riskNotice.enabled;
-	    return true;
-	  }
+    return true;
+  }
 
-	  function hasExecutableStyleContract(config = {}) {
-	    return Boolean(config?.styleContract || config?.goldenStyleContract);
-	  }
+  function renderBlueprint(config, target) {
+    const shell = target.querySelector("[data-home-shell]");
+    if (!shell) return;
 
-	  function blueprintSectionForBlock(block = {}) {
-	    if (block.slot === "hero") return { type: "hero", id: "blueprint-hero" };
-	    if (block.slot === "rail") return { type: "rail", id: "blueprint-rail" };
-	    if (block.slot === "full") return { type: "full", id: "blueprint-full" };
-	    return { type: "split", id: "blueprint-split" };
-	  }
+    const doc = target;
+    const renderableBlocks = config.layout.filter((block) => COMPONENT_MAP[block.component] && componentEnabled(block.component, config));
+    const heroBlocks = renderableBlocks.filter((block) => block.slot === "hero" && block.component !== "welcome_header");
 
-	  function blueprintRowComponents(row = {}) {
-	    return (Array.isArray(row.items) ? row.items : [])
-	      .map((item) => canonicalHomeBlock(item.block?.component) || item.block?.component || "")
-	      .filter(Boolean);
-	  }
-
-	  function blueprintRowNeedsDistinctCards(row = {}) {
-	    const components = blueprintRowComponents(row);
-	    if (components.length < 2) return false;
-	    const componentSet = new Set(components);
-	    return componentSet.has("asset_overview") && componentSet.has("quick_actions");
-	  }
-
-	  function shouldRenderBlueprintComposite(row = {}, composite = {}) {
-	    if (!composite?.id) return false;
-	    if (blueprintRowNeedsDistinctCards(row)) return false;
-	    const surface = cleanMetaText(composite.surface, "", 32);
-	    return ["shared-workbench"].includes(surface);
-	  }
-
-	  function blueprintRowChrome(row = {}, config = {}, designContract = null) {
-	    if (!designContract) return "";
-	    const items = Array.isArray(row.items) ? row.items : [];
-	    const policy = designContract.chromePolicy || {};
-	    if (blueprintRowNeedsDistinctCards(row)) return "separated";
-	    const slotChromes = items.map((item) => skeletonSlotChrome(item.block?.component, config, blueprintSectionForBlock(item.block), designContract));
-	    if (slotChromes.includes("featured")) return "band";
-	    if (slotChromes.every((chrome) => chrome === "tableSurface")) return "workbench";
-	    if (slotChromes.every((chrome) => chrome === "legalStrip" || chrome === "bare" || chrome === "inline")) return "plain";
-	    if (items.length > 1 && policy.mode === "flatConnected") return "connected";
-	    if (policy.mode === "sectionBand" || policy.mode === "heroProof") return "band";
-	    if (policy.mode === "workbench") return "workbench";
-	    return normalizeSkeletonSectionChrome(policy.sectionChrome, "group");
-	  }
-
-	  function blueprintRowCompositeMeta(row = {}) {
-	    const blocks = (Array.isArray(row.items) ? row.items : []).map((item) => item.block || {});
-	    const ids = [...new Set(blocks.map((block) => cleanMetaText(block.compositeId, "", 64)).filter(Boolean))];
-	    if (ids.length !== 1) return null;
-	    const primary = blocks.find((block) => cleanMetaText(block.compositeId, "", 64) === ids[0]) || {};
-	    return {
-	      id: ids[0],
-	      title: cleanMetaText(primary.compositeTitle || primary.sectionTitle, "", 80),
-	      surface: cleanMetaText(primary.compositeSurface, "", 32),
-	      role: cleanMetaText(primary.compositeRole, "", 24),
-	      groupId: cleanMetaText(primary.groupId, "", 48),
-	    };
-	  }
-
-	  function createBlueprintCompositeNode(doc, composite = {}) {
-	    const node = doc.createElement("section");
-	    node.className = "ai-home-composite";
-	    node.dataset.homeComposite = composite.id || "";
-	    node.dataset.homeCompositeSurface = composite.surface || "";
-	    node.dataset.homeCompositeRole = composite.role || "";
-	    if (composite.groupId) node.dataset.homeCompositeGroup = composite.groupId;
-	    if (composite.title) node.setAttribute("aria-label", composite.title);
-	    return node;
-	  }
-
-	  function renderBlueprint(config, target) {
-	    const shell = target.querySelector("[data-home-shell]");
-	    if (!shell) return;
-
-	    const doc = target;
-	    const designContract = hasExecutableStyleContract(config) ? buildSkeletonDesignContract(config) : null;
-	    const renderableBlocks = config.layout.filter((block) => COMPONENT_MAP[block.component] && componentEnabled(block.component, config));
-	    const heroBlocks = renderableBlocks.filter((block) => block.slot === "hero" && block.component !== "welcome_header");
-
-    shell.querySelectorAll(".client-welcome, [data-home-composite], [data-home-row], [data-home-module], [data-layout-section], [data-home-feature], [data-ai-html-render-host], [data-home-skeleton-render-host]").forEach((node) => node.remove());
+    shell.querySelectorAll(".client-welcome, [data-home-row], [data-home-module], [data-layout-section], [data-home-feature], [data-ai-html-render-host], [data-home-skeleton-render-host]").forEach((node) => node.remove());
     shell.classList.add("is-blueprint-home");
-	    shell.classList.remove("is-ai-html-home");
-	    shell.classList.remove("is-skeleton-html-home");
-	    shell.toggleAttribute("data-home-blueprint-contract", Boolean(designContract));
-	    if (designContract) {
-	      shell.dataset.homeBlueprintContract = designContract.id;
-	      shell.dataset.homeBlueprintChromeMode = designContract.chromePolicy?.mode || "";
-	      shell.dataset.homeBlueprintComponentBoundary = designContract.chromePolicy?.componentBoundary || "";
-	      shell.dataset.homeBlueprintPersonality = designContract.personality || "";
-	      applySkeletonContractStyleVars(shell, designContract);
-	    } else {
-	      delete shell.dataset.homeBlueprintContract;
-	      delete shell.dataset.homeBlueprintChromeMode;
-	      delete shell.dataset.homeBlueprintComponentBoundary;
-	      delete shell.dataset.homeBlueprintPersonality;
-	    }
-	    shell.className = shell.className
+    shell.classList.remove("is-ai-html-home");
+    shell.classList.remove("is-skeleton-html-home");
+    shell.className = shell.className
       .split(/\s+/)
       .filter((className) => className && !className.startsWith("ai-blueprint-layout-"))
       .concat(`ai-blueprint-layout-${config.layoutPreset}`)
       .join(" ");
     shell.dataset.autoLayout = config.autoLayout?.strategy || "responsive-grid";
 
-    let activeComposite = null;
-    let activeCompositeId = "";
-
     buildHomepageRows(renderableBlocks, heroBlocks.length).forEach((row) => {
-      const composite = blueprintRowCompositeMeta(row);
       const rowNode = doc.createElement("div");
       rowNode.className = "ai-home-row";
       rowNode.dataset.homeRow = row.id;
       rowNode.dataset.homeGridColumns = String(HOME_GRID_COLUMNS);
       rowNode.dataset.rowItems = String(row.items.length);
       rowNode.dataset.rowKind = row.items.length > 1 ? "paired" : "single";
-	      rowNode.dataset.rowCollapse = row.items.length > 1 ? config.autoLayout?.tablet?.rowMode || "stack-paired-rows" : "none";
-	      rowNode.dataset.rowEqualHeight = String(config.autoLayout?.desktop?.equalHeight !== false);
-	      const rowChrome = blueprintRowChrome(row, config, designContract);
-	      if (rowChrome) rowNode.dataset.rowChrome = rowChrome;
-	      if (composite?.id) rowNode.dataset.rowComposite = composite.id;
-	      rowNode.style.setProperty("--home-row-min-height", `${row.minHeight}px`);
+      rowNode.dataset.rowCollapse = row.items.length > 1 ? config.autoLayout?.tablet?.rowMode || "stack-paired-rows" : "none";
+      rowNode.dataset.rowEqualHeight = String(config.autoLayout?.desktop?.equalHeight !== false);
+      rowNode.style.setProperty("--home-row-min-height", `${row.minHeight}px`);
 
       row.items.forEach((item) => {
         const block = item.block;
         const renderComponent = COMPONENT_MAP[block.component];
         const isWelcomeBlock = block.component === "welcome_header";
 
-        const node = renderHighScoreComponentReference(doc, block.component, config) || renderComponent(doc, config, block.props);
+        const node = renderComponent(doc, config, block.props);
         node.classList.add("ai-home-block", `ai-home-block-${block.slot}`, `ai-component-${block.component}`);
         node.dataset.homeComponent = block.component;
         node.dataset.homeGridColumns = String(HOME_GRID_COLUMNS);
         if (block.brickId) node.dataset.homeBrick = block.brickId;
         if (block.brickName) node.dataset.homeBrickName = block.brickName;
-	        if (block.brickReason) node.dataset.homeBrickReason = block.brickReason;
-	        node.dataset.homeSlot = block.slot;
-	        if (block.sectionId) node.dataset.homeSection = block.sectionId;
-	        if (block.sectionType) node.dataset.homeSectionType = block.sectionType;
-	        if (block.sectionTransition) node.dataset.homeSectionTransition = block.sectionTransition;
-	        if (block.compositeId) {
-	          node.dataset.homeCompositeMember = block.compositeId;
-	          node.dataset.homeCompositeSurface = block.compositeSurface || "";
-	          node.dataset.homeCompositeRole = block.compositeRole || "";
-	        }
-	        if (designContract) {
-	          const slotChrome = skeletonSlotChrome(block.component, config, blueprintSectionForBlock(block), designContract);
-	          node.dataset.homeSlotChrome = slotChrome;
-	          node.classList.add(`ai-home-slot-chrome-${slotChrome}`);
-	        }
-	        node.dataset.homeSpan = String(item.span);
+        if (block.brickReason) node.dataset.homeBrickReason = block.brickReason;
+        node.dataset.homeSlot = block.slot;
+        node.dataset.homeSpan = String(item.span);
         node.dataset.homeLayoutRecipe = item.span >= 12 ? "12+0" : item.span === 8 ? "8+4" : item.span === 6 ? "6+6" : "4+8";
         const responsiveRule = config.autoLayout?.moduleRules?.[block.component];
         if (responsiveRule) {
@@ -13642,18 +13217,7 @@
         rowNode.appendChild(node);
       });
 
-      if (shouldRenderBlueprintComposite(row, composite)) {
-        if (!activeComposite || activeCompositeId !== composite.id) {
-          activeComposite = createBlueprintCompositeNode(doc, composite);
-          activeCompositeId = composite.id;
-          shell.appendChild(activeComposite);
-        }
-        activeComposite.appendChild(rowNode);
-      } else {
-        activeComposite = null;
-        activeCompositeId = "";
-        shell.appendChild(rowNode);
-      }
+      shell.appendChild(rowNode);
     });
 
   }
@@ -13832,14 +13396,11 @@
     body.dataset.homeColorMode = effectiveHomeColorMode(target, normalized.colorMode);
     body.dataset.homeDensity = normalized.density;
     body.dataset.homeLayout = normalized.layoutPreset;
-	    body.dataset.homeRenderMode = normalized.activeRenderMode || "config";
-	    body.dataset.homeHtmlEnabled = normalized.htmlScheme?.enabled ? "true" : "false";
-	    body.dataset.homeSkeletonEnabled = normalized.skeletonHtmlScheme?.enabled ? "true" : "false";
-	    body.dataset.homeSkeletonContract = normalized.skeletonHtmlScheme?.designContract?.id || "";
-	    const homeStyleContractId = normalized.styleContract?.id || normalized.goldenStyleContract?.id || "";
-	    if (homeStyleContractId) body.dataset.homeStyleContract = homeStyleContractId;
-	    else delete body.dataset.homeStyleContract;
-	    body.dataset.homePublished = normalized.publishedAt ? "true" : "false";
+    body.dataset.homeRenderMode = normalized.activeRenderMode || "config";
+    body.dataset.homeHtmlEnabled = normalized.htmlScheme?.enabled ? "true" : "false";
+    body.dataset.homeSkeletonEnabled = normalized.skeletonHtmlScheme?.enabled ? "true" : "false";
+    body.dataset.homeSkeletonContract = normalized.skeletonHtmlScheme?.designContract?.id || "";
+    body.dataset.homePublished = normalized.publishedAt ? "true" : "false";
     body.dataset.homeGenome = normalized.designGenome;
     body.dataset.homeStory = normalized.pageStory;
     body.dataset.homeHero = normalized.heroFocus;
@@ -13867,15 +13428,10 @@
       view.NXBrokerTheme.applyTenantTheme(normalized.themePreset);
     } else if (target.documentElement) {
       target.documentElement.dataset.tenantTheme = normalized.themePreset;
-	    }
-	    applyThemeCustomVars(target, normalized.themeCustom);
-	    if (hasExecutableStyleContract(normalized)) {
-	      const designContract = buildSkeletonDesignContract(normalized);
-	      applySkeletonContractStyleVars(body, designContract);
-	      if (target.documentElement) applySkeletonContractStyleVars(target.documentElement, designContract);
-	    }
+    }
+    applyThemeCustomVars(target, normalized.themeCustom);
 
-	    if (body.dataset.layoutPage === "client-home") {
+    if (body.dataset.layoutPage === "client-home") {
       if (normalized.activeRenderMode === "aiHtml" && normalized.htmlScheme?.enabled) {
         renderAiHtmlScheme(normalized, target);
       } else if (normalized.activeRenderMode === "skeletonHtml" && normalized.skeletonHtmlScheme?.enabled) {
