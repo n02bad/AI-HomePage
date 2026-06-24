@@ -11037,6 +11037,101 @@ body[data-home-render-mode="aiHtml"] .dashboard-customize-link {
   box-shadow: none !important;
 }
 
+/* ===== 一致性修复：统一模块表面 =====
+   发布态此前把槽位包装器表面全部剥掉、让每个积木各自画卡片，导致白卡/蓝条/蓝色色块拼盘。
+   改为：包装器 .home-skeleton-ai-component 成为唯一卡片表面来源（统一边框/圆角/底色/阴影/内边距），
+   再中和积木自带的最外层容器。flat/bare/inline/connected 仍保持透明，差异化 chrome 作为基底之上的微调。 */
+.home-skeleton-render-host.is-published-skeleton
+  .home-skeleton-ai-component:not([data-home-skeleton-slot-chrome="inline"]):not([data-home-skeleton-slot-chrome="connected"]) {
+  padding: var(--home-skeleton-contract-padding, 16px);
+  border: 1px solid var(--home-skeleton-contract-border, var(--home-border, #dbe4ef));
+  border-radius: var(--home-skeleton-contract-radius, var(--home-radius-sm, 8px));
+  background: var(--home-skeleton-contract-surface, var(--home-card-bg, #fff));
+  box-shadow: var(--home-skeleton-contract-shadow, 0 8px 22px rgba(15, 23, 42, 0.06));
+}
+
+/* 中和积木自带最外层容器，让包装器成为唯一表面，避免双层卡 / 异色外壳 */
+.home-skeleton-render-host.is-published-skeleton
+  .home-skeleton-ai-component:not([data-home-skeleton-slot-chrome="inline"]):not([data-home-skeleton-slot-chrome="connected"])
+  > .home-skeleton-ai-component-body > :where(article, section, div):first-child {
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* 差异化 chrome：在统一基底卡片之上做轻微区分，保留信息层级而不破坏一致性 */
+.home-skeleton-render-host.is-published-skeleton .home-skeleton-ai-component[data-home-skeleton-slot-chrome="featured"] {
+  border-color: var(--home-primary-border, #bfdbfe);
+  background: linear-gradient(135deg, var(--home-primary-faint, #eff6ff), var(--home-card-bg, #fff));
+}
+
+.home-skeleton-render-host.is-published-skeleton .home-skeleton-ai-component[data-home-skeleton-slot-chrome="legalStrip"] {
+  background: var(--home-surface-soft, #f8fbff);
+  box-shadow: none;
+}
+
+.home-skeleton-render-host.is-published-skeleton .home-skeleton-ai-component[data-home-skeleton-slot-chrome="rail"] {
+  background: color-mix(in srgb, var(--home-card-bg, #fff) 86%, var(--home-surface-soft, #f8fbff));
+}
+
+/* ===== 一致性修复：消除"蓝色大色块" =====
+   band/sectionBand 此前整段刷浅蓝连续底，里面模块又是 flat（透明），多个不相关模块糊成一坨。
+   发布态下取消 band 段背景，强制内部模块各自回到统一卡片表面，恢复清晰的模块边界。 */
+.home-skeleton-render-host.is-published-skeleton .home-skeleton-section[data-home-skeleton-section-chrome="band"] {
+  background: transparent !important;
+  border: 0 !important;
+  padding: 0 !important;
+}
+
+.home-skeleton-render-host.is-published-skeleton
+  .home-skeleton-section[data-home-skeleton-section-chrome="band"]
+  .home-skeleton-ai-component[data-home-skeleton-slot-chrome="flat"] {
+  padding: var(--home-skeleton-contract-padding, 16px);
+  border: 1px solid var(--home-skeleton-contract-border, var(--home-border, #dbe4ef));
+  border-radius: var(--home-skeleton-contract-radius, var(--home-radius-sm, 8px));
+  background: var(--home-skeleton-contract-surface, var(--home-card-bg, #fff));
+  box-shadow: var(--home-skeleton-contract-shadow, 0 8px 22px rgba(15, 23, 42, 0.06));
+}
+
+.home-skeleton-render-host.is-published-skeleton
+  .home-skeleton-section[data-home-skeleton-section-chrome="band"]
+  .home-skeleton-ai-component[data-home-skeleton-slot-chrome="flat"]
+  > .home-skeleton-ai-component-body > :where(article, section, div):first-child {
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* ===== 一致性修复：主资金 CTA 去重（降级为描边） ===== */
+.home-skeleton-render-host.is-published-skeleton .home-skeleton-cta-demoted {
+  background: transparent !important;
+  background-image: none !important;
+  color: var(--home-primary, #2563eb) !important;
+  border: 1px solid var(--home-primary-border, #bfdbfe) !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+/* ===== 一致性修复：空走势图兜底 sparkline ===== */
+.home-skeleton-render-host.is-published-skeleton .home-skeleton-sparkline-filled {
+  display: block;
+  min-height: 48px;
+  overflow: hidden;
+}
+
+.home-skeleton-render-host.is-published-skeleton .home-skeleton-fallback-spark {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 48px;
+}
+
 body[data-home-render-mode="skeletonHtml"] .dashboard-customize-link {
   border-color: var(--home-primary-border);
 }

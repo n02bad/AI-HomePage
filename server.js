@@ -2483,6 +2483,7 @@ function normalizeProviderConfig(modelConfig = {}) {
     maxOutputTokens: Number.isFinite(maxOutputTokens) ? Math.min(Math.max(Math.round(maxOutputTokens), minOutputTokens), maxOutputCeiling) : defaultMaxOutputTokens,
     apiKey: String(modelConfig.apiKey || "").trim(),
     keyEnv: preset.keyEnv,
+    aiHtmlAttempt: Boolean(modelConfig.aiHtmlAttempt), // 提速 D：标记自由 AI HTML 首轮，走更短超时尽快回退
   };
 }
 
@@ -2541,12 +2542,18 @@ function providerRequestCandidates(config) {
   return candidates.flatMap((candidate) => [candidate, { ...candidate, model: DEEPSEEK_FLASH_MODEL, fallbackFromModel: DEEPSEEK_PRO_MODEL }]);
 }
 
+// 提速 D：自由 AI HTML 首轮失败/超时就该尽快回退到（已大幅提质的）骨架/积木方案，
+// 不要把整个 75-120s 超时跑满。给 AI HTML 首轮单独设一个较短的尝试上限。
+const AI_HTML_ATTEMPT_TIMEOUT_MS = 45_000;
+
 function providerRequestTimeoutMs(config) {
-  if (config.provider === "minimax") return 120_000;
-  if (config.provider === "kimi") return KIMI_TIMEOUT_MS;
-  if (config.provider === "deepseek" && config.model === DEEPSEEK_PRO_MODEL) return DEEPSEEK_PRO_TIMEOUT_MS;
-  if (config.provider === "deepseek") return DEEPSEEK_FLASH_TIMEOUT_MS;
-  return 120_000;
+  let base = 120_000;
+  if (config.provider === "minimax") base = 120_000;
+  else if (config.provider === "kimi") base = KIMI_TIMEOUT_MS;
+  else if (config.provider === "deepseek" && config.model === DEEPSEEK_PRO_MODEL) base = DEEPSEEK_PRO_TIMEOUT_MS;
+  else if (config.provider === "deepseek") base = DEEPSEEK_FLASH_TIMEOUT_MS;
+  if (config.aiHtmlAttempt) return Math.min(base, AI_HTML_ATTEMPT_TIMEOUT_MS);
+  return base;
 }
 
 function providerResponseMessage(data, text, statusCode) {
@@ -3368,13 +3375,21 @@ function homepageRenderMode(payload) {
 function skeletonHomepagePromptLines(payload = {}) {
   if (homepageRenderMode(payload) !== "skeletonHtml") return [];
   const context = ensureObject(payload.context);
+  const layoutPreset = cleanText(context.layoutPreset || payload.layoutPreset || ensureObject(payload.guided).layoutPreset, "", 40);
+  const archetypeOrder = homepageArchetypeOrder(layoutPreset);
   return [
     "骨架 HTML 模式治理:",
     compactJson({
       skeletonDesignContract: context.skeletonDesignContract || null,
       skeletonGenerationRules: Array.isArray(context.skeletonGenerationRules) ? context.skeletonGenerationRules.slice(0, 6) : [],
+      // 升级 #3：给出该 layoutPreset 经过验证的版式原型 section 节奏，模型在此基础上"适配/微调"而不是从零随机排布。
+      layoutArchetype: {
+        layoutPreset: layoutPreset || "accountOpsConsole",
+        sectionRhythm: archetypeOrder,
+        rule: "按此 section 节奏排布并只做合理增删/合并：首屏焦点前置、相关模块成组、辅助内容居中、风险披露收尾；不要随机打乱顺序。",
+      },
       hardRules: [
-        "先生成整页级 designGenome/pageStory/layoutPreset 差异，再按 slot 填充模块。",
+        "先选定 layoutPreset 并采用其 layoutArchetype.sectionRhythm 作为版式骨架，再按 slot 填充模块。",
         "同一方案内所有 slot 必须服从同一套 token、CTA、标签、按钮、密度和模块语法。",
         "多方案之间必须改变首屏重心、section 顺序和核心模块 morph，不能只是换颜色、标题或按钮文案。",
       ],
@@ -3930,6 +3945,60 @@ function prepareComponentVisualReference(payload = {}) {
   };
 }
 
+// 入库语义动作识别：把按钮/链接文案归类成统一的动作角色，供骨架阶段决定层级（升级 #2 基础）。
+const BRICK_ACTION_RULES = [
+  { role: "deposit", re: /首次入金|立即入金|去入金|入\s*金|充值|deposit/i },
+  { role: "withdraw", re: /出\s*金|提现|withdraw/i },
+  { role: "transfer", re: /转\s*账|划转|transfer/i },
+  { role: "openAccount", re: /立即开户|开立(?:真实)?账户|开\s*户|open\s*account/i },
+  { role: "verify", re: /立即验证|去认证|实名认证|kyc|verify/i },
+  { role: "follow", re: /关\s*注|跟\s*单|订阅信号|follow|copy/i },
+  { role: "joinCampaign", re: /立即参与|参与活动|领取|join|claim/i },
+  { role: "bindAccount", re: /绑定(?:账户|账号)|bind\s*account/i },
+];
+
+function classifyBrickActionText(text = "") {
+  const value = String(text).replace(/\s+/g, " ").trim();
+  if (!value || value.length > 24) return "";
+  for (const rule of BRICK_ACTION_RULES) {
+    if (rule.re.test(value)) return rule.role;
+  }
+  return "";
+}
+
+// 入库规范化（升级 #1）：在积木写入组件库时一次性完成——
+// 1) 颜色收敛到 --home-* token（把运行时 enforceGoldenThemeOnCss 落到数据，永久生效、零运行时成本）；
+// 2) 给最外层元素打 data-brick-root，让骨架可以精确中和积木自带外壳、成为唯一表面来源；
+// 3) 给资金/开户等按钮标注 data-home-action 语义，并抽出 actions 元数据供骨架阶段决定主次。
+function normalizeBrickContentForIngestion(html = "", css = "", family = "") {
+  const actions = [];
+  let nextCss = enforceGoldenThemeOnCss(String(css || ""));
+  let nextHtml = String(html || "");
+
+  // 2) 标注最外层元素（跳过注释/前导空白），不重复标注
+  if (nextHtml && !/data-brick-root/i.test(nextHtml)) {
+    nextHtml = nextHtml.replace(/^(\s*(?:<!--[\s\S]*?-->\s*)*)(<([a-zA-Z][\w-]*)\b)(\s[^>]*?)?(\/?>)/, (full, lead, openStart, tag, attrs = "", close) => {
+      if (/^(style|script|link|meta)$/i.test(tag)) return full;
+      return `${lead}${openStart}${attrs || ""} data-brick-root="1"${close}`;
+    });
+  }
+
+  // 3) 标注动作语义
+  nextHtml = nextHtml.replace(/<(button|a)\b([^>]*)>([\s\S]*?)<\/\1>/gi, (full, tagName, attrs, inner) => {
+    if (/data-home-action\s*=/i.test(attrs)) {
+      const existing = (attrs.match(/data-home-action\s*=\s*["']([^"']+)["']/i) || [])[1];
+      if (existing) actions.push(existing);
+      return full;
+    }
+    const role = classifyBrickActionText(inner.replace(/<[^>]*>/g, " "));
+    if (!role) return full;
+    actions.push(role);
+    return `<${tagName}${attrs} data-home-action="${role}">${inner}</${tagName}>`;
+  });
+
+  return { html: nextHtml, css: nextCss, actions: [...new Set(actions)] };
+}
+
 function normalizeGeneratedComponent(component, payload = {}, options = {}) {
   const source = component && typeof component === "object" ? component : {};
   const requestedFamily = oneOfComponentFamily(payload.family, "");
@@ -3958,6 +4027,10 @@ function normalizeGeneratedComponent(component, payload = {}, options = {}) {
     .filter(Boolean)
     .slice(0, 8);
 
+  const cleanHtml = collapseDuplicateComponentTitles(stripEditorArtifactsFromHtml(sanitizeGeneratedHtml(source.html)));
+  const cleanCss = stripEditorArtifactsFromCss(sanitizeGeneratedCss(source.css));
+  const ingested = normalizeBrickContentForIngestion(cleanHtml, cleanCss, family);
+
   return {
     id,
     type: cleanText(source.type, "ai-generated", 32),
@@ -3968,8 +4041,10 @@ function normalizeGeneratedComponent(component, payload = {}, options = {}) {
     score: normalizeComponentScore(source.score ?? payload.componentScore, defaultScore),
     description: cleanText(stripEditorArtifactsFromText(source.description), "AI 生成的首页积木组件。", 260),
     tags: (Array.isArray(source.tags) ? source.tags : [family, size]).map((tag) => cleanText(tag, "", 28)).filter(Boolean).slice(0, 8),
-    html: collapseDuplicateComponentTitles(stripEditorArtifactsFromHtml(sanitizeGeneratedHtml(source.html))),
-    css: stripEditorArtifactsFromCss(sanitizeGeneratedCss(source.css)),
+    html: ingested.html,
+    css: ingested.css,
+    actions: ingested.actions,
+    themeNormalized: true,
     layoutContract,
     layoutHints,
     dataRequirements: (Array.isArray(source.dataRequirements) ? source.dataRequirements : []).map((item) => cleanText(item, "", 120)).filter(Boolean).slice(0, 6),
@@ -4496,6 +4571,8 @@ function rankComponentReferences(components, options = {}) {
             .length
         : 0;
 
+      // 升级 #4：尺寸适配改为分级——完全吻合加分，差得越远扣得越多，避免把窄积木硬塞进宽槽位（或反之）。
+      const fitDistance = size ? componentSizeDistance(component.size, size) : 0;
       return {
         component,
         admission,
@@ -4503,7 +4580,8 @@ function rankComponentReferences(components, options = {}) {
           componentReferenceTierPriority(admission.tier) +
           admission.score * 18 +
           (family && component.family === family ? 80 : 0) +
-          (size && component.size === size ? 22 : 0) +
+          (size && component.size === size ? 28 : 0) -
+          fitDistance * 9 +
           promptHits * 8 +
           Math.max(0, 20 - Math.min(index, 20)) * 0.2,
       };
@@ -4926,7 +5004,19 @@ function purgeBlockedComponentReferencesFromConfig(config, options = {}) {
         score: component.score,
         referenceTier: component.referenceTier,
       };
-      if (isBlockedReference(reference)) delete slotComponents[slotId];
+      if (isBlockedReference(reference)) {
+        delete slotComponents[slotId];
+        return;
+      }
+      // 骨架槽位积木的 CSS 也要服从黄金主题，否则自带青绿/异色的积木装进骨架后整页变拼盘。
+      const nested = component.component && typeof component.component === "object" ? component.component : null;
+      if (typeof component.css === "string" && component.css) {
+        slotComponents[slotId] = { ...component, css: enforceGoldenThemeOnCss(component.css) };
+      }
+      if (nested && typeof nested.css === "string" && nested.css) {
+        const target = slotComponents[slotId];
+        slotComponents[slotId] = { ...target, component: { ...nested, css: enforceGoldenThemeOnCss(nested.css) } };
+      }
     });
     config.skeletonHtmlScheme = { ...config.skeletonHtmlScheme, slotComponents };
   }
@@ -6901,6 +6991,48 @@ function homepageSectionTransition(section = {}, index = 0) {
   return index === 0 ? "plain" : "soft-break";
 }
 
+// 升级 #3：版式原型 —— 每个 layoutPreset 一套经过验证的 section 节奏（首屏焦点在前、辅助居中、法务收尾）。
+// Stage 1 既把它作为提示词里"待适配的版式"，也作为发布前的确定性排序兜底，避免模型把 section 随机堆叠。
+const HOMEPAGE_LAYOUT_ARCHETYPES = {
+  onboardingJourney: ["welcome_header", "onboarding_guide", "asset_overview", "quick_actions", "kyc_status_card", "trading_account_highlight", "trading_accounts_list", "copytrading_signals", "promo_banner", "referral_link_card", "faq_section", "support_contact", "app_download", "risk_disclosure"],
+  accountOpsConsole: ["welcome_header", "asset_overview", "quick_actions", "trading_account_highlight", "trading_accounts_list", "wallet_list", "kyc_status_card", "copytrading_signals", "pamm_products", "promo_banner", "referral_link_card", "faq_section", "support_contact", "app_download", "risk_disclosure"],
+  tradingCommand: ["welcome_header", "trading_account_highlight", "trading_accounts_list", "quick_actions", "asset_overview", "copytrading_signals", "pamm_products", "wallet_list", "promo_banner", "faq_section", "support_contact", "risk_disclosure"],
+  magazineCampaign: ["promo_banner", "welcome_header", "quick_actions", "asset_overview", "trading_account_highlight", "trading_accounts_list", "copytrading_signals", "referral_link_card", "faq_section", "support_contact", "risk_disclosure"],
+  conversionFirst: ["promo_banner", "onboarding_guide", "asset_overview", "quick_actions", "trading_account_highlight", "trading_accounts_list", "referral_link_card", "faq_section", "risk_disclosure"],
+  privateWealthDesk: ["welcome_header", "asset_overview", "trading_account_highlight", "pamm_products", "copytrading_signals", "trading_accounts_list", "wallet_list", "quick_actions", "promo_banner", "faq_section", "support_contact", "risk_disclosure"],
+};
+const HOMEPAGE_ARCHETYPE_DEFAULT_ORDER = HOMEPAGE_LAYOUT_ARCHETYPES.accountOpsConsole;
+
+function homepageArchetypeOrder(layoutPreset) {
+  return HOMEPAGE_LAYOUT_ARCHETYPES[cleanText(layoutPreset, "", 40)] || HOMEPAGE_ARCHETYPE_DEFAULT_ORDER;
+}
+
+function reorderHomepageSectionsByArchetype(config, actions = []) {
+  if (!config || typeof config !== "object" || !Array.isArray(config.sections) || config.sections.length < 3) return config;
+  const order = homepageArchetypeOrder(config.layoutPreset || config.designGenome);
+  const rankOf = (slot) => {
+    const idx = order.indexOf(canonicalHomeBlock(slot) || slot);
+    return idx === -1 ? order.length + 5 : idx;
+  };
+  const sectionRank = (section) => {
+    const slots = Array.isArray(section?.slots) ? section.slots : [];
+    if (!slots.length) return order.length + 10;
+    if (slots.some((s) => /risk_disclosure|risk_notice/.test(canonicalHomeBlock(s) || s))) return order.length + 20; // 法务永远收尾
+    return Math.min(...slots.map(rankOf));
+  };
+  const before = config.sections.map((s) => s.id || "").join("|");
+  const reordered = config.sections
+    .map((section, index) => ({ section, index, rank: sectionRank(section) }))
+    .sort((a, b) => a.rank - b.rank || a.index - b.index)
+    .map((item) => item.section);
+  const after = reordered.map((s) => s.id || "").join("|");
+  if (before !== after) {
+    config.sections = reordered;
+    actions?.push?.(`已按 ${cleanText(config.layoutPreset || config.designGenome, "默认", 40)} 版式原型重排 section 节奏：首屏焦点前置、法务收尾。`);
+  }
+  return config;
+}
+
 function applySectionTransitionsToHomepageConfig(config, actions = []) {
   if (!config || typeof config !== "object" || !Array.isArray(config.sections)) return config;
   let changed = false;
@@ -6956,6 +7088,7 @@ function applyGoldenStyleContractToHomepageConfig(config, prompt = "", actions =
     config.skeletonHtmlScheme.designContract = contract;
     config.skeletonHtmlScheme.styleContract = contract;
   }
+  reorderHomepageSectionsByArchetype(config, actions);
   applySectionTransitionsToHomepageConfig(config, actions);
   if (!existingContract) {
     actions?.push?.("已把黄金样式抽成可执行 styleContract，并同步主题、背景和块关系渲染契约。");
@@ -9199,6 +9332,82 @@ function evaluateSectionTransitionQuality(config = {}) {
   };
 }
 
+// 升级 #6：黄金对比自动门禁（确定性、不依赖浏览器/LLM）。
+// 从配置里采集 CSS/HTML/section 顺序，量化三个维度对齐黄金样本：
+// 1) 配色对齐——非主题色字面量（会被收编的偏色）越多扣分越多；
+// 2) 结构对齐——section slot 顺序与该 layoutPreset 版式原型的最长公共子序列占比；
+// 3) CTA 纪律——主资金/开户动作是否唯一。
+function collectHomepageCssAndHtml(config = {}) {
+  const cssParts = [];
+  const htmlParts = [];
+  const push = (obj) => {
+    if (!obj || typeof obj !== "object") return;
+    if (typeof obj.css === "string") cssParts.push(obj.css);
+    if (typeof obj.html === "string") htmlParts.push(obj.html);
+  };
+  push(config.htmlScheme);
+  const slotComponents = config.skeletonHtmlScheme?.slotComponents;
+  if (slotComponents && typeof slotComponents === "object") {
+    Object.values(slotComponents).forEach((entry) => {
+      push(entry);
+      push(entry?.component);
+    });
+  }
+  if (config.moduleStyles && typeof config.moduleStyles === "object") {
+    Object.values(config.moduleStyles).forEach((v) => { if (typeof v === "string") cssParts.push(v); else push(v); });
+  }
+  if (config.componentMorphs && typeof config.componentMorphs === "object") {
+    Object.values(config.componentMorphs).forEach(push);
+  }
+  return { css: cssParts.join("\n"), html: htmlParts.join("\n") };
+}
+
+function longestCommonSubsequenceRatio(a = [], b = []) {
+  if (!a.length || !b.length) return 0;
+  const dp = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
+  for (let i = 1; i <= a.length; i += 1) {
+    for (let j = 1; j <= b.length; j += 1) {
+      dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1]);
+    }
+  }
+  return dp[a.length][b.length] / Math.max(a.length, b.length);
+}
+
+function evaluateGoldenAlignment(config = {}) {
+  const { css, html } = collectHomepageCssAndHtml(config);
+  const issues = [];
+
+  // 1) 配色对齐
+  const colorLiterals = css.match(/#[0-9a-f]{3,8}\b|rgba?\([^)]*\)/gi) || [];
+  let offBrand = 0;
+  colorLiterals.forEach((c) => { if (goldenTokenForCssColor(c)) offBrand += 1; });
+  const tokenUsage = (css.match(/var\(--home-/g) || []).length;
+  const colorAlignment = categoryScore(100 - Math.min(60, offBrand * 6) + (tokenUsage > 0 ? 0 : -10));
+  if (offBrand > 0) issues.push(`仍有 ${offBrand} 处非主题色字面量未收敛到黄金 token。`);
+
+  // 2) 结构对齐
+  const sections = Array.isArray(config.sections) ? config.sections : [];
+  const generatedOrder = homepageBlocksFromSections(sections).map((b) => canonicalHomeBlock(b) || b);
+  const archetypeOrder = homepageArchetypeOrder(config.layoutPreset || config.designGenome).filter((b) => generatedOrder.includes(b));
+  const structureAlignment = categoryScore(longestCommonSubsequenceRatio(generatedOrder, archetypeOrder) * 100);
+  if (structureAlignment < 70) issues.push("section 顺序偏离该版式原型节奏，首屏焦点/法务收尾可能错位。");
+
+  // 3) CTA 纪律
+  const primaryActions = (html.match(/data-home-action="(deposit|openAccount)"/g) || []).length;
+  const ctaDiscipline = categoryScore(primaryActions <= 1 ? 100 : 100 - (primaryActions - 1) * 22);
+  if (primaryActions > 1) issues.push(`检测到 ${primaryActions} 个主资金/开户 CTA，应只保留一个主操作。`);
+
+  const score = categoryScore(colorAlignment * 0.4 + structureAlignment * 0.35 + ctaDiscipline * 0.25);
+  return {
+    label: "黄金对比门禁",
+    score,
+    status: scoreBand(score),
+    breakdown: { colorAlignment, structureAlignment, ctaDiscipline },
+    metrics: { offBrandColors: offBrand, tokenUsage, primaryActions, sectionCount: sections.length },
+    issues: issues.slice(0, 6),
+  };
+}
+
 function evaluateHomepageAesthetic(payload = {}, config = {}) {
   const sourceConfig = config && typeof config === "object" ? config : {};
   const prompt = cleanText(payload.prompt || sourceConfig.prompt || "", "", 1200);
@@ -9369,10 +9578,17 @@ function evaluateHomepageAesthetic(payload = {}, config = {}) {
     suggestions.push("为连续业务路径标记 connected，为不同叙事组标记 hard-break/workbench，并让黄金 styleContract 的 chromePolicy 执行这些断点。");
   }
 
+  const goldenAlignment = evaluateGoldenAlignment(sourceConfig);
+  if (goldenAlignment.issues.length) {
+    goldenAlignment.issues.slice(0, 4).forEach((issue) => issues.push(`黄金对比门禁：${issue}`));
+    suggestions.push("收敛非主题色到 --home-* token、按版式原型重排 section、并把主资金 CTA 收敛为唯一主操作。");
+  }
+
 	  return {
     label: "首页审美评分",
     score,
     status: scoreBand(score),
+    goldenAlignment,
     categories,
     strengths: strengths.slice(0, 10),
     issues: [...new Set(issues)].slice(0, 10),
@@ -9805,6 +10021,30 @@ function normalizeAiHtmlLayoutContract(source = {}) {
   };
 }
 
+// 升级 #4：槽位↔积木尺寸适配校验。比较槽位要求的栏宽和积木原生栏宽，差距过大判为不合身，
+// 返回 reflowSize 让渲染按积木原生尺寸排布，避免把 1x 积木拉满 12 栏（或把宽积木压扁）。
+function brickColumnsForSize(size) {
+  const cols = componentSizeColumns(size);
+  if (cols <= 1) return 4;
+  if (cols === 2) return 8;
+  return 12;
+}
+
+function validateBrickFit(requestedSize, component = {}) {
+  const requestedColumns = brickColumnsForSize(requestedSize);
+  const brickColumns = brickColumnsForSize(component.size);
+  const distance = componentSizeDistance(component.size, requestedSize || component.size);
+  const fits = distance <= 1; // 允许 1 个尺寸单位的小偏差
+  return {
+    fits,
+    distance,
+    requestedColumns,
+    brickColumns,
+    reflowSize: fits ? "" : normalizeComponentSize(component.size, requestedSize),
+    reason: fits ? "" : `积木原生 ${component.size || "?"} 与槽位要求 ${requestedSize || "?"} 不合身，已按积木原生尺寸排布。`,
+  };
+}
+
 function selectHighScoreBrickForHomepageBlock(block, payload = {}, config = {}, usedIds = new Set()) {
   const canonical = canonicalHomeBlock(block);
   if (!canonical) return null;
@@ -9831,10 +10071,14 @@ function selectHighScoreBrickForHomepageBlock(block, payload = {}, config = {}, 
     ranked[0];
   if (!selected) return null;
   usedIds.add(selected.id);
+  const fit = validateBrickFit(size, selected);
   return {
     block: canonical,
     requestedFamily: family,
     requestedSize: size,
+    // 不合身时按积木原生尺寸 reflow，避免强行拉伸/压扁
+    effectiveSize: fit.fits ? size : fit.reflowSize || size,
+    fit,
     component: selected,
     admission: componentReferenceAdmission(selected, payload),
     hints: inferHomepageComponentReferenceHints(family, selected),
@@ -9938,11 +10182,77 @@ function flattenCssGradients(css = "") {
   return out + src.slice(last);
 }
 
+// 把 hex / rgb(a) 颜色字面量解析为 {r,g,b,a}（0-255 / 0-1），无法解析返回 null。
+function parseCssColorToRgba(raw = "") {
+  const value = String(raw).trim();
+  let m = value.match(/^#([0-9a-f]{3,8})$/i);
+  if (m) {
+    let hex = m[1];
+    if (hex.length === 3 || hex.length === 4) hex = hex.split("").map((ch) => ch + ch).join("");
+    if (hex.length !== 6 && hex.length !== 8) return null;
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    const a = hex.length === 8 ? parseInt(hex.slice(6, 8), 16) / 255 : 1;
+    return { r, g, b, a };
+  }
+  m = value.match(/^rgba?\(\s*([0-9.]+)[ ,]+([0-9.]+)[ ,]+([0-9.]+)(?:[ ,/]+([0-9.%]+))?\s*\)$/i);
+  if (m) {
+    const r = Number(m[1]);
+    const g = Number(m[2]);
+    const b = Number(m[3]);
+    let a = 1;
+    if (m[4] != null) a = /%$/.test(m[4]) ? Number(m[4].slice(0, -1)) / 100 : Number(m[4]);
+    if ([r, g, b].some((n) => !Number.isFinite(n))) return null;
+    return { r, g, b, a: Number.isFinite(a) ? a : 1 };
+  }
+  return null;
+}
+
+// RGB → HSL，h ∈ [0,360)，s/l ∈ [0,1]。
+function rgbToHsl({ r, g, b }) {
+  const rn = r / 255;
+  const gn = g / 255;
+  const bn = b / 255;
+  const max = Math.max(rn, gn, bn);
+  const min = Math.min(rn, gn, bn);
+  const l = (max + min) / 2;
+  const d = max - min;
+  if (d === 0) return { h: 0, s: 0, l };
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  let h;
+  if (max === rn) h = ((gn - bn) / d) % 6;
+  else if (max === gn) h = (bn - rn) / d + 2;
+  else h = (rn - gn) / d + 4;
+  h *= 60;
+  if (h < 0) h += 360;
+  return { h, s, l };
+}
+
+// 把任意颜色字面量归类到一个 --home-* 主题 token：
+// 只收编"偏蓝青绿到靛紫"这一族非语义品牌色（teal/cyan/sky/blue/indigo/violet, hue 150-290），
+// 统一到蓝色主色刻度；中性灰、近黑白、以及红(危险)/绿(成功)/金黄(警示/促销)等语义色一律保留。
+function goldenTokenForCssColor(raw = "") {
+  const rgba = parseCssColorToRgba(raw);
+  if (!rgba) return null;
+  const { h, s, l } = rgbToHsl(rgba);
+  if (s < 0.18) return null; // 中性灰/近黑白 → 保留（文字、边框、底色）
+  if (l <= 0.2) return null; // 近黑（如 #0f172a 正文/标题色）→ 保留，避免把深色文字染成主色
+  if (h < 150 || h > 290) return null; // 红(危险)/成功绿/金黄橙(警示促销/盈亏) → 语义色保留
+  // 低透明度叠加层 → 浅色 token，避免压平成实色后变重
+  if (rgba.a < 0.28) return "--home-primary-faint";
+  if (rgba.a < 0.6) return "--home-primary-soft";
+  if (l <= 0.3) return "--home-primary-strong";
+  if (l >= 0.88) return "--home-primary-faint";
+  if (l >= 0.78) return "--home-primary-soft";
+  return "--home-primary";
+}
+
 // 任务B 风格契约强制：把"装配进首页"的积木 CSS 统一到页面主题，避免出现像
 // qa-accent-cards 那种自带青绿 --qa-primary 的卡片，让整页变成异色拼盘。
-// 做三件事：1) 把组件局部的 primary/brand/accent 自定义属性的色值改写成 var(--home-primary)
-// （语义色 success/danger/warning/positive 等保留）；2) 把已知青绿品牌色硬编码改成主题色；
-// 3) 压平装饰性渐变为纯色。banner/promo 类的渐变由调用方决定是否豁免。
+// 做三件事：1) 把组件局部 primary/brand/accent 自定义属性里的色值改写成 var(--home-primary)
+// （语义色 success/danger/warning/positive 等按变量名保留）；2) 把所有偏蓝青绿到靛紫的
+// 非语义颜色字面量（hex / rgba）按色相+明度收编到蓝色主色刻度 token；3) 压平装饰性渐变为纯色。
 function enforceGoldenThemeOnCss(css = "") {
   let out = String(css);
   out = out.replace(/(--[\w-]*(?:primary|brand|accent|theme|main)[\w-]*)(\s*:\s*)([^;]+)(;)/gi, (full, name, sep, value) => {
@@ -9952,8 +10262,11 @@ function enforceGoldenThemeOnCss(css = "") {
     if (!/#[0-9a-f]{3,8}\b|rgba?\(/i.test(v)) return full; // only remap actual color values
     return `${name}${sep}var(--home-primary)` + ";";
   });
-  // 已知青绿品牌色家族（多个积木用它做主色面）→ 主题主色
-  out = out.replace(/#0d9488|#0f766e|#14b8a6|#0d9485|#0e9488|#0891b2/gi, "var(--home-primary)");
+  // 通用颜色收编：所有偏蓝青绿到靛紫的非语义颜色字面量 → 蓝色主色刻度 token。
+  out = out.replace(/#[0-9a-f]{3,8}\b|rgba?\([^)]*\)/gi, (match) => {
+    const token = goldenTokenForCssColor(match);
+    return token ? `var(${token})` : match;
+  });
   out = flattenCssGradients(out);
   return out;
 }
@@ -11028,9 +11341,11 @@ function buildComponentPrompt(payload) {
   const size = componentSizePromptLabel(payload.size, "2x1");
   const referenceSize = normalizeComponentSize(payload.size, layoutContext.recommendedSize || "");
   const familySpec = componentFamilySpec(family);
-  const componentReference = componentLibraryPromptReference({ family, size: referenceSize, prompt, limit: 8 });
+  // 提速 C：精简单次上下文。原来注入 8 库参考 + 6 审美 + 2 样本 + 3 反馈，token 体量很大；
+  // 收敛到目标 family 的少量高分范例即可，模型已能从中吸收结构，省下大量 input token。
+  const componentReference = componentLibraryPromptReference({ family, size: referenceSize, prompt, limit: 4 });
   const scoreReference = scoreContextPromptReference(payload.scoreContext);
-  const aestheticReference = componentAestheticPromptReference({ family, size: referenceSize, prompt, limit: 6, sampleLimit: 2, feedbackLimit: 3 });
+  const aestheticReference = componentAestheticPromptReference({ family, size: referenceSize, prompt, limit: 3, sampleLimit: 1, feedbackLimit: 2 });
   const designGovernance = designRulesPromptReference();
   const visualReference = componentVisualReferencePromptReference(payload);
   const skeletonContract = componentSkeletonPromptContractReference(payload);
@@ -13714,11 +14029,16 @@ function buildOpenAiResponsesBody(config, promptParts, schema, schemaName = "ai_
 }
 
 function buildAnthropicBody(config, promptParts) {
+  // 提速 A：把稳定的系统前缀标记为可缓存（Anthropic prompt caching）。
+  // 系统规则在多次生成间基本不变，命中后可省去对这一大段前缀的重复计费与处理延迟。
+  const system = promptParts.system
+    ? [{ type: "text", text: String(promptParts.system), cache_control: { type: "ephemeral" } }]
+    : promptParts.system;
   return {
     model: config.model,
     max_tokens: config.maxOutputTokens,
     temperature: config.temperature,
-    system: promptParts.system,
+    system,
     messages: [{ role: "user", content: promptParts.user }],
   };
 }
@@ -19212,26 +19532,29 @@ async function callProvider(payload) {
 	    };
 	  }
 
+  // 提速 B：自由 HTML 与配置两次调用互不依赖，并发发起（在任何 await 之前创建 Promise），省掉一次调用的墙钟时间。
   let freeHtmlResult = null;
   let freeHtmlError = null;
+  let freeHtmlPromise = null;
   if (renderModeWantsAiHtml(renderMode)) {
     if (compactAiHtmlProvider) {
       freeHtmlError = new Error(`${config.name} 使用短输出 AI HTML 通道，跳过长自由 HTML 首轮。`);
     } else {
-      try {
-        freeHtmlResult = await callProviderWithPrompt(
-          policyPayload,
-          aiHtmlPromptForProvider(config, policyPayload, {}, { free: true }),
-          AI_HTML_SCHEME_JSON_SCHEMA,
-          "homepage_ai_html_free",
-        );
-      } catch (error) {
+      freeHtmlPromise = callProviderWithPrompt(
+        { ...policyPayload, modelConfig: { ...(policyPayload.modelConfig || {}), aiHtmlAttempt: true } },
+        aiHtmlPromptForProvider(config, policyPayload, {}, { free: true }),
+        AI_HTML_SCHEME_JSON_SCHEMA,
+        "homepage_ai_html_free",
+      ).catch((error) => {
         freeHtmlError = error;
-      }
+        return null;
+      });
     }
   }
 
-  const result = await callProviderWithPrompt(policyPayload, buildPrompt(policyPayload, config), policyPayload.context?.schema, "homepage_config");
+  const configPromise = callProviderWithPrompt(policyPayload, buildPrompt(policyPayload, config), policyPayload.context?.schema, "homepage_config");
+  if (freeHtmlPromise) freeHtmlResult = await freeHtmlPromise;
+  const result = await configPromise;
   const rawHomepageConfig = enforceHomepagePromptIntent(
     policyPayload,
     prepareProviderHomepageConfig(policyPayload, result.json, { ...config, provider: result.provider, model: result.model }),
@@ -20828,6 +21151,45 @@ const requestHandler = async (req, res) => {
   handleStatic(req, res, requestUrl.pathname);
 };
 
+function runComponentLibraryNormalizationCli() {
+  const apply = !process.argv.includes("--dry-run");
+  const library = readRawComponentLibrary();
+  const components = Array.isArray(library.components) ? library.components : [];
+  let cssChanged = 0;
+  let rootTagged = 0;
+  let withActions = 0;
+  const actionTally = {};
+  const next = components.map((component) => {
+    if (!component || typeof component !== "object") return component;
+    const beforeCss = String(component.css || "");
+    const beforeHtml = String(component.html || "");
+    const ingested = normalizeBrickContentForIngestion(beforeHtml, beforeCss, component.family || "");
+    if (ingested.css !== beforeCss) cssChanged += 1;
+    if (/data-brick-root/i.test(ingested.html) && !/data-brick-root/i.test(beforeHtml)) rootTagged += 1;
+    if (ingested.actions.length) {
+      withActions += 1;
+      ingested.actions.forEach((role) => { actionTally[role] = (actionTally[role] || 0) + 1; });
+    }
+    return { ...component, html: ingested.html, css: ingested.css, actions: ingested.actions, themeNormalized: true };
+  });
+  console.log(`[normalize-library] components: ${components.length}`);
+  console.log(`[normalize-library] css color-normalized: ${cssChanged}`);
+  console.log(`[normalize-library] root tagged: ${rootTagged}`);
+  console.log(`[normalize-library] with semantic actions: ${withActions}`);
+  console.log(`[normalize-library] action tally:`, JSON.stringify(actionTally));
+  if (apply) {
+    writeJsonFile(COMPONENT_LIBRARY_FILE, { ...library, components: next });
+    console.log(`[normalize-library] WROTE ${COMPONENT_LIBRARY_FILE}`);
+  } else {
+    console.log(`[normalize-library] dry-run, no file written`);
+  }
+}
+
+if (require.main === module && process.argv.includes("normalize-library")) {
+  runComponentLibraryNormalizationCli();
+  process.exit(0);
+}
+
 if (require.main === module) {
   const server = http.createServer(requestHandler);
 
@@ -20839,4 +21201,13 @@ if (require.main === module) {
   });
 }
 
-module.exports = requestHandler;
+module.exports = Object.assign(requestHandler, {
+  // 升级 #1-#6 暴露的纯函数，便于自动化门禁测试
+  enforceGoldenThemeOnCss,
+  goldenTokenForCssColor,
+  normalizeBrickContentForIngestion,
+  reorderHomepageSectionsByArchetype,
+  homepageArchetypeOrder,
+  validateBrickFit,
+  evaluateGoldenAlignment,
+});

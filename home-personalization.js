@@ -13327,6 +13327,178 @@
     return loading;
   }
 
+  // 给空的迷你走势图容器兜底一个 sparkline，避免渲染成空灰盒（积木只放了容器、没塞图）。
+  // 升级 #5：数据契约图表 —— 容器声明 data-home-chart="line|area|bars" + data-home-chart-values="..."
+  // (+可选 data-home-chart-tone="up|down")，渲染器据此确定性出图；无声明时按附近指标符号推断走势。
+  // 自包含 SVG，不依赖 CDN ECharts，离线/无头环境也稳定。
+  const HOME_CHART_DEFAULT_VALUES = [12, 18, 15, 22, 20, 28, 31];
+
+  function parseHomeChartValues(raw) {
+    const list = String(raw || "")
+      .split(/[\s,;]+/)
+      .map((v) => Number(v))
+      .filter((v) => Number.isFinite(v));
+    return list.length >= 2 ? list.slice(0, 48) : null;
+  }
+
+  function inferHomeChartToneFromContext(node) {
+    const text = (node.closest("[data-home-skeleton-slot]") || node.parentElement || node).textContent || "";
+    if (/-\s*\d|下跌|回撤|亏损|负/.test(text) && !/\+\s*\d/.test(text)) return "down";
+    return "up";
+  }
+
+  function buildHomeChartSvg(doc, options = {}) {
+    const ns = "http://www.w3.org/2000/svg";
+    const type = ["line", "area", "bars"].includes(options.type) ? options.type : "area";
+    const tone = options.tone === "down" ? "down" : "up";
+    let values = Array.isArray(options.values) && options.values.length >= 2 ? options.values.slice(0, 48) : HOME_CHART_DEFAULT_VALUES.slice();
+    if (tone === "down") values = values.slice().reverse();
+    const W = 120;
+    const H = 40;
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const span = max - min || 1;
+    const stroke = tone === "down" ? "var(--home-danger, #dc2626)" : "var(--home-primary, #2563eb)";
+    const fill = tone === "down" ? "rgba(220,38,38,0.10)" : "var(--home-primary-faint, #eff6ff)";
+    const svg = doc.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    svg.setAttribute("preserveAspectRatio", "none");
+    svg.setAttribute("class", "home-skeleton-fallback-spark");
+    svg.setAttribute("aria-hidden", "true");
+    const x = (i) => (values.length === 1 ? 0 : (i / (values.length - 1)) * W);
+    const y = (v) => H - 4 - ((v - min) / span) * (H - 8);
+
+    if (type === "bars") {
+      const bw = Math.max(2, (W / values.length) * 0.6);
+      values.forEach((v, i) => {
+        const bx = x(i) - bw / 2;
+        const by = y(v);
+        const rect = doc.createElementNS(ns, "rect");
+        rect.setAttribute("x", String(Math.max(0, bx)));
+        rect.setAttribute("y", String(by));
+        rect.setAttribute("width", String(bw));
+        rect.setAttribute("height", String(Math.max(1, H - 2 - by)));
+        rect.setAttribute("rx", "1.5");
+        rect.setAttribute("fill", stroke);
+        svg.appendChild(rect);
+      });
+      return svg;
+    }
+
+    const d = "M " + values.map((v, i) => `${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(" L ");
+    if (type === "area") {
+      const area = doc.createElementNS(ns, "path");
+      area.setAttribute("d", `${d} L ${W} ${H} L 0 ${H} Z`);
+      area.setAttribute("fill", fill);
+      svg.appendChild(area);
+    }
+    const line = doc.createElementNS(ns, "path");
+    line.setAttribute("d", d);
+    line.setAttribute("fill", "none");
+    line.setAttribute("stroke", stroke);
+    line.setAttribute("stroke-width", "2");
+    line.setAttribute("stroke-linecap", "round");
+    line.setAttribute("stroke-linejoin", "round");
+    line.setAttribute("vector-effect", "non-scaling-stroke");
+    svg.appendChild(line);
+    return svg;
+  }
+
+  // 读取容器上的图表数据契约并渲染；契约缺失时回退到按上下文推断的确定性走势。
+  function renderHomeChartContainer(doc, node, seed = 0) {
+    const declaredValues = parseHomeChartValues(node.getAttribute && node.getAttribute("data-home-chart-values"));
+    const declaredType = node.getAttribute && node.getAttribute("data-home-chart");
+    const declaredTone = node.getAttribute && node.getAttribute("data-home-chart-tone");
+    const tone = declaredTone === "up" || declaredTone === "down" ? declaredTone : inferHomeChartToneFromContext(node);
+    const values = declaredValues || HOME_CHART_DEFAULT_VALUES.map((v, i) => v + ((seed + i) % 3) * 2);
+    node.appendChild(buildHomeChartSvg(doc, { type: declaredType || "area", values, tone }));
+    node.classList.add("home-skeleton-sparkline-filled");
+  }
+
+  // 骨架阶段决定的主操作角色（升级 #2）：按 emphasis 强弱排序，取最强的资金/开户动作为全页唯一主 CTA。
+  function skeletonPrimaryActionRole(doc) {
+    const ds = (doc.body && doc.body.dataset) || {};
+    const ranked = [
+      ["deposit", ds.homeEmphasisDeposit],
+      ["openAccount", ds.homeEmphasisOpenAccount],
+      ["joinCampaign", ds.homeEmphasisPromo],
+    ];
+    const weight = { high: 3, medium: 2, low: 1 };
+    let best = "deposit";
+    let bestW = -1;
+    ranked.forEach(([role, level]) => {
+      const w = weight[String(level || "").toLowerCase()] || 0;
+      if (w > bestW) { bestW = w; best = role; }
+    });
+    return best;
+  }
+
+  // 发布态首页一致性收口：1) 空走势图兜底 sparkline；2) 主资金 CTA 去重 —— 优先用积木入库时标注的
+  // data-home-action 语义 + 骨架阶段的 emphasis 决定唯一主 CTA，其余资金/开户类大按钮降级为描边；
+  // 老数据（未标注 data-home-action）回退到文案+尺寸启发式，保证过渡期也生效。
+  function harmonizeSkeletonPublishedHomepage(doc, host) {
+    if (!host) return;
+    try {
+      // 升级 #5：先处理显式声明数据契约的图表容器，再兜底空的图表类容器
+      host.querySelectorAll("[data-home-chart]").forEach((node, index) => {
+        if (node.querySelector("svg, canvas, img")) return;
+        renderHomeChartContainer(doc, node, index);
+      });
+      host
+        .querySelectorAll('.fx-signal-chart-container, [class*="signal-chart"], [class*="sparkline"], [class*="mini-chart"], [class*="trend-chart"]')
+        .forEach((node, index) => {
+          if (node.children.length || (node.textContent || "").trim() || node.querySelector("svg, canvas, img")) return;
+          if ((node.clientHeight || 0) < 8) return;
+          renderHomeChartContainer(doc, node, index);
+        });
+
+      const inTable = (el) => el.closest("table, thead, tbody, tr, .fx-action-button");
+      const primaryRole = skeletonPrimaryActionRole(doc);
+      const competingRoles = new Set(["deposit", "openAccount", "withdraw", "joinCampaign"]);
+      const semanticCtas = [...host.querySelectorAll("[data-home-action]")].filter(
+        (el) => /^(button|a)$/i.test(el.tagName) && !inTable(el) && competingRoles.has(el.dataset.homeAction) && el.offsetWidth >= 140,
+      );
+
+      let ctas;
+      if (semanticCtas.length) {
+        // 契约驱动：主角色优先做主 CTA，其余竞争性资金动作降级
+        ctas = semanticCtas;
+        const primaryCandidates = ctas.filter((el) => el.dataset.homeAction === primaryRole);
+        const pool = primaryCandidates.length ? primaryCandidates : ctas;
+        let dominant = pool[0];
+        let maxArea = dominant.offsetWidth * dominant.offsetHeight;
+        pool.forEach((el) => {
+          const area = el.offsetWidth * el.offsetHeight;
+          if (area > maxArea) { maxArea = area; dominant = el; }
+        });
+        ctas.forEach((el) => {
+          if (el !== dominant) el.classList.add("home-skeleton-cta-demoted");
+        });
+      } else {
+        // 回退：老数据没有 data-home-action 时，用文案+尺寸启发式
+        ctas = [...host.querySelectorAll("button, a")].filter((el) => {
+          const text = (el.textContent || "").replace(/\s+/g, "");
+          if (!/入金|开户/.test(text) || /出金|转账|历史|记录|查看/.test(text)) return false;
+          if (inTable(el)) return false;
+          return el.offsetWidth >= 160;
+        });
+        if (ctas.length > 1) {
+          let dominant = ctas[0];
+          let maxArea = dominant.offsetWidth * dominant.offsetHeight;
+          ctas.forEach((el) => {
+            const area = el.offsetWidth * el.offsetHeight;
+            if (area > maxArea) { maxArea = area; dominant = el; }
+          });
+          ctas.forEach((el) => {
+            if (el !== dominant) el.classList.add("home-skeleton-cta-demoted");
+          });
+        }
+      }
+    } catch (err) {
+      /* 收口失败不阻断渲染 */
+    }
+  }
+
   function renderSkeletonHtmlScheme(config, target) {
     const shell = target.querySelector("[data-home-shell]");
     const scheme = normalizeSkeletonHtmlScheme(config.skeletonHtmlScheme, true);
@@ -13438,6 +13610,7 @@
     });
 
     shell.appendChild(host);
+    if (isPublishedSkeleton) harmonizeSkeletonPublishedHomepage(doc, host);
   }
 
 	  function componentEnabled(component, config) {
