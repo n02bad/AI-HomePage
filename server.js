@@ -4823,7 +4823,7 @@ function normalizeHomepageConfigComponentReferences(value) {
         styleFeature: cleanText(item?.styleFeature, "", 48),
         rendererMode: cleanText(item?.rendererMode, "", 40),
         rendererHtml: sanitizeAiHtmlMarkup(item?.rendererHtml || item?.html || ""),
-        rendererCss: sanitizeAiHtmlCss(item?.rendererCss || item?.css || ""),
+        rendererCss: enforceGoldenThemeOnCss(sanitizeAiHtmlCss(item?.rendererCss || item?.css || "")),
         rendererQualityFloor: Number.isFinite(Number(item?.rendererQualityFloor))
           ? Math.max(1, Math.min(10, Math.round(Number(item.rendererQualityFloor))))
           : undefined,
@@ -5008,7 +5008,7 @@ function applyComponentReferencesToHomepageConfig(config, prompt = "", options =
         styleFeature: hints.styleFeature,
         rendererMode: strongRenderer ? "high-score-component" : "",
         rendererHtml: strongRenderer ? sanitizeAiHtmlMarkup(selected.html) : "",
-        rendererCss: strongRenderer ? sanitizeAiHtmlCss(selected.css) : "",
+        rendererCss: strongRenderer ? enforceGoldenThemeOnCss(sanitizeAiHtmlCss(selected.css)) : "",
         rendererQualityFloor: strongRenderer ? COMPONENT_REFERENCE_SCORE_POLICY.strongMin : undefined,
         source: "home-component-library",
         reason: cleanText(`参考「${summary.name}」的字段密度、比例和 ${hints.morph || hints.variant || "组件结构"}，并映射到 ${block}。`, "", 180),
@@ -6658,23 +6658,25 @@ function summarizeDesignSampleForPrompt(sample) {
   };
 }
 
+// 任务B：契约默认值校准为 7 个金样实测 DNA（主蓝 #2563eb / hover #1d4ed8，
+// 软阴影、12px 卡片圆角、#d8e1ef 细边、#f6f9ff→#eef4ff 浅蓝底）。
 const GOLDEN_HOMEPAGE_STYLE_TOKENS = {
-  pageMaxWidth: "1280px",
-  pageGutter: "16px",
-  sectionGap: "14px",
-  rowGap: "14px",
+  pageMaxWidth: "1400px",
+  pageGutter: "24px",
+  sectionGap: "24px",
+  rowGap: "24px",
   cardPadding: "16px",
   cardRadius: "12px",
-  buttonRadius: "7px",
-  cardShadow: "0 10px 24px rgba(15, 23, 42, 0.07)",
+  buttonRadius: "8px",
+  cardShadow: "0 10px 24px rgba(37, 99, 235, 0.12)",
   cardBorder: "#d8e1ef",
-  background: "linear-gradient(180deg, #f8fbff 0%, #eef4ff 52%, #f7faff 100%)",
+  background: "linear-gradient(180deg, #f6f9ff 0%, #eef4ff 52%, #f7faff 100%)",
   surface: "#ffffff",
   surfaceSoft: "#f7faff",
   surfaceMuted: "#eef4ff",
-  primaryColor: "#2f66e8",
-  primaryStrong: "#275bd5",
-  accentColor: "#2f66e8",
+  primaryColor: "#2563eb",
+  primaryStrong: "#1d4ed8",
+  accentColor: "#2563eb",
   textStrong: "#0f172a",
   textMuted: "#64748b",
 };
@@ -9936,6 +9938,26 @@ function flattenCssGradients(css = "") {
   return out + src.slice(last);
 }
 
+// 任务B 风格契约强制：把"装配进首页"的积木 CSS 统一到页面主题，避免出现像
+// qa-accent-cards 那种自带青绿 --qa-primary 的卡片，让整页变成异色拼盘。
+// 做三件事：1) 把组件局部的 primary/brand/accent 自定义属性的色值改写成 var(--home-primary)
+// （语义色 success/danger/warning/positive 等保留）；2) 把已知青绿品牌色硬编码改成主题色；
+// 3) 压平装饰性渐变为纯色。banner/promo 类的渐变由调用方决定是否豁免。
+function enforceGoldenThemeOnCss(css = "") {
+  let out = String(css);
+  out = out.replace(/(--[\w-]*(?:primary|brand|accent|theme|main)[\w-]*)(\s*:\s*)([^;]+)(;)/gi, (full, name, sep, value) => {
+    if (/warm|success|danger|error|warning|positive|negative|\bup\b|\bdown\b|green|red|gold|amber|orange|yellow/i.test(name)) return full;
+    const v = value.trim();
+    if (/^var\(\s*--home-/i.test(v)) return full;
+    if (!/#[0-9a-f]{3,8}\b|rgba?\(/i.test(v)) return full; // only remap actual color values
+    return `${name}${sep}var(--home-primary)` + ";";
+  });
+  // 已知青绿品牌色家族（多个积木用它做主色面）→ 主题主色
+  out = out.replace(/#0d9488|#0f766e|#14b8a6|#0d9485|#0e9488|#0891b2/gi, "var(--home-primary)");
+  out = flattenCssGradients(out);
+  return out;
+}
+
 // 兜底页也要服从 12 列栅格契约：按 section 类型和槽位数给出 8+4 / 6+6 / 4+4+4 的 span，
 // 避免回退页退化成单列长条。
 function brickBackedSlotSpans(sectionType, slotCount) {
@@ -10016,7 +10038,7 @@ function brickBackedAiHtmlScheme(payload = {}, config = {}, providerConfig = {},
     .join("\n");
 
   const title = escapeHtmlText(cleanText(config.name, "高分积木约束首页", 48));
-  const componentCss = flattenCssGradients([...new Set([...selectedByBlock.values()].map((item) => sanitizeAiHtmlCss(item.component.css).trim()).filter(Boolean))].join("\n\n"));
+  const componentCss = enforceGoldenThemeOnCss([...new Set([...selectedByBlock.values()].map((item) => sanitizeAiHtmlCss(item.component.css).trim()).filter(Boolean))].join("\n\n"));
   const html = `
     <section class="ai-html-page ai-html-brick-backed-page" data-ai-html-source="high-score-bricks" data-ai-html-pipeline="high-score-brick-backed-html">
       <header class="ai-html-brick-backed-head">
