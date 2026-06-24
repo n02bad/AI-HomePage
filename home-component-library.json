@@ -26051,6 +26051,367 @@
       "lastAdjustmentPrompt": "",
       "createdAt": "2026-06-24T09:35:04.386Z",
       "updatedAt": "2026-06-24T09:35:04.418Z"
+    },
+    {
+      "id": "welcomeheader-mqrw73bn",
+      "type": "ai-generated",
+      "name": "轻量状态欢迎头部",
+      "family": "WelcomeHeader",
+      "size": "3x1",
+      "score": 6,
+      "description": "轻量级欢迎头部，仅展示客户姓名、问候语及最近登录时间，无干扰项，作为内容片段融入父级。",
+      "tags": [
+        "WelcomeHeader",
+        "3x1",
+        "Minimal",
+        "Status"
+      ],
+      "html": "<div class=\"fx-welcome-header\"><div class=\"fx-welcome-main\"><strong class=\"fx-client-name\">张明</strong><span class=\"fx-wave\">👋</span></div><div class=\"fx-welcome-meta\"><span class=\"fx-meta-item\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"10\"></circle><polyline points=\"12 6 12 12 16 14\"></polyline></svg>当前时间: 2023-10-27 09:30 (GMT+8)</span><span class=\"fx-meta-divider\"></span><span class=\"fx-meta-item\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4\"></path><polyline points=\"10 17 15 12 10 7\"></polyline><line x1=\"15\" y1=\"12\" x2=\"3\" y2=\"12\"></line></svg>上次登录: 昨天 18:45</span></div></div>",
+      "css": ".fx-welcome-header{display:flex;justify-content:space-between;align-items:center;padding:16px 24px;background:transparent;border-bottom:1px solid var(--home-skeleton-contract-border,#e8edf5)}.fx-welcome-main{display:flex;align-items:center;gap:8px;font-size:20px;color:var(--home-skeleton-contract-text-primary,#1a202c)}.fx-greeting{font-weight:400}.fx-client-name{font-weight:600}.fx-wave{font-size:22px;animation:fx-wave-anim 2.5s infinite;transform-origin:70% 70%}.fx-welcome-meta{display:flex;align-items:center;gap:16px;font-size:13px;color:var(--home-skeleton-contract-text-secondary,#64748b)}.fx-meta-item{display:flex;align-items:center;gap:6px}.fx-meta-item svg{width:14px;height:14px;opacity:0.7}.fx-meta-divider{width:1px;height:12px;background:var(--home-skeleton-contract-border,#e8edf5)}@keyframes fx-wave-anim{0%{transform:rotate(0deg)}10%{transform:rotate(14deg)}20%{transform:rotate(-8deg)}30%{transform:rotate(14deg)}40%{transform:rotate(-4deg)}50%{transform:rotate(10deg)}60%,100%{transform:rotate(0deg)}}@media (max-width:768px){.fx-welcome-header{flex-direction:column;align-items:flex-start;gap:12px;padding:16px}}",
+      "layoutContract": {
+        "gridColumns": 12,
+        "size": "3x1",
+        "desktopSpan": 12,
+        "tabletSpan": 12,
+        "mobileSpan": 12,
+        "rowSpan": 1,
+        "rowRecipe": "12+0",
+        "zone": "hero",
+        "slot": "welcome_header",
+        "sectionType": "hero",
+        "sizingPolicy": "1x=4/12, 2x=8/12, 3x+=12/12; tablet/mobile single-column."
+      },
+      "layoutHints": [
+        "横向两端对齐",
+        "无独立卡片外壳，融入父级表面",
+        "移动端垂直堆叠",
+        "12/12 栏",
+        "12+0",
+        "移动端单列",
+        "12/12 栏",
+        "12+0"
+      ],
+      "dataRequirements": [
+        "clientName",
+        "greeting",
+        "currentTime",
+        "lastLoginTime"
+      ],
+      "sourcePrompt": "骨架 HTML 单 slot 生成契约 v2: 只填充当前 slot。全页一致性来自 pageDesign.designContract；当前组件要求来自 slotContract。 布局硬约束：所有组件和 AI 首页都统一使用 12 栏桌面栅格；slotContract.layoutContract.desktopSpan 是当前组件在桌面容器内的宽度，移动端必须单列。 全局设计契约: {\"summary\":\"已按新客跟单驾驶舱重排：首屏跟单曲线推荐 + 开户旅程，资产降级。\",\"layoutPreset\":\"onboardingJourney\",\"themePreset\":\"blueFinance\",\"density\":\"compact\",\"heroFocus\":\"CopyTrading 信号源推荐区\",\"designContract\":{\"id\":\"golden-fintech\",\"label\":\"黄金样式执行契约\",\"personality\":\"golden-fintech\",\"tone\":\"清爽、可信、结构化，贴近黄金参考稿的蓝灰金融工作台。\",\"surface\":\"页面使用",
+      "originalSlotPrompt": "欢迎头部：生成轻量欢迎头部，优先体现客户姓名、问候和最近登录/当前时间；除非管理员明确要求，不要扩展成开户、入金、资产或营销引导。",
+      "slotPromptContractSummary": "{\"contractVersion\":\"skeleton-slot-v2\",\"pageDesign\":{\"summary\":\"已按新客跟单驾驶舱重排：首屏跟单曲线推荐 + 开户旅程，资产降级。\",\"layoutPreset\":\"onboardingJourney\",\"themePreset\":\"blueFinance\",\"density\":\"compact\",\"heroFocus\":\"CopyTrading 信号源推荐区\",\"designContract\":{\"id\":\"golden-fintech\",\"label\":\"黄金样式执行契约\",\"personality\":\"golden-fintech\",\"tone\":\"清爽、可信、结构化，贴近黄金参考稿的蓝灰金融工作台。\",\"surface\":\"页面使用浅蓝灰连续背景，业务模块共享白色或浅蓝表面，块与块通过父级表面、分隔线和一致间距衔接。\",\"density\":\"balanced\",\"theme\":\"blueFinance\",\"tokens\":{\"pageMaxWidth\":\"1400px\",\"pageGutter\":\"24px\",\"cardRadius\":\"12px\",\"buttonRadius\":\"7px\",\"sectionGap\":\"14px\",\"rowGap\":\"14px\",\"cardPadding\":\"21px 16px 20px\",\"cardShadow\":\"0 9px 18px rgba(47, 102, 232, 0.24)\",\"cardBorder\":\"#d8e1ef\",\"background\":\"linear-gradient(180deg, #f6f9ff 0%, #eef4ff 52%, #f7faff 100%)\",\"surface\":\"#ffffff\",\"surfaceSoft\":\"#eef4ff\",\"primaryColor\":\"#2f66e8\",\"accentColor\":\"#275bd5\"},\"componentRules\":[\"主色使用 #2f66e8 / #275bd5 一组蓝，不再混入默认青绿色作为主视觉。\",\"卡片圆角控制在 7-12px，阴影轻，边框用 #d8e1ef / #e8edf5。\",\"同一业务组内部不要重复厚白卡，低权重模块用分隔线、列表或浅底条收口。\",\"图表、账号、钱包和 FAQ 使用统一表格/列表密度，避免营销式大渐变块。\"],\"ctaRules\":[\"主 CTA 只保留一个强蓝按钮，其他操作降级为描边、文本或轻量工具按钮。\",\"资金、开户、交易动作不能在多个模块里同时放大抢焦点。\"],\"moduleGrammar\":\"浅蓝灰页面底、清晰模块表面、薄边框表格/列表、轻量趋势图和统一按钮层级。\",\"differenceRule\":\"差异来自黄金参考稿的整页节奏、背景和块关系，而不是只替换颜色或文案。\",\"chromePolicy\":{\"mode\":\"cardedDashboard\",\"sectionChrome\":\"group\",\"defaultSlotChrome\":\"contained\",\"componentBoundary\":\"component-contained\",\"promptRule\":\"黄金样式不是把白卡糊成连续色块：页面背景、模块表面和模块边界要清楚分层，asset_overview 与 quick_actions 必须像两个模块。\"},\"layoutRules\":{\"maxWidth\":\"1280px\",\"sectionGrouping\":\"每 1-2 个相关模块组成一个业务组；同屏可以靠近，但不同业务模块必须保留清晰边界。\",\"backgroundRule\":\"背景必须是浅蓝灰连续页面底，不使用默认蓝绿空气感背景。\",\"blockRelation\":\"同组模块通过一致间距、等高和对齐衔接；不同业务模块不要共享一块模糊背景，叙事组之间用 hard-break 或 workbench 明确断开。\"}},\"pagePlan\":{\"pageGoal\":\"openAccount\",\"primaryCta\":\"立即开户\",\"mainVisual\":\"copytrading_signals\",\"layoutStrategy",
+      "lastAdjustmentPrompt": "",
+      "createdAt": "2026-06-24T09:50:16.211Z",
+      "updatedAt": "2026-06-24T09:50:16.250Z"
+    },
+    {
+      "id": "onboardingprogress-mqrw8zk5",
+      "type": "ai-generated",
+      "name": "开户进度任务板",
+      "family": "OnboardingProgress",
+      "size": "3x1",
+      "score": 6,
+      "description": "横向三步状态连接带，右侧聚焦当前待办任务与主行动按钮，引导新客完成首次入金。",
+      "tags": [
+        "OnboardingProgress",
+        "missionBoard",
+        "blueFinance",
+        "3x1"
+      ],
+      "html": "<div class=\"fx-onboarding-mission\"><div class=\"fx-om-steps-container\"><div class=\"fx-om-header\"><span class=\"fx-om-title\">账户开通进度</span><span class=\"fx-om-count\">2/3</span></div><div class=\"fx-om-steps\"><div class=\"fx-om-step is-done\"><div class=\"fx-om-icon\"><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" stroke=\"currentColor\" stroke-width=\"3\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"20 6 9 17 4 12\"></polyline></svg></div><div class=\"fx-om-text\">身份认证</div></div><div class=\"fx-om-line is-done\"></div><div class=\"fx-om-step is-done\"><div class=\"fx-om-icon\"><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" stroke=\"currentColor\" stroke-width=\"3\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"20 6 9 17 4 12\"></polyline></svg></div><div class=\"fx-om-text\">创建真实账户</div></div><div class=\"fx-om-line\"></div><div class=\"fx-om-step is-active\"><div class=\"fx-om-icon\">3</div><div class=\"fx-om-text\">首次入金</div></div></div></div><div class=\"fx-om-action\"><div class=\"fx-om-action-desc\">完成首次入金即可开始交易</div><button class=\"fx-om-btn\">立即入金</button></div></div>",
+      "css": ".fx-onboarding-mission{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:21px 24px 20px;background:var(--home-surface, #ffffff);border:1px solid var(--home-border, #d8e1ef);border-radius:12px;box-shadow:0 2px 8px rgba(47,102,232,0.04);font-family:system-ui,-apple-system,sans-serif}.fx-om-steps-container{flex:1;display:flex;flex-direction:column;gap:16px;max-width:640px}.fx-om-header{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#1e293b}.fx-om-count{background:#eef4ff;color:#2f66e8;padding:2px 8px;border-radius:12px;font-size:12px}.fx-om-steps{display:flex;align-items:center;width:100%}.fx-om-step{display:flex;align-items:center;gap:8px}.fx-om-icon{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0}.fx-om-text{font-size:14px;font-weight:500;color:#475569;white-space:nowrap}.fx-om-line{flex:1;height:2px;background:#e8edf5;margin:0 12px;min-width:24px}.fx-om-step.is-done .fx-om-icon{background:#e8f5e9;color:#2e7d32}.fx-om-step.is-done .fx-om-text{color:#1e293b}.fx-om-line.is-done{background:#2e7d32}.fx-om-step.is-active .fx-om-icon{background:#2f66e8;color:#ffffff;box-shadow:0 0 0 3px #eef4ff}.fx-om-step.is-active .fx-om-text{color:#2f66e8;font-weight:600}.fx-om-action{display:flex;flex-direction:column;align-items:flex-end;gap:12px;padding-left:24px;border-left:1px solid #e8edf5;min-width:220px}.fx-om-action-desc{font-size:13px;color:#64748b}.fx-om-btn{background:#2f66e8;color:#ffffff;border:none;padding:0 24px;height:36px;border-radius:7px;font-size:14px;font-weight:500;cursor:pointer;transition:background 0.2s;white-space:nowrap}.fx-om-btn:hover{background:#275bd5}@media (max-width:768px){.fx-onboarding-mission{flex-direction:column;align-items:flex-start}.fx-om-action{border-left:none;padding-left:0;border-top:1px solid #e8edf5;padding-top:16px;width:100%;align-items:flex-start}.fx-om-steps{flex-wrap:wrap;gap:12px}.fx-om-line{display:none}}",
+      "layoutContract": {
+        "gridColumns": 12,
+        "size": "3x1",
+        "desktopSpan": 12,
+        "tabletSpan": 12,
+        "mobileSpan": 12,
+        "rowSpan": 1,
+        "rowRecipe": "12+0",
+        "zone": "full",
+        "slot": "onboarding_guide",
+        "sectionType": "full",
+        "sizingPolicy": "1x=4/12, 2x=8/12, 3x+=12/12; tablet/mobile single-column."
+      },
+      "layoutHints": [
+        "桌面端全宽横向展示",
+        "适合置于账户启动区顶部",
+        "移动端自动折叠为纵向",
+        "12/12 栏",
+        "12+0",
+        "移动端单列",
+        "12/12 栏",
+        "12+0"
+      ],
+      "dataRequirements": [
+        "kycStatus",
+        "accountOpeningStatus",
+        "firstDepositStatus",
+        "nextStepAction"
+      ],
+      "sourcePrompt": "骨架 HTML 单 slot 生成契约 v2: 只填充当前 slot。全页一致性来自 pageDesign.designContract；当前组件要求来自 slotContract。 布局硬约束：所有组件和 AI 首页都统一使用 12 栏桌面栅格；slotContract.layoutContract.desktopSpan 是当前组件在桌面容器内的宽度，移动端必须单列。 全局设计契约: {\"summary\":\"已按新客跟单驾驶舱重排：首屏跟单曲线推荐 + 开户旅程，资产降级。\",\"layoutPreset\":\"onboardingJourney\",\"themePreset\":\"blueFinance\",\"density\":\"compact\",\"heroFocus\":\"CopyTrading 信号源推荐区\",\"designContract\":{\"id\":\"golden-fintech\",\"label\":\"黄金样式执行契约\",\"personality\":\"golden-fintech\",\"tone\":\"清爽、可信、结构化，贴近黄金参考稿的蓝灰金融工作台。\",\"surface\":\"页面使用",
+      "originalSlotPrompt": "新手引导区：生成开户/认证引导组件，体现 KYC、开真实账户、首次入金等步骤、状态和下一步 CTA。",
+      "slotPromptContractSummary": "{\"contractVersion\":\"skeleton-slot-v2\",\"pageDesign\":{\"summary\":\"已按新客跟单驾驶舱重排：首屏跟单曲线推荐 + 开户旅程，资产降级。\",\"layoutPreset\":\"onboardingJourney\",\"themePreset\":\"blueFinance\",\"density\":\"compact\",\"heroFocus\":\"CopyTrading 信号源推荐区\",\"designContract\":{\"id\":\"golden-fintech\",\"label\":\"黄金样式执行契约\",\"personality\":\"golden-fintech\",\"tone\":\"清爽、可信、结构化，贴近黄金参考稿的蓝灰金融工作台。\",\"surface\":\"页面使用浅蓝灰连续背景，业务模块共享白色或浅蓝表面，块与块通过父级表面、分隔线和一致间距衔接。\",\"density\":\"balanced\",\"theme\":\"blueFinance\",\"tokens\":{\"pageMaxWidth\":\"1400px\",\"pageGutter\":\"24px\",\"cardRadius\":\"12px\",\"buttonRadius\":\"7px\",\"sectionGap\":\"14px\",\"rowGap\":\"14px\",\"cardPadding\":\"21px 16px 20px\",\"cardShadow\":\"0 9px 18px rgba(47, 102, 232, 0.24)\",\"cardBorder\":\"#d8e1ef\",\"background\":\"linear-gradient(180deg, #f6f9ff 0%, #eef4ff 52%, #f7faff 100%)\",\"surface\":\"#ffffff\",\"surfaceSoft\":\"#eef4ff\",\"primaryColor\":\"#2f66e8\",\"accentColor\":\"#275bd5\"},\"componentRules\":[\"主色使用 #2f66e8 / #275bd5 一组蓝，不再混入默认青绿色作为主视觉。\",\"卡片圆角控制在 7-12px，阴影轻，边框用 #d8e1ef / #e8edf5。\",\"同一业务组内部不要重复厚白卡，低权重模块用分隔线、列表或浅底条收口。\",\"图表、账号、钱包和 FAQ 使用统一表格/列表密度，避免营销式大渐变块。\"],\"ctaRules\":[\"主 CTA 只保留一个强蓝按钮，其他操作降级为描边、文本或轻量工具按钮。\",\"资金、开户、交易动作不能在多个模块里同时放大抢焦点。\"],\"moduleGrammar\":\"浅蓝灰页面底、清晰模块表面、薄边框表格/列表、轻量趋势图和统一按钮层级。\",\"differenceRule\":\"差异来自黄金参考稿的整页节奏、背景和块关系，而不是只替换颜色或文案。\",\"chromePolicy\":{\"mode\":\"cardedDashboard\",\"sectionChrome\":\"group\",\"defaultSlotChrome\":\"contained\",\"componentBoundary\":\"component-contained\",\"promptRule\":\"黄金样式不是把白卡糊成连续色块：页面背景、模块表面和模块边界要清楚分层，asset_overview 与 quick_actions 必须像两个模块。\"},\"layoutRules\":{\"maxWidth\":\"1280px\",\"sectionGrouping\":\"每 1-2 个相关模块组成一个业务组；同屏可以靠近，但不同业务模块必须保留清晰边界。\",\"backgroundRule\":\"背景必须是浅蓝灰连续页面底，不使用默认蓝绿空气感背景。\",\"blockRelation\":\"同组模块通过一致间距、等高和对齐衔接；不同业务模块不要共享一块模糊背景，叙事组之间用 hard-break 或 workbench 明确断开。\"}},\"pagePlan\":{\"pageGoal\":\"openAccount\",\"primaryCta\":\"立即开户\",\"mainVisual\":\"copytrading_signals\",\"layoutStrategy",
+      "lastAdjustmentPrompt": "",
+      "createdAt": "2026-06-24T09:51:44.645Z",
+      "updatedAt": "2026-06-24T09:51:44.677Z"
+    },
+    {
+      "id": "promotionbanner-mqrw9lhh",
+      "type": "ai-generated",
+      "name": "活动公告承接横幅",
+      "family": "PromotionBanner",
+      "size": "3x1",
+      "score": 6,
+      "description": "左右分栏活动承接位，左侧展示核心活动权益，右侧为多活动切换坞与主CTA。",
+      "tags": [
+        "PromotionBanner",
+        "3x1",
+        "splitVisual",
+        "support"
+      ],
+      "html": "<div class=\"fx-promo-banner\"><div class=\"fx-promo-content\"><div class=\"fx-promo-header\"><h3 class=\"fx-promo-title\">新客交易手续费减免</h3></div><p class=\"fx-promo-desc\">完成开户并激活真实账号，享指定品种交易手续费返还至钱包</p></div><div class=\"fx-promo-actions\"><div class=\"fx-promo-benefit\"><span class=\"fx-promo-benefit-label\">手续费减免</span><span class=\"fx-promo-benefit-value\">最高返50%</span></div><button class=\"fx-promo-btn\" type=\"button\">查看详情</button></div></div>",
+      "css": ".fx-promo-banner{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;background:var(--home-skeleton-contract-surface,#fff);border:1px solid var(--home-skeleton-contract-cardBorder,#d8e1ef);border-radius:var(--home-skeleton-contract-cardRadius,12px);gap:24px}.fx-promo-content{display:flex;flex-direction:column;gap:8px;flex:1}.fx-promo-header{display:flex;align-items:center;gap:12px}.fx-promo-tag{font-size:12px;padding:2px 8px;background:var(--home-skeleton-contract-surfaceSoft,#eef4ff);color:var(--home-skeleton-contract-primaryColor,#2f66e8);border-radius:4px;font-weight:500}.fx-promo-title{font-size:16px;font-weight:600;color:var(--home-text,#1a1a1a);margin:0}.fx-promo-desc{font-size:13px;color:var(--home-text-secondary,#666);margin:0;line-height:1.5}.fx-promo-actions{display:flex;align-items:center;gap:24px;flex-shrink:0;padding-left:24px;border-left:1px solid var(--home-skeleton-contract-cardBorder,#d8e1ef)}.fx-promo-benefit{display:flex;flex-direction:column;gap:4px}.fx-promo-benefit-label{font-size:12px;color:var(--home-text-secondary,#666)}.fx-promo-benefit-value{font-size:16px;font-weight:600;color:var(--home-skeleton-contract-primaryColor,#2f66e8)}.fx-promo-btn{padding:8px 16px;font-size:14px;font-weight:500;color:#fff;background:var(--home-skeleton-contract-primaryColor,#2f66e8);border:none;border-radius:var(--home-skeleton-contract-buttonRadius,7px);cursor:pointer}@media (max-width:768px){.fx-promo-banner{flex-direction:column;align-items:flex-start}.fx-promo-actions{padding-left:0;border-left:none;border-top:1px solid var(--home-skeleton-contract-cardBorder,#d8e1ef);padding-top:16px;width:100%;justify-content:space-between}}",
+      "layoutContract": {
+        "gridColumns": 12,
+        "size": "3x1",
+        "desktopSpan": 12,
+        "tabletSpan": 12,
+        "mobileSpan": 12,
+        "rowSpan": 1,
+        "rowRecipe": "12+0",
+        "zone": "full",
+        "slot": "promo_banner",
+        "sectionType": "full",
+        "sizingPolicy": "1x=4/12, 2x=8/12, 3x+=12/12; tablet/mobile single-column."
+      },
+      "layoutHints": [
+        "桌面端 12 栏全宽",
+        "左右分栏布局",
+        "移动端堆叠显示",
+        "12/12 栏",
+        "12+0",
+        "移动端单列",
+        "12/12 栏",
+        "12+0"
+      ],
+      "dataRequirements": [
+        "activeCampaigns[].title",
+        "activeCampaigns[].description",
+        "activeCampaigns[].benefits",
+        "activeCampaigns[].status"
+      ],
+      "sourcePrompt": "骨架 HTML 单 slot 生成契约 v2: 只填充当前 slot。全页一致性来自 pageDesign.designContract；当前组件要求来自 slotContract。 布局硬约束：所有组件和 AI 首页都统一使用 12 栏桌面栅格；slotContract.layoutContract.desktopSpan 是当前组件在桌面容器内的宽度，移动端必须单列。 全局设计契约: {\"summary\":\"已按新客跟单驾驶舱重排：首屏跟单曲线推荐 + 开户旅程，资产降级。\",\"layoutPreset\":\"onboardingJourney\",\"themePreset\":\"blueFinance\",\"density\":\"compact\",\"heroFocus\":\"CopyTrading 信号源推荐区\",\"designContract\":{\"id\":\"golden-fintech\",\"label\":\"黄金样式执行契约\",\"personality\":\"golden-fintech\",\"tone\":\"清爽、可信、结构化，贴近黄金参考稿的蓝灰金融工作台。\",\"surface\":\"页面使用",
+      "originalSlotPrompt": "推广横幅：生成活动或公告承接组件，只展示后台已有活动/公告占位，不虚构奖池、倒计时或奖励规则。",
+      "slotPromptContractSummary": "{\"contractVersion\":\"skeleton-slot-v2\",\"pageDesign\":{\"summary\":\"已按新客跟单驾驶舱重排：首屏跟单曲线推荐 + 开户旅程，资产降级。\",\"layoutPreset\":\"onboardingJourney\",\"themePreset\":\"blueFinance\",\"density\":\"compact\",\"heroFocus\":\"CopyTrading 信号源推荐区\",\"designContract\":{\"id\":\"golden-fintech\",\"label\":\"黄金样式执行契约\",\"personality\":\"golden-fintech\",\"tone\":\"清爽、可信、结构化，贴近黄金参考稿的蓝灰金融工作台。\",\"surface\":\"页面使用浅蓝灰连续背景，业务模块共享白色或浅蓝表面，块与块通过父级表面、分隔线和一致间距衔接。\",\"density\":\"balanced\",\"theme\":\"blueFinance\",\"tokens\":{\"pageMaxWidth\":\"1400px\",\"pageGutter\":\"24px\",\"cardRadius\":\"12px\",\"buttonRadius\":\"7px\",\"sectionGap\":\"14px\",\"rowGap\":\"14px\",\"cardPadding\":\"21px 16px 20px\",\"cardShadow\":\"0 9px 18px rgba(47, 102, 232, 0.24)\",\"cardBorder\":\"#d8e1ef\",\"background\":\"linear-gradient(180deg, #f6f9ff 0%, #eef4ff 52%, #f7faff 100%)\",\"surface\":\"#ffffff\",\"surfaceSoft\":\"#eef4ff\",\"primaryColor\":\"#2f66e8\",\"accentColor\":\"#275bd5\"},\"componentRules\":[\"主色使用 #2f66e8 / #275bd5 一组蓝，不再混入默认青绿色作为主视觉。\",\"卡片圆角控制在 7-12px，阴影轻，边框用 #d8e1ef / #e8edf5。\",\"同一业务组内部不要重复厚白卡，低权重模块用分隔线、列表或浅底条收口。\",\"图表、账号、钱包和 FAQ 使用统一表格/列表密度，避免营销式大渐变块。\"],\"ctaRules\":[\"主 CTA 只保留一个强蓝按钮，其他操作降级为描边、文本或轻量工具按钮。\",\"资金、开户、交易动作不能在多个模块里同时放大抢焦点。\"],\"moduleGrammar\":\"浅蓝灰页面底、清晰模块表面、薄边框表格/列表、轻量趋势图和统一按钮层级。\",\"differenceRule\":\"差异来自黄金参考稿的整页节奏、背景和块关系，而不是只替换颜色或文案。\",\"chromePolicy\":{\"mode\":\"cardedDashboard\",\"sectionChrome\":\"group\",\"defaultSlotChrome\":\"contained\",\"componentBoundary\":\"component-contained\",\"promptRule\":\"黄金样式不是把白卡糊成连续色块：页面背景、模块表面和模块边界要清楚分层，asset_overview 与 quick_actions 必须像两个模块。\"},\"layoutRules\":{\"maxWidth\":\"1280px\",\"sectionGrouping\":\"每 1-2 个相关模块组成一个业务组；同屏可以靠近，但不同业务模块必须保留清晰边界。\",\"backgroundRule\":\"背景必须是浅蓝灰连续页面底，不使用默认蓝绿空气感背景。\",\"blockRelation\":\"同组模块通过一致间距、等高和对齐衔接；不同业务模块不要共享一块模糊背景，叙事组之间用 hard-break 或 workbench 明确断开。\"}},\"pagePlan\":{\"pageGoal\":\"openAccount\",\"primaryCta\":\"立即开户\",\"mainVisual\":\"copytrading_signals\",\"layoutStrategy",
+      "lastAdjustmentPrompt": "",
+      "createdAt": "2026-06-24T09:52:13.061Z",
+      "updatedAt": "2026-06-24T09:52:13.094Z"
+    },
+    {
+      "id": "referrallinkcard-mqrwaesd",
+      "type": "ai-generated",
+      "name": "推广链接与转化概览",
+      "family": "ReferralLinkCard",
+      "size": "3x1",
+      "score": 6,
+      "description": "展示专属开户链接、邀请码及点击、注册、开户转化漏斗的轻量横向卡片。",
+      "tags": [
+        "Referral",
+        "Stats",
+        "CompactRail"
+      ],
+      "html": "<div class=\"fx-referral-rail\"><div class=\"fx-ref-links\"><div class=\"fx-ref-row\"><span class=\"fx-ref-label\">开户链接</span><div class=\"fx-ref-box\"><span class=\"fx-ref-val\">nxbroker.com/r/fx8921</span><button class=\"fx-ref-copy\" type=\"button\">复制</button></div></div><div class=\"fx-ref-row\"><span class=\"fx-ref-label\">邀请码&emsp;</span><div class=\"fx-ref-box\"><span class=\"fx-ref-val\">FX8921</span><button class=\"fx-ref-copy\" type=\"button\">复制</button></div></div></div><div class=\"fx-ref-stats\"><div class=\"fx-ref-stat\"><div class=\"fx-ref-stat-val\">1,247</div><div class=\"fx-ref-stat-label\">点击量</div></div><div class=\"fx-ref-stat\"><div class=\"fx-ref-stat-val\">86 <span class=\"fx-ref-rate\">6.9%</span></div><div class=\"fx-ref-stat-label\">已注册</div></div><div class=\"fx-ref-stat\"><div class=\"fx-ref-stat-val\">32 <span class=\"fx-ref-rate\">37.2%</span></div><div class=\"fx-ref-stat-label\">真实账号</div></div></div></div>",
+      "css": ".fx-referral-rail{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:var(--home-surface-soft, #f6f9ff);border:1px solid var(--home-border, #d8e1ef);border-radius:8px;gap:24px;flex-wrap:wrap;font-family:system-ui,-apple-system,sans-serif}.fx-ref-links{display:flex;flex-direction:column;gap:12px;flex:1;min-width:280px}.fx-ref-row{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--home-text-secondary, #5c6b89)}.fx-ref-label{white-space:nowrap;width:56px}.fx-ref-box{display:flex;align-items:center;background:#fff;border:1px solid var(--home-border, #d8e1ef);border-radius:6px;padding:4px 4px 4px 12px;flex:1;justify-content:space-between;max-width:320px}.fx-ref-val{color:var(--home-text, #1e293b);font-weight:500;font-family:ui-monospace,monospace;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.fx-ref-copy{background:transparent;border:none;color:var(--home-primary, #2f66e8);cursor:pointer;font-size:12px;font-weight:500;padding:4px 12px;border-radius:4px;transition:background 0.2s}.fx-ref-copy:hover{background:rgba(47,102,232,0.08)}.fx-ref-stats{display:flex;align-items:center;gap:32px;padding-left:24px;border-left:1px dashed var(--home-border, #d8e1ef);flex-wrap:wrap}.fx-ref-stat{display:flex;flex-direction:column;gap:4px}.fx-ref-stat-val{font-size:18px;font-weight:600;color:var(--home-text, #1e293b);display:flex;align-items:baseline;gap:6px}.fx-ref-rate{font-size:12px;color:var(--home-success, #10b981);font-weight:500;background:rgba(16,185,129,0.1);padding:2px 6px;border-radius:4px}.fx-ref-stat-label{font-size:12px;color:var(--home-text-secondary, #5c6b89)}@media (max-width:768px){.fx-referral-rail{flex-direction:column;align-items:stretch}.fx-ref-stats{padding-left:0;border-left:none;border-top:1px dashed var(--home-border, #d8e1ef);padding-top:16px;justify-content:space-between;gap:16px}.fx-ref-box{max-width:none}}",
+      "layoutContract": {
+        "gridColumns": 12,
+        "size": "3x1",
+        "desktopSpan": 12,
+        "tabletSpan": 12,
+        "mobileSpan": 12,
+        "rowSpan": 1,
+        "rowRecipe": "12+0",
+        "zone": "full",
+        "slot": "referral_link_card",
+        "sectionType": "full",
+        "sizingPolicy": "1x=4/12, 2x=8/12, 3x+=12/12; tablet/mobile single-column."
+      },
+      "layoutHints": [
+        "横向左右分栏",
+        "链接与指标并排",
+        "轻量背景无强阴影",
+        "12/12 栏",
+        "12+0",
+        "移动端单列",
+        "12/12 栏",
+        "12+0"
+      ],
+      "dataRequirements": [
+        "promoLink",
+        "inviteCode",
+        "clickCount",
+        "registrationCount"
+      ],
+      "sourcePrompt": "骨架 HTML 单 slot 生成契约 v2: 只填充当前 slot。全页一致性来自 pageDesign.designContract；当前组件要求来自 slotContract。 布局硬约束：所有组件和 AI 首页都统一使用 12 栏桌面栅格；slotContract.layoutContract.desktopSpan 是当前组件在桌面容器内的宽度，移动端必须单列。 全局设计契约: {\"summary\":\"已按新客跟单驾驶舱重排：首屏跟单曲线推荐 + 开户旅程，资产降级。\",\"layoutPreset\":\"onboardingJourney\",\"themePreset\":\"blueFinance\",\"density\":\"compact\",\"heroFocus\":\"CopyTrading 信号源推荐区\",\"designContract\":{\"id\":\"golden-fintech\",\"label\":\"黄金样式执行契约\",\"personality\":\"golden-fintech\",\"tone\":\"清爽、可信、结构化，贴近黄金参考稿的蓝灰金融工作台。\",\"surface\":\"页面使用",
+      "originalSlotPrompt": "推广链接：生成推广链接卡片，围绕开户链接、邀请码、复制/分享动作和可选基础统计，不生成完整代理中心。",
+      "slotPromptContractSummary": "{\"contractVersion\":\"skeleton-slot-v2\",\"pageDesign\":{\"summary\":\"已按新客跟单驾驶舱重排：首屏跟单曲线推荐 + 开户旅程，资产降级。\",\"layoutPreset\":\"onboardingJourney\",\"themePreset\":\"blueFinance\",\"density\":\"compact\",\"heroFocus\":\"CopyTrading 信号源推荐区\",\"designContract\":{\"id\":\"golden-fintech\",\"label\":\"黄金样式执行契约\",\"personality\":\"golden-fintech\",\"tone\":\"清爽、可信、结构化，贴近黄金参考稿的蓝灰金融工作台。\",\"surface\":\"页面使用浅蓝灰连续背景，业务模块共享白色或浅蓝表面，块与块通过父级表面、分隔线和一致间距衔接。\",\"density\":\"balanced\",\"theme\":\"blueFinance\",\"tokens\":{\"pageMaxWidth\":\"1400px\",\"pageGutter\":\"24px\",\"cardRadius\":\"12px\",\"buttonRadius\":\"7px\",\"sectionGap\":\"14px\",\"rowGap\":\"14px\",\"cardPadding\":\"21px 16px 20px\",\"cardShadow\":\"0 9px 18px rgba(47, 102, 232, 0.24)\",\"cardBorder\":\"#d8e1ef\",\"background\":\"linear-gradient(180deg, #f6f9ff 0%, #eef4ff 52%, #f7faff 100%)\",\"surface\":\"#ffffff\",\"surfaceSoft\":\"#eef4ff\",\"primaryColor\":\"#2f66e8\",\"accentColor\":\"#275bd5\"},\"componentRules\":[\"主色使用 #2f66e8 / #275bd5 一组蓝，不再混入默认青绿色作为主视觉。\",\"卡片圆角控制在 7-12px，阴影轻，边框用 #d8e1ef / #e8edf5。\",\"同一业务组内部不要重复厚白卡，低权重模块用分隔线、列表或浅底条收口。\",\"图表、账号、钱包和 FAQ 使用统一表格/列表密度，避免营销式大渐变块。\"],\"ctaRules\":[\"主 CTA 只保留一个强蓝按钮，其他操作降级为描边、文本或轻量工具按钮。\",\"资金、开户、交易动作不能在多个模块里同时放大抢焦点。\"],\"moduleGrammar\":\"浅蓝灰页面底、清晰模块表面、薄边框表格/列表、轻量趋势图和统一按钮层级。\",\"differenceRule\":\"差异来自黄金参考稿的整页节奏、背景和块关系，而不是只替换颜色或文案。\",\"chromePolicy\":{\"mode\":\"cardedDashboard\",\"sectionChrome\":\"group\",\"defaultSlotChrome\":\"contained\",\"componentBoundary\":\"component-contained\",\"promptRule\":\"黄金样式不是把白卡糊成连续色块：页面背景、模块表面和模块边界要清楚分层，asset_overview 与 quick_actions 必须像两个模块。\"},\"layoutRules\":{\"maxWidth\":\"1280px\",\"sectionGrouping\":\"每 1-2 个相关模块组成一个业务组；同屏可以靠近，但不同业务模块必须保留清晰边界。\",\"backgroundRule\":\"背景必须是浅蓝灰连续页面底，不使用默认蓝绿空气感背景。\",\"blockRelation\":\"同组模块通过一致间距、等高和对齐衔接；不同业务模块不要共享一块模糊背景，叙事组之间用 hard-break 或 workbench 明确断开。\"}},\"pagePlan\":{\"pageGoal\":\"openAccount\",\"primaryCta\":\"立即开户\",\"mainVisual\":\"copytrading_signals\",\"layoutStrategy",
+      "lastAdjustmentPrompt": "",
+      "createdAt": "2026-06-24T09:52:51.037Z",
+      "updatedAt": "2026-06-24T09:52:51.068Z"
+    },
+    {
+      "id": "assetoverview-mqrwawoe",
+      "type": "ai-generated",
+      "name": "资产概览-内联指标行",
+      "family": "AssetOverview",
+      "size": "3x1",
+      "score": 6,
+      "description": "轻量级资产概览，展示总资产、钱包和交易账号余额，无外框，适合作为辅助指标嵌入。",
+      "tags": [
+        "AssetOverview",
+        "3x1",
+        "Flat",
+        "Metrics"
+      ],
+      "html": "<div class=\"fx-asset-overview-flat\"><div class=\"fx-asset-item fx-asset-primary\"><span class=\"fx-asset-label\">总资产 (USD)</span><strong class=\"fx-asset-value\">$0.00</strong></div><div class=\"fx-asset-divider\"></div><div class=\"fx-asset-item\"><span class=\"fx-asset-label\">钱包余额</span><strong class=\"fx-asset-value\">$0.00</strong></div><div class=\"fx-asset-divider\"></div><div class=\"fx-asset-item\"><span class=\"fx-asset-label\">交易账号余额</span><strong class=\"fx-asset-value\">$0.00</strong></div></div>",
+      "css": ".fx-asset-overview-flat{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:16px 0;background:transparent}.fx-asset-item{display:flex;flex-direction:column;gap:4px;flex:1}.fx-asset-primary{flex:1.2}.fx-asset-label{font-size:13px;color:var(--home-text-secondary, #64748b);font-weight:500}.fx-asset-value{font-size:20px;color:var(--home-text, #0f172a);font-weight:600;line-height:1.2;font-family:ui-sans-serif,system-ui,sans-serif}.fx-asset-primary .fx-asset-value{font-size:24px;color:var(--home-primary, #2f66e8)}.fx-asset-divider{width:1px;height:32px;background:var(--home-border, #d8e1ef)}@media (max-width:768px){.fx-asset-overview-flat{flex-direction:column;align-items:flex-start;gap:16px}.fx-asset-divider{width:100%;height:1px}}",
+      "layoutContract": {
+        "gridColumns": 12,
+        "size": "3x1",
+        "desktopSpan": 12,
+        "tabletSpan": 12,
+        "mobileSpan": 12,
+        "rowSpan": 1,
+        "rowRecipe": "12+0",
+        "zone": "split",
+        "slot": "asset_overview",
+        "sectionType": "split",
+        "sizingPolicy": "1x=4/12, 2x=8/12, 3x+=12/12; tablet/mobile single-column."
+      },
+      "layoutHints": [
+        "横向等分布局",
+        "无边框透明背景",
+        "移动端纵向堆叠",
+        "12/12 栏",
+        "12+0",
+        "移动端单列",
+        "12/12 栏",
+        "12+0"
+      ],
+      "dataRequirements": [
+        "totalAssets",
+        "walletBalance",
+        "tradingAccountBalance"
+      ],
+      "sourcePrompt": "骨架 HTML 单 slot 生成契约 v2: 只填充当前 slot。全页一致性来自 pageDesign.designContract；当前组件要求来自 slotContract。 布局硬约束：所有组件和 AI 首页都统一使用 12 栏桌面栅格；slotContract.layoutContract.desktopSpan 是当前组件在桌面容器内的宽度，移动端必须单列。 全局设计契约: {\"summary\":\"已按新客跟单驾驶舱重排：首屏跟单曲线推荐 + 开户旅程，资产降级。\",\"layoutPreset\":\"onboardingJourney\",\"themePreset\":\"blueFinance\",\"density\":\"compact\",\"heroFocus\":\"CopyTrading 信号源推荐区\",\"designContract\":{\"id\":\"golden-fintech\",\"label\":\"黄金样式执行契约\",\"personality\":\"golden-fintech\",\"tone\":\"清爽、可信、结构化，贴近黄金参考稿的蓝灰金融工作台。\",\"surface\":\"页面使用",
+      "originalSlotPrompt": "资产概览区：生成账户概览组件，聚焦总资产、钱包余额、交易账号余额或可用资金，缺失数据用占位或隐藏。",
+      "slotPromptContractSummary": "{\"contractVersion\":\"skeleton-slot-v2\",\"pageDesign\":{\"summary\":\"已按新客跟单驾驶舱重排：首屏跟单曲线推荐 + 开户旅程，资产降级。\",\"layoutPreset\":\"onboardingJourney\",\"themePreset\":\"blueFinance\",\"density\":\"compact\",\"heroFocus\":\"CopyTrading 信号源推荐区\",\"designContract\":{\"id\":\"golden-fintech\",\"label\":\"黄金样式执行契约\",\"personality\":\"golden-fintech\",\"tone\":\"清爽、可信、结构化，贴近黄金参考稿的蓝灰金融工作台。\",\"surface\":\"页面使用浅蓝灰连续背景，业务模块共享白色或浅蓝表面，块与块通过父级表面、分隔线和一致间距衔接。\",\"density\":\"balanced\",\"theme\":\"blueFinance\",\"tokens\":{\"pageMaxWidth\":\"1400px\",\"pageGutter\":\"24px\",\"cardRadius\":\"12px\",\"buttonRadius\":\"7px\",\"sectionGap\":\"14px\",\"rowGap\":\"14px\",\"cardPadding\":\"21px 16px 20px\",\"cardShadow\":\"0 9px 18px rgba(47, 102, 232, 0.24)\",\"cardBorder\":\"#d8e1ef\",\"background\":\"linear-gradient(180deg, #f6f9ff 0%, #eef4ff 52%, #f7faff 100%)\",\"surface\":\"#ffffff\",\"surfaceSoft\":\"#eef4ff\",\"primaryColor\":\"#2f66e8\",\"accentColor\":\"#275bd5\"},\"componentRules\":[\"主色使用 #2f66e8 / #275bd5 一组蓝，不再混入默认青绿色作为主视觉。\",\"卡片圆角控制在 7-12px，阴影轻，边框用 #d8e1ef / #e8edf5。\",\"同一业务组内部不要重复厚白卡，低权重模块用分隔线、列表或浅底条收口。\",\"图表、账号、钱包和 FAQ 使用统一表格/列表密度，避免营销式大渐变块。\"],\"ctaRules\":[\"主 CTA 只保留一个强蓝按钮，其他操作降级为描边、文本或轻量工具按钮。\",\"资金、开户、交易动作不能在多个模块里同时放大抢焦点。\"],\"moduleGrammar\":\"浅蓝灰页面底、清晰模块表面、薄边框表格/列表、轻量趋势图和统一按钮层级。\",\"differenceRule\":\"差异来自黄金参考稿的整页节奏、背景和块关系，而不是只替换颜色或文案。\",\"chromePolicy\":{\"mode\":\"cardedDashboard\",\"sectionChrome\":\"group\",\"defaultSlotChrome\":\"contained\",\"componentBoundary\":\"component-contained\",\"promptRule\":\"黄金样式不是把白卡糊成连续色块：页面背景、模块表面和模块边界要清楚分层，asset_overview 与 quick_actions 必须像两个模块。\"},\"layoutRules\":{\"maxWidth\":\"1280px\",\"sectionGrouping\":\"每 1-2 个相关模块组成一个业务组；同屏可以靠近，但不同业务模块必须保留清晰边界。\",\"backgroundRule\":\"背景必须是浅蓝灰连续页面底，不使用默认蓝绿空气感背景。\",\"blockRelation\":\"同组模块通过一致间距、等高和对齐衔接；不同业务模块不要共享一块模糊背景，叙事组之间用 hard-break 或 workbench 明确断开。\"}},\"pagePlan\":{\"pageGoal\":\"openAccount\",\"primaryCta\":\"立即开户\",\"mainVisual\":\"copytrading_signals\",\"layoutStrategy",
+      "lastAdjustmentPrompt": "",
+      "createdAt": "2026-06-24T09:53:14.222Z",
+      "updatedAt": "2026-06-24T09:53:14.254Z"
+    },
+    {
+      "id": "quickactions-mqrwbvqu",
+      "type": "ai-generated",
+      "name": "快捷操作高亮坞",
+      "family": "QuickActions",
+      "size": "2x1",
+      "score": 6,
+      "description": "紧凑快捷操作坞，左侧主操作高亮，右侧辅助操作网格，保留独立模块边界。",
+      "tags": [
+        "QuickActions",
+        "2x1",
+        "blueFinance",
+        "onboardingJourney"
+      ],
+      "html": "<div class=\"fx-quick-actions\"><a href=\"#\" class=\"fx-qa-item fx-qa-primary\"><div class=\"fx-qa-icon\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6\"/></svg></div><span class=\"fx-qa-label\">资金入金</span></a><div class=\"fx-qa-secondary\"><a href=\"#\" class=\"fx-qa-item\"><div class=\"fx-qa-icon\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M21 12H3M14 5l7 7-7 7\"/></svg></div><span class=\"fx-qa-label\">资金出金</span></a><a href=\"#\" class=\"fx-qa-item\"><div class=\"fx-qa-icon\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M8 7h12m0 0l-4-4m4 4l-4 4m-8 6H4m0 0l4 4m-4-4l4-4\"/></svg></div><span class=\"fx-qa-label\">内部转账</span></a><a href=\"#\" class=\"fx-qa-item\"><div class=\"fx-qa-icon\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z\"/><polyline points=\"14 2 14 8 20 8\"/><line x1=\"16\" y1=\"13\" x2=\"8\" y2=\"13\"/><line x1=\"16\" y1=\"17\" x2=\"8\" y2=\"17\"/><polyline points=\"10 9 9 9 8 9\"/></svg></div><span class=\"fx-qa-label\">交易订单</span></a><a href=\"#\" class=\"fx-qa-item\"><div class=\"fx-qa-icon\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M3 3v18h18\"/><path d=\"M18 17V9\"/><path d=\"M13 17V5\"/><path d=\"M8 17v-3\"/></svg></div><span class=\"fx-qa-label\">我的持仓</span></a></div></div>",
+      "css": ".fx-quick-actions{display:flex;gap:14px;height:100%;align-items:stretch;background:var(--home-surface,#fff);border:1px solid var(--home-border,#d8e1ef);border-radius:12px;padding:16px;box-shadow:0 2px 8px rgba(47,102,232,.04)}.fx-qa-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-decoration:none;border-radius:8px;transition:all .2s ease}.fx-qa-primary{flex:1;min-width:120px;background:var(--home-primary,#2f66e8);color:#fff;padding:16px}.fx-qa-primary:hover{background:var(--home-accent,#275bd5);transform:translateY(-2px);box-shadow:0 4px 12px rgba(47,102,232,.2)}.fx-qa-primary .fx-qa-icon svg{width:32px;height:32px}.fx-qa-primary .fx-qa-label{font-size:16px;font-weight:600}.fx-qa-secondary{flex:3;display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.fx-qa-secondary .fx-qa-item{background:var(--home-surface-soft,#eef4ff);color:var(--home-text,#333);padding:12px 8px;border:1px solid transparent}.fx-qa-secondary .fx-qa-item:hover{background:#fff;border-color:var(--home-primary,#2f66e8);color:var(--home-primary,#2f66e8);transform:translateY(-2px);box-shadow:0 4px 12px rgba(47,102,232,.08)}.fx-qa-secondary .fx-qa-icon svg{width:24px;height:24px;stroke:currentColor}.fx-qa-secondary .fx-qa-label{font-size:13px;font-weight:500}@media (max-width:768px){.fx-quick-actions{flex-direction:column}.fx-qa-secondary{grid-template-columns:repeat(2,1fr)}}",
+      "layoutContract": {
+        "gridColumns": 12,
+        "size": "2x1",
+        "desktopSpan": 8,
+        "tabletSpan": 12,
+        "mobileSpan": 12,
+        "rowSpan": 1,
+        "rowRecipe": "8+4",
+        "zone": "split",
+        "slot": "quick_actions",
+        "sectionType": "split",
+        "sizingPolicy": "1x=4/12, 2x=8/12, 3x+=12/12; tablet/mobile single-column."
+      },
+      "layoutHints": [
+        "与资产概览同屏分栏",
+        "保持独立模块边界",
+        "移动端单列堆叠",
+        "8/12 栏",
+        "8+4",
+        "移动端单列",
+        "8/12 栏",
+        "8+4"
+      ],
+      "dataRequirements": [
+        "depositUrl",
+        "withdrawalUrl",
+        "transferUrl",
+        "ordersUrl"
+      ],
+      "sourcePrompt": "骨架 HTML 单 slot 生成契约 v2: 只填充当前 slot。全页一致性来自 pageDesign.designContract；当前组件要求来自 slotContract。 布局硬约束：所有组件和 AI 首页都统一使用 12 栏桌面栅格；slotContract.layoutContract.desktopSpan 是当前组件在桌面容器内的宽度，移动端必须单列。 全局设计契约: {\"summary\":\"已按新客跟单驾驶舱重排：首屏跟单曲线推荐 + 开户旅程，资产降级。\",\"layoutPreset\":\"onboardingJourney\",\"themePreset\":\"blueFinance\",\"density\":\"compact\",\"heroFocus\":\"CopyTrading 信号源推荐区\",\"designContract\":{\"id\":\"golden-fintech\",\"label\":\"黄金样式执行契约\",\"personality\":\"golden-fintech\",\"tone\":\"清爽、可信、结构化，贴近黄金参考稿的蓝灰金融工作台。\",\"surface\":\"页面使用",
+      "originalSlotPrompt": "快捷操作：生成快捷入口组件，4-10 个操作可扫描，主操作突出，其余入口保持统一 icon 或 icon+文字节奏。",
+      "slotPromptContractSummary": "{\"contractVersion\":\"skeleton-slot-v2\",\"pageDesign\":{\"summary\":\"已按新客跟单驾驶舱重排：首屏跟单曲线推荐 + 开户旅程，资产降级。\",\"layoutPreset\":\"onboardingJourney\",\"themePreset\":\"blueFinance\",\"density\":\"compact\",\"heroFocus\":\"CopyTrading 信号源推荐区\",\"designContract\":{\"id\":\"golden-fintech\",\"label\":\"黄金样式执行契约\",\"personality\":\"golden-fintech\",\"tone\":\"清爽、可信、结构化，贴近黄金参考稿的蓝灰金融工作台。\",\"surface\":\"页面使用浅蓝灰连续背景，业务模块共享白色或浅蓝表面，块与块通过父级表面、分隔线和一致间距衔接。\",\"density\":\"balanced\",\"theme\":\"blueFinance\",\"tokens\":{\"pageMaxWidth\":\"1400px\",\"pageGutter\":\"24px\",\"cardRadius\":\"12px\",\"buttonRadius\":\"7px\",\"sectionGap\":\"14px\",\"rowGap\":\"14px\",\"cardPadding\":\"21px 16px 20px\",\"cardShadow\":\"0 9px 18px rgba(47, 102, 232, 0.24)\",\"cardBorder\":\"#d8e1ef\",\"background\":\"linear-gradient(180deg, #f6f9ff 0%, #eef4ff 52%, #f7faff 100%)\",\"surface\":\"#ffffff\",\"surfaceSoft\":\"#eef4ff\",\"primaryColor\":\"#2f66e8\",\"accentColor\":\"#275bd5\"},\"componentRules\":[\"主色使用 #2f66e8 / #275bd5 一组蓝，不再混入默认青绿色作为主视觉。\",\"卡片圆角控制在 7-12px，阴影轻，边框用 #d8e1ef / #e8edf5。\",\"同一业务组内部不要重复厚白卡，低权重模块用分隔线、列表或浅底条收口。\",\"图表、账号、钱包和 FAQ 使用统一表格/列表密度，避免营销式大渐变块。\"],\"ctaRules\":[\"主 CTA 只保留一个强蓝按钮，其他操作降级为描边、文本或轻量工具按钮。\",\"资金、开户、交易动作不能在多个模块里同时放大抢焦点。\"],\"moduleGrammar\":\"浅蓝灰页面底、清晰模块表面、薄边框表格/列表、轻量趋势图和统一按钮层级。\",\"differenceRule\":\"差异来自黄金参考稿的整页节奏、背景和块关系，而不是只替换颜色或文案。\",\"chromePolicy\":{\"mode\":\"cardedDashboard\",\"sectionChrome\":\"group\",\"defaultSlotChrome\":\"contained\",\"componentBoundary\":\"component-contained\",\"promptRule\":\"黄金样式不是把白卡糊成连续色块：页面背景、模块表面和模块边界要清楚分层，asset_overview 与 quick_actions 必须像两个模块。\"},\"layoutRules\":{\"maxWidth\":\"1280px\",\"sectionGrouping\":\"每 1-2 个相关模块组成一个业务组；同屏可以靠近，但不同业务模块必须保留清晰边界。\",\"backgroundRule\":\"背景必须是浅蓝灰连续页面底，不使用默认蓝绿空气感背景。\",\"blockRelation\":\"同组模块通过一致间距、等高和对齐衔接；不同业务模块不要共享一块模糊背景，叙事组之间用 hard-break 或 workbench 明确断开。\"}},\"pagePlan\":{\"pageGoal\":\"openAccount\",\"primaryCta\":\"立即开户\",\"mainVisual\":\"copytrading_signals\",\"layoutStrategy",
+      "lastAdjustmentPrompt": "",
+      "createdAt": "2026-06-24T09:53:59.670Z",
+      "updatedAt": "2026-06-24T09:53:59.718Z"
+    },
+    {
+      "id": "clienthomeatoms-kyc-mqrwcskt",
+      "type": "ai-generated",
+      "name": "KYC 状态卡",
+      "family": "ClientHomeAtoms",
+      "size": "3x1",
+      "score": 6,
+      "description": "横向紧凑的 KYC 状态提示条，展示验证进度与解锁提示，适配辅助区降噪要求。",
+      "tags": [
+        "KYC",
+        "Status",
+        "Rail",
+        "Compact"
+      ],
+      "html": "<div class=\"fx-kyc-rail\"><div class=\"fx-kyc-rail-info\"><div class=\"fx-kyc-rail-icon\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z\"></path></svg></div><div class=\"fx-kyc-rail-text\"><div class=\"fx-kyc-rail-title\"><span>身份验证</span><span class=\"fx-kyc-badge\">待完善 35%</span></div><p class=\"fx-kyc-rail-desc\">完成身份认证以解锁更高交易额度与出金权限</p></div></div><div class=\"fx-kyc-rail-actions\"><button class=\"fx-btn-outline\">查看要求</button><button class=\"fx-btn-soft\">立即验证</button></div></div>",
+      "css": ".fx-kyc-rail{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:var(--home-surface-soft,#eef4ff);border-radius:8px;border:1px solid var(--home-border,#d8e1ef);gap:16px}.fx-kyc-rail-info{display:flex;align-items:center;gap:16px}.fx-kyc-rail-icon{width:40px;height:40px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;color:var(--home-primary-color,#2f66e8);flex-shrink:0}.fx-kyc-rail-icon svg{width:20px;height:20px}.fx-kyc-rail-text{display:flex;flex-direction:column;gap:4px}.fx-kyc-rail-title{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--home-text-primary,#1a1f36)}.fx-kyc-badge{font-size:12px;font-weight:500;padding:2px 8px;border-radius:12px;background:#fff;color:var(--home-primary-color,#2f66e8);border:1px solid var(--home-border,#d8e1ef)}.fx-kyc-rail-desc{margin:0;font-size:13px;color:var(--home-text-secondary,#4f566b)}.fx-kyc-rail-actions{display:flex;align-items:center;gap:12px;flex-shrink:0}.fx-kyc-rail-actions button{height:32px;padding:0 16px;font-size:13px;font-weight:500;border-radius:6px;cursor:pointer;transition:all .2s}.fx-btn-outline{background:transparent;border:1px solid var(--home-border,#d8e1ef);color:var(--home-text-secondary,#4f566b)}.fx-btn-outline:hover{background:#fff;color:var(--home-text-primary,#1a1f36)}.fx-btn-soft{background:#fff;border:1px solid var(--home-primary-color,#2f66e8);color:var(--home-primary-color,#2f66e8)}.fx-btn-soft:hover{background:var(--home-surface-soft,#eef4ff)}@media (max-width:768px){.fx-kyc-rail{flex-direction:column;align-items:flex-start}.fx-kyc-rail-actions{width:100%;justify-content:flex-end}}",
+      "layoutContract": {
+        "gridColumns": 12,
+        "size": "3x1",
+        "desktopSpan": 12,
+        "tabletSpan": 12,
+        "mobileSpan": 12,
+        "rowSpan": 1,
+        "rowRecipe": "12+0",
+        "zone": "full",
+        "slot": "kyc_status_card",
+        "sectionType": "full",
+        "sizingPolicy": "1x=4/12, 2x=8/12, 3x+=12/12; tablet/mobile single-column."
+      },
+      "layoutHints": [
+        "横向通栏",
+        "降噪横条",
+        "移动端折叠",
+        "12/12 栏",
+        "12+0",
+        "移动端单列",
+        "12/12 栏",
+        "12+0"
+      ],
+      "dataRequirements": [
+        "kycStatus",
+        "completionPercentage",
+        "verificationUrl"
+      ],
+      "sourcePrompt": "骨架 HTML 单 slot 生成契约 v2: 只填充当前 slot。全页一致性来自 pageDesign.designContract；当前组件要求来自 slotContract。 布局硬约束：所有组件和 AI 首页都统一使用 12 栏桌面栅格；slotContract.layoutContract.desktopSpan 是当前组件在桌面容器内的宽度，移动端必须单列。 全局设计契约: {\"summary\":\"已按新客跟单驾驶舱重排：首屏跟单曲线推荐 + 开户旅程，资产降级。\",\"layoutPreset\":\"onboardingJourney\",\"themePreset\":\"blueFinance\",\"density\":\"compact\",\"heroFocus\":\"CopyTrading 信号源推荐区\",\"designContract\":{\"id\":\"golden-fintech\",\"label\":\"黄金样式执行契约\",\"personality\":\"golden-fintech\",\"tone\":\"清爽、可信、结构化，贴近黄金参考稿的蓝灰金融工作台。\",\"surface\":\"页面使用",
+      "originalSlotPrompt": "KYC 状态卡：生成当前 slot 对应的真实业务组件，内容要服务当前模块，不要扩展成无关首页区块。",
+      "slotPromptContractSummary": "{\"contractVersion\":\"skeleton-slot-v2\",\"pageDesign\":{\"summary\":\"已按新客跟单驾驶舱重排：首屏跟单曲线推荐 + 开户旅程，资产降级。\",\"layoutPreset\":\"onboardingJourney\",\"themePreset\":\"blueFinance\",\"density\":\"compact\",\"heroFocus\":\"CopyTrading 信号源推荐区\",\"designContract\":{\"id\":\"golden-fintech\",\"label\":\"黄金样式执行契约\",\"personality\":\"golden-fintech\",\"tone\":\"清爽、可信、结构化，贴近黄金参考稿的蓝灰金融工作台。\",\"surface\":\"页面使用浅蓝灰连续背景，业务模块共享白色或浅蓝表面，块与块通过父级表面、分隔线和一致间距衔接。\",\"density\":\"balanced\",\"theme\":\"blueFinance\",\"tokens\":{\"pageMaxWidth\":\"1400px\",\"pageGutter\":\"24px\",\"cardRadius\":\"12px\",\"buttonRadius\":\"7px\",\"sectionGap\":\"14px\",\"rowGap\":\"14px\",\"cardPadding\":\"21px 16px 20px\",\"cardShadow\":\"0 9px 18px rgba(47, 102, 232, 0.24)\",\"cardBorder\":\"#d8e1ef\",\"background\":\"linear-gradient(180deg, #f6f9ff 0%, #eef4ff 52%, #f7faff 100%)\",\"surface\":\"#ffffff\",\"surfaceSoft\":\"#eef4ff\",\"primaryColor\":\"#2f66e8\",\"accentColor\":\"#275bd5\"},\"componentRules\":[\"主色使用 #2f66e8 / #275bd5 一组蓝，不再混入默认青绿色作为主视觉。\",\"卡片圆角控制在 7-12px，阴影轻，边框用 #d8e1ef / #e8edf5。\",\"同一业务组内部不要重复厚白卡，低权重模块用分隔线、列表或浅底条收口。\",\"图表、账号、钱包和 FAQ 使用统一表格/列表密度，避免营销式大渐变块。\"],\"ctaRules\":[\"主 CTA 只保留一个强蓝按钮，其他操作降级为描边、文本或轻量工具按钮。\",\"资金、开户、交易动作不能在多个模块里同时放大抢焦点。\"],\"moduleGrammar\":\"浅蓝灰页面底、清晰模块表面、薄边框表格/列表、轻量趋势图和统一按钮层级。\",\"differenceRule\":\"差异来自黄金参考稿的整页节奏、背景和块关系，而不是只替换颜色或文案。\",\"chromePolicy\":{\"mode\":\"cardedDashboard\",\"sectionChrome\":\"group\",\"defaultSlotChrome\":\"contained\",\"componentBoundary\":\"component-contained\",\"promptRule\":\"黄金样式不是把白卡糊成连续色块：页面背景、模块表面和模块边界要清楚分层，asset_overview 与 quick_actions 必须像两个模块。\"},\"layoutRules\":{\"maxWidth\":\"1280px\",\"sectionGrouping\":\"每 1-2 个相关模块组成一个业务组；同屏可以靠近，但不同业务模块必须保留清晰边界。\",\"backgroundRule\":\"背景必须是浅蓝灰连续页面底，不使用默认蓝绿空气感背景。\",\"blockRelation\":\"同组模块通过一致间距、等高和对齐衔接；不同业务模块不要共享一块模糊背景，叙事组之间用 hard-break 或 workbench 明确断开。\"}},\"pagePlan\":{\"pageGoal\":\"openAccount\",\"primaryCta\":\"立即开户\",\"mainVisual\":\"copytrading_signals\",\"layoutStrategy",
+      "lastAdjustmentPrompt": "",
+      "createdAt": "2026-06-24T09:54:42.221Z",
+      "updatedAt": "2026-06-24T09:54:42.261Z"
     }
   ]
 }
