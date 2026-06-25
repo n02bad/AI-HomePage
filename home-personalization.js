@@ -13757,22 +13757,34 @@
 	    if (!composite?.id) return false;
 	    if (blueprintRowNeedsDistinctCards(row)) return false;
 	    const surface = cleanMetaText(composite.surface, "", 32);
-	    return ["shared-workbench"].includes(surface);
+	    // C：除了 shared-workbench，也兑现规划层产出的 connected-panel / light-section 业务组，
+	    // 让多行同组模块渲染成一个视觉分区，而不是被拆成互不相关的卡。
+	    return ["shared-workbench", "connected-panel", "light-section"].includes(surface);
 	  }
 
 	  function blueprintRowChrome(row = {}, config = {}, designContract = null) {
-	    if (!designContract) return "";
 	    const items = Array.isArray(row.items) ? row.items : [];
-	    const policy = designContract.chromePolicy || {};
+	    if (designContract) {
+	      // —— 原有 golden 契约逻辑，保持不变 ——
+	      const policy = designContract.chromePolicy || {};
+	      if (blueprintRowNeedsDistinctCards(row)) return "separated";
+	      const slotChromes = items.map((item) => skeletonSlotChrome(item.block?.component, config, blueprintSectionForBlock(item.block), designContract));
+	      if (slotChromes.includes("featured")) return "band";
+	      if (slotChromes.every((chrome) => chrome === "tableSurface")) return "workbench";
+	      if (slotChromes.every((chrome) => chrome === "legalStrip" || chrome === "bare" || chrome === "inline")) return "plain";
+	      if (items.length > 1 && policy.mode === "flatConnected") return "connected";
+	      if (policy.mode === "sectionBand" || policy.mode === "heroProof") return "band";
+	      if (policy.mode === "workbench") return "workbench";
+	      return normalizeSkeletonSectionChrome(policy.sectionChrome, "group");
+	    }
+	    // —— B：无 golden 契约的日常生成也按角色派生行外壳，让成对相关模块并成连体组 ——
+	    if (items.length < 2) return "";
 	    if (blueprintRowNeedsDistinctCards(row)) return "separated";
-	    const slotChromes = items.map((item) => skeletonSlotChrome(item.block?.component, config, blueprintSectionForBlock(item.block), designContract));
+	    const slotChromes = items.map((item) => skeletonSlotChrome(item.block?.component, config, blueprintSectionForBlock(item.block), {}));
 	    if (slotChromes.includes("featured")) return "band";
 	    if (slotChromes.every((chrome) => chrome === "tableSurface")) return "workbench";
 	    if (slotChromes.every((chrome) => chrome === "legalStrip" || chrome === "bare" || chrome === "inline")) return "plain";
-	    if (items.length > 1 && policy.mode === "flatConnected") return "connected";
-	    if (policy.mode === "sectionBand" || policy.mode === "heroProof") return "band";
-	    if (policy.mode === "workbench") return "workbench";
-	    return normalizeSkeletonSectionChrome(policy.sectionChrome, "group");
+	    return "connected";
 	  }
 
 	  function blueprintRowCompositeMeta(row = {}) {
@@ -13872,11 +13884,11 @@
 	          node.dataset.homeCompositeSurface = block.compositeSurface || "";
 	          node.dataset.homeCompositeRole = block.compositeRole || "";
 	        }
-	        if (designContract) {
-	          const slotChrome = skeletonSlotChrome(block.component, config, blueprintSectionForBlock(block), designContract);
-	          node.dataset.homeSlotChrome = slotChrome;
-	          node.classList.add(`ai-home-slot-chrome-${slotChrome}`);
-	        }
+	        // A：外壳分层不再依赖 golden 契约。skeletonSlotChrome 在无契约时也会回退到默认契约，
+	        // 据此给每个 block 落角色化外壳（featured/rail/legalStrip…），避免所有模块都渲染成等权白卡。
+	        const slotChrome = skeletonSlotChrome(block.component, config, blueprintSectionForBlock(block), designContract || {});
+	        node.dataset.homeSlotChrome = slotChrome;
+	        node.classList.add(`ai-home-slot-chrome-${slotChrome}`);
 	        node.dataset.homeSpan = String(item.span);
         node.dataset.homeLayoutRecipe = item.span >= 12 ? "12+0" : item.span === 8 ? "8+4" : item.span === 6 ? "6+6" : "4+8";
         const responsiveRule = config.autoLayout?.moduleRules?.[block.component];

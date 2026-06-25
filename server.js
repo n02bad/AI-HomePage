@@ -4254,6 +4254,21 @@ function generatedComponentQualityIssues(component, payload = {}) {
   if (family === "QuickActions" && generatedComponentUsesBrokenIconFont(component)) {
     issues.push("快捷入口使用空 i 标签和私有 iconfont content，当前页面没有加载对应字体，会渲染成空图标。");
   }
+  // 布局缺陷门禁：这些写法会在首页栅格容器里留下大块空白/塌缩/溢出，命中即判不合格并回退积木库。
+  const css = String(component?.css || "");
+  const layoutFamilies = ["QuickActions", "TradingAccounts", "OnboardingProgress", "WalletList"];
+  const flexEnd = /justify-content\s*:\s*(?:flex-end|right|end)\b/i.test(css);
+  const hasGrid = /grid-template-columns/i.test(css);
+  if (layoutFamilies.includes(family) && flexEnd && !hasGrid) {
+    issues.push("结构型模块（快捷入口/交易账号/开通进度/钱包）把内容靠右/靠边对齐又不用网格，会在主轴留下大块空白；这类模块必须等分铺满整行或用等宽网格列。");
+  }
+  if (/flex-grow\s*:\s*1\b/i.test(css) && flexEnd && !hasGrid) {
+    issues.push("组件用 flex-grow 撑开容器后又把内容靠边对齐，主轴中段会出现大块空白；应铺满容器或改用等分网格列。");
+  }
+  // 固定大像素宽度无法自适应首页栅格（width 前必须是 ; { 或空白，借此排除 max-width/min-width/border-width）。
+  if (/[;{\s]width\s*:\s*(?:[5-9]\d{2}|\d{4,})px/i.test(css)) {
+    issues.push("组件使用固定大像素宽度（≥500px），无法自适应首页栅格容器，会溢出或撑出横向空白；宽度应用百分比或自适应布局。");
+  }
   if (/首页目标|当前步骤|slot：|模块名称：|Client Home Atom|data-ai-edit-note|AI\s*修改/i.test(source)) {
     issues.push("组件 UI 泄露了管理员提示词或 AI 编辑痕迹。");
   }
@@ -7038,10 +7053,16 @@ function reorderHomepageSectionsByArchetype(config, actions = []) {
     const idx = order.indexOf(canonicalHomeBlock(slot) || slot);
     return idx === -1 ? order.length + 5 : idx;
   };
+  const tickerAnnouncementFirst = ensureObject(config.moduleStyles).announcements === "ticker-strip";
   const sectionRank = (section) => {
     const slots = Array.isArray(section?.slots) ? section.slots : [];
     if (!slots.length) return order.length + 10;
     if (slots.some((s) => /risk_disclosure|risk_notice/.test(canonicalHomeBlock(s) || s))) return order.length + 20; // 法务永远收尾
+    if (tickerAnnouncementFirst) {
+      // 管理员明确要求公告作为首页第一栏跑马灯时，把它钉在最前；欢迎条仍可排在其之上。
+      if (slots.some((s) => (canonicalHomeBlock(s) || s) === "welcome_header")) return -2;
+      if (slots.some((s) => (canonicalHomeBlock(s) || s) === "announcements")) return -1;
+    }
     return Math.min(...slots.map(rankOf));
   };
   const before = config.sections.map((s) => s.id || "").join("|");
@@ -11409,11 +11430,11 @@ function buildComponentPrompt(payload) {
   const size = componentSizePromptLabel(payload.size, "2x1");
   const referenceSize = normalizeComponentSize(payload.size, layoutContext.recommendedSize || "");
   const familySpec = componentFamilySpec(family);
-  // 提速 C：精简单次上下文。原来注入 8 库参考 + 6 审美 + 2 样本 + 3 反馈，token 体量很大；
-  // 收敛到目标 family 的少量高分范例即可，模型已能从中吸收结构，省下大量 input token。
-  const componentReference = componentLibraryPromptReference({ family, size: referenceSize, prompt, limit: 4 });
+  // 还原积木参考量：之前为提速把参考砍到 limit:4 + 审美减半，结果模型范例不足、自由发挥翻车。
+  // 恢复到接近原始的 8 库参考 + 6 审美 + 2 样本 + 3 反馈，让结构型模块有足够高分范例可锚定。
+  const componentReference = componentLibraryPromptReference({ family, size: referenceSize, prompt, limit: 8 });
   const scoreReference = scoreContextPromptReference(payload.scoreContext);
-  const aestheticReference = componentAestheticPromptReference({ family, size: referenceSize, prompt, limit: 3, sampleLimit: 1, feedbackLimit: 2 });
+  const aestheticReference = componentAestheticPromptReference({ family, size: referenceSize, prompt, limit: 6, sampleLimit: 2, feedbackLimit: 3 });
   const designGovernance = designRulesPromptReference();
   const visualReference = componentVisualReferencePromptReference(payload);
   const skeletonContract = componentSkeletonPromptContractReference(payload);
@@ -11442,6 +11463,9 @@ function buildComponentPrompt(payload) {
     `尺寸规则: ${COMPONENT_SIZE_GUIDE}`,
     "当推荐尺寸为 AI 自行选择时，必须结合“页面宽度/尺寸决策上下文”决定 size；功能越复杂、当前页面越宽，可把组件放大到 3x2、4x2、4x3、5x3 或合理 NxM，简单侧栏组件不要强行变大。",
     "组件布局必须能自适应容器宽度，避免固定大空白、空占位或依赖不可控高度撑开。",
+    "组件必须铺满分配到的 slot 宽度：任何 flex 行都不得用 flex-grow 撑开后再把内容靠边对齐，禁止用 justify-content:flex-end/space-between 把元素挤到一侧而让主轴中段留下大块空白。",
+    "快捷入口、操作类组件必须把所有入口等分铺满整行，或按 2/3/4 列等宽网格紧凑排列；主操作按钮与其它入口要在同一栅格节奏里，不能主按钮独占左侧、其它入口挤到右侧。",
+    "交易账号列表、账户开通进度这类结构型模块必须按组件库里同类积木的字段密度、行/卡结构和按钮层级来组织，不要自创稀疏排版或留大片空行。",
     "组件内部只保留一个可见主标题：如果使用 strong/h1-h4 做主标题，就不要再放 span/small/label 作为上方 eyebrow、分类名或第二标题；span/small 只用于数据行字段标签。",
     "禁止返回通用占位组件；不要使用 Primary Action、AI 样式、Sample、Lorem ipsum 这类无业务含义文案。",
     "按钮、字段和值必须是 ForexCRM 用户端真实业务：入金、出金、真实账号、模拟账号、绑定账号、钱包、KYC、邀请链接、交易账号、余额、权益、信用、杠杆等。",
@@ -13928,6 +13952,10 @@ function buildPrompt(payload, config = {}) {
   const variant = Number(payload.variant || 0);
   const now = new Date().toISOString();
   const guidedIntake = guidedAiIntakeFromPayload(payload);
+  // 引导式已显式确定主题/密度时，自然语言关键词→预设的映射规则成为纯冗余，
+  // 改由 guidedIntakePromptLines 注入解析后的硬约束；仅快捷输入模式保留这些映射。
+  const guidedThemeDecided = Boolean(guidedIntake && oneOfList(guidedIntake.theme?.themePreset || guidedIntake.theme?.id, HOMEPAGE_THEME_PRESETS, ""));
+  const guidedDensityDecided = Boolean(guidedIntake && oneOfList(guidedIntake.density || guidedIntake.layoutDensity?.id, ["compact", "comfortable", "balanced", "spacious"], ""));
   const intentProfile = applyGuidedIntentProfile(buildHomepageIntentProfile(prompt), guidedIntake);
   const pagePlan = buildHomepagePagePlan(payload, { pageIntent: intentProfile });
   const modulePolicy = buildHomepageModulePolicy(payload);
@@ -13997,7 +14025,6 @@ function buildPrompt(payload, config = {}) {
     "同一屏里的核心可见模块要尽量选择不同 morph，不得只换标题、颜色、顺序、moduleStyles 或 variant；morph 必须意味着真实 DOM 骨架差异，例如表格型、横向状态条、指标三联、左右分栏、时间线、操作坞、紧凑列表、终端面板、卡片墙、风险/信任证明结构。",
     "当管理员提到个性化、意图、更多方案、样式风格时，personalizationStrength 必须为 strong，并让 pageIntent 同时影响 layoutPreset、sections 顺序、QuickActions 风格和核心可见模块 morph，不要只换颜色。",
     "如果管理员要求简洁、扁平、降噪、数据指标排版优化、不要模块内套模块，账号表现必须采用单层结构：选中账号上下文、一个主数值、ECharts 7D/30D 折线图和一条轻量指标带；不要再生成卡片里面套小卡片。",
-    "交易账号卡片/列表只能展示账号类型、交易环境值、账号、余额、净值、信用金、账户类型、杠杆、保证金比例这 9 项信息；交易环境由 platform+server 合并直接显示，卡片不要露出“平台/服务器”字段名；不得为了丰富画面补 PnL、用途、持仓、保证金占用、风险状态或操作按钮。",
     "交易账号主视图必须单一：card、list 或 table 三选一，不得把摘要卡片/摘要行和完整表格在同一模块内上下叠加；需要切换视图时，默认只显示当前视图，另一个视图必须隐藏。",
     "如果账号字段密度较高、账号多或管理员说重点太多、内容重复、卡片里又套表格，优先选择列表/表格，而不是把多种账号形态堆在同一个模块里。",
     "sections、layout 和 brickPlan 只能包含可渲染且启用的业务模块；禁止空 section、空 slots、东缺一块西缺一块的断裂拼版。",
@@ -14011,7 +14038,7 @@ function buildPrompt(payload, config = {}) {
     "如果管理员要求列表形式、建议用列表、真实账号列表、模拟账号列表、不是卡片，必须返回交易账号列表主视图；但管理员明确要求真实账号卡片时，以真实账号卡片优先。",
     "如果管理员要求 8 个快捷入口或两行四个，quickActions.count 必须是 8，QuickActions 的 brickPlan size 必须是 2x1 或 3x1，不能使用 1x。",
     "如果管理员给出快捷入口名称，也不要把名称写死进 moduleSettings.quickActions.actions；只设置 quick_actions 的展示数量、样式和占位，入口内容由后台配置或接口返回。",
-    "如果管理员提到空白、少留白、空间利用或压缩高度，density 必须是 compact 或 balanced，不得使用 spacious；onboarding_guide 优先使用 compact/checklist/ribbon-rail 或紧凑 guide-cards。",
+    ...(guidedDensityDecided ? [] : ["如果管理员提到空白、少留白、空间利用或压缩高度，density 必须是 compact 或 balanced，不得使用 spacious；onboarding_guide 优先使用 compact/checklist/ribbon-rail 或紧凑 guide-cards。"]),
     "必须先遵守服务端提供的 pagePlan：pageGoal 决定唯一主 CTA，mainVisual 是最高视觉权重模块，visualHierarchy 决定辅助模块降权；不要让 hero、feature、proof、pricing/FAQ、CTA 同时抢戏。",
     "必须按 pagePlan.compositionGroups 组织页面：相关模块合并为 3-4 个业务组，sections 优先对应业务组，不要把每个 slot 拆成独立 section。",
     "禁止整页全部上下纵向堆叠：要主动使用左右分栏。把一个较大的图表/进度/活动/产品模块（trading_account_highlight、onboarding_guide、promo_banner、pamm_products）放进一个双 slot 的 hero/split section（该模块约占 8 栏），并在同一 section 里旁配一个低权重 compact 模块（faq_section、app_download、support_contact、announcements、referral_link_card、kyc_status_card 之一，约占 4 栏）形成左右并排。",
@@ -14022,9 +14049,11 @@ function buildPrompt(payload, config = {}) {
     "如果管理员提到小屏幕、手机端、移动端或适配，autoLayout.strategy 必须保持 responsive-grid 或 mobile-first-stack，并优先让 paired rows collapse 为单列。",
     "如果管理员要求活动增长、交易大赛、奖池，并明确说明租户已配置活动，必须使用 promo_banner 作为活动模块；如果有 welcome_header，promo_banner 可紧跟在 welcome_header 后面。",
     "如果管理员要求欢迎模块、欢迎区或 welcome，保留轻量 welcome_header 首行；welcome 必须固定在页面最顶部，只提供用户上下文，不展示重复的个性化入口，也不改变业务 heroFocus。",
-    "如果管理员要求淡金色、浅金色、轻金色、香槟金、金色调或 gold，themePreset 必须使用 lightGold，并通过 density/moduleStyles 做扁平、轻量、低阴影表达；只有明确黑金/VIP/高净值才使用 blackGold。",
-    "如果管理员要求翡翠、信任绿或资金安全绿，themePreset 必须使用 emeraldTrust；要求钴蓝、青绿或青蓝科技时使用 cobaltTeal；要求赤红、红色活动或红橙时使用 crimsonPromo；要求石墨、银色或机构灰时使用 graphiteSilver。",
-    "如果管理员要求极简、极简白、淡色、浅色、白色、留白或 minimal，themePreset 必须使用 minimalWhite；白天模式不得出现大面积黑色、终端黑、黑色欢迎条或黑色图表容器。",
+    ...(guidedThemeDecided ? [] : [
+      "如果管理员要求淡金色、浅金色、轻金色、香槟金、金色调或 gold，themePreset 必须使用 lightGold，并通过 density/moduleStyles 做扁平、轻量、低阴影表达；只有明确黑金/VIP/高净值才使用 blackGold。",
+      "如果管理员要求翡翠、信任绿或资金安全绿，themePreset 必须使用 emeraldTrust；要求钴蓝、青绿或青蓝科技时使用 cobaltTeal；要求赤红、红色活动或红橙时使用 crimsonPromo；要求石墨、银色或机构灰时使用 graphiteSilver。",
+      "如果管理员要求极简、极简白、淡色、浅色、白色、留白或 minimal，themePreset 必须使用 minimalWhite；白天模式不得出现大面积黑色、终端黑、黑色欢迎条或黑色图表容器。",
+    ]),
     "所有生成首页必须考虑白天模式和暗夜模式：默认返回 colorMode=\"auto\"，只在管理员明确只要暗夜时返回 dark、明确只要白天时返回 light；暗色大面板只能在 darkTech 或 colorMode=dark 下使用。",
     "如果管理员要求欢迎模块独占第一栏，layout 中必须包含 welcome_header 作为第一个 12 栅格轻量整行；它不能改变 heroFocus，heroFocus 仍应指向广告轮播等业务核心。",
     "如果页面是新手开户、开户注册、开户路径、KYC 路径或 onboarding journey，AI 可以把 onboarding_guide 做成账户开通进度面板 mission-board、下一步主面板 next-step-hero、里程碑票据 ribbon-rail、精美 guide-cards、整横栏 journey-timeline 或清单；按意图选择形态，不要固定塞进侧栏小卡片，也不要固定成三等分方格；标题不要固定写成“新手引导路径”。",

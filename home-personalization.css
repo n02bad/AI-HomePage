@@ -196,6 +196,71 @@ body[data-home-style-contract]:not([data-home-style-contract=""]) .client-home-p
   box-shadow: none;
 }
 
+/* A：模块外壳分层 —— 不依赖 golden 契约，按角色拉开视觉权重，打破"整页等权白卡"。
+   featured(首屏/活动/heroFocus) 最重，contained/tableSurface 为标准卡，
+   rail(faq/referral/kyc/support/app_download) 降权为安静伴随面板，legalStrip(风险披露) 收口为页脚条。 */
+.client-shell.is-blueprint-home .ai-home-block.ai-home-slot-chrome-featured {
+  border-color: color-mix(in srgb, var(--home-primary) 30%, var(--home-panel-border));
+  box-shadow: 0 16px 36px color-mix(in srgb, var(--home-primary) 14%, transparent);
+}
+.client-shell.is-blueprint-home .ai-home-block.ai-home-slot-chrome-rail {
+  background: color-mix(in srgb, var(--home-surface) 66%, transparent);
+  border-color: color-mix(in srgb, var(--home-panel-border) 50%, transparent);
+  box-shadow: none;
+}
+.client-shell.is-blueprint-home .ai-home-block.ai-home-slot-chrome-flat,
+.client-shell.is-blueprint-home .ai-home-block.ai-home-slot-chrome-inline,
+.client-shell.is-blueprint-home .ai-home-block.ai-home-slot-chrome-bare {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+.client-shell.is-blueprint-home .ai-home-block.ai-home-slot-chrome-legalStrip {
+  background: color-mix(in srgb, var(--home-surface-soft, var(--home-surface)) 90%, transparent);
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--home-text-muted);
+}
+
+/* B：连体组 —— 成对相关模块并入一个共享外壳，中间用分隔线，而不是两张各自独立、各自投影的卡。
+   行承载卡片外壳，内部 block 退成无框透明，用 border-inline-start 做组内分隔。 */
+.client-shell.is-blueprint-home .ai-home-row[data-row-chrome="connected"] {
+  gap: 0;
+  border: 1px solid var(--home-panel-border);
+  border-radius: var(--home-card-radius);
+  background: var(--home-panel-bg);
+  box-shadow: var(--home-panel-shadow);
+  overflow: hidden;
+}
+.client-shell.is-blueprint-home .ai-home-row[data-row-chrome="connected"] > .ai-home-block {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.client-shell.is-blueprint-home .ai-home-row[data-row-chrome="connected"] > .ai-home-block:not(:first-child) {
+  border-inline-start: 1px solid color-mix(in srgb, var(--home-panel-border) 80%, transparent);
+}
+
+/* C：业务组容器 —— 兑现规划层的 composition group。多行同组模块共享一个轻量分区，
+   按 server 下发的 compositeSurface 区分：connected-panel/light-section 用浅色分区底归拢，
+   shared-workbench 走扁平工作台流。内部行/卡保留 A/B 的分层，分区只提供"同属一组"的视觉线索。 */
+.client-shell.is-blueprint-home .ai-home-composite {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.client-shell.is-blueprint-home .ai-home-composite[data-home-composite-surface="connected-panel"],
+.client-shell.is-blueprint-home .ai-home-composite[data-home-composite-surface="light-section"] {
+  padding: 12px;
+  border-radius: calc(var(--home-card-radius) + 4px);
+  background: color-mix(in srgb, var(--home-primary-soft, var(--home-surface)) 22%, transparent);
+}
+.client-shell.is-blueprint-home .ai-home-composite[data-home-composite-surface="shared-workbench"] {
+  gap: 10px;
+}
+
 .ai-home-row[data-row-kind="paired"] {
   min-height: var(--home-row-min-height, 220px);
 }
