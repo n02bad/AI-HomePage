@@ -787,6 +787,30 @@ const LARGE_FULL_ROW_HOME_BLOCK_SIZES = {
   wallet_list: "3x2",
 };
 
+// Large blocks that read fine at ~8 columns and may sit beside a compact (4-col)
+// companion instead of always taking a full row. Mirrors the client renderer's
+// WIDE_PAIRABLE_HOME_BLOCKS so server section order and client pairing agree.
+// True wide tables / dense curve modules stay full-row.
+const WIDE_PAIRABLE_HOME_BLOCKS = new Set([
+  "trading_account_highlight",
+  "onboarding_guide",
+  "promo_banner",
+  "pamm_products",
+]);
+
+// Low-priority compact modules suitable as the 4-col companion next to a wide
+// block. High-value modules (asset_overview, quick_actions) are intentionally
+// excluded so they never get demoted to a 4-col sidebar.
+const COMPACT_COMPANION_HOME_BLOCKS = new Set([
+  "faq_section",
+  "app_download",
+  "support_contact",
+  "announcements",
+  "market_news",
+  "referral_link_card",
+  "kyc_status_card",
+]);
+
 function homepageLargeBlockSize(slot) {
   const canonical = canonicalHomeBlock(slot);
   return LARGE_FULL_ROW_HOME_BLOCK_SIZES[canonical] || "";
@@ -9408,6 +9432,37 @@ function evaluateGoldenAlignment(config = {}) {
   };
 }
 
+// Estimate how many rendered rows will be left-right (two-column) vs full-width,
+// mirroring the client's wide+compact and compact+compact pairing. Used to score
+// layout composition so candidate ranking favors denser, less monotonous pages.
+function estimateHomepageLayoutComposition(config = {}) {
+  const sections = Array.isArray(config.sections) ? config.sections : [];
+  const order = homepageBlocksFromSections(sections)
+    .map((slot) => canonicalHomeBlock(slot) || slot)
+    .filter(Boolean);
+  const total = order.length;
+  if (!total) return { pairedRows: 0, totalRows: 0, ratio: 0, wides: 0, companions: 0 };
+
+  const isStrictFull = (slot) => LARGE_FULL_ROW_HOME_BLOCKS.has(slot) && !WIDE_PAIRABLE_HOME_BLOCKS.has(slot);
+  const isWide = (slot) => WIDE_PAIRABLE_HOME_BLOCKS.has(slot);
+  const isFixedFull = (slot) => slot === "welcome_header" || slot === "risk_disclosure" || isStrictFull(slot);
+  const isCompanion = (slot) => COMPACT_COMPANION_HOME_BLOCKS.has(slot);
+  const isCompact = (slot) => !isFixedFull(slot) && !isWide(slot);
+
+  const wides = order.filter(isWide).length;
+  const companions = order.filter(isCompanion).length;
+  const compactsOther = order.filter((slot) => isCompact(slot) && !isCompanion(slot)).length;
+  const fixedFull = order.filter(isFixedFull).length;
+
+  const widePairs = Math.min(wides, companions);
+  const remainingCompact = compactsOther + (companions - widePairs);
+  const pairedRows = widePairs + Math.floor(remainingCompact / 2);
+  const singleRows = (remainingCompact % 2) + (wides - widePairs) + fixedFull;
+  const totalRows = pairedRows + singleRows;
+  const ratio = totalRows ? pairedRows / totalRows : 0;
+  return { pairedRows, totalRows, ratio, wides, companions };
+}
+
 function evaluateHomepageAesthetic(payload = {}, config = {}) {
   const sourceConfig = config && typeof config === "object" ? config : {};
   const prompt = cleanText(payload.prompt || sourceConfig.prompt || "", "", 1200);
@@ -9423,6 +9478,7 @@ function evaluateHomepageAesthetic(payload = {}, config = {}) {
 	  const htmlQuality = htmlScheme?.enabled || html || css ? evaluateAiHtmlQuality({ ...htmlScheme, html, css }, payload, sourceConfig) : null;
   const skeletonQuality = evaluateSkeletonSlotQuality(sourceConfig);
   const transitionQuality = evaluateSectionTransitionQuality(sourceConfig);
+  const layoutComposition = estimateHomepageLayoutComposition(sourceConfig);
 	  const componentRefs = beautifulComponentReferences({ prompt, limit: 8 });
   const sampleRefs = rankDesignSamplesForPrompt(prompt, 4).map(summarizeDesignSampleForPrompt);
   const feedbackRefs = feedbackMemoryPromptReference(prompt, 5);
@@ -9478,6 +9534,17 @@ function evaluateHomepageAesthetic(payload = {}, config = {}) {
         `${uniqueSectionSlots} 个可见槽位`,
         `${uniqueZones} 类积木区域`,
         `${wideBlocks} 个宽幅/整行模块`,
+      ],
+    },
+    {
+      key: "layoutComposition",
+      label: "布局组合度",
+      weight: 16,
+      score: categoryScore(26 + Math.round(layoutComposition.ratio * 74)),
+      notes: [
+        `${layoutComposition.pairedRows}/${layoutComposition.totalRows} 行左右并排`,
+        layoutComposition.ratio >= 0.3 ? "有左右分栏，避免千篇一律纵向堆叠" : "几乎全是纵向整行，建议大模块旁配 compact 模块",
+        `${layoutComposition.wides} 个可配对宽模块 / ${layoutComposition.companions} 个 compact 伴随`,
       ],
     },
     {
@@ -9558,6 +9625,7 @@ function evaluateHomepageAesthetic(payload = {}, config = {}) {
   });
   addIssue(!(htmlScheme?.enabled && htmlScheme.isFallback), "当前 AI HTML 是 fallback/mock，不能代表真实模型审美能力。", "先关闭 HOME_AI_MOCK 或确认真实模型调用成功，再沉淀为正向样本。");
   addIssue(uniqueSectionSlots >= 4 || Boolean(htmlScheme?.enabled), "页面模块数量或形态太少，容易像单页表单。", "至少让首屏、主功能、辅助信息和合规/客服形成不同视觉层级。");
+  addIssue(layoutComposition.totalRows <= 3 || layoutComposition.ratio >= 0.25, "布局几乎全是纵向整行堆叠，缺少左右分栏。", "把大图表/进度/活动模块与一个 compact 模块（FAQ、下载、公告、客服等）左右并排成 8/4，提高首屏密度。");
   addIssue(morphCount >= Math.min(5, Math.max(3, families.length)) || Boolean(htmlScheme?.enabled), "核心模块 morph 覆盖不足，模块可能只是在换颜色。", "为资产、快捷入口、账号、开户、图表等核心模块选择不同 DOM morph。");
 
   addStrength(hasHero, "首屏具备可识别焦点。");
@@ -12868,6 +12936,27 @@ function applyHomepageCompositionGroupsToSections(sections = [], pagePlan = {}) 
     }
     let compactSlots = [];
     let compositeOrder = 0;
+    let pendingWide = null;
+    const pushFullSlot = (slot, titleFallback, idSuffix) => {
+      pushSection(
+        compositeSection(
+          {
+            id: homepageSectionIdForSlot(group.id, slot, `${idSuffix}-${next.length + 1}`),
+            type: "full",
+            title: homepageSectionTitleForSlot(slot, titleFallback),
+            slots: [slot],
+          },
+          group,
+          compositeOrder++,
+          groupIndex,
+        ),
+      );
+    };
+    const flushPendingWide = () => {
+      if (!pendingWide) return;
+      pushFullSlot(pendingWide, group.title || "", "full-row");
+      pendingWide = null;
+    };
     const flushCompactSlots = () => {
       if (!compactSlots.length) return;
       for (let index = 0; index < compactSlots.length; index += 2) {
@@ -12893,42 +12982,51 @@ function applyHomepageCompositionGroupsToSections(sections = [], pagePlan = {}) 
     modules.forEach((slot) => {
       if (slot === "risk_disclosure") {
         flushCompactSlots();
-        pushSection(
-          compositeSection(
-            {
-              id: homepageSectionIdForSlot(group.id, slot, `footer-${next.length + 1}`),
-              type: "full",
-              title: homepageSectionTitleForSlot(slot, group.title || "风险提示"),
-              slots: [slot],
-            },
-            group,
-            compositeOrder++,
-            groupIndex,
-          ),
-        );
+        flushPendingWide();
+        pushFullSlot(slot, group.title || "风险提示", "footer");
+        return;
+      }
+      // Wide-pairable block: hold it so a following low-priority compact module can
+      // sit beside it as an 8/4 row. If none follows, flushPendingWide makes it full.
+      if (WIDE_PAIRABLE_HOME_BLOCKS.has(slot)) {
+        flushCompactSlots();
+        flushPendingWide();
+        pendingWide = slot;
         return;
       }
       if (LARGE_FULL_ROW_HOME_BLOCKS.has(slot)) {
         flushCompactSlots();
+        flushPendingWide();
+        pushFullSlot(slot, group.title || "", "full-row");
+        return;
+      }
+      // Pair a pending wide block with a low-priority compact companion (wide 8 / companion 4).
+      if (pendingWide && COMPACT_COMPANION_HOME_BLOCKS.has(slot)) {
+        const type = groupIndex === 0 && !next.length ? "hero" : "split";
         pushSection(
           compositeSection(
             {
-              id: homepageSectionIdForSlot(group.id, slot, `full-row-${next.length + 1}`),
-              type: "full",
-              title: homepageSectionTitleForSlot(slot, group.title || ""),
-              slots: [slot],
+              id: cleanText(`${group.id || "group"}-${next.length + 1}`, `group-${next.length + 1}`, 42),
+              type,
+              title: cleanText(group.title || "业务区", "业务区", 60),
+              slots: [pendingWide, slot],
             },
             group,
             compositeOrder++,
             groupIndex,
           ),
         );
+        pendingWide = null;
         return;
       }
+      // A high-value compact (asset_overview/quick_actions) is not used as a wide
+      // companion; emit the held wide block full first, then handle this slot normally.
+      if (pendingWide) flushPendingWide();
       compactSlots.push(slot);
       if (compactSlots.length === 2) flushCompactSlots();
     });
     flushCompactSlots();
+    flushPendingWide();
   });
 
   existingSlots
@@ -13916,6 +14014,10 @@ function buildPrompt(payload, config = {}) {
     "如果管理员提到空白、少留白、空间利用或压缩高度，density 必须是 compact 或 balanced，不得使用 spacious；onboarding_guide 优先使用 compact/checklist/ribbon-rail 或紧凑 guide-cards。",
     "必须先遵守服务端提供的 pagePlan：pageGoal 决定唯一主 CTA，mainVisual 是最高视觉权重模块，visualHierarchy 决定辅助模块降权；不要让 hero、feature、proof、pricing/FAQ、CTA 同时抢戏。",
     "必须按 pagePlan.compositionGroups 组织页面：相关模块合并为 3-4 个业务组，sections 优先对应业务组，不要把每个 slot 拆成独立 section。",
+    "禁止整页全部上下纵向堆叠：要主动使用左右分栏。把一个较大的图表/进度/活动/产品模块（trading_account_highlight、onboarding_guide、promo_banner、pamm_products）放进一个双 slot 的 hero/split section（该模块约占 8 栏），并在同一 section 里旁配一个低权重 compact 模块（faq_section、app_download、support_contact、announcements、referral_link_card、kyc_status_card 之一，约占 4 栏）形成左右并排。",
+    "asset_overview + quick_actions 这种高权重组合优先成对放进首个 hero section 左右并排；asset_overview、quick_actions、trading_account_highlight 等核心模块不得被压成 4 栏小卡当配角。",
+    "真正的宽表和密集曲线模块（trading_accounts_list、wallet_list、copytrading_signals）保持整行 full，不要塞进双 slot 左右分栏。",
+    "当存在 faq_section、app_download、support_contact、announcements、referral_link_card、kyc_status_card 等 compact 模块时，优先把它们与相邻的大模块左右并排，而不是各自独占一整行，提升首屏密度。",
     "同一业务组共享标题层级、间距和按钮语言；slot 内可以降噪，但不同语义模块必须有清楚卡片边界，FAQ、风险、客服、活动等低权重模块只能低干扰收口。",
     "如果管理员提到小屏幕、手机端、移动端或适配，autoLayout.strategy 必须保持 responsive-grid 或 mobile-first-stack，并优先让 paired rows collapse 为单列。",
     "如果管理员要求活动增长、交易大赛、奖池，并明确说明租户已配置活动，必须使用 promo_banner 作为活动模块；如果有 welcome_header，promo_banner 可紧跟在 welcome_header 后面。",

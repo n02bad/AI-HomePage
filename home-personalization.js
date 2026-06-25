@@ -93,6 +93,29 @@
     wallet_list: "3x2",
   };
 
+  // Large blocks that read fine at ~8 columns and may sit beside a compact (4-col)
+  // companion instead of always taking a full row. True wide tables / dense curve
+  // modules (trading_accounts_list, wallet_list, copytrading_signals) stay full-row.
+  const WIDE_PAIRABLE_HOME_BLOCKS = new Set([
+    "trading_account_highlight",
+    "onboarding_guide",
+    "promo_banner",
+    "pamm_products",
+  ]);
+
+  // Low-priority compact modules that may be pulled up to sit beside a wide block
+  // (look-ahead pairing). High-value modules (asset_overview, quick_actions) are
+  // never moved. Mirrors server COMPACT_COMPANION_HOME_BLOCKS.
+  const WIDE_COMPANION_HOME_BLOCKS = new Set([
+    "faq_section",
+    "app_download",
+    "support_contact",
+    "announcements",
+    "market_news",
+    "referral_link_card",
+    "kyc_status_card",
+  ]);
+
   const FORBIDDEN_HOME_BLOCKS = [
     "reward_tasks",
     "kyc_risk_notice",
@@ -7104,8 +7127,16 @@
     });
   }
 
+  function isWidePairableHomeBlock(id) {
+    const component = canonicalHomeBlock(id) || String(id || "").trim();
+    return WIDE_PAIRABLE_HOME_BLOCKS.has(component);
+  }
+
   function layoutSpanForBlock(block, heroBlockCount = 0) {
     if (block.component === "welcome_header") return 12;
+    // Wide-pairable blocks default to 8 so they can pair with a 4-col compact
+    // companion; when left unpaired they still flush to a full 12-col row.
+    if (isWidePairableHomeBlock(block.component)) return 8;
     if (isLargeFullRowHomeBlock(block.component)) return 12;
 
     const sizeSpan = spanFromBrickSize(block.brickSize);
@@ -7123,6 +7154,9 @@
   function isHomepageFullRowBlock(block) {
     if (block.component === "welcome_header") return true;
     if (block.component === "risk_disclosure") return true;
+    // Wide-pairable blocks are not unconditionally full-row: they may pair with a
+    // compact companion. If they stay unpaired, buildHomepageRows flushes them full.
+    if (isWidePairableHomeBlock(block.component)) return false;
     if (isLargeFullRowHomeBlock(block.component)) return true;
     return ["account_list", "account_performance"].includes(block.component) && spanFromBrickSize(block.brickSize) >= 12;
   }
@@ -7136,7 +7170,19 @@
     if (!first || !second) return false;
     if (isHomepageFullRowBlock(first) || isHomepageFullRowBlock(second)) return false;
     if (first.component === second.component) return false;
-    if (layoutSpanForBlock(first, heroBlockCount) >= 12 || layoutSpanForBlock(second, heroBlockCount) >= 12) return false;
+    // Compact and wide-pairable blocks may always shrink to share a row even if their
+    // section assigned them slot="full"; only a genuinely full-width block blocks pairing.
+    const firstFlexible = isHomepageCompactBlock(first) || isWidePairableHomeBlock(first.component);
+    const secondFlexible = isHomepageCompactBlock(second) || isWidePairableHomeBlock(second.component);
+    if (!firstFlexible && layoutSpanForBlock(first, heroBlockCount) >= 12) return false;
+    if (!secondFlexible && layoutSpanForBlock(second, heroBlockCount) >= 12) return false;
+    // A wide-pairable block only pairs with a compact companion (8/4); never two
+    // wide blocks side by side, and never a wide block beside a non-compact one.
+    const firstWide = isWidePairableHomeBlock(first.component);
+    const secondWide = isWidePairableHomeBlock(second.component);
+    if (firstWide && secondWide) return false;
+    if (firstWide && !isHomepageCompactBlock(second)) return false;
+    if (secondWide && !isHomepageCompactBlock(first)) return false;
     return true;
   }
 
@@ -7164,6 +7210,40 @@
     if (maxRows >= 2) return 220;
     if (components.has("asset_overview") || components.has("asset_summary")) return 210;
     return 180;
+  }
+
+  // Look-ahead pairing: when a wide-pairable block has no adjacent compact companion,
+  // pull the next eligible low-priority companion up to sit beside it. Only low-priority
+  // companions move; high-value modules keep their position and reading order.
+  function reorderBlocksForWidePairing(blocks, heroBlockCount = 0) {
+    const source = Array.isArray(blocks) ? blocks.slice() : [];
+    const used = new Array(source.length).fill(false);
+    const result = [];
+    const isCompanion = (block) =>
+      block && WIDE_COMPANION_HOME_BLOCKS.has(canonicalHomeBlock(block.component) || block.component);
+
+    for (let i = 0; i < source.length; i += 1) {
+      if (used[i]) continue;
+      const block = source[i];
+      result.push(block);
+      used[i] = true;
+      if (!isWidePairableHomeBlock(block.component)) continue;
+
+      // Already followed by an eligible companion? leave order untouched.
+      const nextIndex = source.findIndex((_, j) => !used[j]);
+      if (nextIndex >= 0 && isCompanion(source[nextIndex]) && canPairHomepageBlocks(block, source[nextIndex], heroBlockCount)) {
+        continue;
+      }
+      // Otherwise pull the first later eligible companion up next to this wide block.
+      const companionIndex = source.findIndex(
+        (candidate, j) => !used[j] && isCompanion(candidate) && canPairHomepageBlocks(block, candidate, heroBlockCount),
+      );
+      if (companionIndex >= 0) {
+        result.push(source[companionIndex]);
+        used[companionIndex] = true;
+      }
+    }
+    return result;
   }
 
   function buildHomepageRows(blocks, heroBlockCount = 0) {
@@ -13756,7 +13836,7 @@
     let activeComposite = null;
     let activeCompositeId = "";
 
-    buildHomepageRows(renderableBlocks, heroBlocks.length).forEach((row) => {
+    buildHomepageRows(reorderBlocksForWidePairing(renderableBlocks, heroBlocks.length), heroBlocks.length).forEach((row) => {
       const composite = blueprintRowCompositeMeta(row);
       const rowNode = doc.createElement("div");
       rowNode.className = "ai-home-row";
