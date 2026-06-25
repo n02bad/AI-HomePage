@@ -13691,6 +13691,53 @@
 
     shell.appendChild(host);
     if (isPublishedSkeleton) harmonizeSkeletonPublishedHomepage(doc, host);
+    // 两阶段交互运行时：slotComponents 片段用声明式 data-action 表达交互，由此可信运行时统一绑定（事件委托，幂等安装）。
+    installTwoStageInteractionRuntime(target);
+  }
+
+  // 与 server.js 的 TWO_STAGE_INTERACTION_RUNTIME_JS 等价的可信运行时（前端内嵌，避免经 JSON 传 JS）。
+  // 仅依赖 data-action 声明式属性 + 事件委托，幂等：同一 document 只安装一次。
+  function installTwoStageInteractionRuntime(doc) {
+    if (!doc || doc.__twoStageRuntimeInstalled) return;
+    doc.__twoStageRuntimeInstalled = true;
+    const scopeOf = (el) => el.closest("[data-home-skeleton-slot]") || el.closest("[data-slot-id]") || doc;
+    doc.addEventListener("click", (e) => {
+      const t = e.target.closest("[data-action]");
+      if (!t) return;
+      const action = t.getAttribute("data-action");
+      if (action === "copy") {
+        let text = t.getAttribute("data-copy-text");
+        if (!text) {
+          const tgt = scopeOf(t).querySelector(t.getAttribute("data-copy-target") || "[data-copy-source]");
+          text = tgt ? (tgt.value || tgt.textContent || "").trim() : "";
+        }
+        if (text && doc.defaultView?.navigator?.clipboard) doc.defaultView.navigator.clipboard.writeText(text);
+        const old = t.getAttribute("data-copy-label") || t.textContent;
+        t.textContent = "已复制";
+        setTimeout(() => { t.textContent = old; }, 1400);
+      } else if (action === "collapse") {
+        const sel = t.getAttribute("data-collapse-target");
+        const box = sel ? scopeOf(t).querySelector(sel) : t.nextElementSibling;
+        if (box) { box.hidden = !box.hidden; t.setAttribute("aria-expanded", String(!box.hidden)); }
+      } else if (action === "tab" || action === "viewswitch") {
+        const group = t.getAttribute("data-tab-group");
+        const scope = scopeOf(t);
+        scope.querySelectorAll('[data-action="' + action + '"][data-tab-group="' + group + '"]').forEach((b) => b.classList.toggle("is-active", b === t));
+        const targetKey = t.getAttribute("data-tab-target");
+        scope.querySelectorAll('[data-tab-panel][data-tab-group="' + group + '"]').forEach((p) => { p.hidden = p.getAttribute("data-tab-panel") !== targetKey; });
+      } else if (action === "carousel-prev" || action === "carousel-next") {
+        const car = t.closest("[data-carousel]");
+        if (!car) return;
+        const items = car.querySelectorAll("[data-carousel-item]");
+        if (!items.length) return;
+        let cur = car.__i || 0;
+        cur = (cur + (action === "carousel-next" ? 1 : -1) + items.length) % items.length;
+        car.__i = cur;
+        items.forEach((it, i) => { it.hidden = i !== cur; });
+      }
+    });
+    doc.addEventListener("mouseover", (e) => { const t = e.target.closest('[data-action="tooltip"]'); if (t) t.setAttribute("data-tooltip-open", "1"); });
+    doc.addEventListener("mouseout", (e) => { const t = e.target.closest('[data-action="tooltip"]'); if (t) t.removeAttribute("data-tooltip-open"); });
   }
 
 	  function componentEnabled(component, config) {

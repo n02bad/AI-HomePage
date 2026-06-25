@@ -1530,6 +1530,8 @@ function repairHomepageConfig(configSnapshot, guidedSnapshot = {}, modulePolicy 
     actions.push("已修复 split/full/hero 的 slots 数量，保证 sections 不出现非法结构。");
   }
 
+  // policy 构建时已豁免 mustHave（仅显式否决能拦掉），故隐式必选模块此处能通过过滤被补齐；
+  // 显式否决的必选模块仍会被 policy 过滤掉，不会被补回——与 modulePolicy 语义保持一致。
   const requiredSlots = mergeUnique([guided.hasExplicitModuleSelection ? guided.mustHave || [] : mergeUnique([guided.mustHave || [], next.pageIntent?.mustHave || []])])
     .map(canonicalHomeBlock)
     .filter((slot) => slot && CANONICAL_HOME_BLOCKS.includes(slot))
@@ -10094,6 +10096,369 @@ function homepageBrickPlanItemForBlock(config = {}, block = "") {
   return (Array.isArray(config.brickPlan) ? config.brickPlan : []).find((item) => canonicalHomeBlock(item?.component || item?.feature || item?.brickId) === canonical) || null;
 }
 
+// ============================================================================
+// 两阶段首页生成（骨架 HTML + 逐槽组件并发生成）
+// 设计见 docs/TWO_STAGE_HOMEPAGE_PLAN.md。入口：HOME_AI_TWO_STAGE=true 且
+// renderMode==="skeletonHtml" 时启用；任何阶段失败都回退到现有 brick/mock 渲染。
+//   阶段1 buildSkeletonShell：黄金 token → :root CSS 变量 + 12 列 grid + 空 slot 占位
+//   阶段2 orchestrateTwoStageHomepage：每个 slot 注入[共享 token + brick 契约 + 交互白名单]
+//          并发调模型生成片段（mock 路径用确定性片段，便于测试）
+//   阶段3 assembleSkeleton + validateSlotFragment：合规校验后填入骨架，注入交互运行时
+// ============================================================================
+
+function twoStageHomepageEnabled() {
+  return process.env.HOME_AI_TWO_STAGE === "true";
+}
+
+// 阶段1：golden styleContract.tokens → 渲染层已消费的 --home-* CSS 变量根。
+// 组件 CSS 只准 var(--home-*) 消费这些变量，禁止自定义颜色/圆角/间距字面量（见 slotCssTokenViolations）。
+function goldenTokensToCssVars(styleContract = {}) {
+  const t = (styleContract && typeof styleContract.tokens === "object" && styleContract.tokens) || {};
+  const v = (val, fallback) => cleanText(val, fallback, 90) || fallback;
+  const vars = {
+    "--home-primary": v(t.primaryColor, "#2563eb"),
+    "--home-primary-strong": v(t.primaryStrong, "#1d4ed8"),
+    "--home-accent": v(t.accentColor, t.primaryStrong || "#1d4ed8"),
+    "--home-bg": v(t.background, "#f5f8ff"),
+    "--home-surface": v(t.surface, "#ffffff"),
+    "--home-card-bg": v(t.surface, "#ffffff"),
+    "--home-surface-soft": v(t.surfaceSoft, "#f8fbff"),
+    "--home-surface-muted": v(t.surfaceMuted, "#eef4ff"),
+    "--home-border": v(t.cardBorder || t.borderColor, "#dbe4ef"),
+    "--home-text-strong": v(t.textStrong, "#0f172a"),
+    "--home-text": v(t.textStrong, "#172033"),
+    "--home-text-muted": v(t.textMuted, "#64748b"),
+    "--home-radius-sm": v(t.cardRadius, "10px"),
+    "--home-radius-md": v(t.cardRadius, "14px"),
+    "--home-button-radius": v(t.buttonRadius, "10px"),
+    "--home-section-gap": v(t.sectionGap, "20px"),
+    "--home-card-padding": v(t.cardPadding, "18px"),
+    "--home-card-shadow": v(t.cardShadow, "0 14px 34px rgba(15,23,42,.06)"),
+  };
+  const cssText = `:root{${Object.entries(vars).map(([k, val]) => `${k}:${val}`).join(";")}}`;
+  return { vars, cssText };
+}
+
+// 阶段3 合规校验：组件 CSS 出现 var() 之外的裸色值（hex/rgb/hsl）即违规——必须改用 --home-* 变量。
+// 允许 transparent / currentColor / var() fallback 内的字面量。
+const TWO_STAGE_BARE_COLOR_RE = /#[0-9a-fA-F]{3,8}\b|\brgba?\([^)]*\)|\bhsla?\([^)]*\)/g;
+function slotCssTokenViolations(css = "") {
+  const stripped = String(css || "").replace(/var\([^)]*\)/g, "");
+  return stripped.match(TWO_STAGE_BARE_COLOR_RE) || [];
+}
+
+// brick → 允许的交互原语白名单（组件只能声明 data-action，运行时统一绑定，不准吐自由 JS）。
+const TWO_STAGE_INTERACTION_BY_BRICK = {
+  promo_banner: ["carousel"],
+  copytrading_signals: ["tabs", "tooltip"],
+  pamm_products: ["tabs"],
+  trading_accounts_list: ["viewswitch"],
+  trading_account_highlight: ["tabs"],
+  faq_section: ["collapse"],
+  onboarding_guide: ["collapse"],
+  referral_link_card: ["copy"],
+  announcements: ["collapse"],
+  wallet_list: ["viewswitch"],
+};
+const TWO_STAGE_INTERACTION_PRIMITIVES = ["tabs", "carousel", "copy", "collapse", "viewswitch", "tooltip"];
+function twoStageInteractionsForBrick(brick) {
+  return TWO_STAGE_INTERACTION_BY_BRICK[canonicalHomeBlock(brick)] || [];
+}
+
+// 阶段1：从 pagePlan/sections 推导有序 slot 清单 + 每槽 grid 跨度 + 内容契约 + 允许交互。
+function buildSlotManifest(payload = {}, config = {}, styleContract = {}) {
+  const required = aiHtmlRequiredModuleContracts(payload, config);
+  const ordered = homepageBlocksFromSections(config.sections);
+  const blocks = (ordered.length ? ordered : required.map((item) => item.component))
+    .map(canonicalHomeBlock)
+    .filter(Boolean);
+  const seen = new Set();
+  const manifest = [];
+  blocks.forEach((block, index) => {
+    if (seen.has(block)) return;
+    seen.add(block);
+    const contract = required.find((item) => item.component === block) || AI_HTML_MODULE_CONTRACTS[block] || {};
+    const isLarge = LARGE_FULL_ROW_HOME_BLOCKS.has(block);
+    manifest.push({
+      slotId: `slot-${index}-${block}`,
+      brick: block,
+      gridSpan: isLarge ? 12 : 6, // 大模块整行；轻量模块默认半行，组装时成对并排
+      label: cleanText(contract.label || block, block, 60),
+      family: cleanText(contract.family, "", 60),
+      contentContract: contract.capability && typeof contract.capability === "object" ? contract.capability : {},
+      allowedInteractions: twoStageInteractionsForBrick(block),
+    });
+  });
+  return manifest;
+}
+
+// 限流并发器：阶段2 的所有 slot 之间无依赖，并发但限流（默认 5）避免打爆 provider。
+async function runWithConcurrency(items, limit, worker) {
+  const max = Math.max(1, Math.min(Number(limit) || 5, 8));
+  const results = new Array(items.length);
+  let cursor = 0;
+  async function pump() {
+    while (cursor < items.length) {
+      const index = cursor;
+      cursor += 1;
+      try {
+        results[index] = await worker(items[index], index);
+      } catch (error) {
+        results[index] = { ok: false, error: error && error.message ? error.message : String(error) };
+      }
+    }
+  }
+  const runners = [];
+  for (let i = 0; i < Math.min(max, items.length); i += 1) runners.push(pump());
+  await Promise.all(runners);
+  return results;
+}
+
+// 阶段2 单槽输出 schema：只要片段 html + 作用域 css（必须用 --home-* 变量）+ 声明式交互。
+const AI_HTML_SLOT_COMPONENT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["html", "css"],
+  properties: {
+    html: { type: "string" },
+    css: { type: "string" },
+    interactions: { type: "array", items: { type: "string", enum: TWO_STAGE_INTERACTION_PRIMITIVES } },
+    summary: { type: "string" },
+  },
+};
+
+// 阶段2：为单个 slot 拼 prompt——共享 token（只读消费）+ brick 内容契约 + 内容要求 + 交互白名单。
+function buildSlotComponentPrompt(slot, styleContract, payload = {}) {
+  const tokens = goldenTokensToCssVars(styleContract).vars;
+  const system = [
+    "你是 ForexCRM 首页单个模块卡片的 HTML 组件生成器。",
+    "只返回一个 JSON object：{ html, css, interactions }，不要 markdown、不要解释。",
+    "硬约束：",
+    "- 颜色、圆角、间距、阴影只能用 var(--home-*) 变量消费，禁止写死任何 hex/rgb/hsl 色值。",
+    `- 可用变量：${Object.keys(tokens).join(", ")}。`,
+    `- 根元素必须带 data-ai-html-module="${slot.brick}" 与 class 前缀 ho-slot-${slot.brick}。`,
+    "- css 必须作用域化（选择器以模块根 class 开头），不得污染全局。",
+    "- 交互只能从 allowedInteractions 里选，用声明式 data-action 属性（如 data-action=\"copy\"），禁止内联 <script> 或 on* 事件，运行时会统一绑定。",
+    "- 数据用 sample 占位即可，真实数值标 placeholder；不得编造资金数据。",
+  ].join("\n");
+  const user = [
+    `模块: ${slot.brick}（${slot.label}），family=${slot.family || "-"}，栅格跨度=${slot.gridSpan}/12。`,
+    `内容契约: ${compactJson(slot.contentContract)}`,
+    `允许交互: ${slot.allowedInteractions.length ? slot.allowedInteractions.join(", ") : "无（纯展示）"}`,
+    `管理员需求参考: ${cleanText(payload.prompt, "", 600)}`,
+    "请生成该模块的精致卡片：信息层级清晰、留白合理、与统一 token 风格一致。",
+  ].join("\n");
+  return { system, user };
+}
+
+// 阶段1：骨架外壳——:root token 变量 + 12 列 grid + 空 slot 占位（data-slot-id），不含模块内容。
+// 注意：跨度用 class（ho-span-*）而非内联 style——sanitizeAiHtmlMarkup 会剥离内联 style。
+function buildSkeletonShell(manifest, styleContract) {
+  const { cssText } = goldenTokensToCssVars(styleContract);
+  // 占位同时带 data-home-skeleton-slot（既有 skeletonHtmlScheme 渲染路径用它定位 slotComponents）
+  // 和 data-slot-id（本模块 assembleSkeleton 自装配用）。
+  const slots = manifest
+    .map(
+      (slot) =>
+        `<div class="ho-slot ho-span-${slot.gridSpan === 12 ? 12 : 6}" data-home-skeleton-slot="${escapeHtmlText(slot.brick)}" data-slot-id="${escapeHtmlText(slot.slotId)}" data-slot-brick="${escapeHtmlText(slot.brick)}"></div>`,
+    )
+    .join("\n      ");
+  const html = `<div class="ho-skeleton ho-grid" data-two-stage="1">\n      ${slots}\n    </div>`;
+  const css = `${cssText}
+.ho-skeleton{background:var(--home-bg);padding:var(--home-section-gap)}
+.ho-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:var(--home-section-gap)}
+.ho-grid>.ho-slot{min-width:0}
+.ho-span-12{grid-column:span 12}
+.ho-span-6{grid-column:span 6}
+@media(max-width:860px){.ho-grid{grid-template-columns:1fr}.ho-grid>.ho-slot{grid-column:1/-1}}
+`;
+  return { html, css };
+}
+
+// 阶段3：把各 slot 片段填入骨架对应 data-slot-id 占位（slotId 仅含 [a-z0-9_-]，正则安全）。
+function assembleSkeleton(shell, fragments) {
+  let html = shell.html;
+  const cssParts = [shell.css];
+  fragments.forEach((frag) => {
+    if (!frag || !frag.ok || !frag.html) return;
+    const re = new RegExp(`(data-slot-id="${frag.slotId}"[^>]*>)</div>`);
+    html = html.replace(re, `$1${frag.html}</div>`);
+    if (frag.css) cssParts.push(frag.css);
+  });
+  return { html, css: cssParts.join("\n") };
+}
+
+// 阶段3：片段级校验——结构（带 data-ai-html-module + 白名单 family）+ token 合规 + 交互合法。
+function validateSlotFragment(fragment, slot) {
+  const issues = [];
+  const html = String(fragment && fragment.html ? fragment.html : "");
+  const css = String(fragment && fragment.css ? fragment.css : "");
+  if (!html.trim()) issues.push("片段 html 为空");
+  if (!html.includes(`data-ai-html-module="${slot.brick}"`)) issues.push(`缺少 data-ai-html-module="${slot.brick}"`);
+  if (!CANONICAL_HOME_BLOCKS.includes(slot.brick)) issues.push(`brick ${slot.brick} 不在白名单`);
+  const colorViolations = slotCssTokenViolations(css);
+  if (colorViolations.length) issues.push(`CSS 出现裸色值（应改用 --home-* 变量）: ${colorViolations.slice(0, 3).join(", ")}`);
+  if (/<script|\son[a-z]+\s*=/i.test(html)) issues.push("片段包含 <script> 或内联事件，违反交互运行时约束");
+  return { ok: issues.length === 0, issues };
+}
+
+// 共享交互运行时：人写、事件委托，绑定 data-action 原语。组件只声明，不写 JS。
+const TWO_STAGE_INTERACTION_RUNTIME_JS = `(function(){
+  function closestSlot(el){return el.closest('[data-slot-id]')||document;}
+  document.addEventListener('click',function(e){
+    var t=e.target.closest('[data-action]');if(!t)return;
+    var action=t.getAttribute('data-action');
+    if(action==='copy'){
+      var text=t.getAttribute('data-copy-text');
+      if(!text){var tgt=closestSlot(t).querySelector(t.getAttribute('data-copy-target')||'[data-copy-source]');text=tgt?(tgt.value||tgt.textContent||'').trim():'';}
+      if(text&&navigator.clipboard){navigator.clipboard.writeText(text);}
+      var old=t.getAttribute('data-copy-label')||t.textContent;t.textContent='已复制';setTimeout(function(){t.textContent=old;},1400);
+    } else if(action==='collapse'){
+      var sel=t.getAttribute('data-collapse-target');var box=sel?closestSlot(t).querySelector(sel):t.nextElementSibling;
+      if(box){box.hidden=!box.hidden;t.setAttribute('aria-expanded',String(!box.hidden));}
+    } else if(action==='tab'||action==='viewswitch'){
+      var group=t.getAttribute('data-tab-group');var scope=closestSlot(t);
+      scope.querySelectorAll('[data-action="'+action+'"][data-tab-group="'+group+'"]').forEach(function(b){b.classList.toggle('is-active',b===t);});
+      var target=t.getAttribute('data-tab-target');
+      scope.querySelectorAll('[data-tab-panel][data-tab-group="'+group+'"]').forEach(function(p){p.hidden=p.getAttribute('data-tab-panel')!==target;});
+    } else if(action==='carousel-prev'||action==='carousel-next'){
+      var car=t.closest('[data-carousel]');if(!car)return;var items=car.querySelectorAll('[data-carousel-item]');if(!items.length)return;
+      var cur=car.__i||0;cur=(cur+(action==='carousel-next'?1:-1)+items.length)%items.length;car.__i=cur;
+      items.forEach(function(it,i){it.hidden=i!==cur;});
+    }
+  });
+  // tooltip：悬停展开 [data-tooltip]
+  document.addEventListener('mouseover',function(e){var t=e.target.closest('[data-action="tooltip"]');if(t)t.setAttribute('data-tooltip-open','1');});
+  document.addEventListener('mouseout',function(e){var t=e.target.closest('[data-action="tooltip"]');if(t)t.removeAttribute('data-tooltip-open');});
+})();`;
+
+// mock/确定性单槽片段：token 合规、带 data-ai-html-module、按允许交互加 data-action，供测试与本地预览。
+function mockSlotFragment(slot) {
+  const cls = `ho-slot-${slot.brick}`;
+  const interaction = slot.allowedInteractions[0] || "";
+  let actionMarkup = "";
+  if (interaction === "copy") {
+    actionMarkup = `<button class="${cls}__action" data-action="copy" data-copy-target=".${cls}__code">复制</button><code class="${cls}__code" data-copy-source>SAMPLE-REF-CODE</code>`;
+  } else if (interaction === "collapse") {
+    actionMarkup = `<button class="${cls}__action" data-action="collapse" data-collapse-target=".${cls}__body" aria-expanded="true">展开/收起</button><div class="${cls}__body"><p>Sample 内容占位，真实内容来自后台。</p></div>`;
+  } else if (interaction === "tabs" || interaction === "viewswitch") {
+    actionMarkup = `<div class="${cls}__tabs"><button data-action="${interaction}" data-tab-group="${slot.slotId}" data-tab-target="a" class="is-active">视图 A</button><button data-action="${interaction}" data-tab-group="${slot.slotId}" data-tab-target="b">视图 B</button></div><div data-tab-panel="a" data-tab-group="${slot.slotId}">Sample A</div><div data-tab-panel="b" data-tab-group="${slot.slotId}" hidden>Sample B</div>`;
+  } else if (interaction === "carousel") {
+    actionMarkup = `<div class="${cls}__car" data-carousel><div data-carousel-item>活动 1</div><div data-carousel-item hidden>活动 2</div></div><button data-action="carousel-prev">‹</button><button data-action="carousel-next">›</button>`;
+  } else {
+    actionMarkup = `<div class="${cls}__body"><p>Sample 占位。</p></div>`;
+  }
+  const html = `<section class="${cls}" data-ai-html-module="${slot.brick}"><header><strong>${escapeHtmlText(slot.label)}</strong></header>${actionMarkup}</section>`;
+  const css = `.${cls}{display:grid;gap:10px;padding:var(--home-card-padding);background:var(--home-card-bg);border:1px solid var(--home-border);border-radius:var(--home-radius-md);box-shadow:var(--home-card-shadow);color:var(--home-text)}.${cls} strong{color:var(--home-text-strong)}.${cls}__action{color:var(--home-primary);background:var(--home-surface-soft);border:1px solid var(--home-border);border-radius:var(--home-button-radius);padding:6px 12px;cursor:pointer}.${cls}__tabs button.is-active{color:var(--home-primary);font-weight:600}`;
+  return { html, css, interactions: interaction ? [interaction] : [] };
+}
+
+// 两阶段编排入口。mock=true 用确定性片段；否则并发逐槽调模型。任何 slot 失败 → 该槽回退 mock 片段。
+// 返回与 mockAiHtmlScheme 兼容的 scheme 对象（经 repairAiHtmlScheme 输出）。
+async function orchestrateTwoStageHomepage(payload = {}, config = {}, providerConfig = {}, options = {}) {
+  const styleContract = config.styleContract || config.goldenStyleContract || goldenStyleContractForPrompt(payload.prompt);
+  const manifest = buildSlotManifest(payload, config, styleContract);
+  if (!manifest.length) throw new Error("two-stage: 空 slot manifest");
+  const shell = buildSkeletonShell(manifest, styleContract);
+
+  const buildFragment = async (slot) => {
+    if (options.mock || process.env.HOME_AI_MOCK === "true") {
+      return { ...mockSlotFragment(slot), slotId: slot.slotId, brick: slot.brick };
+    }
+    const { system, user } = buildSlotComponentPrompt(slot, styleContract, payload);
+    const result = await callProviderWithPrompt(
+      { ...payload, modelConfig: { ...(payload.modelConfig || {}) } },
+      { system, user },
+      AI_HTML_SLOT_COMPONENT_SCHEMA,
+      "homepage_slot_component",
+    );
+    const frag = result && result.json ? result.json : {};
+    // 模型片段是不可信输入：单独清洗（去 script/on*/外链/内联 style），片段小不触发 9000 截断。
+    return {
+      html: sanitizeAiHtmlMarkup(frag.html || ""),
+      css: sanitizeAiHtmlCss(frag.css || ""),
+      interactions: Array.isArray(frag.interactions) ? frag.interactions : [],
+      slotId: slot.slotId,
+      brick: slot.brick,
+    };
+  };
+
+  const rawFragments = await runWithConcurrency(manifest, options.concurrency || 5, buildFragment);
+  const fragments = rawFragments.map((frag, index) => {
+    const slot = manifest[index];
+    if (frag && frag.ok === false) {
+      return { ...mockSlotFragment(slot), slotId: slot.slotId, brick: slot.brick, ok: true, recovered: true };
+    }
+    const validation = validateSlotFragment(frag, slot);
+    if (!validation.ok) {
+      // 片段不合规 → 回退该槽的确定性 mock 片段，保证整页可用且 token 合规。
+      return { ...mockSlotFragment(slot), slotId: slot.slotId, brick: slot.brick, ok: true, recovered: true, issues: validation.issues };
+    }
+    return { ...frag, ok: true };
+  });
+
+  const assembled = assembleSkeleton(shell, fragments);
+  const recovered = fragments.filter((frag) => frag.recovered).length;
+  const scheme = repairAiHtmlScheme(
+    {
+      name: `${cleanText(config.name, "AI 首页", 42)} · 两阶段`,
+      summary: "两阶段生成：黄金 token 骨架 + 逐槽组件并发生成，统一风格、token 硬契约。",
+      visualBrief: "阶段1 骨架锁布局与 token，阶段2 逐槽生成带交互的精致组件。",
+      html: assembled.html,
+      css: assembled.css,
+      requiredModules: manifest.map((slot) => slot.label),
+      layoutContract: normalizeAiHtmlLayoutContract(),
+      implementationContract: manifest.map((slot) => ({
+        module: slot.brick,
+        label: slot.label,
+        family: slot.family,
+        dataFields: slot.contentContract.dataFields || [],
+        states: slot.contentContract.states || [],
+        actions: slot.contentContract.actions || [],
+        interactions: slot.allowedInteractions,
+        renderEvidence: [`data-ai-html-module="${slot.brick}" 区域可见。`],
+      })),
+      generationPipeline: "two-stage-skeleton",
+      sourceType: options.mock ? "two-stage-mock" : "two-stage",
+      modelAttempted: !options.mock,
+    },
+    payload,
+    config,
+    providerConfig,
+    { sourceType: options.mock ? "two-stage-mock" : "two-stage", generationPipeline: "two-stage-skeleton", modelAttempted: !options.mock },
+  );
+  // 骨架可信、片段已逐个清洗：用完整装配结果覆盖，绕过 normalize 对整页 html 的 9000 字符截断。
+  if (scheme.enabled) {
+    scheme.html = assembled.html;
+    scheme.css = assembled.css;
+  }
+  // 对接既有 skeletonHtmlScheme 渲染路径：skeletonHtml（含 data-home-skeleton-slot 占位）+ slotComponents（key=brick）。
+  // 前端 renderSkeletonHtmlScheme 用 host.innerHTML=skeletonHtml 后，按 slotComponents[brick]={html,css} 填充每个槽。
+  scheme.skeletonHtml = shell.html;
+  scheme.slotComponents = {};
+  scheme.slots = manifest.map((slot) => ({ id: slot.brick, label: slot.label, status: "filled", span: slot.gridSpan }));
+  fragments.forEach((frag, index) => {
+    if (!frag || !frag.html) return;
+    const slot = manifest[index];
+    scheme.slotComponents[slot.brick] = {
+      id: slot.slotId,
+      html: frag.html,
+      css: frag.css || "",
+      interactions: frag.interactions || slot.allowedInteractions,
+      sourceType: frag.recovered ? "two-stage-recovered" : scheme.sourceType,
+      locked: false,
+    };
+  });
+  // 骨架外壳的 :root token + grid CSS 必须随 scheme 下发，否则 slotComponents 的 var(--home-*) 无定义。
+  scheme.css = `${shell.css}\n${scheme.css || ""}`;
+  // 交互运行时经自定义字段挂载（在 normalize 之后，避免被字段白名单丢弃）；由渲染层注入为可信全局脚本。
+  scheme.twoStageRuntimeJs = TWO_STAGE_INTERACTION_RUNTIME_JS;
+  scheme.twoStageRecoveredSlots = recovered;
+  scheme.twoStage = true;
+  scheme.enabled = true;
+  return scheme;
+}
+
 function normalizeAiHtmlLayoutContract(source = {}) {
   const raw = source && typeof source === "object" ? source : {};
   const rowRecipes = (Array.isArray(raw.rowRecipes) ? raw.rowRecipes : [])
@@ -12402,9 +12767,29 @@ function buildHomepageModulePolicy(payload = {}) {
   const intentProfile = applyGuidedIntentProfile(buildHomepageIntentProfile(prompt), guidedIntake);
   const pageGoal = homepageGoalPresetFromPayload(payload, intentProfile);
   const systemRequired = new Set(homepageRawSystemRequiredModules(payload));
+  // 必选模块（引导式 mustHave + 意图 preset/专业版 mustHave）与 systemRequired 同级，
+  // 绝不允许被 policy 拦掉——否则它们会从 pagePlan 骨架（compositionGroups/goldenSkeleton）消失，
+  // AI 根本看不到，只能事后补齐，而补齐又会被二次 policy 过滤掉。
+  const mustHaveProtected = new Set(
+    mergeUnique([
+      intentProfile.mustHave || [],
+      guidedIntake ? guidedRequiredHomepageSlots(guidedIntake) : [],
+    ])
+      .map(canonicalHomeBlockLoose)
+      .filter(Boolean),
+  );
   const blocked = new Set();
   const reasons = {};
+  // 隐式裁剪（未显式勾选自动 prune、openAccount 默认关推广链接等）不得拦掉必选模块——
+  // 否则它们会从 pagePlan 骨架消失，AI 看不到。
   const block = (slot, reason) => {
+    const canonical = canonicalHomeBlockLoose(slot);
+    if (!canonical || systemRequired.has(canonical) || mustHaveProtected.has(canonical)) return;
+    blocked.add(canonical);
+    reasons[canonical] = reason;
+  };
+  // 管理员在 prompt 里显式否决（“不要生成 X / 没有 X 内容”）优先级最高，可越过 mustHave 保护。
+  const blockExplicit = (slot, reason) => {
     const canonical = canonicalHomeBlockLoose(slot);
     if (!canonical || systemRequired.has(canonical)) return;
     blocked.add(canonical);
@@ -12429,7 +12814,7 @@ function buildHomepageModulePolicy(payload = {}) {
 
   Object.keys(HOMEPAGE_OPTIONAL_BLOCK_REQUEST_PATTERNS).forEach((slot) => {
     if (homepagePromptRejectsModule(slot, prompt)) {
-      block(slot, "管理员提示词明确禁止或声明缺少内容。");
+      blockExplicit(slot, "管理员提示词明确禁止或声明缺少内容。");
     }
   });
 
@@ -12816,16 +13201,14 @@ function buildHomepagePagePlan(payload = {}, config = {}) {
   const excludedModules = [];
   const visibleModules = [];
 
+  // modulePolicy 已在构建时豁免 mustHave（仅显式否决能拦掉），因此这里依赖 policy 判定即可：
+  // 被隐式裁剪的必选模块不会进 blockedModules，能正常进入骨架；显式否决的仍会被正确排除。
   requestedBlocks.forEach((block) => {
     if (!homepagePolicyAllowsSlot(modulePolicy, block)) {
       excludedModules.push({
         module: block,
         reason: modulePolicy.reasons?.[block] || "modulePolicy 已禁止该模块。",
       });
-      return;
-    }
-    if (modulePolicy.systemRequiredModules.includes(block)) {
-      visibleModules.push(block);
       return;
     }
     visibleModules.push(block);
@@ -19616,7 +19999,16 @@ async function callProvider(payload) {
     mockConfig.validationWarnings = repaired.validation.warnings || [];
     mockConfig.modulePolicy = modulePolicy;
     mockConfig.modulePolicyScore = repaired.validation.modulePolicy?.score ?? 100;
-    const htmlScheme = renderModeWantsAiHtml(renderMode) ? mockAiHtmlScheme(policyPayload, mockConfig, config) : null;
+    let htmlScheme = renderModeWantsAiHtml(renderMode) ? mockAiHtmlScheme(policyPayload, mockConfig, config) : null;
+    // 两阶段开关：renderMode=skeletonHtml 时用骨架+逐槽生成（mock 路径确定性），失败回退上面的 mock 整页方案。
+    if (twoStageHomepageEnabled() && renderMode === "skeletonHtml") {
+      try {
+        htmlScheme = await orchestrateTwoStageHomepage(policyPayload, mockConfig, config, { mock: true });
+        mockConfig.skeletonHtmlScheme = htmlScheme; // 走既有 skeletonHtmlScheme 渲染路径
+      } catch (error) {
+        console.warn("[two-stage] mock 编排失败，回退 mockAiHtmlScheme:", error && error.message);
+      }
+    }
     const finalQuality = finalizeHomepageQuality(policyPayload, mockConfig, htmlScheme);
     const finalConfig = {
       ...mockConfig,
@@ -19724,7 +20116,17 @@ async function callProvider(payload) {
 	  let htmlRawText = "";
 	  let htmlResponseJson = null;
 
-	  if (renderModeWantsAiHtml(renderMode)) {
+	  // 两阶段开关：renderMode=skeletonHtml 时优先走骨架+逐槽并发生成；失败则回退到下方自由 HTML 通道。
+	  if (twoStageHomepageEnabled() && renderMode === "skeletonHtml") {
+	    try {
+	      htmlScheme = await orchestrateTwoStageHomepage(policyPayload, homepageConfig, resultProviderConfig, { mock: false });
+	      homepageConfig.skeletonHtmlScheme = htmlScheme; // 走既有 skeletonHtmlScheme 渲染路径
+	    } catch (error) {
+	      console.warn("[two-stage] 编排失败，回退自由 HTML 通道:", error && error.message);
+	    }
+	  }
+
+	  if (renderModeWantsAiHtml(renderMode) && !htmlScheme) {
 	    if (freeHtmlResult?.json) {
       htmlScheme = repairAiHtmlScheme(freeHtmlResult.json, policyPayload, homepageConfig, resultProviderConfig, {
         sourceType: "model/free-html",

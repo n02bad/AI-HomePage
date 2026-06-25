@@ -1,23 +1,9 @@
 {
   "version": "0.0.1",
   "configurations": [
-    {
-      "name": "Home AI Server",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["start"],
-      "autoPort": true
-    },
-    {
-      "name": "Home AI Server (Mock)",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "start:mock"],
-      "autoPort": true
-    },
-    {
-      "name": "Home AI Server (Faithful)",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "start:faithful"],
-      "autoPort": true
-    }
+    { "name": "Home AI Server", "runtimeExecutable": "npm", "runtimeArgs": ["start"], "autoPort": true },
+    { "name": "Home AI Server (Mock)", "runtimeExecutable": "npm", "runtimeArgs": ["run", "start:mock"], "autoPort": true },
+    { "name": "Home AI Server (Faithful)", "runtimeExecutable": "npm", "runtimeArgs": ["run", "start:faithful"], "autoPort": true },
+    { "name": "Home AI Server (Two-Stage Mock)", "runtimeExecutable": "node", "runtimeArgs": ["server.js"], "env": { "HOME_AI_MOCK": "true", "HOME_AI_TWO_STAGE": "true" }, "autoPort": true }
   ]
 }
