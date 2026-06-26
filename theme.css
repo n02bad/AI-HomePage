@@ -92,8 +92,11 @@ body[data-tenant-theme="default"] {
   --home-radius-xs: calc(var(--home-card-radius) * 0.5);
   --home-radius-sm: calc(var(--home-card-radius) * 0.75);
   --home-radius-md: var(--home-card-radius);
+  --home-radius-lg: calc(var(--home-card-radius) * 1.4);
   --home-radius-pill: 99px;
   --home-radius-round: 50%;
+  /* AI 组件 CSS 引用 var(--home-button-radius)，此前全仓未定义 → 按钮圆角失效。统一回退到卡片圆角。 */
+  --home-button-radius: var(--tenant-button-radius, var(--home-card-radius));
   --home-button-bg: var(--tenant-button-style);
   --home-button-border: var(--home-primary);
   --home-button-text: var(--home-primary-contrast);

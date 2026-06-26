@@ -680,6 +680,48 @@ const HOMEPAGE_THEME_PRESETS = [
   "graphiteSilver",
 ];
 
+// 后端权威首页配置 schema（根因 B：把约束从"prompt 求模型遵守"上移到"API 层结构化输出"）。
+// 设计取舍：
+//  - 只把"结构骨架"高价值字段焊死——版块类型(type)、槽位模块名(slots)、主题、配色、密度、首屏焦点；
+//    这些是脏输出的重灾区（白名单外模块名 / 非法版块类型 / 乱配主题）。
+//  - additionalProperties 放开：模型仍可附带 brickPlan/moduleStyles/componentMorphs/pageIntent 等扩展字段，
+//    交由后处理层(repairHomepageConfig/applyHomepagePagePlan/repairHomepageBrickPlan)兜底与重建。
+//  - 因此 strict 走 false（引导式而非约束解码），真正的硬保证仍在确定性层(canonicalHomeBlock/policy)；
+//    schema 的职责是"从源头大幅减少脏输出"，不是唯一防线。
+//  - slots 限定 1-2：双 slot 才能触发渲染器的横向布局([8,4]/[6,6])，配合规划与 few-shot 提升 split 比例。
+const HOMEPAGE_CONFIG_SCHEMA = {
+  type: "object",
+  additionalProperties: true,
+  required: ["sections"],
+  properties: {
+    name: { type: "string", maxLength: 60 },
+    themePreset: { type: "string", enum: HOMEPAGE_THEME_PRESETS },
+    colorMode: { type: "string", enum: ["auto", "light", "dark"] },
+    density: { type: "string", enum: ["balanced", "compact", "spacious", "comfortable"] },
+    heroFocus: { type: "string", enum: CANONICAL_HOME_BLOCKS },
+    sections: {
+      type: "array",
+      minItems: 4,
+      maxItems: 10,
+      items: {
+        type: "object",
+        additionalProperties: true,
+        required: ["type", "slots"],
+        properties: {
+          id: { type: "string" },
+          type: { type: "string", enum: ["hero", "split", "full", "rail"] },
+          slots: {
+            type: "array",
+            minItems: 1,
+            maxItems: 2,
+            items: { type: "string", enum: CANONICAL_HOME_BLOCKS },
+          },
+        },
+      },
+    },
+  },
+};
+
 const FORBIDDEN_HOME_BLOCKS = [
   "reward_tasks",
   "kyc_risk_notice",
@@ -1304,6 +1346,42 @@ function repairHomepageSectionLegality(section, index = 0) {
   }));
 }
 
+// 反推发现：模型常给出"横向意图但只塞 1 个 slot"的 split/hero（OpenAI 58 次、Gemini 每条都犯），
+// 之前 repairHomepageSectionLegality 逐段把它们降级成 full → 左右布局被压平(29%→21% / 34%→14%)。
+// 这里在逐段合法化之前做一次"救援"：把单 slot 的 split/hero 与相邻的单 slot 可配对段合并成合法 2-slot 行，
+// 保留模型的横向意图，而不是各自塌成整行。strict 全宽块(交易账号表/钱包/信号宽表)不参与配对。
+function homepageSlotPairable(slot) {
+  return Boolean(slot) && !(LARGE_FULL_ROW_HOME_BLOCKS.has(slot) && !WIDE_PAIRABLE_HOME_BLOCKS.has(slot));
+}
+
+function salvageSingleSlotHorizontalSections(sections) {
+  const list = Array.isArray(sections) ? sections : [];
+  const out = [];
+  let merged = 0;
+  for (let i = 0; i < list.length; i += 1) {
+    const cur = list[i];
+    const curSlots = (cur.slots || []).filter(Boolean);
+    const next = list[i + 1];
+    const nextSlots = next ? (next.slots || []).filter(Boolean) : [];
+    const curIsHorizontalIntent = (cur.type === "split" || cur.type === "hero") && curSlots.length === 1;
+    if (
+      curIsHorizontalIntent &&
+      next &&
+      nextSlots.length === 1 &&
+      homepageSlotPairable(curSlots[0]) &&
+      homepageSlotPairable(nextSlots[0]) &&
+      curSlots[0] !== nextSlots[0]
+    ) {
+      out.push({ ...cur, type: cur.type, slots: [curSlots[0], nextSlots[0]] });
+      i += 1; // 吃掉相邻段
+      merged += 1;
+      continue;
+    }
+    out.push(cur);
+  }
+  return { sections: out, merged };
+}
+
 function insertHomepageSlotNearTop(sections, slot, preferredType = "full") {
   const canonical = canonicalHomeBlock(slot);
   if (!canonical || homepageSectionsContainSlot(sections, canonical)) return sections;
@@ -1522,6 +1600,12 @@ function repairHomepageConfig(configSnapshot, guidedSnapshot = {}, modulePolicy 
       return repairHomepageSectionLegality({ ...section, type: section.slots.length === 2 ? "split" : "full" }, index);
     });
     actions.push("检测到多个 hero section，已仅保留首个 hero，其余改为合法业务 section。");
+  }
+
+  const salvage = salvageSingleSlotHorizontalSections(sections);
+  sections = salvage.sections;
+  if (salvage.merged) {
+    actions.push(`已把 ${salvage.merged} 处"单 slot 的 split/hero 横向意图"救成合法的左右并排，避免被压平成整行。`);
   }
 
   const beforeLegal = sections.map(homepageSectionSignature).join("|");
@@ -3393,9 +3477,22 @@ function componentSkeletonPromptContractReference(payload = {}) {
   };
 }
 
+// 渲染路径收敛（根因 A）：舍弃"模型自由生成整页 HTML"的 aiHtml/compare 模式，
+// 只保留 config（固定组件库装配）与 skeletonHtml（骨架 + 逐槽生成）。模型的唯一 LLM 产出回归为 config JSON。
+// 自由 HTML 每次输出不确定、样式不一致、难测试，是"效果不稳定"的主要来源。
+// 如确需临时回退到自由 HTML（设计探索沙盒），可设 HOME_AI_ALLOW_FREEFORM_HTML=true。
+function homepageFreeformHtmlAllowed() {
+  return process.env.HOME_AI_ALLOW_FREEFORM_HTML === "true";
+}
+
 function homepageRenderMode(payload) {
   const value = cleanText(payload?.renderMode || payload?.generationRenderMode || payload?.context?.renderMode, "config", 24);
-  return ["config", "aiHtml", "skeletonHtml", "compare"].includes(value) ? value : "config";
+  const allowed = ["config", "aiHtml", "skeletonHtml", "compare"].includes(value) ? value : "config";
+  // 未开启沙盒时，把自由 HTML 模式归并到骨架模式（仍是 AI 渲染但骨架固定），杜绝整页自由生成。
+  if ((allowed === "aiHtml" || allowed === "compare") && !homepageFreeformHtmlAllowed()) {
+    return "skeletonHtml";
+  }
+  return allowed;
 }
 
 function skeletonHomepagePromptLines(payload = {}) {
@@ -5208,11 +5305,37 @@ function applyComponentReferencesToHomepageConfig(config, prompt = "", options =
       reference.rendererHtml &&
       reference.rendererCss,
   );
+  const strongRendererModules = new Set(rendererReferences.map((reference) => reference.module).filter(Boolean));
+  // moderate(≥6) 兜底渲染：某些模块(如 copytrading_signals/risk_disclosure/pamm_products)在整个组件库里没有任何
+  // ≥8 强组件可用 → 之前只能走通用占位，导致"走样/不跟随设计风格"。这里允许这些"无强组件"模块用其最高分的、
+  // 带 rendererHtml/Css 的 ≥6 同模块组件兜底渲染（标记 rendererFallback），至少拿到一个跟随 --home-* token 的设计组件。
+  // 注意：这是"次优兜底"，治本仍需为这些 family 产出 ≥8 组件。
+  const fallbackRendererReferences = [];
+  const fallbackSeen = new Set();
+  mergedReferences
+    .filter(
+      (reference) =>
+        reference.module &&
+        !strongRendererModules.has(reference.module) &&
+        reference.referenceTier !== "blocked" &&
+        Number(reference.score) >= COMPONENT_REFERENCE_SCORE_POLICY.moderateMin &&
+        reference.rendererHtml &&
+        reference.rendererCss,
+    )
+    .sort((a, b) => Number(b.score || 0) - Number(a.score || 0))
+    .forEach((reference) => {
+      if (fallbackSeen.has(reference.module)) return;
+      fallbackSeen.add(reference.module);
+      reference.rendererFallback = true;
+      fallbackRendererReferences.push(reference);
+    });
   config.componentRenderPolicy = {
     mode: "strong-reference-snippet-fallback",
     minimumRendererScore: COMPONENT_REFERENCE_SCORE_POLICY.strongMin,
+    fallbackRendererMinimumScore: COMPONENT_REFERENCE_SCORE_POLICY.moderateMin,
     fallbackWhenGeneratedScoreBelow: 68,
     appliedModules: rendererReferences.map((reference) => reference.module).filter(Boolean),
+    fallbackModules: fallbackRendererReferences.map((reference) => reference.module).filter(Boolean),
     source: "home-component-library",
   };
   if (Array.isArray(config.brickPlan)) {
@@ -7212,6 +7335,48 @@ function readAestheticScoreRecords() {
   return Array.isArray(data.records) ? data.records.slice(0, MAX_AESTHETIC_SCORE_RECORDS) : [];
 }
 
+// 从一条记录的 configSnapshot.sections 里取出"双 slot 的 hero/split 行"。
+// configSnapshot.sections 既可能是 "type:slotA+slotB" 字符串数组，也可能是 {type,slots} 对象数组，两者都兼容。
+function homepageDualSlotRowsFromSections(sections) {
+  if (!Array.isArray(sections)) return [];
+  const rows = [];
+  for (const entry of sections) {
+    let type = "";
+    let slots = [];
+    if (typeof entry === "string") {
+      const match = entry.match(/^([a-z]+)\s*:\s*(.+)$/i);
+      type = match ? match[1].toLowerCase() : "";
+      slots = (match ? match[2] : entry).split("+").map((slot) => canonicalHomeBlock(slot.trim())).filter(Boolean);
+    } else if (entry && typeof entry === "object") {
+      type = String(entry.type || "").toLowerCase();
+      slots = (Array.isArray(entry.slots) ? entry.slots : []).map((slot) => canonicalHomeBlock(slot)).filter(Boolean);
+    }
+    if ((type === "split" || type === "hero") && slots.length === 2) {
+      rows.push(`${type}:${slots.join("+")}`);
+    }
+  }
+  return rows;
+}
+
+// 真实高分样本里的左右分栏结构（根因 C 第三件事）：从历史评分记录中挖出确实出现过、且评分较高的
+// 双 slot 结构，作为"结构 few-shot"注入。比凭空臆造更可信，也能让稀有的 split(仅约 7%) 被模型看见。
+function homepageSplitLayoutExamples(limit = 3) {
+  const examples = [];
+  const seen = new Set();
+  for (const record of readAestheticScoreRecords()) {
+    if (examples.length >= limit) break;
+    const score = Number(record?.machineScore ?? record?.score ?? record?.manualScore);
+    if (Number.isFinite(score) && score < 7) continue; // 仅取高分
+    const rows = homepageDualSlotRowsFromSections(record?.configSnapshot?.sections);
+    if (!rows.length) continue;
+    const key = rows.join("|");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    examples.push({ score: Number.isFinite(score) ? Math.round(score * 10) / 10 : null, rows });
+  }
+  return examples;
+}
+
 function writeAestheticScoreRecords(records) {
   const normalized = (Array.isArray(records) ? records : []).slice(0, MAX_AESTHETIC_SCORE_RECORDS);
   writeJsonFile(AESTHETIC_SCORE_FILE, { records: normalized });
@@ -7964,6 +8129,8 @@ function aestheticTrainingContext(payloadOrPrompt = {}, options = {}) {
     goldenStyleContract,
     goldenLayoutDirective: goldenLayoutDirectiveFromSamples(goldenSamplePages),
     goldenSamplePages,
+    splitLayoutExamples: homepageSplitLayoutExamples(options.splitExampleLimit || 3),
+    splitLayoutPolicy: "splitLayoutExamples 是历史高分方案里真实出现过的左右分栏结构(hero=8+4, split=6+6)：请模仿这种横向节奏，至少安排 1-2 个双 slot 的 hero/split section，不要整页都是单 slot full 纵向堆叠。",
     samplePages: samples,
     beautifulComponents: beautifulComponentReferences({ prompt, limit: options.componentLimit || 8 }),
     lowScoreAntiExamples,
@@ -10128,8 +10295,11 @@ function goldenTokensToCssVars(styleContract = {}) {
     "--home-text-strong": v(t.textStrong, "#0f172a"),
     "--home-text": v(t.textStrong, "#172033"),
     "--home-text-muted": v(t.textMuted, "#64748b"),
+    "--home-card-radius": v(t.cardRadius, "12px"),
+    "--home-radius-xs": v(t.cardRadius, "6px"),
     "--home-radius-sm": v(t.cardRadius, "10px"),
     "--home-radius-md": v(t.cardRadius, "14px"),
+    "--home-radius-lg": v(t.cardRadius, "18px"),
     "--home-button-radius": v(t.buttonRadius, "10px"),
     "--home-section-gap": v(t.sectionGap, "20px"),
     "--home-card-padding": v(t.cardPadding, "18px"),
@@ -13058,6 +13228,23 @@ function homepagePlanWeightForBlock(block, mainVisual) {
   }[canonical] || 40;
 }
 
+// 给一组模块产出横向布局提示：哪些可占 8 栏宽位、哪些可作 4 栏紧凑配角、哪些必须整行 full，
+// 并在可能时给出一对推荐的左右并排组合（wide + companion）。供规划层注入 prompt，强化横向决策。
+function homepageGroupLayoutHint(modules = []) {
+  const list = (Array.isArray(modules) ? modules : []).map(canonicalHomeBlock).filter(Boolean);
+  const wide = list.filter((slot) => WIDE_PAIRABLE_HOME_BLOCKS.has(slot));
+  const companions = list.filter((slot) => COMPACT_COMPANION_HOME_BLOCKS.has(slot));
+  const fullRowOnly = list.filter((slot) => LARGE_FULL_ROW_HOME_BLOCKS.has(slot) && !WIDE_PAIRABLE_HOME_BLOCKS.has(slot));
+  const hint = { wide8col: wide, companion4col: companions, fullRowOnly };
+  // 高价值首屏组合优先成对
+  if (list.includes("asset_overview") && list.includes("quick_actions")) {
+    hint.suggestedPair = { type: "hero", slots: ["asset_overview", "quick_actions"], spans: [8, 4] };
+  } else if (wide.length && companions.length) {
+    hint.suggestedPair = { type: "hero", slots: [wide[0], companions[0]], spans: [8, 4] };
+  }
+  return hint;
+}
+
 function homepageCompositionGroupsForPlan(visibleModules = [], mainVisual = "", pageGoal = "") {
   const visibleSet = new Set(
     (Array.isArray(visibleModules) ? visibleModules : [])
@@ -13119,6 +13306,9 @@ function homepageCompositionGroupsForPlan(visibleModules = [], mainVisual = "", 
       compositeId: group.modules.length > 1 ? `composite-${group.id}` : "",
       renderMode: group.modules.length > 1 ? "composite" : "single",
       visualWeight: Math.max(...group.modules.map((slot) => homepagePlanWeightForBlock(slot, mainVisual))),
+      // 横向布局意图（根因 C）：显式告诉模型本组哪些模块可占 8 栏宽位、哪些可作 4 栏配角、哪些必须整行，
+      // 让"左右分栏"成为规划层的主动决策，而非仅靠后处理机械配对。
+      layoutHint: homepageGroupLayoutHint(group.modules),
     }))
     .sort((a, b) => {
       const aHasMain = a.modules.includes(mainVisual);
@@ -14428,6 +14618,13 @@ function buildPrompt(payload, config = {}) {
     "asset_overview + quick_actions 这种高权重组合优先成对放进首个 hero section 左右并排；asset_overview、quick_actions、trading_account_highlight 等核心模块不得被压成 4 栏小卡当配角。",
     "真正的宽表和密集曲线模块（trading_accounts_list、wallet_list、copytrading_signals）保持整行 full，不要塞进双 slot 左右分栏。",
     "当存在 faq_section、app_download、support_contact、announcements、referral_link_card、kyc_status_card 等 compact 模块时，优先把它们与相邻的大模块左右并排，而不是各自独占一整行，提升首屏密度。",
+    // few-shot 正例（根因 C）：给出"该出现左右分栏"的具体 sections 形态，模型据此模仿，而非只看到禁令。
+    "左右并排正例（sections 至少包含 1-2 个这样的双 slot section，不要整页都是单 slot full）:",
+    "  · 首屏 hero(8+4): {\"type\":\"hero\",\"slots\":[\"asset_overview\",\"quick_actions\"]} —— 资产概览占 8 栏，快捷操作占 4 栏。",
+    "  · 首屏 hero(8+4): {\"type\":\"hero\",\"slots\":[\"promo_banner\",\"kyc_status_card\"]} —— 宽活动占 8 栏，KYC 紧凑卡占 4 栏。",
+    "  · 等分 split(6+6): {\"type\":\"split\",\"slots\":[\"trading_account_highlight\",\"announcements\"]} —— 账户表现 + 公告左右等分。",
+    "  · 整行 full: {\"type\":\"full\",\"slots\":[\"trading_accounts_list\"]} —— 宽表/长列表(trading_accounts_list、wallet_list、copytrading_signals)只能整行 full，不可塞进双 slot。",
+    "  · 可与大模块左右配对的紧凑模块仅限: faq_section、app_download、support_contact、announcements、market_news、referral_link_card、kyc_status_card；可放 8 栏宽位的大模块仅限: trading_account_highlight、onboarding_guide、promo_banner、pamm_products。",
     "同一业务组共享标题层级、间距和按钮语言；slot 内可以降噪，但不同语义模块必须有清楚卡片边界，FAQ、风险、客服、活动等低权重模块只能低干扰收口。",
     "如果管理员提到小屏幕、手机端、移动端或适配，autoLayout.strategy 必须保持 responsive-grid 或 mobile-first-stack，并优先让 paired rows collapse 为单列。",
     "如果管理员要求活动增长、交易大赛、奖池，并明确说明租户已配置活动，必须使用 promo_banner 作为活动模块；如果有 welcome_header，promo_banner 可紧跟在 welcome_header 后面。",
@@ -14473,8 +14670,9 @@ function buildPrompt(payload, config = {}) {
     "默认首页配置:",
     compactJson(context.defaultConfig),
     "",
-    "JSON Schema:",
-    compactJson(context.schema),
+    "JSON Schema（必须严格遵守：sections[].type 仅 hero/split/full/rail；slots 仅限白名单模块名且每段 1-2 个；",
+    "type=split 的两个 slot 渲染为左右等分(6+6)，type=hero 两个 slot 渲染为左大右小(8+4)，type=full 单 slot 占整行）:",
+    compactJson(context.schema || HOMEPAGE_CONFIG_SCHEMA),
     "",
     "可用功能和标签:",
     compactJson({
@@ -14502,7 +14700,7 @@ function buildPrompt(payload, config = {}) {
   return { system, user };
 }
 
-function buildOpenAiResponsesBody(config, promptParts, schema, schemaName = "ai_output") {
+function buildOpenAiResponsesBody(config, promptParts, schema, schemaName = "ai_output", mode = null) {
   const images = Array.isArray(promptParts.images)
     ? promptParts.images.filter((image) => /^data:image\//i.test(String(image?.dataUrl || ""))).slice(0, 1)
     : [];
@@ -14524,7 +14722,7 @@ function buildOpenAiResponsesBody(config, promptParts, schema, schemaName = "ai_
     max_output_tokens: config.maxOutputTokens,
   };
 
-  if (schema && typeof schema === "object") {
+  if (mode !== "text" && schema && typeof schema === "object") {
     const name = String(schemaName || "ai_output")
       .replace(/[^a-zA-Z0-9_-]+/g, "_")
       .replace(/^_+|_+$/g, "")
@@ -14542,22 +14740,59 @@ function buildOpenAiResponsesBody(config, promptParts, schema, schemaName = "ai_
   return body;
 }
 
-function buildAnthropicBody(config, promptParts) {
+function sanitizeStructuredToolName(schemaName) {
+  return (
+    String(schemaName || "ai_output")
+      .replace(/[^a-zA-Z0-9_-]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 64) || "ai_output"
+  );
+}
+
+function buildAnthropicBody(config, promptParts, schema = null, schemaName = "ai_output", mode = null) {
   // 提速 A：把稳定的系统前缀标记为可缓存（Anthropic prompt caching）。
   // 系统规则在多次生成间基本不变，命中后可省去对这一大段前缀的重复计费与处理延迟。
   const system = promptParts.system
     ? [{ type: "text", text: String(promptParts.system), cache_control: { type: "ephemeral" } }]
     : promptParts.system;
-  return {
+  const body = {
     model: config.model,
     max_tokens: config.maxOutputTokens,
     temperature: config.temperature,
     system,
     messages: [{ role: "user", content: promptParts.user }],
   };
+  // 根因 B：Anthropic 此前完全无结构化约束（纯文本）。tool use 是它唯一的结构化手段——
+  // 把 config schema 作为工具入参，并用 tool_choice 强制调用，模型被迫按 schema 填字段。
+  if (mode === "tool" && schema && typeof schema === "object") {
+    const name = sanitizeStructuredToolName(schemaName);
+    body.tools = [{ name, description: "返回符合 schema 的首页配置 JSON。", input_schema: schema }];
+    body.tool_choice = { type: "tool", name };
+  }
+  return body;
 }
 
-function buildOpenAiChatBody(config, promptParts) {
+// 把"结构化输出模式"落到 OpenAI 兼容 body 上（gemini/kimi/deepseek/minimax 同构）。
+// mode 由 structuredModesForConfig 给出的降级链驱动：json_schema(强) → tool → json_object(弱) → text(无)。
+function applyOpenAiStructuredFormat(body, mode, schema, schemaName) {
+  const hasSchema = schema && typeof schema === "object";
+  if (mode === "json_schema" && hasSchema) {
+    // strict:false —— schema 含 additionalProperties:true，无法走约束解码(strict)；此处为"引导式"结构化，
+    // 把模块名/版块类型等枚举强约束，扩展字段仍允许，硬保证由确定性层兜底。
+    body.response_format = {
+      type: "json_schema",
+      json_schema: { name: sanitizeStructuredToolName(schemaName), schema, strict: false },
+    };
+  } else if (mode === "tool" && hasSchema) {
+    const name = sanitizeStructuredToolName(schemaName);
+    body.tools = [{ type: "function", function: { name, description: "返回符合 schema 的首页配置 JSON。", parameters: schema } }];
+    body.tool_choice = { type: "function", function: { name } };
+  } else if (mode !== "text") {
+    body.response_format = { type: "json_object" };
+  }
+}
+
+function buildOpenAiChatBody(config, promptParts, mode = null, schema = null, schemaName = "ai_output") {
   const structuredJsonRequest = config.responseFormat !== "text";
   const kimiFixedTemperatureRequest = config.provider === "kimi" && isKimiFixedTemperatureModel(config.model);
   const body = {
@@ -14580,50 +14815,42 @@ function buildOpenAiChatBody(config, promptParts) {
     delete body.max_tokens;
     body.max_completion_tokens = Math.min(config.maxOutputTokens, MINIMAX_MAX_COMPLETION_TOKENS);
     body.reasoning_split = true;
-    if (structuredJsonRequest) {
-      body.response_format = { type: "json_object" };
-    }
   } else if (config.provider === "kimi") {
     delete body.max_tokens;
     body.max_completion_tokens = config.maxOutputTokens;
     if (kimiFixedTemperatureRequest) {
       body.thinking = { type: "disabled" };
     }
-    if (structuredJsonRequest) {
-      body.response_format = { type: "json_object" };
-    }
   } else if (config.provider === "deepseek") {
     body.thinking = { type: "disabled" };
-    if (structuredJsonRequest) {
-      body.response_format = { type: "json_object" };
-    }
   } else if (config.provider === "gemini") {
     if (isGeminiFlashThinkingModel(config.model)) {
       body.reasoning_effort = "none";
     }
-    if (structuredJsonRequest) {
-      body.response_format = { type: "json_object" };
-    }
-  } else if (structuredJsonRequest) {
-    body.response_format = { type: "json_object" };
+  }
+
+  if (structuredJsonRequest) {
+    applyOpenAiStructuredFormat(body, mode, schema, schemaName);
   }
 
   return body;
 }
 
-function buildProviderRequest(config, apiKey, promptParts, schema, schemaName) {
+function buildProviderRequest(config, apiKey, promptParts, schema, schemaName, mode = null) {
   const headers = { authorization: `Bearer ${apiKey}` };
+  // 兼容旧调用（不传 mode）：有 schema 默认走 json_schema，否则纯文本。
+  const resolvedMode = mode || (schema && typeof schema === "object" ? "json_schema" : "text");
   let body;
 
   if (config.apiMode === "responses") {
-    body = buildOpenAiResponsesBody(config, promptParts, schema, schemaName);
+    body = buildOpenAiResponsesBody(config, promptParts, schema, schemaName, resolvedMode);
   } else if (config.apiMode === "anthropic-messages") {
-    body = buildAnthropicBody(config, promptParts);
+    body = buildAnthropicBody(config, promptParts, schema, schemaName, resolvedMode);
     headers["x-api-key"] = apiKey;
     headers["anthropic-version"] = "2023-06-01";
     delete headers.authorization;
   } else {
-    body = buildOpenAiChatBody(config, promptParts);
+    body = buildOpenAiChatBody(config, promptParts, resolvedMode, schema, schemaName);
   }
 
   return { headers, body };
@@ -14648,8 +14875,31 @@ function responseContentText(value) {
     .join("\n");
 }
 
+function stringifyToolArguments(value) {
+  if (value == null) return "";
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value);
+  } catch (error) {
+    return "";
+  }
+}
+
 function extractTextFromAiResponse(data, apiMode) {
   if (!data || typeof data !== "object") return "";
+
+  // tool use 模式：结构化结果在 tool 调用的入参里，优先于自由文本。
+  if (apiMode === "anthropic-messages" && Array.isArray(data.content)) {
+    const toolBlock = data.content.find((item) => item && item.type === "tool_use" && item.input != null);
+    if (toolBlock) return stringifyToolArguments(toolBlock.input);
+  }
+  if (Array.isArray(data.choices)) {
+    for (const choice of data.choices) {
+      const toolCall = choice?.message?.tool_calls?.find((call) => call?.function?.arguments != null);
+      if (toolCall) return stringifyToolArguments(toolCall.function.arguments);
+    }
+  }
+
   if (typeof data.output_text === "string") return data.output_text;
 
   if (apiMode === "anthropic-messages" && Array.isArray(data.content)) {
@@ -18639,12 +18889,6 @@ async function callProviderWithPrompt(payload, promptParts, schema, schemaName =
   return requestAndParseProviderJson(config, apiKey, promptParts, schema || payload.context?.schema, schemaName);
 }
 
-function minimaxJsonModeUnsupported(error) {
-  const status = Number(error?.providerStatus || error?.details?.providerStatus);
-  if (status && status !== 400) return false;
-  return /response_format|json_object|json mode|unsupported|not support|not supported|invalid parameter|invalid param|不支持|无效|非法/i.test(String(error?.message || ""));
-}
-
 function geminiJsonFailureShouldFallback(config = {}, error = {}) {
   if (!canFallbackGeminiModel(config)) return false;
   const details = error.details || {};
@@ -18653,40 +18897,60 @@ function geminiJsonFailureShouldFallback(config = {}, error = {}) {
   return Boolean(details.likelyTruncated) || /valid JSON object|Provider returned an empty|length|max_tokens|content_filter/i.test(message);
 }
 
-async function requestProviderJsonWithJsonModeFallback(config, headers, body) {
-  try {
-    return await requestProviderJson(config, headers, body);
-  } catch (error) {
-    if (config.provider !== "minimax" || !body?.response_format || !minimaxJsonModeUnsupported(error)) {
+// 结构化输出的降级链（根因 B）：可靠性递减 json_schema → tool → json_object → text。
+// 按供应商/接口能力给出"优先尝试 + 逐级降级"顺序；无 schema 或显式 text 时只跑纯文本。
+function structuredModesForConfig(config, schema) {
+  if (config.responseFormat === "text" || !schema || typeof schema !== "object") return ["text"];
+  if (config.apiMode === "responses") return ["json_schema", "text"];
+  if (config.apiMode === "anthropic-messages") return ["tool", "text"]; // Anthropic 唯一结构化手段是 tool use
+  if (config.provider === "minimax") return ["json_object", "text"]; // MiniMax 仅可靠支持 json_object
+  return ["json_schema", "tool", "json_object", "text"]; // gemini/kimi/deepseek
+}
+
+// 错误是否表示"当前结构化模式不被支持/参数非法"，可降级到下一档重试（而非真正的业务/网络错误）。
+function structuredModeRejected(error) {
+  const status = Number(error?.providerStatus || error?.details?.providerStatus);
+  if (status && ![400, 404, 415, 422].includes(status)) return false;
+  return /response_format|json_schema|json mode|json_object|tool|function|schema|unsupported|not support|not supported|invalid parameter|invalid param|invalid_request|不支持|无效|非法|参数/i.test(
+    String(error?.message || ""),
+  );
+}
+
+async function requestProviderJsonWithStructuredFallback(config, apiKey, promptParts, schema, schemaName) {
+  const modes = structuredModesForConfig(config, schema);
+  let lastError = null;
+  for (let index = 0; index < modes.length; index += 1) {
+    const mode = modes[index];
+    const { headers, body } = buildProviderRequest(config, apiKey, promptParts, schema, schemaName, mode);
+    try {
+      const result = await requestProviderJson(config, headers, body);
+      if (index > 0) {
+        result.attempts = [
+          ...(lastError?.details?.attempts || []),
+          {
+            provider: config.provider,
+            providerName: config.name,
+            model: config.model,
+            apiMode: config.apiMode,
+            message: `结构化模式 ${modes[index - 1]} 失败，已降级为 ${mode}。`,
+          },
+          ...(result.attempts || []),
+        ];
+      }
+      return result;
+    } catch (error) {
+      lastError = error;
+      if (index < modes.length - 1 && structuredModeRejected(error)) continue;
       throw error;
     }
-
-    const fallbackBody = { ...body };
-    delete fallbackBody.response_format;
-    const retry = await requestProviderJson(config, headers, fallbackBody);
-    retry.attempts = [
-      ...(error.details?.attempts || []),
-      {
-        provider: config.provider,
-        providerName: config.name,
-        model: config.model,
-        apiMode: config.apiMode,
-        baseUrl: config.baseUrl,
-        endpoint: config.endpoint,
-        message: "MiniMax rejected response_format; retried without JSON mode.",
-      },
-      ...(retry.attempts || []),
-    ];
-    return retry;
   }
+  throw lastError;
 }
 
 async function requestAndParseProviderJson(config, apiKey, promptParts, schema, schemaName = "ai_output", previousError = null) {
-  const { headers, body } = buildProviderRequest(config, apiKey, promptParts, schema, schemaName);
-
   let providerResult;
   try {
-    providerResult = await requestProviderJsonWithJsonModeFallback(config, headers, body);
+    providerResult = await requestProviderJsonWithStructuredFallback(config, apiKey, promptParts, schema, schemaName);
   } catch (error) {
     throw error.details ? error : enrichProviderError(error, config, null);
   }
@@ -20075,7 +20339,7 @@ async function callProvider(payload) {
     }
   }
 
-  const configPromise = callProviderWithPrompt(policyPayload, buildPrompt(policyPayload, config), policyPayload.context?.schema, "homepage_config");
+  const configPromise = callProviderWithPrompt(policyPayload, buildPrompt(policyPayload, config), policyPayload.context?.schema || HOMEPAGE_CONFIG_SCHEMA, "homepage_config");
   if (freeHtmlPromise) freeHtmlResult = await freeHtmlPromise;
   const result = await configPromise;
   const rawHomepageConfig = enforceHomepagePromptIntent(

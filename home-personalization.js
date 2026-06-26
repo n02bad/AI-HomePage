@@ -10987,18 +10987,50 @@
     const moduleId = moduleKeyFor(slot);
     if (!moduleId) return null;
     const minimumScore = Number(config?.componentRenderPolicy?.minimumRendererScore) || 8;
+    // moderate 兜底分数线：无强(≥8)组件的模块允许用 ≥6 同模块组件兜底渲染（server 端已标记 rendererFallback）。
+    const fallbackScore = Number(config?.componentRenderPolicy?.fallbackRendererMinimumScore) || 0;
     const references = Array.isArray(config?.componentReferences) ? config.componentReferences : [];
-    return references
+    const forModule = references
       .filter((reference) => reference.module === moduleId || moduleKeyFor(reference.component) === moduleId)
       .filter(
 	        (reference) =>
 	          reference.referenceTier !== "blocked" &&
-	          Number(reference.score) >= minimumScore &&
 	          reference.rendererHtml &&
 	          reference.rendererCss &&
 	          componentReferenceRendererLooksPublishable(reference),
 	      )
-      .sort((a, b) => Number(b.score || 0) - Number(a.score || 0))[0] || null;
+      .sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
+    // 先取强组件；没有强组件再退而求其次取 moderate 兜底组件，避免该模块掉到通用占位（走样）。
+    const strong = forModule.find((reference) => Number(reference.score) >= minimumScore);
+    if (strong) return strong;
+    if (fallbackScore) {
+      const fallback = forModule.find(
+        (reference) => reference.rendererFallback || Number(reference.score) >= fallbackScore,
+      );
+      if (fallback) return fallback;
+    }
+    return null;
+  }
+
+  // config 模式组件渲染到 shadow DOM 后此前没有任何事件委托 → 组件内 [data-home-action] 按钮全是死按钮（无交互）。
+  // 对齐 AI HTML 路径(home-ai-html-action)：补一个委托，让主 CTA 点击向外冒泡成统一事件，预览/宿主可接线。
+  function attachComponentReferenceActionDelegate(listenRoot, hostEl) {
+    if (!listenRoot || typeof listenRoot.addEventListener !== "function") return;
+    listenRoot.addEventListener("click", (event) => {
+      const actionTarget = event.target?.closest?.("[data-home-action]");
+      if (!actionTarget) return;
+      hostEl.dispatchEvent(
+        new CustomEvent("home-ai-html-action", {
+          bubbles: true,
+          composed: true,
+          detail: {
+            action: actionTarget.dataset.homeAction || "",
+            accountEntryKind: actionTarget.dataset.accountEntryKind || "",
+            source: "component-reference",
+          },
+        }),
+      );
+    });
   }
 
   function renderHighScoreComponentReference(doc, slot, config) {
@@ -11022,6 +11054,7 @@
         </style>
         <div class="ai-reference-component-host">${html}</div>
       `;
+      attachComponentReferenceActionDelegate(shadow, element);
       return element;
     }
     const style = doc.createElement("style");
@@ -11031,6 +11064,7 @@
     host.innerHTML = html;
     element.appendChild(style);
     element.appendChild(host);
+    attachComponentReferenceActionDelegate(element, element);
     return element;
   }
 
@@ -14051,8 +14085,27 @@
 	    const borderColor = normalized.borderColor || `color-mix(in srgb, ${color} 32%, #dce6f4)`;
 	    const borderSoft = normalized.borderSoft || `color-mix(in srgb, ${color} 18%, #edf2f7)`;
 	    const buttonText = normalized.buttonText || "#ffffff";
+	    // 圆角 token（修复 config 预览圆角不生效）：themeCustom 不带圆角，且 applyThemeCustomVars 此前完全没注入任何
+	    // --home-*radius* 变量，组件 CSS 里的 var(--home-radius-sm/--home-card-radius/--home-button-radius) 在预览根作用域
+	    // 内无定义、又常缺内联 fallback → 圆角塌成直角。这里统一给出，并把 --home-button-radius（全仓从未定义）补齐。
+	    const cssLen = (val, fallback) => {
+	      if (typeof val === "number" && Number.isFinite(val)) return `${val}px`;
+	      const s = String(val || "").trim();
+	      return /^\d+(\.\d+)?(px|rem|em|%)$/.test(s) ? s : fallback;
+	    };
+	    const cardRadius = cssLen(normalized.cardRadius, "12px");
+	    const buttonRadius = cssLen(normalized.buttonRadius, "10px");
 
 	    const vars = {
+	      "--tenant-cardRadius": cardRadius,
+	      "--tenant-card-radius": cardRadius,
+	      "--home-card-radius": cardRadius,
+	      "--home-radius-xs": `calc(${cardRadius} * 0.5)`,
+	      "--home-radius-sm": `calc(${cardRadius} * 0.75)`,
+	      "--home-radius-md": cardRadius,
+	      "--home-radius-lg": `calc(${cardRadius} * 1.4)`,
+	      "--home-radius-pill": "999px",
+	      "--home-button-radius": buttonRadius,
 	      "--tenant-primaryColor": color,
 	      "--tenant-primary-color": color,
 	      "--tenant-accentColor": accent,
