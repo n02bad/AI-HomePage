@@ -3303,7 +3303,14 @@ function componentDesignContractPromptReference(payload = {}) {
             modules: Array.isArray(group?.modules) ? group.modules.slice(0, 8) : [],
             guidance: cleanText(group?.guidance, "", 120),
           })),
-          compositionRules: (Array.isArray(pagePlan.compositionRules) ? pagePlan.compositionRules : []).map((item) => cleanText(item, "", 150)).filter(Boolean).slice(0, 5),
+          compositionRules: (Array.isArray(pagePlan.compositionRules) ? pagePlan.compositionRules : []).map((item) => cleanText(item, "", 150)).filter(Boolean).slice(0, 6),
+          sectionSkeleton: pagePlan.sectionSkeleton && Array.isArray(pagePlan.sectionSkeleton.sectionContract) && pagePlan.sectionSkeleton.sectionContract.length
+            ? {
+                mainVisual: cleanText(pagePlan.sectionSkeleton.mainVisual, "", 48),
+                sectionContract: pagePlan.sectionSkeleton.sectionContract.slice(0, 8),
+                rule: "这是权威 section 骨架：严格按 sectionContract 的顺序、type 和左右分栏排布，hero/split 行保持两个模块同行等高，不要改成纵向单列。",
+              }
+            : null,
         }
       : null,
     style: {
@@ -10344,6 +10351,14 @@ function goldenTokenForCssColor(raw = "") {
 // 非语义颜色字面量（hex / rgba）按色相+明度收编到蓝色主色刻度 token；3) 压平装饰性渐变为纯色。
 function enforceGoldenThemeOnCss(css = "") {
   let out = String(css);
+  // 阴影一致性：把 AI 组件/积木 CSS 里的投影统一到主题卡片阴影 token，避免跨组件、跨生成阴影轻重不一。
+  // 保留 none 与 inset（边框式/内阴影）和已用主题 token 的，只收编 drop shadow。必须在颜色收编前跑，
+  // 否则 box-shadow 里的 rgba 会先被改写成 var(--home-primary*) 而漏判。
+  out = out.replace(/box-shadow\s*:\s*([^;}]+)([;}])/gi, (full, value, end) => {
+    const v = String(value).trim();
+    if (/^none$/i.test(v) || /\binset\b/i.test(v) || /var\(\s*--home-/i.test(v)) return full;
+    return `box-shadow:var(--home-card-shadow)${end}`;
+  });
   out = out.replace(/(--[\w-]*(?:primary|brand|accent|theme|main)[\w-]*)(\s*:\s*)([^;]+)(;)/gi, (full, name, sep, value) => {
     if (/warm|success|danger|error|warning|positive|negative|\bup\b|\bdown\b|green|red|gold|amber|orange|yellow/i.test(name)) return full;
     const v = value.trim();
@@ -11439,34 +11454,26 @@ function buildComponentPrompt(payload) {
   const visualReference = componentVisualReferencePromptReference(payload);
   const skeletonContract = componentSkeletonPromptContractReference(payload);
 
+  // prompt 去重（2026-06）：原 32 行 system 含三簇重复表达（漂亮非装饰 / 参考高分积木 / 铺满宽度），
+  // 合并为单条，硬安全约束（无 script/iframe、CSS 作用域、圆角≤8px、layoutContract 12 栅格）一条不删。
   const system = [
     "你是 ForexCRM 首页积木组件设计器。",
     "你只能返回一个 JSON object，不要 markdown，不要解释。",
     "组件用于金融/交易 CRM 用户端首页，必须克制、专业、信息清晰。",
-    "必须遵守 design.md 设计治理：组件漂亮来自主焦点、字段层级、状态细节、按钮主次和响应式稳定，不来自大圆角、厚阴影、随机渐变或营销装饰。",
-    "如果用户消息包含骨架 slot 契约，必须只使用 pageDesign/slotContract 里的颜色、界面规范、密度、尺寸、间距和当前模块要求；不要依据整页 sections 或其他 slot 重排页面。",
-    "如果骨架 slot 契约包含 chromePolicy 或 slotContract.chrome，必须遵守页面外壳策略：bare/inline/flat 输出内容片段，不自带完整卡片外框；contained/featured/tableSurface 才允许轻量边框或工作台表面。",
-    "如果骨架 slot 契约包含 pagePlan、parentGroup、slotContract.role 或 visualWeight，必须让当前组件继承父级业务组的表面、标题和按钮语言；不要重复 sectionTitle 或把自己包装成独立页面区块。",
-    "slotContract.role 为 support/decision 或 visualWeight 低于 70 时必须降噪：不生成大标题、强背景、厚边框、主按钮或完整独立卡片，只作为父级业务组里的内容片段。",
-    "生成前必须先参考用户消息里的“组件库参考”“用户评分优先参考”和“漂亮积木审美参考”：理解已保存积木的业务字段、尺寸、按钮、标签、卡片密度、视觉层级和漂亮组件的结构手法，再围绕本次需求发挥。",
-    "用户评分为 1-10 分；同类或同尺寸组件中优先参考高分积木，但不要逐字复制。",
-    "组件生成底线：只参考 5 分以上积木；如果模型无法明显提升，就返回最接近高分积木的同款微调版，不要自由生成普通卡片。",
-    "漂亮不是装饰更多，而是主次更清楚、比例更成熟、字段更贴近业务、动作更有层级；不要用大面积空白、厚重阴影、营销渐变或英文装饰标签假装高级。",
-    "允许创造新的结构和样式变体，但必须能追溯到现有父模块、真实业务字段、尺寸语言或组件库里的积木表达；不要凭空发明业务能力。",
-    "不要逐字复制某个已保存组件，也不要只换标题或颜色；需要在布局、密度、层级或组合方式上形成新的有用变体。",
+    "必须遵守 design.md 设计治理：漂亮来自主焦点、字段层级、状态细节、按钮主次、响应式稳定，以及更清楚的主次、更成熟的比例、更贴业务的字段和更有层级的动作；不来自大圆角、厚阴影、随机渐变、营销装饰、大面积空白或英文装饰标签。",
+    "若用户消息含骨架 slot 契约：只使用 pageDesign/slotContract 的颜色、规范、密度、尺寸、间距和当前模块要求，不依据整页 sections 或其他 slot 重排页面。",
+    "遵守外壳策略：chromePolicy/slotContract.chrome 为 bare/inline/flat 时输出内容片段、不自带完整卡片外框，contained/featured/tableSurface 才允许轻量边框或工作台表面；当含 pagePlan/parentGroup/role 或 visualWeight 时，继承父级业务组的表面、标题和按钮语言，不重复 sectionTitle、不把自己包装成独立页面区块；role=support/decision 或 visualWeight<70 必须降噪（不用大标题、强背景、厚边框、主按钮或独立卡片）。",
+    "生成前先吸收用户消息里的组件库参考/评分参考/审美参考：理解已保存积木的业务字段、尺寸、按钮、标签、密度、视觉层级和漂亮组件的结构手法（评分 1-10，只参考 5 分以上，优先高分），再围绕本次需求发挥。",
+    "必须形成可追溯的新变体：能追溯到现有父模块、真实业务字段、尺寸语言或组件库积木；不逐字复制、不只换标题或颜色，要在布局、密度、层级或组合方式上形成有用变体；若无法明显提升，返回最接近高分积木的微调版，不要自由生成普通卡片。",
     "组件必须至少体现一种明确的组件工艺：指标带、状态条、步骤连接、趋势图容器、操作坞、表格/列表、左右分栏或紧凑信息流；不要只返回普通标题加几张白卡。",
     "返回 HTML 和 CSS 片段，但不要返回 script、外链、iframe、表单提交逻辑、图片 URL 或不安全属性。",
     "HTML 根元素必须使用 class，并且 CSS 必须只作用于该 class 范围，避免污染其他页面。",
     "圆角控制在 8px 或以下，避免营销式大圆角和装饰性渐变球。",
-    "组件必须能作为积木参与首页布局，明确 size、layoutHints 和 dataRequirements。",
-    "组件必须同时返回 layoutContract，且 layoutContract.gridColumns=12；desktopSpan 必须按 1x=4、2x=8、3x+=12 映射，tabletSpan/mobileSpan=12，rowRecipe 使用 12+0/8+4/6+6/4+8。",
+    "组件必须能作为积木参与首页布局，明确 size、layoutHints、dataRequirements，并返回 layoutContract（gridColumns=12，desktopSpan 按 1x=4/2x=8/3x+=12，tablet/mobileSpan=12，rowRecipe 用 12+0/8+4/6+6/4+8）。",
     `尺寸规则: ${COMPONENT_SIZE_GUIDE}`,
-    "当推荐尺寸为 AI 自行选择时，必须结合“页面宽度/尺寸决策上下文”决定 size；功能越复杂、当前页面越宽，可把组件放大到 3x2、4x2、4x3、5x3 或合理 NxM，简单侧栏组件不要强行变大。",
-    "组件布局必须能自适应容器宽度，避免固定大空白、空占位或依赖不可控高度撑开。",
-    "组件必须铺满分配到的 slot 宽度：任何 flex 行都不得用 flex-grow 撑开后再把内容靠边对齐，禁止用 justify-content:flex-end/space-between 把元素挤到一侧而让主轴中段留下大块空白。",
-    "快捷入口、操作类组件必须把所有入口等分铺满整行，或按 2/3/4 列等宽网格紧凑排列；主操作按钮与其它入口要在同一栅格节奏里，不能主按钮独占左侧、其它入口挤到右侧。",
-    "交易账号列表、账户开通进度这类结构型模块必须按组件库里同类积木的字段密度、行/卡结构和按钮层级来组织，不要自创稀疏排版或留大片空行。",
-    "组件内部只保留一个可见主标题：如果使用 strong/h1-h4 做主标题，就不要再放 span/small/label 作为上方 eyebrow、分类名或第二标题；span/small 只用于数据行字段标签。",
+    "推荐尺寸为 AI 自选时，结合“页面宽度/尺寸决策上下文”决定 size：功能越复杂、页面越宽可放大到 3x2/4x2/4x3/5x3 或合理 NxM，简单侧栏组件不强行变大。",
+    "组件必须自适应容器宽度并铺满分配的 slot：任何 flex 行不得用 flex-grow 撑开后靠边对齐，禁止 justify-content:flex-end/space-between 在主轴中段留大块空白；快捷入口/操作类按 2/3/4 列等宽网格紧凑铺满，主按钮与其它入口同栅格节奏；交易账号列表、开户进度等结构型模块按同类积木的字段密度、行/卡结构和按钮层级组织，不留大片空行或稀疏排版。",
+    "组件内部只保留一个可见主标题：用 strong/h1-h4 做主标题时不再放 span/small/label 当 eyebrow、分类名或第二标题；span/small 只用于数据行字段标签。",
     "禁止返回通用占位组件；不要使用 Primary Action、AI 样式、Sample、Lorem ipsum 这类无业务含义文案。",
     "按钮、字段和值必须是 ForexCRM 用户端真实业务：入金、出金、真实账号、模拟账号、绑定账号、钱包、KYC、邀请链接、交易账号、余额、权益、信用、杠杆等。",
     "如果提供图片/截图视觉参考，必须先抽象它的版式、密度、主视觉位置、色块关系、按钮层级和字段组织，再转成 ForexCRM 组件；不要复制图片里的品牌、受保护素材或无法确认的文字。",
@@ -11498,12 +11505,9 @@ function buildComponentPrompt(payload) {
     "图片/截图视觉参考:",
     compactJson(visualReference || { available: false }),
     "",
-    "design.md 设计治理摘要:",
-    compactJson({
-      rules: designGovernance.rules?.slice(0, 6) || [],
-      forbidden: designGovernance.forbidden?.slice(0, 6) || [],
-      usePolicy: designGovernance.usePolicy,
-    }),
+    // 治理正向规则已在 system 表述，user 侧只保留 forbidden 清单避免重复占用上下文。
+    "design.md 禁止项:",
+    compactJson(designGovernance.forbidden?.slice(0, 8) || []),
     "",
     "需求:",
     prompt || "生成一个适合默认首页的专业金融组件。",
@@ -12799,6 +12803,577 @@ function homepageGoldenSkeletonContractForPlan(visibleModules = [], mainVisual =
   };
 }
 
+// ---- Step 1：section 骨架（来源 C = floor）。详见 docs/SKELETON_SPEC.md。----
+// 把每个页面目标映射到一份"先定后填"的硬骨架。横向行只用两种能存活 repair 的机制：
+//   pair=server: hero/split 放两个非 LARGE 块 -> brickBackedSlotSpans 给 [8,4]/[6,6]
+//   pair=client: WIDE_PAIRABLE 块紧邻一个 COMPACT_COMPANION 块 -> 渲染期客户端配对 [8,4]
+// LARGE 块绝不进 server-pair（否则 splitLargeHomepageSections 会拆成纵向 full 行）。
+const HOMEPAGE_SKELETON_FLOOR_TEMPLATES = {
+  accountOps: [
+    { type: "hero", pair: "server", slots: [{ role: "primary", prefer: "asset_overview", main: true }, { role: "support", prefer: "quick_actions" }] },
+    { type: "full", pair: "client", slots: [{ role: "proof", prefer: "trading_account_highlight" }] },
+    { type: "full", pair: "", slots: [{ role: "decision", prefer: "announcements" }] },
+    { type: "split", pair: "server", slots: [{ role: "decision", prefer: "market_news" }, { role: "decision", prefer: "faq_section" }] },
+    { type: "full", pair: "", slots: [{ role: "secondary", prefer: "trading_accounts_list" }] },
+    { type: "full", pair: "", slots: [{ role: "compliance", prefer: "risk_disclosure" }] },
+  ],
+  conversionFirst: [
+    { type: "hero", pair: "server", slots: [{ role: "primary", prefer: "asset_overview", main: true }, { role: "support", prefer: "kyc_status_card" }] },
+    { type: "full", pair: "", slots: [{ role: "proof", prefer: "quick_actions" }] },
+    { type: "full", pair: "client", slots: [{ role: "secondary", prefer: "promo_banner" }] },
+    { type: "full", pair: "", slots: [{ role: "decision", prefer: "support_contact" }] },
+    { type: "split", pair: "server", slots: [{ role: "decision", prefer: "faq_section" }, { role: "decision", prefer: "app_download" }] },
+    { type: "full", pair: "", slots: [{ role: "compliance", prefer: "risk_disclosure" }] },
+  ],
+  onboardingJourney: [
+    { type: "full", pair: "client", slots: [{ role: "primary", prefer: "onboarding_guide", main: true }] },
+    { type: "full", pair: "", slots: [{ role: "support", prefer: "kyc_status_card" }] },
+    { type: "split", pair: "server", slots: [{ role: "proof", prefer: "asset_overview" }, { role: "proof", prefer: "quick_actions" }] },
+    { type: "full", pair: "", slots: [{ role: "secondary", prefer: "trading_accounts_list" }] },
+    { type: "split", pair: "server", slots: [{ role: "decision", prefer: "faq_section" }, { role: "decision", prefer: "support_contact" }] },
+    { type: "full", pair: "", slots: [{ role: "compliance", prefer: "risk_disclosure" }] },
+  ],
+  tradingCommand: [
+    { type: "full", pair: "client", slots: [{ role: "primary", prefer: "trading_account_highlight", main: true }] },
+    { type: "full", pair: "", slots: [{ role: "decision", prefer: "announcements" }] },
+    { type: "split", pair: "server", slots: [{ role: "proof", prefer: "asset_overview" }, { role: "proof", prefer: "quick_actions" }] },
+    { type: "full", pair: "", slots: [{ role: "secondary", prefer: "trading_accounts_list" }] },
+    { type: "split", pair: "server", slots: [{ role: "decision", prefer: "market_news" }, { role: "decision", prefer: "app_download" }] },
+    { type: "full", pair: "", slots: [{ role: "compliance", prefer: "risk_disclosure" }] },
+  ],
+  opportunities: [
+    { type: "full", pair: "client", slots: [{ role: "primary", prefer: "copytrading_signals", main: true }] },
+    { type: "full", pair: "", slots: [{ role: "decision", prefer: "referral_link_card" }] },
+    { type: "split", pair: "server", slots: [{ role: "proof", prefer: "asset_overview" }, { role: "proof", prefer: "quick_actions" }] },
+    { type: "full", pair: "", slots: [{ role: "secondary", prefer: "pamm_products" }] },
+    { type: "split", pair: "server", slots: [{ role: "decision", prefer: "announcements" }, { role: "decision", prefer: "market_news" }] },
+    { type: "full", pair: "", slots: [{ role: "compliance", prefer: "risk_disclosure" }] },
+  ],
+};
+
+const HOMEPAGE_GOAL_TO_SKELETON_FLOOR = {
+  openAccount: "onboardingJourney",
+  deposit: "conversionFirst",
+  trading: "tradingCommand",
+  startTrading: "tradingCommand",
+  copytrading: "opportunities",
+  pamm: "opportunities",
+  asset: "accountOps",
+  contactSupport: "accountOps",
+  downloadApp: "accountOps",
+  learnMore: "accountOps",
+};
+
+// 统一校验器：所有来源（floor/golden/ai）产出的骨架都过这里。
+// snap：server-pair 含 LARGE 块 -> 拆纵向 full 行；单 slot 的 split/hero -> full。
+// critic：单一 main 且前置、>=1 个 server 横向行、risk_disclosure 收尾。
+function validateHomepageSectionSkeleton(skeleton = {}) {
+  const warnings = [];
+  const rawRows = Array.isArray(skeleton.rows) ? skeleton.rows : [];
+  let mainSeen = false;
+  const normalized = [];
+  rawRows.forEach((row) => {
+    const slots = (Array.isArray(row.slots) ? row.slots : []).filter((slot) => slot && canonicalHomeBlock(slot.module));
+    if (!slots.length) return;
+    slots.forEach((slot) => {
+      if (slot.main) {
+        if (mainSeen) slot.main = false;
+        else mainSeen = true;
+      }
+    });
+    const hasLarge = slots.some((slot) => LARGE_FULL_ROW_HOME_BLOCKS.has(slot.module));
+    if (slots.length > 1 && (row.type === "split" || row.type === "hero") && hasLarge) {
+      warnings.push(`server-pair row contained LARGE block, split to full rows: ${slots.map((slot) => slot.module).join("+")}`);
+      slots.forEach((slot) => normalized.push({ type: "full", pair: "", slots: [slot] }));
+      return;
+    }
+    let type = row.type;
+    if (slots.length === 1 && (type === "split" || type === "hero")) type = "full";
+    if (slots.length > 2 && type !== "full") type = "split";
+    normalized.push({ type: normalizeHomepageSectionType(type, slots.length), pair: row.pair || "", slots });
+  });
+  // 合规收尾：risk_disclosure 强制末行。
+  const riskIdx = normalized.findIndex((row) => row.slots.some((slot) => slot.module === "risk_disclosure"));
+  if (riskIdx >= 0 && riskIdx !== normalized.length - 1) {
+    const [riskRow] = normalized.splice(riskIdx, 1);
+    normalized.push(riskRow);
+  }
+  // 主视觉兜底：缺 main 时把首行首槽设为 main。
+  if (!mainSeen && normalized[0]?.slots?.[0]) {
+    normalized[0].slots[0].main = true;
+    mainSeen = true;
+  }
+  const countServerHorizontal = () => normalized.filter((row) => row.slots.length >= 2 && (row.type === "split" || row.type === "hero")).length;
+  // salvage：模块稀疏导致 server 搭档缺席、零横向行时，把前两个非 LARGE 单槽 full 行
+  // （排除合规收尾）合并成一个 split[6,6]，保证"至少一行左右结构"对稀疏模块集也成立。
+  if (countServerHorizontal() === 0) {
+    const eligible = [];
+    normalized.forEach((row, index) => {
+      const slot = row.slots[0];
+      if (
+        row.slots.length === 1 &&
+        slot &&
+        slot.module !== "risk_disclosure" &&
+        !LARGE_FULL_ROW_HOME_BLOCKS.has(slot.module)
+      ) {
+        eligible.push(index);
+      }
+    });
+    if (eligible.length >= 2) {
+      const [first, second] = eligible;
+      normalized[first] = { type: "split", pair: "server", slots: [normalized[first].slots[0], normalized[second].slots[0]] };
+      normalized.splice(second, 1);
+      warnings.push("salvage：稀疏模块集合并两个 full 行为 split 以保证横向结构。");
+    }
+  }
+  const horizontalServerRows = countServerHorizontal();
+  const horizontalClientPairs = normalized.filter(
+    (row, index) => row.pair === "client" && normalized[index + 1] && COMPACT_COMPANION_HOME_BLOCKS.has(normalized[index + 1].slots?.[0]?.module),
+  ).length;
+  const mainRowIndex = normalized.findIndex((row) => row.slots.some((slot) => slot.main));
+  const blocking = [];
+  if (!mainSeen) blocking.push("缺少主视觉槽");
+  if (mainRowIndex > 1) blocking.push(`主视觉落在第 ${mainRowIndex + 1} 行，未前置`);
+  if (horizontalServerRows < 1) blocking.push("缺少服务端可检出的横向行");
+  return {
+    skeletonId: cleanText(skeleton.skeletonId, "floor-accountOps-v1", 48),
+    source: cleanText(skeleton.source, "floor", 16),
+    goal: cleanText(skeleton.goal, "", 40),
+    floor: cleanText(skeleton.floor, "", 40),
+    rows: normalized,
+    sectionContract: normalized.map((row) => `${row.type}:${row.slots.map((slot) => slot.module).join("+")}`),
+    mainVisual: (normalized.flatMap((row) => row.slots).find((slot) => slot.main) || {}).module || canonicalHomeBlock(skeleton.mainVisual) || "",
+    horizontalServerRows,
+    horizontalClientPairs,
+    status: blocking.length ? "needs-floor" : "passed",
+    blocking,
+    warnings: warnings.slice(0, 8),
+  };
+}
+
+// 来源 C：按页面目标取 floor 模板，用可见模块裁剪填充，过校验器。
+function buildHomepageFloorSkeleton(goalId, visibleModules = [], mainVisual = "") {
+  const floorName = HOMEPAGE_GOAL_TO_SKELETON_FLOOR[goalId] || "accountOps";
+  const template = HOMEPAGE_SKELETON_FLOOR_TEMPLATES[floorName] || HOMEPAGE_SKELETON_FLOOR_TEMPLATES.accountOps;
+  const available = new Set((Array.isArray(visibleModules) ? visibleModules : []).map(canonicalHomeBlock).filter(Boolean));
+  const used = new Set();
+  const mainBlock = canonicalHomeBlock(mainVisual);
+  const rows = [];
+  template.forEach((rowTpl) => {
+    const slots = [];
+    rowTpl.slots.forEach((slot) => {
+      let block = "";
+      if (slot.main && mainBlock && available.has(mainBlock) && !used.has(mainBlock)) block = mainBlock;
+      else if (slot.prefer && available.has(slot.prefer) && !used.has(slot.prefer)) block = slot.prefer;
+      if (!block) return;
+      used.add(block);
+      slots.push({ role: slot.role, module: block, main: Boolean(slot.main) });
+    });
+    if (slots.length) rows.push({ type: rowTpl.type, pair: rowTpl.pair, slots });
+  });
+  // 溢出：可见但未编排进骨架的模块按出现顺序追加为 full 行（risk_disclosure 交给校验器收尾）。
+  (Array.isArray(visibleModules) ? visibleModules : []).map(canonicalHomeBlock).filter(Boolean).forEach((block) => {
+    if (used.has(block) || block === "risk_disclosure") return;
+    used.add(block);
+    rows.push({ type: "full", pair: "", slots: [{ role: "secondary", module: block, main: false }] });
+  });
+  return validateHomepageSectionSkeleton({ skeletonId: `floor-${floorName}-v1`, source: "floor", goal: goalId, floor: floorName, mainVisual, rows });
+}
+
+// ---- 骨架来源 A（黄金抽取）/ B（AI 合成）。两者都过 validateHomepageSectionSkeleton。----
+// 统一拿规划上下文（goal / 可见模块 / 主视觉），避免各来源重复算 pagePlan。
+function homepageSkeletonInputs(payload = {}, pagePlan = null) {
+  const plan =
+    pagePlan ||
+    buildHomepagePagePlan(payload, {
+      pageIntent: applyGuidedIntentProfile(buildHomepageIntentProfile(payload.prompt), guidedAiIntakeFromPayload(payload)),
+    });
+  const visible = [...new Set([...(plan.requiredModules || []), ...(plan.optionalModules || [])].map(canonicalHomeBlock).filter(Boolean))];
+  return { plan, visible, mainVisual: plan.mainVisual, goal: plan.pageGoal };
+}
+
+// 通用打包器：把一串模块按"可存活的横向配对"规则铺成骨架行（来源 A 和 B-校验前都可用）。
+// 连续两个非 LARGE → hero/split（server）；LARGE → 整行 full（其后接 compact 时标 client 配对）；
+// risk_disclosure 收尾。最终仍交给 validateHomepageSectionSkeleton 做 snap + critic + salvage。
+function packModulesIntoSkeletonRows(modules = [], mainVisual = "", firstScreen = new Set()) {
+  const list = [...new Set((Array.isArray(modules) ? modules : []).map(canonicalHomeBlock).filter(Boolean))];
+  const mainBlock = canonicalHomeBlock(mainVisual);
+  const main = mainBlock && list.includes(mainBlock) ? mainBlock : list.find((m) => firstScreen.has(m)) || list[0] || "";
+  const hasRisk = list.includes("risk_disclosure");
+  const queue = list.filter((m) => m !== "risk_disclosure");
+  if (main) {
+    const i = queue.indexOf(main);
+    if (i > 0) {
+      queue.splice(i, 1);
+      queue.unshift(main);
+    }
+  }
+  const rows = [];
+  let idx = 0;
+  while (idx < queue.length) {
+    const m = queue[idx];
+    const isMain = m === main;
+    if (LARGE_FULL_ROW_HOME_BLOCKS.has(m)) {
+      const next = queue[idx + 1];
+      const clientPair = WIDE_PAIRABLE_HOME_BLOCKS.has(m) && next && COMPACT_COMPANION_HOME_BLOCKS.has(next) && !LARGE_FULL_ROW_HOME_BLOCKS.has(next);
+      rows.push({ type: "full", pair: clientPair ? "client" : "", slots: [{ role: isMain ? "primary" : "secondary", module: m, main: isMain }] });
+      idx += 1;
+      continue;
+    }
+    const next = queue[idx + 1];
+    if (next && !LARGE_FULL_ROW_HOME_BLOCKS.has(next)) {
+      rows.push({
+        type: rows.length === 0 ? "hero" : "split",
+        pair: "server",
+        slots: [
+          { role: isMain ? "primary" : "support", module: m, main: isMain },
+          { role: "support", module: next, main: false },
+        ],
+      });
+      idx += 2;
+      continue;
+    }
+    rows.push({ type: "full", pair: "", slots: [{ role: isMain ? "primary" : "secondary", module: m, main: isMain }] });
+    idx += 1;
+  }
+  if (hasRisk) rows.push({ type: "full", pair: "", slots: [{ role: "compliance", module: "risk_disclosure", main: false }] });
+  return rows;
+}
+
+// 来源 A：从匹配到的黄金样本抽取"模块组成 + 顺序 + 首屏焦点"，打包成骨架。
+// 黄金样本不带结构化 sections，但带 sampleBlocks(有序+page 区位) 和 functions(name→canonical modules)。
+function buildHomepageGoldenSkeleton(payload = {}, pagePlan = null) {
+  const { plan, visible, mainVisual, goal } = homepageSkeletonInputs(payload, pagePlan);
+  const floor = () => buildHomepageFloorSkeleton(goal, visible, mainVisual);
+  if (!visible.length) return floor();
+  const ranked = rankGoldenDesignSamplesForPrompt(payload.prompt || "", 1);
+  const sample = ranked[0];
+  if (!sample) return floor();
+  const visibleSet = new Set(visible);
+  const ordered = [];
+  const firstScreen = new Set();
+  const pushMod = (value, fs) => {
+    const m = canonicalHomeBlock(value);
+    if (!m || !visibleSet.has(m)) return;
+    if (!ordered.includes(m)) ordered.push(m);
+    if (fs) firstScreen.add(m);
+  };
+  const nameToModules = new Map();
+  (Array.isArray(sample.functions) ? sample.functions : []).forEach((fn) => {
+    nameToModules.set(cleanText(fn?.name, "", 40), (Array.isArray(fn?.modules) ? fn.modules : []).map(canonicalHomeBlock).filter(Boolean));
+  });
+  (Array.isArray(sample.sampleBlocks) ? sample.sampleBlocks : []).forEach((block) => {
+    const fs = cleanText(block?.page, "", 24) === "first-screen";
+    const mods = nameToModules.get(cleanText(block?.name, "", 40)) || [canonicalHomeBlockLoose(block?.name)].filter(Boolean);
+    mods.forEach((m) => pushMod(m, fs));
+  });
+  (Array.isArray(sample.functions) ? sample.functions : []).forEach((fn) => (Array.isArray(fn?.modules) ? fn.modules : []).forEach((m) => pushMod(m, false)));
+  visible.forEach((m) => pushMod(m, false)); // 兜底：租户选了但样本没有的模块也要承接
+  if (!ordered.length) return floor();
+  const rows = packModulesIntoSkeletonRows(ordered, mainVisual, firstScreen);
+  const skeleton = validateHomepageSectionSkeleton({ skeletonId: `golden-${cleanText(sample.id, "sample", 32)}`, source: "golden", goal, mainVisual, rows });
+  if (skeleton.status !== "passed" || !skeleton.rows.length) return floor();
+  skeleton.goldenSampleId = cleanText(sample.id, "", 48);
+  skeleton.goldenSampleName = cleanText(sample.name, "", 80);
+  return skeleton;
+}
+
+const HOMEPAGE_SKELETON_AI_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["rows"],
+  properties: {
+    rows: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["type", "slots"],
+        properties: {
+          type: { type: "string", enum: ["hero", "split", "full", "rail"] },
+          slots: {
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["module"],
+              properties: {
+                module: { type: "string" },
+                role: { type: "string" },
+                main: { type: "boolean" },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+};
+
+function buildHomepageAiSkeletonPrompt(context = {}) {
+  const visible = Array.isArray(context.visible) ? context.visible : [];
+  const system = [
+    "你是 ForexCRM 首页骨架规划器。",
+    "只返回一个 JSON object：{rows:[{type, slots:[{module, role, main}]}]}，不要 markdown、解释、HTML、CSS。",
+    "rows 表达从上到下的 section 顺序；每行 type ∈ hero/split/full/rail。",
+    "横向硬规则（违反会被拒）：hero/split 行必须放两个模块且都不能是大模块；大模块只能整行 full，不能与其它模块同行。",
+    "大模块清单：trading_accounts_list, trading_account_highlight, onboarding_guide, promo_banner, pamm_products, copytrading_signals, wallet_list。",
+    "全骨架有且仅一个 main=true 的主视觉槽，且必须在前两行；risk_disclosure 若出现必须是最后一行 full。",
+    "只能使用 availableModules 里的模块，不得发明；至少要有一行 hero/split 左右结构。",
+    "role ∈ primary/proof/support/secondary/decision/compliance。",
+  ].join("\n");
+  const user = [
+    `pageGoal: ${cleanText(context.goal, "", 40)}`,
+    `mainVisual（应设为 main=true 的主视觉）: ${cleanText(context.mainVisual, "", 48)}`,
+    `availableModules: ${visible.join(", ")}`,
+    '示例(仅结构参考): {"rows":[{"type":"hero","slots":[{"module":"asset_overview","role":"primary","main":true},{"module":"quick_actions","role":"support"}]},{"type":"full","slots":[{"module":"trading_accounts_list","role":"secondary"}]},{"type":"full","slots":[{"module":"risk_disclosure","role":"compliance"}]}]}',
+    `需求: ${cleanText(context.prompt, "默认首页", 600)}`,
+  ].join("\n");
+  return { system, user };
+}
+
+// 来源 B：调模型只合成骨架（不选内容、不写 HTML），过同一校验器；mock/缺 key/失败/不达标都回退 floor。
+async function buildHomepageAiSkeleton(payload = {}, pagePlan = null) {
+  const { visible, mainVisual, goal } = homepageSkeletonInputs(payload, pagePlan);
+  const floorWith = (reason) => {
+    const f = buildHomepageFloorSkeleton(goal, visible, mainVisual);
+    f.source = "ai-fallback-floor";
+    f.aiFallbackReason = reason;
+    return f;
+  };
+  if (!visible.length) return floorWith("无可见模块，回退 floor。");
+  if (process.env.HOME_AI_MOCK === "true") return floorWith("HOME_AI_MOCK=true，未调用模型，回退 floor 骨架。");
+  try {
+    const config = normalizeProviderConfig(payload.modelConfig);
+    const apiKey = resolveApiKey(config);
+    if (!apiKey) return floorWith("缺少 API key，回退 floor。");
+    const parts = buildHomepageAiSkeletonPrompt({ goal, visible, mainVisual, prompt: payload.prompt });
+    const parsed = await requestAndParseProviderJson(config, apiKey, parts, HOMEPAGE_SKELETON_AI_SCHEMA, "home_section_skeleton");
+    const mainBlock = canonicalHomeBlock(mainVisual);
+    const rows = (Array.isArray(parsed?.rows) ? parsed.rows : [])
+      .map((row) => ({
+        type: cleanText(row?.type, "full", 16),
+        pair: "",
+        slots: (Array.isArray(row?.slots) ? row.slots : [])
+          .map((slot) => ({ role: cleanText(slot?.role, "support", 24), module: canonicalHomeBlock(slot?.module), main: false }))
+          .filter((slot) => slot.module && visible.includes(slot.module)),
+      }))
+      .filter((row) => row.slots.length);
+    let mainSet = false;
+    rows.forEach((row) => row.slots.forEach((slot) => {
+      if (!mainSet && slot.module === mainBlock) {
+        slot.main = true;
+        mainSet = true;
+      }
+    }));
+    const skeleton = validateHomepageSectionSkeleton({ skeletonId: `ai-${goal}`, source: "ai", goal, mainVisual, rows });
+    if (skeleton.status === "passed" && skeleton.rows.length) return skeleton;
+    return floorWith(`AI 骨架未过校验(${skeleton.blocking.join("；")})，回退 floor。`);
+  } catch (error) {
+    return floorWith(cleanText(error?.message, "AI 骨架生成失败，回退 floor。", 180));
+  }
+}
+
+// 同步来源解析（floor / golden）。ai 来源是异步的，由调用方预先 await 后以 skeletonOverride 传入。
+function resolveHomepageSkeletonSync(payload = {}, pagePlan = {}) {
+  const source = cleanText(payload.skeletonSource, "floor", 12);
+  if (source === "golden") {
+    const golden = buildHomepageGoldenSkeleton(payload, pagePlan);
+    if (golden && Array.isArray(golden.rows) && golden.rows.length) return golden;
+  }
+  return pagePlan.sectionSkeleton;
+}
+
+// ---- Step 2/3：骨架预览 + 批量填充。详见 docs/SKELETON_SPEC.md。----
+// Tier A：绑定真实资金/账户数据或合规必备的模块，只能用固定积木填充，绝不走 AI 组件生成。
+// 其余为 Tier B（营销/内容/展示），允许 AI 组件填充（失败回退积木）。
+const HOMEPAGE_TIER_A_MODULES = new Set([
+  "asset_overview",
+  "wallet_list",
+  "quick_actions",
+  "trading_account_highlight",
+  "trading_accounts_list",
+  "copytrading_signals",
+  "pamm_products",
+  "onboarding_guide",
+  "referral_link_card",
+  "kyc_status_card",
+  "risk_disclosure",
+]);
+
+function homepageModuleTier(module) {
+  return HOMEPAGE_TIER_A_MODULES.has(canonicalHomeBlock(module)) ? "A" : "B";
+}
+
+// 阶段1：骨架预览（确定性、零 LLM）。给每个 slot 标 tier/span/积木家族，供前端直接渲染线框。
+function homepageSkeletonPreview(payload = {}, skeletonOverride = null) {
+  const intentProfile = applyGuidedIntentProfile(buildHomepageIntentProfile(payload.prompt), guidedAiIntakeFromPayload(payload));
+  const pagePlan = buildHomepagePagePlan(payload, { pageIntent: intentProfile });
+  // 来源选择：ai 由调用方预先 await 并以 skeletonOverride 传入；floor/golden 同步解析。
+  const skeleton =
+    (skeletonOverride && Array.isArray(skeletonOverride.rows) && skeletonOverride.rows.length ? skeletonOverride : null) ||
+    resolveHomepageSkeletonSync(payload, pagePlan) ||
+    pagePlan.sectionSkeleton || { rows: [], sectionContract: [] };
+  const rows = (skeleton.rows || []).map((row, rowIndex) => {
+    const spans = brickBackedSlotSpans(row.type, row.slots.length);
+    return {
+      row: rowIndex + 1,
+      type: row.type,
+      pair: row.pair || "",
+      slots: row.slots.map((slot, slotIndex) => {
+        const meta = HOMEPAGE_BLOCK_REPAIR_META[slot.module] || {};
+        const tier = homepageModuleTier(slot.module);
+        return {
+          module: slot.module,
+          role: slot.role,
+          main: Boolean(slot.main),
+          tier,
+          span: spans[slotIndex] || 12,
+          family: meta.family || "",
+          title: meta.title || slot.module,
+          fillStrategy: tier === "A" ? "brick" : "ai-or-brick",
+        };
+      }),
+    };
+  });
+  const flatSlots = rows.flatMap((row) => row.slots);
+  return {
+    skeletonId: skeleton.skeletonId,
+    source: skeleton.source,
+    goal: pagePlan.pageGoal,
+    mainVisual: skeleton.mainVisual || pagePlan.mainVisual,
+    status: skeleton.status,
+    horizontalServerRows: skeleton.horizontalServerRows,
+    rows,
+    sectionContract: skeleton.sectionContract || [],
+    ...(skeleton.goldenSampleId ? { goldenSampleId: skeleton.goldenSampleId, goldenSampleName: skeleton.goldenSampleName } : {}),
+    ...(skeleton.aiFallbackReason ? { aiFallbackReason: skeleton.aiFallbackReason } : {}),
+    tierSummary: {
+      brickSlots: flatSlots.filter((slot) => slot.tier === "A").length,
+      aiSlots: flatSlots.filter((slot) => slot.tier === "B").length,
+    },
+  };
+}
+
+// 阶段2：批量填充。Tier A → 积木（瞬时）；Tier B → AI 组件（并行，mock/失败回退积木）。
+async function fillHomepageSkeleton(payload = {}) {
+  // ai 来源需异步预构骨架；floor/golden 同步由 preview 内部解析。
+  const aiOverride = cleanText(payload.skeletonSource, "", 12) === "ai" ? await buildHomepageAiSkeleton(payload) : null;
+  const preview = homepageSkeletonPreview(payload, aiOverride);
+  const aiSlots = preview.rows.flatMap((row) => row.slots).filter((slot) => slot.tier === "B");
+  const aiResults = await Promise.all(
+    aiSlots.map(async (slot) => {
+      try {
+        const result = await callComponentProvider({
+          ...payload,
+          family: slot.family || undefined,
+          prompt: `为首页「${slot.title}」槽位生成组件，业务角色=${slot.role}。${payload.prompt || ""}`.slice(0, 600),
+          persist: false,
+          save: false,
+        });
+        return { module: slot.module, kind: "ai-component", component: result.component, mock: Boolean(result.mock), provider: result.provider };
+      } catch (error) {
+        const meta = HOMEPAGE_BLOCK_REPAIR_META[slot.module] || {};
+        return { module: slot.module, kind: "brick-fallback", brickId: meta.brickId || "", error: cleanText(error?.message, "AI 组件生成失败", 180) };
+      }
+    }),
+  );
+  const aiByModule = new Map(aiResults.map((result) => [result.module, result]));
+  const slotComponents = {};
+  const filledRows = preview.rows.map((row) => ({
+    ...row,
+    slots: row.slots.map((slot) => {
+      if (slot.tier === "A") {
+        const meta = HOMEPAGE_BLOCK_REPAIR_META[slot.module] || {};
+        return { ...slot, fill: { kind: "brick", brickId: meta.brickId || "", brickName: meta.brickName || "" } };
+      }
+      const ai = aiByModule.get(slot.module);
+      if (ai?.component?.html) {
+        slotComponents[slot.module] = {
+          html: sanitizeAiHtmlMarkup(ai.component.html),
+          css: enforceGoldenThemeOnCss(sanitizeAiHtmlCss(ai.component.css || "")),
+          name: cleanText(ai.component.name, slot.title, 60),
+        };
+        return { ...slot, fill: { kind: "ai-component", componentName: cleanText(ai.component.name, slot.title, 60), mock: Boolean(ai.mock) } };
+      }
+      const meta = HOMEPAGE_BLOCK_REPAIR_META[slot.module] || {};
+      return { ...slot, fill: { kind: "brick-fallback", brickId: ai?.brickId || meta.brickId || "", reason: ai?.error || "" } };
+    }),
+  }));
+  const flat = filledRows.flatMap((row) => row.slots);
+  return {
+    ...preview,
+    rows: filledRows,
+    slotComponents,
+    fillSummary: {
+      brickFilled: flat.filter((slot) => slot.fill?.kind === "brick").length,
+      aiFilled: flat.filter((slot) => slot.fill?.kind === "ai-component").length,
+      fallback: flat.filter((slot) => slot.fill?.kind === "brick-fallback").length,
+    },
+    // 接入渲染：可直接喂给前端 skeletonHtml 渲染器的完整 config。
+    config: assembleFilledSkeletonRenderConfig(payload, { rows: filledRows, slotComponents, skeletonId: preview.skeletonId, goal: preview.goal, sectionContract: preview.sectionContract }),
+  };
+}
+
+// 把填充结果组装成可渲染 config：骨架 sections 决定布局，skeletonHtmlScheme 携带 Tier B AI 组件，
+// Tier A 槽无 slotComponent → 客户端 renderSkeletonHtmlScheme 自动回退 renderSlot 渲积木。
+// 主题/moduleSettings/积木脚手架复用确定性的 mockHomepageConfig（零真实 LLM）。
+function assembleFilledSkeletonRenderConfig(payload = {}, filled = {}) {
+  const providerConfig = normalizeProviderConfig(payload.modelConfig);
+  const base = mockHomepageConfig(payload, providerConfig);
+  const rows = Array.isArray(filled.rows) ? filled.rows : [];
+  const slotComponents = filled.slotComponents && typeof filled.slotComponents === "object" ? filled.slotComponents : {};
+  const sections = rows
+    .map((row, index) => ({
+      id: `skeleton-row-${index + 1}`,
+      type: cleanText(row.type, "full", 16),
+      title: "",
+      slots: (Array.isArray(row.slots) ? row.slots : []).map((slot) => slot.module).filter(Boolean),
+    }))
+    .filter((section) => section.slots.length);
+  const slots = rows.flatMap((row, rowIndex) => {
+    const count = Array.isArray(row.slots) ? row.slots.length : 0;
+    return (Array.isArray(row.slots) ? row.slots : []).map((slot, slotIndex) => {
+      const meta = HOMEPAGE_BLOCK_REPAIR_META[slot.module] || {};
+      // 跨列由 slot size 决定（渲染器 1x→4 / 2x→8 / 3x→12 列）。多 slot 行必须显式给 size 才能左右并排：
+      // 2 slot → 2x1+1x1（[8,4]），3 slot → 1x1×3（[4,4,4]）；单 slot 一律全宽（span12，避免旁边留空），
+      // 大模块（自然高 2/3 行）用 3x2 保留高度，其余 3x1。
+      const tall = /x[23]\b/.test(meta.size || "");
+      const size = count <= 1 ? (tall ? "3x2" : "3x1") : count === 2 ? (slotIndex === 0 ? "2x1" : "1x1") : "1x1";
+      return {
+        id: slot.module,
+        slot: slot.module,
+        sectionId: `skeleton-row-${rowIndex + 1}`,
+        sectionType: cleanText(row.type, "full", 16),
+        size,
+        label: cleanText(slot.title, slot.module, 80),
+        status: slotComponents[slot.module]?.html ? "filled" : "pending-fill",
+      };
+    });
+  });
+  return {
+    ...base,
+    sections,
+    renderMode: "skeletonHtml",
+    activeRenderMode: "skeletonHtml",
+    skeletonHtmlEnabled: true,
+    skeletonHtmlScheme: {
+      enabled: true,
+      name: `${cleanText(base.name, "AI 首页", 40)} · 骨架填充`,
+      summary: "骨架先定，Tier A 槽走积木、Tier B 槽走 AI 组件批量填充。",
+      sourceType: "skeleton-fill",
+      status: "filled",
+      slots,
+      slotComponents,
+    },
+    sectionSkeleton: {
+      skeletonId: cleanText(filled.skeletonId, "", 48),
+      goal: cleanText(filled.goal, "", 40),
+      sectionContract: Array.isArray(filled.sectionContract) ? filled.sectionContract : [],
+    },
+  };
+}
+
 function buildHomepagePagePlan(payload = {}, config = {}) {
   const guidedIntake = guidedAiIntakeFromPayload(payload);
   const intentProfile = applyGuidedIntentProfile(buildHomepageIntentProfile(payload.prompt), guidedIntake);
@@ -12862,6 +13437,7 @@ function buildHomepagePagePlan(payload = {}, config = {}) {
   const compositionGroups = homepageCompositionGroupsForPlan(visibleModules, mainVisual, goal.id);
   const compositeBlocks = homepageGoldenCompositeBlocksForPlan(compositionGroups, mainVisual);
   const goldenSkeleton = homepageGoldenSkeletonContractForPlan(visibleModules, mainVisual, goal.id, compositionGroups);
+  const sectionSkeleton = buildHomepageFloorSkeleton(goal.id, visibleModules, mainVisual);
 
   return {
     planVersion: 1,
@@ -12879,6 +13455,7 @@ function buildHomepagePagePlan(payload = {}, config = {}) {
     compositionGroups,
     compositeBlocks,
     goldenSkeleton,
+    sectionSkeleton,
     moduleRoles: Object.fromEntries(
       visibleModules.map((block) => [
         block,
@@ -12899,6 +13476,7 @@ function buildHomepagePagePlan(payload = {}, config = {}) {
       "黄金样本已经是骨架强参考：首屏比例、背景/模块分层、分区密度和操作入口节奏必须在 sections/layout 中执行。",
       "如果多个模块同屏成组，用 compositeBlocks 表达业务关系；渲染时仍要避免把不同语义模块糊成一个大色块。",
       "普通组件化渲染必须携带 8 分及以上组件库参考；组件质量不达标时优先采用高分组件结构兜底。",
+      "sections 必须严格按 sectionSkeleton.sectionContract 给定的 section 顺序与左右分栏排布；该骨架已保证主视觉前置、合规收尾和至少一行左右结构，不要改成纵向单列或自行重排。",
     ],
   };
 }
@@ -21161,6 +21739,31 @@ const requestHandler = async (req, res) => {
     return;
   }
 
+  // 阶段1：骨架预览（确定性、零 LLM）——前端拿到后可直接渲染线框，用户确认后再调 /fill。
+  if (req.method === "POST" && requestUrl.pathname === "/api/home-ai/skeleton") {
+    try {
+      const payload = await readJsonBody(req);
+      const aiOverride = cleanText(payload.skeletonSource, "", 12) === "ai" ? await buildHomepageAiSkeleton(payload) : null;
+      sendJson(res, 200, { ok: true, skeleton: homepageSkeletonPreview(payload, aiOverride) });
+    } catch (error) {
+      const status = error.statusCode && error.statusCode >= 400 && error.statusCode < 600 ? error.statusCode : 500;
+      sendJson(res, status, { ok: false, error: error.message || "Skeleton preview failed" });
+    }
+    return;
+  }
+
+  // 阶段2：批量填充——Tier A 槽走积木（瞬时），Tier B 槽并行调 AI 组件（mock/失败回退积木）。
+  if (req.method === "POST" && requestUrl.pathname === "/api/home-ai/fill") {
+    try {
+      const payload = await readJsonBody(req);
+      sendJson(res, 200, { ok: true, ...(await fillHomepageSkeleton(payload)) });
+    } catch (error) {
+      const status = error.statusCode && error.statusCode >= 400 && error.statusCode < 600 ? error.statusCode : 500;
+      sendJson(res, status, { ok: false, error: error.message || "Skeleton fill failed" });
+    }
+    return;
+  }
+
   if (req.method === "GET" && requestUrl.pathname === "/api/home-ai/reference-assets") {
     const prompt = requestUrl.searchParams.get("prompt") || "";
     sendJson(res, 200, {
@@ -21341,4 +21944,14 @@ module.exports = Object.assign(requestHandler, {
   homepageArchetypeOrder,
   validateBrickFit,
   evaluateGoldenAlignment,
+  buildHomepageFloorSkeleton,
+  validateHomepageSectionSkeleton,
+  buildHomepagePagePlan,
+  homepageModuleTier,
+  homepageSkeletonPreview,
+  fillHomepageSkeleton,
+  assembleFilledSkeletonRenderConfig,
+  buildHomepageGoldenSkeleton,
+  buildHomepageAiSkeleton,
+  packModulesIntoSkeletonRows,
 });

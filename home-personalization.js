@@ -5793,7 +5793,8 @@
     const variant = moduleId ? config?.modules?.[moduleId]?.variant || MODULE_VARIANT_DEFAULTS[moduleId] || "" : "";
     const morph = moduleId ? config?.componentMorphs?.[moduleId]?.morphId || "" : "";
     const slotKey = skeletonSlotKey(slot);
-    const size = skeletonSlotSizeForGrid(slotKey, section);
+    const slotCount = Array.isArray(section?.slots) ? section.slots.length : 0;
+    const size = skeletonSlotSizeForGrid(slotKey, section, index, slotCount);
     const layoutContract = homeGridContractForSize(size, {
       slot: slotKey,
       sectionType: section?.type || "full",
@@ -5818,10 +5819,15 @@
     };
   }
 
-  function skeletonSlotSizeForGrid(slotId, section = {}) {
+  function skeletonSlotSizeForGrid(slotId, section = {}, index = 0, slotCount = 0) {
     const key = skeletonSlotKey(slotId);
     const largeSize = largeFullRowHomeBlockSize(key);
     if (largeSize) return largeSize;
+    // 多 slot 行给互补跨列，真正左右并排：2 slot → 8+4（2x1+1x1），3 slot → 4+4+4（1x1×3）。
+    // 必须先于 asset_overview 的全宽硬编码，否则 split 里的 asset_overview 永远撑满整行无法配对，
+    // 且原来 split 给每个 slot 都返回 2x1(span8) 会出现 8+8=16 溢出折行。
+    if (slotCount === 2) return index === 0 ? "2x1" : "1x1";
+    if (slotCount >= 3) return "1x1";
     if (["asset_overview", "risk_disclosure"].includes(key)) return "3x1";
     if (section?.type === "rail") return "1x1";
     if (section?.type === "split") return "2x1";
