@@ -2478,9 +2478,19 @@
         const locked = slot.locked || slot.status === "locked" || slot.status === "final";
         return options.force || (!locked && !component?.html && slot.status !== "generating");
       });
-      for (const slot of slots) {
-        await generateSkeletonSlot(slot.id, options.force && scheme.slotComponents?.[slot.id] ? "style" : "regenerate");
-      }
+      // 并发填充：每个 slot 是独立模型调用，只锚定共享 designContract/pageDesign，彼此不依赖，可安全并行。
+      // 工作池上限 3：兼顾 Gemini 限流、浏览器同源连接上限与每次 setConfig 触发的整页重渲染频率。
+      const SKELETON_FILL_CONCURRENCY = 3;
+      let fillCursor = 0;
+      const pumpSkeletonFill = async () => {
+        while (fillCursor < slots.length) {
+          const slot = slots[fillCursor++];
+          await generateSkeletonSlot(slot.id, options.force && scheme.slotComponents?.[slot.id] ? "style" : "regenerate");
+        }
+      };
+      await Promise.all(
+        Array.from({ length: Math.min(SKELETON_FILL_CONCURRENCY, slots.length) }, () => pumpSkeletonFill()),
+      );
       const refreshedScheme = skeletonSchemeFor(currentConfig);
       if (refreshedScheme.slots.length && refreshedScheme.slots.every((slot) => ["filled", "locked", "final"].includes(slot.status))) {
         setConfig(withSkeletonSchemeStatus(currentConfig, "review"), "骨架组件已全部填充，等待定稿", { saveDraft: true });

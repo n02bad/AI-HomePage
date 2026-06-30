@@ -108,7 +108,10 @@ const MINIMAX_CN_BASE_URL = "https://api.minimaxi.com/v1";
 const MINIMAX_CN_TYPED_ALIAS_BASE_URL = "https://api.minimaxi.cn/v1";
 const MINIMAX_GLOBAL_BASE_URL = "https://api.minimax.io/v1";
 const MINIMAX_OFFICIAL_BASE_URLS = [MINIMAX_CN_BASE_URL];
-const MINIMAX_MAX_COMPLETION_TOKENS = 2048;
+// 原值 2048 对 MiniMax-M3 的组件生成（HTML+CSS）太小：稍复杂的模块就会以 finish:length
+// 中途截断，JSON.parse 失败而静默回退兜底（调用记录里一堆 M3 fallback 都是这个原因）。
+// 抬到 8192 与其他 provider 的默认输出预算对齐，单组件足够；它同时是 minimax 的默认值与上限。
+const MINIMAX_MAX_COMPLETION_TOKENS = 8192;
 // A full homepage blueprint (sections + brickPlan + moduleStyles + moduleSettings + autoLayout)
 // routinely exceeds 6000 output tokens; too low a budget makes the model finish with
 // `length` mid-JSON, which fails JSON.parse and silently drops to the brick fallback.
@@ -3983,9 +3986,13 @@ const BRICK_ACTION_RULES = [
   { role: "transfer", re: /转\s*账|划转|transfer/i },
   { role: "openAccount", re: /立即开户|开立(?:真实)?账户|开\s*户|open\s*account/i },
   { role: "verify", re: /立即验证|去认证|实名认证|kyc|verify/i },
-  { role: "follow", re: /关\s*注|跟\s*单|订阅信号|follow|copy/i },
+  { role: "copyLink", re: /复制(?:链接|邀请码|推广链接|地址)?|copy(?:\s*(?:link|code|url))?/i },
+  { role: "follow", re: /关\s*注|跟\s*单|订阅信号|follow|copy\s*trad|copytrading/i },
   { role: "joinCampaign", re: /立即参与|参与活动|领取|join|claim/i },
   { role: "bindAccount", re: /绑定(?:账户|账号)|bind\s*account/i },
+  { role: "contactSupport", re: /联系客服|在线客服|联系我们|客户经理|提交工单|live\s*chat|contact\s*support/i },
+  { role: "downloadApp", re: /下载\s*app|下载应用|扫码下载|download\s*app|app\s*store|google\s*play/i },
+  { role: "viewDetail", re: /查看详情|查看更多|了解详情|view\s*(?:detail|more)/i },
 ];
 
 function classifyBrickActionText(text = "") {
@@ -4281,6 +4288,27 @@ function generatedComponentQualityIssues(component, payload = {}) {
   }
   if (generatedComponentVisibleText(component).length < 18 && !/<svg\b|data-home-echart|data-chart/i.test(source)) {
     issues.push("组件可见业务内容过少，容易退化成空壳。");
+  }
+  // 租户预览逼真度门禁：链接/联系方式类模块必须有可见的示例链接或联系方式，不能出现空模块。
+  const html = String(component?.html || "");
+  const hasUrl = /https?:\/\/[^\s"'<>]+/i.test(html);
+  if (family === "ReferralLinkCard" && !hasUrl && !/邀请码|inviteCode|INV[0-9A-Z]{4,}/i.test(html)) {
+    issues.push("邀请推广模块缺少可见的示例推广链接或邀请码，租户预览会看到没有 mock 链接的空模块。");
+  }
+  if (family === "AppDownload" && !hasUrl) {
+    issues.push("APP 下载模块缺少可见的示例下载链接，租户预览会看到无法下载的空模块。");
+  }
+  if (family === "SupportContact" && !hasUrl && !/@|\+?\d[\d\s-]{5,}|在线|客户经理|工单/i.test(html)) {
+    issues.push("客服模块缺少可见的联系方式（电话/邮箱/在线客服/客户经理），租户预览无法联系。");
+  }
+  // 交互闭环门禁：交互型模块若有按钮/链接却未绑定任何 data-home-action，租户预览将不可操作。
+  const interactiveFamilies = ["AssetOverview", "WalletBalance", "FundActions", "QuickActions", "PromotionBanner", "ReferralLinkCard", "TradingAccounts", "OpenAccount", "OnboardingProgress", "CopytradingSignals", "PammProducts", "SupportContact", "AppDownload"];
+  if (interactiveFamilies.includes(family)) {
+    const controlCount = (html.match(/<(?:button|a)\b/gi) || []).length;
+    const actionCount = (html.match(/data-home-action\s*=/gi) || []).length;
+    if (controlCount >= 1 && actionCount === 0) {
+      issues.push("交互型模块包含按钮/链接却未绑定任何 data-home-action，租户预览不可操作；关键动作必须绑定动作角色。");
+    }
   }
   return [...new Set(issues)].slice(0, 6);
 }
@@ -7980,7 +8008,7 @@ function aestheticTrainingContext(payloadOrPrompt = {}, options = {}) {
       moduleBalance: "避免空洞、头重脚轻、孤立小模块独占大行或每个 slot 都抢焦点。",
       componentCraft: "8-10 分漂亮积木块是强参考，6-7 分只适度参考，5 分及以下必须杜绝。",
       financialTone: "金融质感可信、克制、专业，不用随机营销装饰制造高级感。",
-      businessTruth: "不编造监管承诺、收益、下载链接或后台没有的数据；每个模块绑定真实数据字段和系统动作。",
+      businessTruth: "不编造监管承诺、收益承诺或监管资质；但这是给租户管理员看的预览演示，模块必须用 capability.sampleData 提供的逼真示例数据（含推广链接、邀请码、客服联系方式、下载入口等）填满，禁止留空或 -- 占位；每个模块绑定真实数据字段并把关键动作接入 data-home-action。",
       responsive: "桌面 12 栅格有节奏，移动端自然单列，不靠空白撑高级感。",
       visualConsistency: "slot/模块之间要像同一套设计语言，按钮、字体、卡片密度和 token 协调。",
       publishability: "最终结果应接近可直接交给租户发布的质量线。",
@@ -8133,13 +8161,13 @@ const AI_HTML_MODULE_CONTRACTS = {
     label: "在线客服",
     family: "SupportContact",
     signals: ["客服", "客户经理", "联系", "support", "service"],
-    expectation: "只展示轻量服务时间、状态和联系动作，不得编造联系方式。",
+    expectation: "展示服务时间、在线状态、客户经理/电话/邮箱等联系方式和联系动作；预览演示请使用 capability.sampleData 里的逼真联系方式，不要留空。",
   },
   app_download: {
     label: "APP 下载",
     family: "AppDownload",
     signals: ["APP", "下载", "移动端", "app download"],
-    expectation: "只做下载入口占位，不得编造二维码或下载链接。",
+    expectation: "展示 iOS/Android 下载入口；预览演示请使用 capability.sampleData 里的逼真示例下载链接和二维码说明，提供可点击的下载动作，不要只放空占位。",
   },
 };
 
@@ -8264,11 +8292,15 @@ const AI_HTML_MODULE_CAPABILITIES = {
 
 function aiHtmlModuleCapability(block) {
   const source = AI_HTML_MODULE_CAPABILITIES[block] || {};
+  // 整页路径与单 slot 路径共用同一套租户预览 mock 数据，保证两条管线产物一致（含逼真链接/联系方式）。
+  const family = AI_HTML_MODULE_CONTRACTS[block]?.family || HOME_BLOCK_MORPH_MODULE_MAP[block];
+  const sampleData = family ? COMPONENT_FAMILY_MOCK_DATA[family] : null;
   return {
     dataFields: normalizeAiHtmlTextList(source.dataFields, 10, 48),
     states: normalizeAiHtmlTextList(source.states, 8, 48),
     actions: normalizeAiHtmlTextList(source.actions, 8, 48),
     evidenceSignals: normalizeAiHtmlTextList(source.evidenceSignals, 8, 60),
+    ...(sampleData ? { sampleData } : {}),
   };
 }
 
@@ -11336,6 +11368,48 @@ function saveComposition(composition) {
   return composition;
 }
 
+// 租户预览用的逼真示例数据：生成给租户管理员看的演示首页时，模块必须用这些可信值填满
+// （含真实形态的邀请链接、邀请码、账号、金额、客服与下载入口），避免出现空模块或 -- 占位。
+// 这是演示数据，不是线上真实数据；线上渲染由真实业务字段绑定接管。
+const COMPONENT_FAMILY_MOCK_DATA = {
+  WelcomeHeader: { userName: "黄敏 (Huang Min)", greeting: "下午好", lastLoginAt: "2026-05-20 09:41 (GMT+8)", currentTime: "今天 14:08" },
+  AssetOverview: { totalAssets: "512,780.26 USD", walletBalance: "11,295.99 USD", tradingAccountBalance: "501,484.27 USD", credit: "7,788.00 USD", baseCurrency: "USD", marginLevel: "286%" },
+  WalletBalance: { walletTotal: "51,295.99 USD", balances: [{ currency: "USD", amount: "9,999.99" }, { currency: "EUR", amount: "1,200.00" }, { currency: "AUD", amount: "10.45" }, { currency: "USDT", amount: "38,085.55" }] },
+  WalletList: { converted: "51,295.99 USD", wallets: [{ currency: "USD", balance: "9,999.99" }, { currency: "EUR", balance: "1,200.00" }, { currency: "AUD", balance: "10.45" }, { currency: "USDT", balance: "38,085.55" }] },
+  FundActions: { actions: ["入金 Deposit", "出金 Withdrawal", "内部转账 Internal Transfer", "资金流水 Wallet Flow"] },
+  QuickActions: { actions: ["入金", "出金", "转账", "开真实账户", "交易记录", "持仓"] },
+  PromotionBanner: { campaignTitle: "5月盈利王挑战赛", prizePool: "$9,600", deadline: "剩余 28 天", bonusRule: "首次入金最高赠 $1,200", status: "进行中" },
+  ReferralLinkCard: { promoLink: "https://crm.hcglobal.com/r/INV8K3D9", inviteCode: "INV8K3D9", clicks: 268, registrations: 123, openedAccounts: 50, commission: "8,430.00 USD", qrCaption: "扫码邀请开户" },
+  TradingAccounts: { accounts: [
+    { kind: "Live", no: "80009", env: "MT5 · HCHoldings-Live2", balance: "999,999.99", equity: "1,002,480.55", credit: "7,788.00", type: "ECN", leverage: "1:500", margin: "286%" },
+    { kind: "Live", no: "80010", env: "MT5 · HCHoldings-Live2", balance: "145,118.20", equity: "148,902.10", credit: "0.00", type: "Standard", leverage: "1:200", margin: "312%" },
+    { kind: "Demo", no: "90021", env: "MT5 · HCHoldings-Demo", balance: "50,000.00", equity: "50,000.00", credit: "0.00", type: "Demo", leverage: "1:100", margin: "稳健" },
+  ] },
+  OpenAccount: { liveLink: "https://crm.hcglobal.com/account/open-live", demoLink: "https://crm.hcglobal.com/account/open-demo", bindLink: "https://crm.hcglobal.com/account/bind", kycStatus: "已通过" },
+  OnboardingProgress: { progress: "2/4", steps: [
+    { n: 1, label: "KYC 认证", state: "已完成" }, { n: 2, label: "开真实账户", state: "已完成" },
+    { n: 3, label: "首次入金", state: "进行中" }, { n: 4, label: "首笔交易", state: "待完成" },
+  ], nextCta: "立即入金" },
+  UserKycRail: { userName: "黄敏", country: "新加坡 Singapore", localTime: "2026-05-20 09:41", kycStatus: "已认证 (2023-04-06)", walletBalance: "52,306.00 USD" },
+  AccountPerformance: { account: "80009 · MT5 · HCHoldings-Live2", netProfit: "+12,860.38 USD", winRate: "61.8%", maxDrawdown: "5.2%", balance: "999,999.99 USD", equity: "1,002,480.55 USD", period: "近 30 天" },
+  CreateAccountForm: { platforms: ["MT4", "MT5"], accountTypes: ["ECN", "Standard"], currencies: ["USD", "EUR", "USDT"], leverages: ["1:100", "1:200", "1:500"] },
+  PammProducts: { products: [
+    { name: "稳健增长一号", annualReturn: "+24.6%", risk: "中低", aum: "$1.28M", followers: 1286 },
+    { name: "量化对冲二号", annualReturn: "+38.6%", risk: "中", aum: "$0.96M", followers: 842 },
+  ] },
+  CopytradingSignals: { signals: [
+    { name: "稳健趋势一号", env: "MT5 · 中低风险", followers: 1286, returnRate: "+18.6%", profit: "+8,640.00 USD", maxDrawdown: "5.2%" },
+    { name: "黄金短线精英", env: "MT5 · 中风险", followers: 642, returnRate: "+31.2%", profit: "+15,210.00 USD", maxDrawdown: "9.4%" },
+  ] },
+  RiskDisclosure: { riskLevel: "高风险", text: "外汇及差价合约属于杠杆交易产品，价格波动可能放大收益与亏损，您可能损失全部或部分本金。交易前请充分了解产品机制、保证金要求、点差、隔夜利息及强平规则。" },
+  FaqSection: { items: [
+    { q: "首次入金多久到账？", a: "银行卡和 USDT 通道通常在审核通过后较快入账，国际电汇以银行处理时间为准。" },
+    { q: "Demo 账号可以转真实吗？", a: "可在“开真实账户”一键创建真实账户，KYC 通过后即可入金交易。" },
+  ] },
+  SupportContact: { manager: "客户经理 李静", phone: "+65 6812 3456", email: "support@hcglobal.com", liveChat: "在线", serviceHours: "周一至周五 09:00–18:00 (GMT+8)", helpCenter: "https://crm.hcglobal.com/help" },
+  AppDownload: { iosLink: "https://crm.hcglobal.com/app/ios", androidLink: "https://crm.hcglobal.com/app/android", qrCaption: "扫码下载 HC Global App", platforms: ["iOS", "Android"] },
+};
+
 function componentFamilySpec(family) {
   const specs = {
     WelcomeHeader: {
@@ -11426,7 +11500,7 @@ function componentFamilySpec(family) {
     SupportContact: {
       purpose: "在线客服、客户经理、服务时间和帮助入口",
       requiredUi: ["在线客服标题", "服务时间或后台配置状态", "客户经理/工单/帮助中心其中至少两项", "联系客服主按钮", "帮助中心或提交工单次按钮"],
-      forbidden: ["只显示模块名", "把管理员 prompt 原文显示给客户", "账户余额/钱包/KYC/Open Account 主操作", "编造真实联系方式或外部下载链接"],
+      forbidden: ["只显示模块名", "把管理员 prompt 原文显示给客户", "账户余额/钱包/KYC/Open Account 主操作", "把客服扩展成完整工单中心"],
     },
     ClientHomeAtoms: {
       purpose: "从 client-home.html 拆出的真实细颗粒组件",
@@ -11435,7 +11509,9 @@ function componentFamilySpec(family) {
     },
   };
 
-  return specs[family] || specs.ClientHomeAtoms;
+  const spec = specs[family] || specs.ClientHomeAtoms;
+  const sampleData = COMPONENT_FAMILY_MOCK_DATA[family];
+  return sampleData ? { ...spec, sampleData } : spec;
 }
 
 function buildComponentPrompt(payload) {
@@ -11478,6 +11554,9 @@ function buildComponentPrompt(payload) {
     "按钮、字段和值必须是 ForexCRM 用户端真实业务：入金、出金、真实账号、模拟账号、绑定账号、钱包、KYC、邀请链接、交易账号、余额、权益、信用、杠杆等。",
     "如果提供图片/截图视觉参考，必须先抽象它的版式、密度、主视觉位置、色块关系、按钮层级和字段组织，再转成 ForexCRM 组件；不要复制图片里的品牌、受保护素材或无法确认的文字。",
     "name 必须是面向业务的中文组件名，不要叫 WalletList AI 样式、ReferralLink AI 样式。",
+    "本组件用于租户管理员预览的演示首页：必须用“该模块必须包含的业务结构.sampleData”里的逼真示例数据把组件填满——姓名、金额、日期、账号、币种、邀请码、链接、活动、客服与下载入口都要是可信的真实形态值，禁止留空、禁止使用 --/—/N/A/暂无/占位文案，禁止省略 sampleData 里给出的链接或联系方式。",
+    "推广链接(ReferralLinkCard)、客服(SupportContact)、APP 下载(AppDownload)这类模块必须把 sampleData 里的示例链接(https://…)、邀请码、电话/邮箱/二维码等渲染成可见且可复制/可点击的元素，绝不能出现没有链接或联系方式的空模块。",
+    "每一个可点击动作（入金、出金、转账、复制链接/邀请码、开真实/模拟账户、绑定账号、跟单、参与活动、联系客服、下载 App、查看详情等）对应的 button 或 a 必须带 data-home-action 属性并绑定动作角色（如 deposit/withdraw/transfer/copyLink/openAccount/bindAccount/follow/joinCampaign/contactSupport/downloadApp/viewDetail），让租户预览时可交互；不要只放纯文字或无动作语义的按钮。",
   ].join("\n");
 
   const user = [
@@ -21954,4 +22033,10 @@ module.exports = Object.assign(requestHandler, {
   buildHomepageGoldenSkeleton,
   buildHomepageAiSkeleton,
   packModulesIntoSkeletonRows,
+  // 生成质量优化：mock 逼真度 / 交互闭环门禁的可测试入口
+  componentFamilySpec,
+  buildComponentPrompt,
+  generatedComponentQualityIssues,
+  classifyBrickActionText,
+  aiHtmlModuleCapability,
 });
