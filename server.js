@@ -13031,7 +13031,53 @@ function validateHomepageSectionSkeleton(skeleton = {}) {
 }
 
 // 来源 C：按页面目标取 floor 模板，用可见模块裁剪填充，过校验器。
-function buildHomepageFloorSkeleton(goalId, visibleModules = [], mainVisual = "") {
+// #1 布局原型：同一 goal 下按 variant 产出"结构不同"的骨架，同时治两个病——
+// (a) 多候选千篇一律：不同 variant → 不同行结构；(b) 左右布局太少：variant 1/2 把纵向小单槽行
+// 合并成 6/6(双栏) 或 4/4/4(三栏) 的横向行。只在行模型内变换、只动"小的非 LARGE、非 main、非 risk"单槽行，
+// 因此天然满足校验器约束（LARGE 不进 split、main 前置、risk 收尾），也能被零-LLM 的 skeleton preview 直接验证。
+function homepageLayoutVariantId(payload = {}) {
+  const v = Number(payload && payload.variant);
+  if (!Number.isFinite(v)) return 0;
+  return ((Math.trunc(v) % 3) + 3) % 3; // 0 均衡 / 1 双栏 / 2 三栏网格
+}
+
+function homepageArchetypeMergeableRow(row) {
+  const slot = row && Array.isArray(row.slots) && row.slots.length === 1 ? row.slots[0] : null;
+  return Boolean(
+    row &&
+      row.type === "full" &&
+      slot &&
+      slot.module &&
+      slot.module !== "risk_disclosure" &&
+      !slot.main &&
+      !LARGE_FULL_ROW_HOME_BLOCKS.has(slot.module),
+  );
+}
+
+function applyHomepageLayoutArchetype(rows, variantId = 0, mainVisual = "") {
+  if (!Array.isArray(rows) || !rows.length || variantId === 0) return rows;
+  const groupSize = variantId === 2 ? 3 : 2; // 1→双栏成对；2→三栏成组
+  const out = [];
+  let i = 0;
+  while (i < rows.length) {
+    const run = [];
+    let j = i;
+    while (j < rows.length && run.length < groupSize && homepageArchetypeMergeableRow(rows[j])) {
+      run.push(rows[j]);
+      j += 1;
+    }
+    if (run.length >= 2) {
+      out.push({ type: "split", pair: "server", slots: run.map((r) => r.slots[0]) });
+      i = j;
+    } else {
+      out.push(rows[i]);
+      i += 1;
+    }
+  }
+  return out;
+}
+
+function buildHomepageFloorSkeleton(goalId, visibleModules = [], mainVisual = "", variantId = 0) {
   const floorName = HOMEPAGE_GOAL_TO_SKELETON_FLOOR[goalId] || "accountOps";
   const template = HOMEPAGE_SKELETON_FLOOR_TEMPLATES[floorName] || HOMEPAGE_SKELETON_FLOOR_TEMPLATES.accountOps;
   const available = new Set((Array.isArray(visibleModules) ? visibleModules : []).map(canonicalHomeBlock).filter(Boolean));
@@ -13056,7 +13102,8 @@ function buildHomepageFloorSkeleton(goalId, visibleModules = [], mainVisual = ""
     used.add(block);
     rows.push({ type: "full", pair: "", slots: [{ role: "secondary", module: block, main: false }] });
   });
-  return validateHomepageSectionSkeleton({ skeletonId: `floor-${floorName}-v1`, source: "floor", goal: goalId, floor: floorName, mainVisual, rows });
+  const archRows = applyHomepageLayoutArchetype(rows, variantId, mainVisual);
+  return validateHomepageSectionSkeleton({ skeletonId: `floor-${floorName}-v${variantId}`, source: "floor", goal: goalId, floor: floorName, mainVisual, rows: archRows });
 }
 
 // ---- 骨架来源 A（黄金抽取）/ B（AI 合成）。两者都过 validateHomepageSectionSkeleton。----
@@ -13123,7 +13170,8 @@ function packModulesIntoSkeletonRows(modules = [], mainVisual = "", firstScreen 
 // 黄金样本不带结构化 sections，但带 sampleBlocks(有序+page 区位) 和 functions(name→canonical modules)。
 function buildHomepageGoldenSkeleton(payload = {}, pagePlan = null) {
   const { plan, visible, mainVisual, goal } = homepageSkeletonInputs(payload, pagePlan);
-  const floor = () => buildHomepageFloorSkeleton(goal, visible, mainVisual);
+  const variantId = homepageLayoutVariantId(payload);
+  const floor = () => buildHomepageFloorSkeleton(goal, visible, mainVisual, variantId);
   if (!visible.length) return floor();
   const ranked = rankGoldenDesignSamplesForPrompt(payload.prompt || "", 1);
   const sample = ranked[0];
@@ -13149,8 +13197,8 @@ function buildHomepageGoldenSkeleton(payload = {}, pagePlan = null) {
   (Array.isArray(sample.functions) ? sample.functions : []).forEach((fn) => (Array.isArray(fn?.modules) ? fn.modules : []).forEach((m) => pushMod(m, false)));
   visible.forEach((m) => pushMod(m, false)); // 兜底：租户选了但样本没有的模块也要承接
   if (!ordered.length) return floor();
-  const rows = packModulesIntoSkeletonRows(ordered, mainVisual, firstScreen);
-  const skeleton = validateHomepageSectionSkeleton({ skeletonId: `golden-${cleanText(sample.id, "sample", 32)}`, source: "golden", goal, mainVisual, rows });
+  const rows = applyHomepageLayoutArchetype(packModulesIntoSkeletonRows(ordered, mainVisual, firstScreen), variantId, mainVisual);
+  const skeleton = validateHomepageSectionSkeleton({ skeletonId: `golden-${cleanText(sample.id, "sample", 32)}-v${variantId}`, source: "golden", goal, mainVisual, rows });
   if (skeleton.status !== "passed" || !skeleton.rows.length) return floor();
   skeleton.goldenSampleId = cleanText(sample.id, "", 48);
   skeleton.goldenSampleName = cleanText(sample.name, "", 80);
@@ -13516,7 +13564,7 @@ function buildHomepagePagePlan(payload = {}, config = {}) {
   const compositionGroups = homepageCompositionGroupsForPlan(visibleModules, mainVisual, goal.id);
   const compositeBlocks = homepageGoldenCompositeBlocksForPlan(compositionGroups, mainVisual);
   const goldenSkeleton = homepageGoldenSkeletonContractForPlan(visibleModules, mainVisual, goal.id, compositionGroups);
-  const sectionSkeleton = buildHomepageFloorSkeleton(goal.id, visibleModules, mainVisual);
+  const sectionSkeleton = buildHomepageFloorSkeleton(goal.id, visibleModules, mainVisual, homepageLayoutVariantId(payload));
 
   return {
     planVersion: 1,
