@@ -4038,6 +4038,28 @@ function normalizeBrickContentForIngestion(html = "", css = "", family = "") {
   return { html: nextHtml, css: nextCss, actions: [...new Set(actions)] };
 }
 
+// 数据预留位绑定：生成的组件把每个业务值包进 [data-field="key"]（mock 值作为可见 fallback）。
+// 接口数据到位后调用本函数，用真实值替换预留位的文案；缺字段时保留 mock（页面不塌、不出现空洞）。
+// 纯字符串变换、零依赖、可单测。仅替换"叶子"元素（内容无子标签）的文案；列表/重复行绑定另做（见 dataRequirements）。
+function bindHomepageData(html = "", data = {}) {
+  const source = String(html || "");
+  if (!data || typeof data !== "object" || Array.isArray(data)) return source;
+  const resolve = (key) => {
+    const trimmed = String(key).trim();
+    if (Object.prototype.hasOwnProperty.call(data, trimmed)) return data[trimmed];
+    return trimmed.split(".").reduce((acc, part) => (acc && typeof acc === "object" ? acc[part] : undefined), data);
+  };
+  const escapeText = (value) => String(value).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
+  return source.replace(
+    /<([a-zA-Z][\w-]*)\b([^>]*\bdata-field\s*=\s*["']([^"']+)["'][^>]*)>([^<]*)<\/\1>/gi,
+    (full, tag, attrs, key, inner) => {
+      const value = resolve(key);
+      if (value === undefined || value === null || value === "") return full; // 缺字段 → 保留 mock fallback
+      return `<${tag}${attrs}>${escapeText(value)}</${tag}>`;
+    },
+  );
+}
+
 function normalizeGeneratedComponent(component, payload = {}, options = {}) {
   const source = component && typeof component === "object" ? component : {};
   const requestedFamily = oneOfComponentFamily(payload.family, "");
@@ -11558,6 +11580,7 @@ function buildComponentPrompt(payload) {
     "本组件用于租户管理员预览的演示首页：必须用“该模块必须包含的业务结构.sampleData”里的逼真示例数据把组件填满——姓名、金额、日期、账号、币种、邀请码、链接、活动、客服与下载入口都要是可信的真实形态值，禁止留空、禁止使用 --/—/N/A/暂无/占位文案，禁止省略 sampleData 里给出的链接或联系方式。",
     "推广链接(ReferralLinkCard)、客服(SupportContact)、APP 下载(AppDownload)这类模块必须把 sampleData 里的示例链接(https://…)、邀请码、电话/邮箱/二维码等渲染成可见且可复制/可点击的元素，绝不能出现没有链接或联系方式的空模块。",
     "每一个可点击动作（入金、出金、转账、复制链接/邀请码、开真实/模拟账户、绑定账号、跟单、参与活动、联系客服、下载 App、查看详情等）对应的 button 或 a 必须带 data-home-action 属性并绑定动作角色（如 deposit/withdraw/transfer/copyLink/openAccount/bindAccount/follow/joinCampaign/contactSupport/downloadApp/viewDetail），让租户预览时可交互；不要只放纯文字或无动作语义的按钮。",
+    "数据预留位：每一个会被真实接口替换的业务值（余额、净值、账号号、币种金额、日期、点击/注册数、收益率、邀请链接、邀请码等）必须包在一个叶子元素里并带 data-field 属性，属性值用 dataRequirements 里的字段名（如 <b data-field=\"balance\">999,999.99</b>、<span data-field=\"inviteCode\">INV8K3D9</span>）；元素内文案填 sampleData 的逼真 mock 值作为 fallback。纯静态文案（标题、标签、按钮文字）不要加 data-field。这样接口数据到位后可直接按 data-field 填充，缺字段时保留 mock 不塌页。",
   ].join("\n");
 
   const user = [
@@ -22146,4 +22169,5 @@ module.exports = Object.assign(requestHandler, {
   generatedComponentQualityIssues,
   classifyBrickActionText,
   aiHtmlModuleCapability,
+  bindHomepageData,
 });
