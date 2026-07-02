@@ -1144,7 +1144,7 @@ async function run() {
     tradingAccountsContract.includes("不能上方摘要卡片下方再重复完整表格") || tradingAccountsContract.includes("摘要卡片和完整表格上下重复"),
     "TradingAccounts generation contract must forbid duplicate summary/table views",
   );
-  assert(serverSource.includes("const MINIMAX_MAX_COMPLETION_TOKENS = 2048"), "MiniMax should keep the documented OpenAI-compatible completion token cap");
+  assert(serverSource.includes("const MINIMAX_MAX_COMPLETION_TOKENS = 8192"), "MiniMax completion token cap should be 8192 (2048 truncated component HTML/CSS with finish:length; M3 verified accepting 8192)");
   assert(serverSource.includes('const KIMI_DEFAULT_MODEL = "kimi-k3"'), "Kimi preset should use the current default model");
   assert(serverSource.includes('const KIMI_CN_BASE_URL = "https://api.moonshot.cn/v1"'), "Kimi should default to the China API domain");
   assert(serverSource.includes("body.max_completion_tokens = config.maxOutputTokens"), "Kimi chat requests should use max_completion_tokens instead of deprecated max_tokens");

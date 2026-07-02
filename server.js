@@ -942,6 +942,7 @@ function normalizeHomepageSectionType(type, slotCount = 0) {
   if (value === "hero") return "hero";
   if (value === "split") return "split";
   if (value === "full") return "full";
+  if (value === "hub") return slotCount > 1 ? "hub" : "full"; // #3 组装式大模块：多子模块共享表面
   if (value === "rail") return slotCount > 1 ? "split" : "full";
   if (slotCount > 1) return "split";
   return "full";
@@ -10413,7 +10414,7 @@ function brickBackedSlotSpans(sectionType, slotCount) {
   const type = String(sectionType || "full");
   if (slotCount <= 1) return [12];
   if (slotCount === 2) return type === "hero" ? [8, 4] : [6, 6];
-  if (slotCount === 3) return [4, 4, 4];
+  if (slotCount === 3) return type === "hub" ? [3, 5, 4] : [4, 4, 4]; // hub: 身份(窄)+主资产(宽)+钱包(中)
   if (slotCount === 4) return [6, 6, 6, 6];
   return Array.from({ length: slotCount }, () => 6);
 }
@@ -12960,16 +12961,21 @@ function validateHomepageSectionSkeleton(skeleton = {}) {
         else mainSeen = true;
       }
     });
+    const compositeId = cleanText(row.compositeId, "", 64);
     const hasLarge = slots.some((slot) => LARGE_FULL_ROW_HOME_BLOCKS.has(slot.module));
-    if (slots.length > 1 && (row.type === "split" || row.type === "hero") && hasLarge) {
+    // composite hub（#3）刻意把大模块收进一个共享表面，豁免"含 LARGE 的横向行拆成 full"的规则。
+    if (!compositeId && slots.length > 1 && (row.type === "split" || row.type === "hero") && hasLarge) {
       warnings.push(`server-pair row contained LARGE block, split to full rows: ${slots.map((slot) => slot.module).join("+")}`);
       slots.forEach((slot) => normalized.push({ type: "full", pair: "", slots: [slot] }));
       return;
     }
     let type = row.type;
-    if (slots.length === 1 && (type === "split" || type === "hero")) type = "full";
-    if (slots.length > 2 && type !== "full") type = "split";
-    normalized.push({ type: normalizeHomepageSectionType(type, slots.length), pair: row.pair || "", slots });
+    if (slots.length === 1 && (type === "split" || type === "hero" || type === "hub")) type = "full";
+    if (slots.length > 2 && type !== "full" && type !== "hub") type = "split";
+    const composite = compositeId
+      ? { compositeId, compositeSurface: cleanText(row.compositeSurface, "", 32), compositeTitle: cleanText(row.compositeTitle, "", 60) }
+      : {};
+    normalized.push({ type: normalizeHomepageSectionType(type, slots.length), pair: row.pair || "", slots, ...composite });
   });
   // 合规收尾：risk_disclosure 强制末行。
   const riskIdx = normalized.findIndex((row) => row.slots.some((slot) => slot.module === "risk_disclosure"));
@@ -12982,7 +12988,7 @@ function validateHomepageSectionSkeleton(skeleton = {}) {
     normalized[0].slots[0].main = true;
     mainSeen = true;
   }
-  const countServerHorizontal = () => normalized.filter((row) => row.slots.length >= 2 && (row.type === "split" || row.type === "hero")).length;
+  const countServerHorizontal = () => normalized.filter((row) => row.slots.length >= 2 && (row.type === "split" || row.type === "hero" || row.type === "hub")).length;
   // salvage：模块稀疏导致 server 搭档缺席、零横向行时，把前两个非 LARGE 单槽 full 行
   // （排除合规收尾）合并成一个 split[6,6]，保证"至少一行左右结构"对稀疏模块集也成立。
   if (countServerHorizontal() === 0) {
@@ -13077,6 +13083,56 @@ function applyHomepageLayoutArchetype(rows, variantId = 0, mainVisual = "") {
   return out;
 }
 
+// #3 组装式大模块（composite hub）：把语义相关的多个功能模块在 hero 区合并成"一个大模块"，
+// 子模块共享一个表面/标题/边界（而不是各占一个孤立卡片）。例：个人信息 + 资产概览 + 钱包 → 账户总览工作台。
+// 保守门控：仅当当前页面主视觉本就属于该 hub 的模块时才合并，避免打乱 onboarding/交易等其它页型的 hero。
+// 产出带 compositeId/compositeSurface 的 hub 行，校验器对 composite 行豁免 LARGE 拆分，渲染配置透传这些字段；
+// 即使渲染层暂不特判 hub，也会优雅降级为"同排并列"（仍是左右布局），不会破坏页面。
+const HOMEPAGE_COMPOSITE_HUBS = [
+  {
+    id: "identity_finance_hub",
+    title: "账户总览工作台",
+    surface: "connected-panel",
+    modules: ["welcome_header", "asset_overview", "wallet_list"],
+  },
+];
+
+function injectHomepageCompositeHubs(rows, mainVisual = "") {
+  if (!Array.isArray(rows) || !rows.length) return rows;
+  const main = canonicalHomeBlock(mainVisual);
+  let working = rows.map((row) => ({ ...row, slots: [...(Array.isArray(row.slots) ? row.slots : [])] }));
+  for (const hub of HOMEPAGE_COMPOSITE_HUBS) {
+    if (!main || !hub.modules.includes(main)) continue; // 只在 hub 拥有主视觉时合并
+    const present = [];
+    hub.modules.forEach((mod) => {
+      for (const row of working) {
+        const slot = row.slots.find((item) => item.module === mod);
+        if (slot) {
+          present.push(slot);
+          break;
+        }
+      }
+    });
+    if (present.length < 2) continue;
+    const keep = new Set(present);
+    working.forEach((row) => {
+      row.slots = row.slots.filter((slot) => !keep.has(slot));
+    });
+    working = working.filter((row) => row.slots.length);
+    const hubSlots = present.map((slot, index) => ({ role: index === 0 ? "primary" : "support", module: slot.module, main: false }));
+    hubSlots[0].main = true; // hub 承接主视觉
+    working.unshift({
+      type: "hub",
+      pair: "server",
+      compositeId: `composite-${hub.id}`,
+      compositeSurface: hub.surface,
+      compositeTitle: hub.title,
+      slots: hubSlots,
+    });
+  }
+  return working;
+}
+
 function buildHomepageFloorSkeleton(goalId, visibleModules = [], mainVisual = "", variantId = 0) {
   const floorName = HOMEPAGE_GOAL_TO_SKELETON_FLOOR[goalId] || "accountOps";
   const template = HOMEPAGE_SKELETON_FLOOR_TEMPLATES[floorName] || HOMEPAGE_SKELETON_FLOOR_TEMPLATES.accountOps;
@@ -13102,7 +13158,7 @@ function buildHomepageFloorSkeleton(goalId, visibleModules = [], mainVisual = ""
     used.add(block);
     rows.push({ type: "full", pair: "", slots: [{ role: "secondary", module: block, main: false }] });
   });
-  const archRows = applyHomepageLayoutArchetype(rows, variantId, mainVisual);
+  const archRows = injectHomepageCompositeHubs(applyHomepageLayoutArchetype(rows, variantId, mainVisual), mainVisual);
   return validateHomepageSectionSkeleton({ skeletonId: `floor-${floorName}-v${variantId}`, source: "floor", goal: goalId, floor: floorName, mainVisual, rows: archRows });
 }
 
@@ -13197,7 +13253,7 @@ function buildHomepageGoldenSkeleton(payload = {}, pagePlan = null) {
   (Array.isArray(sample.functions) ? sample.functions : []).forEach((fn) => (Array.isArray(fn?.modules) ? fn.modules : []).forEach((m) => pushMod(m, false)));
   visible.forEach((m) => pushMod(m, false)); // 兜底：租户选了但样本没有的模块也要承接
   if (!ordered.length) return floor();
-  const rows = applyHomepageLayoutArchetype(packModulesIntoSkeletonRows(ordered, mainVisual, firstScreen), variantId, mainVisual);
+  const rows = injectHomepageCompositeHubs(applyHomepageLayoutArchetype(packModulesIntoSkeletonRows(ordered, mainVisual, firstScreen), variantId, mainVisual), mainVisual);
   const skeleton = validateHomepageSectionSkeleton({ skeletonId: `golden-${cleanText(sample.id, "sample", 32)}-v${variantId}`, source: "golden", goal, mainVisual, rows });
   if (skeleton.status !== "passed" || !skeleton.rows.length) return floor();
   skeleton.goldenSampleId = cleanText(sample.id, "", 48);
@@ -13347,6 +13403,7 @@ function homepageSkeletonPreview(payload = {}, skeletonOverride = null) {
       row: rowIndex + 1,
       type: row.type,
       pair: row.pair || "",
+      ...(row.compositeId ? { compositeId: row.compositeId, compositeSurface: row.compositeSurface || "", compositeTitle: row.compositeTitle || "" } : {}),
       slots: row.slots.map((slot, slotIndex) => {
         const meta = HOMEPAGE_BLOCK_REPAIR_META[slot.module] || {};
         const tier = homepageModuleTier(slot.module);
@@ -13454,8 +13511,10 @@ function assembleFilledSkeletonRenderConfig(payload = {}, filled = {}) {
     .map((row, index) => ({
       id: `skeleton-row-${index + 1}`,
       type: cleanText(row.type, "full", 16),
-      title: "",
+      title: cleanText(row.compositeTitle, "", 60),
       slots: (Array.isArray(row.slots) ? row.slots : []).map((slot) => slot.module).filter(Boolean),
+      // #3 composite hub：透传共享表面元数据，供渲染层把多个子模块合成一个大模块。
+      ...(row.compositeId ? { compositeId: row.compositeId, compositeSurface: row.compositeSurface || "connected-panel", compositeTitle: row.compositeTitle || "", transition: "connected" } : {}),
     }))
     .filter((section) => section.slots.length);
   const slots = rows.flatMap((row, rowIndex) => {
