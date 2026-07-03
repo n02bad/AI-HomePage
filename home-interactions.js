@@ -152,10 +152,79 @@
     true,
   );
 
+  /* ---------------- 自动接线：为"没带 data-home-* 标记"的存量/兜底组件自动识别常见交互 ----------------
+   * 客户端启发式、非破坏性：只在能高置信度识别出"分段筛选控件 + 可分类的行"时才补标记；
+   * 认不准就跳过（不影响展示）。目前覆盖最常见的"账号 全部/真实/模拟(或 Live/Demo) 筛选"。 */
+  var AUTO_FILTER_VALUES = [
+    { v: "all", re: /^(全部|全部账[号户]|all)$/i },
+    { v: "live", re: /^(真实账?[号户]?|真实|live)$/i },
+    { v: "demo", re: /^(模拟账?[号户]?|模拟|demo)$/i },
+  ];
+  function autoFilterValue(text) {
+    var t = String(text || "").replace(/\s+/g, "").trim();
+    if (!t || t.length > 8) return "";
+    for (var i = 0; i < AUTO_FILTER_VALUES.length; i++) if (AUTO_FILTER_VALUES[i].re.test(t)) return AUTO_FILTER_VALUES[i].v;
+    return "";
+  }
+  function rowKind(el) {
+    var text = (el.textContent || "").toLowerCase();
+    var live = /live|真实/.test(text);
+    var demo = /demo|模拟/.test(text);
+    if (live && !demo) return "live";
+    if (demo && !live) return "demo";
+    return "";
+  }
+  function autoWire(root) {
+    all(root, "[data-brick-root]").concat([root]).forEach(function (scope) {
+      if (!scope || scope.querySelector == null) return;
+      if (scope.querySelector("[data-home-filter]")) return; // 已有显式筛选标记，尊重之
+      // 1) 找分段控件：某个父元素下有 >=2 个短文本子项命中筛选词，且至少含一个 all + 一个 live/demo
+      var candidates = {};
+      all(scope, "*").forEach(function (el) {
+        if (el.children && el.children.length) return; // 只看叶子文本项
+        var v = autoFilterValue(el.textContent);
+        if (!v) return;
+        var parent = el.parentElement;
+        if (!parent) return;
+        var key = parent.__homeAutoKey || (parent.__homeAutoKey = "g" + Math.round(parent.getBoundingClientRect().top) + "-" + parent.children.length);
+        (candidates[key] = candidates[key] || { parent: parent, tabs: [] }).tabs.push({ el: el, v: v });
+      });
+      var group = null;
+      Object.keys(candidates).forEach(function (k) {
+        var c = candidates[k];
+        var vals = c.tabs.map(function (t) { return t.v; });
+        if (!group && vals.indexOf("all") >= 0 && (vals.indexOf("live") >= 0 || vals.indexOf("demo") >= 0) && c.tabs.length >= 2) group = c;
+      });
+      if (!group) return;
+      // 2) 找可分类的行：排除 tab 组后，找"重复兄弟里可分类"的元素，再只保留最外层（避免误标行内单元格）
+      var raw = [];
+      all(scope, "*").forEach(function (el) {
+        if (group.parent.contains(el) || el.contains(group.parent)) return; // 排除 tab 组及其祖先
+        if (!rowKind(el)) return;
+        var parent = el.parentElement;
+        if (!parent) return;
+        var kSibs = Array.prototype.filter.call(parent.children, function (c) { return rowKind(c); });
+        if (kSibs.length >= 2) raw.push(el); // 该元素与其兄弟中至少两个可分类 → 疑似"行"层
+      });
+      var rows = raw
+        .filter(function (el) { return !raw.some(function (o) { return o !== el && o.contains(el); }); }) // 只保留最外层
+        .map(function (el) { return { el: el, kind: rowKind(el) }; });
+      if (rows.length < 2) return;
+      // 3) 打标记 → 交给既有筛选机制
+      group.parent.setAttribute("data-home-filter", "accountKind");
+      group.tabs.forEach(function (t) { if (!t.el.hasAttribute("data-home-filter-value")) t.el.setAttribute("data-home-filter-value", t.v); });
+      rows.forEach(function (r) {
+        r.el.setAttribute("data-home-filter-item", "");
+        if (!r.el.getAttribute("data-home-filter-kind")) r.el.setAttribute("data-home-filter-kind", r.kind);
+      });
+    });
+  }
+
   /* ---------------- 初始化默认态 ---------------- */
   function bind(root) {
     root = root || doc;
     injectBaseStyles();
+    autoWire(root);
     all(root, "[data-home-filter]").forEach(function (group) {
       if (group.__homeFilterBound) return;
       group.__homeFilterBound = true;
@@ -207,9 +276,30 @@
   var HomeInteractions = { bind: bind, version: "1.0.0" };
   global.HomeInteractions = HomeInteractions;
 
+  // 动态注入的组件（首页渲染/骨架填充后才插入 DOM）也要自动接线：观察 DOM 变化、去抖后重新 bind。
+  var rebindTimer = null;
+  function scheduleRebind() {
+    if (rebindTimer) return;
+    rebindTimer = global.setTimeout(function () {
+      rebindTimer = null;
+      try { bind(doc); } catch (e) {}
+    }, 120);
+  }
+  function startObserver() {
+    if (!global.MutationObserver || doc.__homeInteractionsObserving) return;
+    doc.__homeInteractionsObserving = true;
+    var mo = new global.MutationObserver(function (mutations) {
+      for (var i = 0; i < mutations.length; i++) {
+        if (mutations[i].addedNodes && mutations[i].addedNodes.length) { scheduleRebind(); return; }
+      }
+    });
+    mo.observe(doc.body || doc.documentElement, { childList: true, subtree: true });
+  }
+
   if (doc.readyState === "loading") {
-    doc.addEventListener("DOMContentLoaded", function () { bind(doc); });
+    doc.addEventListener("DOMContentLoaded", function () { bind(doc); startObserver(); });
   } else {
     bind(doc);
+    startObserver();
   }
 })(typeof window !== "undefined" ? window : this);
