@@ -37165,6 +37165,114 @@
       "lastAdjustmentPrompt": "",
       "createdAt": "2026-07-03T12:12:26.900Z",
       "updatedAt": "2026-07-03T12:12:26.951Z"
+    },
+    {
+      "id": "riskdisclosure-mr50gira",
+      "type": "ai-generated",
+      "name": "底部合规风险披露",
+      "family": "RiskDisclosure",
+      "size": "3x1",
+      "score": 6,
+      "description": "底部法务合规披露，包含杠杆风险提示、保证金说明及监管免责声明占位，低干扰收口。",
+      "tags": [
+        "RiskDisclosure",
+        "Legal",
+        "Footer",
+        "3x1"
+      ],
+      "html": "<div class=\"fx-risk-disclosure\" data-brick-root=\"1\"><div class=\"fx-risk-header\"><svg viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" fill=\"currentColor\"><path d=\"M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 12.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm1-5a1 1 0 0 1-2 0V4a1 1 0 0 1 2 0v4.5z\"/></svg><span>风险提示 / Risk Warning &amp; Disclosure</span></div><div class=\"fx-risk-content\"><p>外汇、贵金属、差价合约及其他保证金产品涉及高杠杆，价格波动可能导致本金损失。交易前请确认您完全理解保证金要求、强平机制、滑点、流动性及系统中断等风险。</p><p>过往表现、收益展示或模拟交易结果不构成未来收益承诺。请根据自身风险承受能力独立做出交易决策。</p></div></div>",
+      "css": ".fx-risk-disclosure{padding:24px 0 16px;border-top:1px solid var(--home-border-soft, #eaecf0);font-family:inherit;background:transparent}.fx-risk-header{display:flex;align-items:center;gap:6px;margin-bottom:8px;font-size:13px;font-weight:600;color:var(--home-text, #101828)}.fx-risk-header svg{color:var(--home-text-muted, #667085)}.fx-risk-content{font-size:12px;line-height:1.6;color:var(--home-text-muted, #667085)}.fx-risk-content p{margin:0 0 6px 0}.fx-risk-content p:last-child{margin:0}",
+      "actions": [],
+      "themeNormalized": true,
+      "layoutContract": {
+        "gridColumns": 12,
+        "size": "3x1",
+        "desktopSpan": 12,
+        "tabletSpan": 12,
+        "mobileSpan": 12,
+        "rowSpan": 1,
+        "rowRecipe": "12+0",
+        "zone": "full",
+        "slot": "risk_disclosure",
+        "sectionType": "full",
+        "sizingPolicy": "1x=4/12, 2x=8/12, 3x+=12/12; tablet/mobile single-column."
+      },
+      "layoutHints": [
+        "底部收口",
+        "低干扰文本",
+        "全宽单列",
+        "12/12 栏",
+        "12+0",
+        "移动端单列",
+        "12/12 栏",
+        "12+0"
+      ],
+      "dataRequirements": [
+        "riskDisclosureCopy",
+        "regulatoryInfo",
+        "complianceVersion"
+      ],
+      "sourcePrompt": "骨架 HTML 单 slot 生成契约 v2: 只填充当前 slot。全页一致性来自 pageDesign.designContract；当前组件要求来自 slotContract。 布局硬约束：所有组件和 AI 首页都统一使用 12 栏桌面栅格；slotContract.layoutContract.desktopSpan 是当前组件在桌面容器内的宽度，移动端必须单列。 全局设计契约: {\"summary\":\"大模型调用失败，已使用本地安全方案回退：Gemini 调用失败：Client network socket disconnected before secure TLS connection was established\",\"layoutPreset\":\"onboardingJourney\",\"themePreset\":\"blueFinance\",\"density\":\"balanced\",\"heroFocus\":\"CopyTrading 信号源推荐区\",\"designContract\":{\"id\":\"onboarding-journey\",\"label\":\"新客旅程契约\",\"",
+      "originalSlotPrompt": "风险提示：生成合规风险提示组件，聚焦杠杆、保证金、亏损风险和后台合规文案占位。",
+      "slotPromptContractSummary": "{\"contractVersion\":\"skeleton-slot-v2\",\"pageDesign\":{\"summary\":\"大模型调用失败，已使用本地安全方案回退：Gemini 调用失败：Client network socket disconnected before secure TLS connection was established\",\"layoutPreset\":\"onboardingJourney\",\"themePreset\":\"blueFinance\",\"density\":\"balanced\",\"heroFocus\":\"CopyTrading 信号源推荐区\",\"designContract\":{\"id\":\"onboarding-journey\",\"label\":\"新客旅程契约\",\"personality\":\"onboarding-journey\",\"tone\":\"有秩序、推进感、低压力\",\"surface\":\"开户、资产、快捷操作和账号证明共享连续工作台表面，辅助内容用轻分割线收口。\",\"density\":\"balanced\",\"theme\":\"blueFinance\",\"tokens\":{\"pageMaxWidth\":\"1280px\",\"pageGutter\":\"16px\",\"cardRadius\":\"8px\",\"buttonRadius\":\"8px\",\"sectionGap\":\"12px\",\"rowGap\":\"12px\",\"cardPadding\":\"16px\",\"cardShadow\":\"none\",\"cardBorder\":\"var(--home-border-soft)\",\"background\":\"var(--home-bg)\",\"surface\":\"var(--home-card-bg)\",\"surfaceSoft\":\"var(--home-surface-soft)\",\"primaryColor\":\"var(--home-primary)\",\"accentColor\":\"var(--home-accent)\"},\"componentRules\":[\"开户进度、资产摘要、快捷入口和账号证明要像同一组账户启动区，避免各自独立成卡。\",\"步骤编号、进度、状态标签和下一步按钮必须共享同一视觉语法。\",\"资产和账号模块只能做证明或承接，不能抢走旅程主线。\"],\"ctaRules\":[\"唯一主 CTA 应指向下一步，新手路径以外的动作保持低干扰。\",\"已完成、待完成和下一步状态必须清楚区分。\"],\"moduleGrammar\":\"旅程主面板、任务轨、资产证明、账号工作台和辅助 FAQ 共同组成连续激活流程。\",\"differenceRule\":\"本方案差异必须体现连续旅程，不要退回普通仪表盘。\",\"chromePolicy\":{\"mode\":\"flatConnected\",\"sectionChrome\":\"connected\",\"defaultSlotChrome\":\"flat\",\"componentBoundary\":\"page-owned\",\"promptRule\":\"页面骨架负责统一外壳和分区衔接，普通 slot 输出内容片段；只有开户主路径可轻量 featured。\"},\"layoutRules\":{\"maxWidth\":\"1280px\",\"sectionGrouping\":\"\",\"backgroundRule\":\"\",\"blockRelation\":\"\"}},\"pagePlan\":{\"pageGoal\":\"\",\"primaryCta\":\"\",\"mainVisual\":\"promo_banner\",\"layoutStrategy\":\"grouped-workbench\",\"compositionGroups\":[{\"id\":\"opportunities\",\"title\":\"交易机会区\",\"role\":\"support\",\"surface\":\"light-section\",\"modules\":[\"promo_banner\",\"copytrading_signals\",\"referral_link_card\"],\"visualWeight\":100,\"guidance\":\"活动、跟单、PAMM、公告和推广链",
+      "lastAdjustmentPrompt": "",
+      "createdAt": "2026-07-03T14:10:34.870Z",
+      "updatedAt": "2026-07-03T14:10:34.924Z"
+    },
+    {
+      "id": "tradingaccounts-mr50hux1",
+      "type": "ai-generated",
+      "name": "交易账号列表",
+      "family": "TradingAccounts",
+      "size": "3x2",
+      "score": 6,
+      "description": "真实与模拟交易账号列表，支持分组展示余额、净值与交易环境，适配工作台布局。",
+      "tags": [
+        "TradingAccounts",
+        "List",
+        "3x2"
+      ],
+      "html": "<div class=\"fx-trading-accounts\" data-brick-root=\"1\"><div class=\"fx-ta-header\"><div class=\"fx-ta-tabs\"><button class=\"fx-ta-tab active\">全部</button><button class=\"fx-ta-tab\">Live</button><button class=\"fx-ta-tab\">Demo</button></div><div class=\"fx-ta-actions\"><button class=\"fx-ta-btn-primary\">开真实账户</button><button class=\"fx-ta-btn-secondary\">开模拟账户</button></div></div><div class=\"fx-ta-list\"><div class=\"fx-ta-row\"><div class=\"fx-ta-col-main\"><div class=\"fx-ta-badge-row\"><span class=\"fx-ta-badge live\">Live</span><span class=\"fx-ta-no\">80009</span></div><span class=\"fx-ta-env\">MT5 · HCHoldings-Live2</span></div><div class=\"fx-ta-col-metrics\"><div class=\"fx-ta-metric\"><span class=\"val\">999,999.99</span><span class=\"lbl\">余额(USD)</span></div><div class=\"fx-ta-metric\"><span class=\"val\">1,002,480.55</span><span class=\"lbl\">净值</span></div><div class=\"fx-ta-metric\"><span class=\"val\">7,788.00</span><span class=\"lbl\">信用金</span></div></div><div class=\"fx-ta-col-details\"><div class=\"fx-ta-detail\"><strong>ECN</strong></div><div class=\"fx-ta-detail\"><span>杠杆</span><strong>1:500</strong></div><div class=\"fx-ta-detail\"><span>预付款</span><strong>286%</strong></div></div><div class=\"fx-ta-col-actions\"><button class=\"fx-ta-action-btn\" data-home-action=\"deposit\">入金</button><button class=\"fx-ta-action-btn outline\">交易</button></div></div><div class=\"fx-ta-row\"><div class=\"fx-ta-col-main\"><div class=\"fx-ta-badge-row\"><span class=\"fx-ta-badge demo\">Demo</span><span class=\"fx-ta-no\">90021</span></div><span class=\"fx-ta-env\">MT5 · HCHoldings-Demo</span></div><div class=\"fx-ta-col-metrics\"><div class=\"fx-ta-metric\"><span class=\"val\">50,000.00</span><span class=\"lbl\">余额(USD)</span></div><div class=\"fx-ta-metric\"><span class=\"val\">50,000.00</span><span class=\"lbl\">净值</span></div><div class=\"fx-ta-metric\"><span class=\"val\">0.00</span><span class=\"lbl\">信用金</span></div></div><div class=\"fx-ta-col-details\"><div class=\"fx-ta-detail\"><strong>Demo</strong></div><div class=\"fx-ta-detail\"><span>杠杆</span><strong>1:100</strong></div><div class=\"fx-ta-detail\"><strong>稳健</strong></div></div><div class=\"fx-ta-col-actions\"><button class=\"fx-ta-action-btn outline\">交易</button></div></div></div></div>",
+      "css": ".fx-trading-accounts{display:flex;flex-direction:column;gap:16px;width:100%;font-family:system-ui,-apple-system,sans-serif;color:var(--home-text)}.fx-ta-header{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--home-border-soft);padding-bottom:12px}.fx-ta-tabs{display:flex;gap:24px}.fx-ta-tab{background:0 0;border:none;font-size:14px;font-weight:500;color:var(--home-text-secondary);cursor:pointer;padding:0 0 12px;margin-bottom:-13px;border-bottom:2px solid transparent}.fx-ta-tab.active{color:var(--home-primary);border-bottom-color:var(--home-primary)}.fx-ta-actions{display:flex;gap:8px}.fx-ta-actions button{padding:6px 12px;border-radius:var(--home-button-radius,6px);font-size:13px;cursor:pointer;font-weight:500}.fx-ta-btn-primary{background:var(--home-primary);color:#fff;border:none}.fx-ta-btn-secondary{background:var(--home-surface-soft);color:var(--home-text);border:1px solid var(--home-border-soft)}.fx-ta-list{display:flex;flex-direction:column;gap:12px}.fx-ta-row{display:grid;grid-template-columns:1.2fr 1.5fr 1fr auto;gap:16px;align-items:center;padding:16px;background:var(--home-card-bg);border:1px solid var(--home-border-soft);border-radius:var(--home-card-radius,8px);transition:border-color .2s}.fx-ta-row:hover{border-color:var(--home-primary)}.fx-ta-col-main{display:flex;flex-direction:column;gap:4px}.fx-ta-badge-row{display:flex;align-items:center;gap:8px}.fx-ta-badge{font-size:11px;padding:2px 6px;border-radius:4px;font-weight:600;text-transform:uppercase}.fx-ta-badge.live{background:var(--home-primary-faint);color:var(--home-primary)}.fx-ta-badge.demo{background:rgba(107,114,128,.1);color:var(--home-text-secondary)}.fx-ta-no{font-size:16px;font-weight:600}.fx-ta-env{font-size:12px;color:var(--home-text-secondary)}.fx-ta-col-metrics{display:flex;gap:24px}.fx-ta-metric{display:flex;flex-direction:column;gap:2px}.fx-ta-metric .val{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}.fx-ta-metric .lbl{font-size:11px;color:var(--home-text-secondary)}.fx-ta-col-details{display:flex;flex-direction:column;gap:4px;border-left:1px solid var(--home-border-soft);padding-left:16px}.fx-ta-detail{display:flex;justify-content:space-between;font-size:12px;width:100px}.fx-ta-detail span{color:var(--home-text-secondary)}.fx-ta-detail strong{font-weight:500}.fx-ta-col-actions{display:flex;gap:8px}.fx-ta-action-btn{padding:6px 16px;border-radius:var(--home-button-radius,6px);font-size:13px;font-weight:500;cursor:pointer;border:none;background:var(--home-primary);color:#fff}.fx-ta-action-btn.outline{background:transparent;border:1px solid var(--home-border-soft);color:var(--home-text)}@media (max-width:1024px){.fx-ta-row{grid-template-columns:1fr 1fr}.fx-ta-col-details{border-left:none;padding-left:0;border-top:1px solid var(--home-border-soft);padding-top:12px}.fx-ta-col-actions{justify-content:flex-end}}@media (max-width:640px){.fx-ta-row{grid-template-columns:1fr;gap:12px}.fx-ta-col-metrics{flex-wrap:wrap}.fx-ta-col-actions{width:100%}.fx-ta-action-btn{flex:1}}",
+      "actions": [
+        "deposit"
+      ],
+      "themeNormalized": true,
+      "layoutContract": {
+        "gridColumns": 12,
+        "size": "3x2",
+        "desktopSpan": 12,
+        "tabletSpan": 12,
+        "mobileSpan": 12,
+        "rowSpan": 2,
+        "rowRecipe": "12+0",
+        "zone": "full",
+        "slot": "trading_accounts_list",
+        "sectionType": "full",
+        "sizingPolicy": "1x=4/12, 2x=8/12, 3x+=12/12; tablet/mobile single-column."
+      },
+      "layoutHints": [
+        "12栏全宽填充",
+        "支持Live/Demo分组",
+        "移动端自动堆叠",
+        "12/12 栏",
+        "12+0",
+        "移动端单列",
+        "12/12 栏",
+        "12+0"
+      ],
+      "dataRequirements": [
+        "accountKind",
+        "accountNo",
+        "environment",
+        "balance"
+      ],
+      "sourcePrompt": "骨架 HTML 单 slot 生成契约 v2: 只填充当前 slot。全页一致性来自 pageDesign.designContract；当前组件要求来自 slotContract。 布局硬约束：所有组件和 AI 首页都统一使用 12 栏桌面栅格；slotContract.layoutContract.desktopSpan 是当前组件在桌面容器内的宽度，移动端必须单列。 全局设计契约: {\"summary\":\"大模型调用失败，已使用本地安全方案回退：Gemini 调用失败：Client network socket disconnected before secure TLS connection was established\",\"layoutPreset\":\"onboardingJourney\",\"themePreset\":\"blueFinance\",\"density\":\"balanced\",\"heroFocus\":\"CopyTrading 信号源推荐区\",\"designContract\":{\"id\":\"onboarding-journey\",\"label\":\"新客旅程契约\",\"",
+      "originalSlotPrompt": "交易账户列表区：生成交易账号列表组件，真实账号和模拟账号都要可见，支持列表或卡片但字段不要堆叠混乱。",
+      "slotPromptContractSummary": "{\"contractVersion\":\"skeleton-slot-v2\",\"pageDesign\":{\"summary\":\"大模型调用失败，已使用本地安全方案回退：Gemini 调用失败：Client network socket disconnected before secure TLS connection was established\",\"layoutPreset\":\"onboardingJourney\",\"themePreset\":\"blueFinance\",\"density\":\"balanced\",\"heroFocus\":\"CopyTrading 信号源推荐区\",\"designContract\":{\"id\":\"onboarding-journey\",\"label\":\"新客旅程契约\",\"personality\":\"onboarding-journey\",\"tone\":\"有秩序、推进感、低压力\",\"surface\":\"开户、资产、快捷操作和账号证明共享连续工作台表面，辅助内容用轻分割线收口。\",\"density\":\"balanced\",\"theme\":\"blueFinance\",\"tokens\":{\"pageMaxWidth\":\"1280px\",\"pageGutter\":\"16px\",\"cardRadius\":\"8px\",\"buttonRadius\":\"8px\",\"sectionGap\":\"12px\",\"rowGap\":\"12px\",\"cardPadding\":\"16px\",\"cardShadow\":\"none\",\"cardBorder\":\"var(--home-border-soft)\",\"background\":\"var(--home-bg)\",\"surface\":\"var(--home-card-bg)\",\"surfaceSoft\":\"var(--home-surface-soft)\",\"primaryColor\":\"var(--home-primary)\",\"accentColor\":\"var(--home-accent)\"},\"componentRules\":[\"开户进度、资产摘要、快捷入口和账号证明要像同一组账户启动区，避免各自独立成卡。\",\"步骤编号、进度、状态标签和下一步按钮必须共享同一视觉语法。\",\"资产和账号模块只能做证明或承接，不能抢走旅程主线。\"],\"ctaRules\":[\"唯一主 CTA 应指向下一步，新手路径以外的动作保持低干扰。\",\"已完成、待完成和下一步状态必须清楚区分。\"],\"moduleGrammar\":\"旅程主面板、任务轨、资产证明、账号工作台和辅助 FAQ 共同组成连续激活流程。\",\"differenceRule\":\"本方案差异必须体现连续旅程，不要退回普通仪表盘。\",\"chromePolicy\":{\"mode\":\"flatConnected\",\"sectionChrome\":\"connected\",\"defaultSlotChrome\":\"flat\",\"componentBoundary\":\"page-owned\",\"promptRule\":\"页面骨架负责统一外壳和分区衔接，普通 slot 输出内容片段；只有开户主路径可轻量 featured。\"},\"layoutRules\":{\"maxWidth\":\"1280px\",\"sectionGrouping\":\"\",\"backgroundRule\":\"\",\"blockRelation\":\"\"}},\"pagePlan\":{\"pageGoal\":\"\",\"primaryCta\":\"\",\"mainVisual\":\"promo_banner\",\"layoutStrategy\":\"grouped-workbench\",\"compositionGroups\":[{\"id\":\"opportunities\",\"title\":\"交易机会区\",\"role\":\"support\",\"surface\":\"light-section\",\"modules\":[\"promo_banner\",\"copytrading_signals\",\"referral_link_card\"],\"visualWeight\":100,\"guidance\":\"活动、跟单、PAMM、公告和推广链",
+      "lastAdjustmentPrompt": "",
+      "createdAt": "2026-07-03T14:11:37.285Z",
+      "updatedAt": "2026-07-03T14:11:37.336Z"
     }
   ]
 }

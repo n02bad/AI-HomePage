@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-07-03T12:12:26.985Z",
+  "updatedAt": "2026-07-03T14:11:37.386Z",
   "scores": {
     "component:account-performance-pro-chart": 1,
     "component:accountperformance-clean-snapshot-mpcaq7n5": 5,
@@ -755,6 +755,7 @@
     "component:riskdisclosure-mr39exya": 6,
     "component:riskdisclosure-mr48jxwe": 6,
     "component:riskdisclosure-mr4w82xb": 6,
+    "component:riskdisclosure-mr50gira": 6,
     "component:riskdisclosure-static-210-2o00ih": 8,
     "component:riskdisclosure-static-39-vw2uf4": 8,
     "component:supportcontact-mp6sx0vd": 5,
@@ -852,6 +853,7 @@
     "component:tradingaccounts-mr39epgo": 6,
     "component:tradingaccounts-mr48k6qt": 6,
     "component:tradingaccounts-mr4w7mlt": 6,
+    "component:tradingaccounts-mr50hux1": 6,
     "component:tradingaccounts-static-17-qriab9": 8,
     "component:tradingaccounts-static-26-nhec9x": 8,
     "component:tradingaccounts-static-36-uc3mdn": 8,

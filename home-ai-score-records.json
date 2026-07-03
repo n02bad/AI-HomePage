@@ -1,6 +1,1516 @@
 {
   "records": [
     {
+      "id": "score-1783087898621-925462bdd237b",
+      "at": "2026-07-03T14:11:38.621Z",
+      "action": "preview-change-score",
+      "candidateGroupId": "",
+      "candidateIndex": null,
+      "prompt": "请为 ForexCRM 用户端首页生成可发布的首页方案。分级：基础版，保留首屏和核心说明。页面布局：宽松布局：增加留白和模块呼吸感，降低同屏信息密度，适合品牌感、高净值或需要高级感的首页。首页样式丰富度：克制清爽：使用 1 个品牌主色加中性色，少量状态色，卡片边界轻，留白和信息层级优先，避免装饰性背景和过多色块。视觉：蓝色金融，清爽专业。语气：专业稳健。必选模块（不可撤销）：账户概览：使用 asset_overview 展示账户摘要，包含账户余额，钱包余额，交易账号余额，单位：USD、快捷入口：展示操作入口，4-10个快捷入口位置，icon或者icon+文字、交易账号列表：必须同时包含真实交易账号和模拟交易账号的列表，列表可参考交易账号积木块，列表或卡片形式皆可、新手 Onboarding 引导：KYC -> 开真实账户 -> 首次入金 -> 首次交易，帮助新用户完成基础流程，其中首次交易可选；需要有进度的风格，营销的感觉。交易账号模块必须同时包含真实交易账号和模拟交易账号。选填模块：欢迎模块：必须在页面的第一栏，展示客户姓名、问候语、最近登录时间、交易表现：说明Live交易账户的交易表现，左右结构；栏目左侧显示交易账号信息：账号、平台、服务器，余额、净值、信用金、已用保证金、保证金比例、杠杆信息。右侧展示净值面积图echart图表(7D/30D),PnL面积图Echart图表组件。(7D/30D)；这两个面积图优先展示净值面积图，可以点击tab切换至PnL面积图。底部走势摘要条与操作入口形成闭环；在12栏的布局中，必须8+4或者12+0的布局、钱包列表/卡片：使用 wallet_list 独立模块展示多币种钱包卡片，只展示钱包货币、币种图标和钱包余额，不把多币种明细塞到账户概览、热门信号源：宽松布局，在12栏的布局中，必须8+4或者12+0的布局，展示3个推荐的跟单信号源卡片，至少需要展示信号源名称、收益率、收益率面积图Echarts(30d)，模拟的面积图要看起来真实，吸引人，扁平化、推广链接：展示推广链接信息：链接名称、链接地址(必须)、邀请码(可选)；链接地址与邀请码栏目中有复制按钮，可以复制。统计信息(可选展示)：点击数、注册数、开户数；可以参考 ReferralLinkCard 积木字段、FAQ 常见问题：展示4-10条一些外汇平台的常见问题,通用样式;这个模块是弱化模块，放到倒数的栏目、风险提示：展示一段风险解释的文案，这个模块是弱化模块，放到最后一栏。允许在白名单内重排 sections、brickPlan、模块变体和密度，优先让所选模块和分级决定首屏。不要编造收益、下载链接、后台未提供的数据或未选择的辅助模块",
+      "source": "preview",
+      "providerId": "gemini",
+      "provider": "Gemini",
+      "model": "gemini-3.1-pro-preview-customtools",
+      "renderMode": "skeletonHtml",
+      "status": "passed",
+      "score": 89,
+      "label": "AI 新客跟单驾驶舱",
+      "message": "大模型调用失败，已使用本地安全方案回退：Gemini 调用失败：Client network socket disconnected before secure TLS connection was established",
+      "configSnapshot": {
+        "name": "AI 新客跟单驾驶舱",
+        "layoutPreset": "onboardingJourney",
+        "themePreset": "blueFinance",
+        "colorMode": "auto",
+        "density": "balanced",
+        "intent": "copytrading",
+        "strategy": "新客跟单驾驶舱契约",
+        "renderMode": "skeletonHtml",
+        "htmlScheme": "",
+        "htmlSourceType": "",
+        "htmlPipeline": "",
+        "htmlIsFallback": false,
+        "htmlMock": false,
+        "htmlQualityStatus": "",
+        "qualityScore": 0,
+        "htmlFallbackReason": "",
+        "pageGoal": "",
+        "mainVisual": "promo_banner",
+        "primaryCta": "",
+        "validationWarnings": 0,
+        "modulePolicyScore": null,
+        "blockedModules": [],
+        "repairActions": [],
+        "skeletonScheme": "AI 新客跟单驾驶舱骨架填充",
+        "skeletonSlots": 7,
+        "styleContract": "",
+        "goldenStyleContract": "",
+        "styleContractSources": [],
+        "sectionTransitions": [],
+        "brickIds": [
+          "copytradingSignals.curveCards",
+          "onboardingProgress.ribbonRail",
+          "quickActions.taskRail",
+          "assetOverview.compactMetrics",
+          "tradingAccounts.separatedList",
+          "riskDisclosure.legalStrip"
+        ],
+        "componentReferences": [],
+        "sections": [
+          "full:copytrading_signals",
+          "full:onboarding_guide",
+          "split:quick_actions+asset_overview",
+          "full:trading_accounts_list",
+          "rail:referral_link_card",
+          "full:risk_disclosure"
+        ]
+      },
+      "categories": [
+        {
+          "key": "visualFocus",
+          "label": "首屏视觉焦点",
+          "weight": 22,
+          "score": 70,
+          "notes": [
+            "缺少明确首屏焦点",
+            "主行动可被识别",
+            "有图表、步骤、轮播或工作台结构"
+          ]
+        },
+        {
+          "key": "layoutHierarchy",
+          "label": "布局层级",
+          "weight": 20,
+          "score": 94,
+          "notes": [
+            "6 个 sections",
+            "7 个可见槽位",
+            "2 类积木区域",
+            "5 个宽幅/整行模块"
+          ]
+        },
+        {
+          "key": "layoutComposition",
+          "label": "布局组合度",
+          "weight": 16,
+          "score": 56,
+          "notes": [
+            "2/5 行左右并排",
+            "有左右分栏，避免千篇一律纵向堆叠",
+            "1 个可配对宽模块 / 1 个 compact 伴随"
+          ]
+        },
+        {
+          "key": "blockTransitionQuality",
+          "label": "块过渡质量",
+          "weight": 14,
+          "score": 54,
+          "notes": [
+            "6 个 sections",
+            "0 个显式 transition",
+            "0 个 connected",
+            "0 个 hard-break",
+            "0 个 workbench",
+            "契约 onboarding-journey"
+          ]
+        },
+        {
+          "key": "componentCraft",
+          "label": "积木审美复用",
+          "weight": 22,
+          "score": 82,
+          "notes": [
+            "6 个组件家族",
+            "20 个核心 morph",
+            "23 个模块样式",
+            "组件化方案评分"
+          ]
+        },
+        {
+          "key": "brandHarmony",
+          "label": "品牌色彩与质感",
+          "weight": 14,
+          "score": 92,
+          "notes": [
+            "主题 blueFinance",
+            "CSS token 使用不足",
+            "色彩模式 auto"
+          ]
+        },
+        {
+          "key": "businessFunction",
+          "label": "页面功能完整度",
+          "weight": 14,
+          "score": 85,
+          "notes": [
+            "7 个业务块",
+            "6 个积木计划",
+            "数据契约较弱"
+          ]
+        },
+        {
+          "key": "responsiveSafety",
+          "label": "响应式与可发布安全",
+          "weight": 8,
+          "score": 100,
+          "notes": [
+            "有响应式/autoLayout",
+            "组件化安全路径"
+          ]
+        },
+        {
+          "key": "skeletonSlotQuality",
+          "label": "骨架填充质量",
+          "weight": 16,
+          "score": 100,
+          "notes": [
+            "7/7 个 slot 已填充",
+            "未发现空图表、低分组件或假图标"
+          ]
+        }
+      ],
+      "issues": [
+        "布局组合度偏弱：2/5 行左右并排；有左右分栏，避免千篇一律纵向堆叠；1 个可配对宽模块 / 1 个 compact 伴随",
+        "块过渡质量偏弱：6 个 sections；0 个显式 transition；0 个 connected；0 个 hard-break；0 个 workbench；契约 onboarding-journey",
+        "块过渡质量：只有 0/6 个 section 声明 transition，连续区和断点不够明确。",
+        "块过渡质量：长页面没有 hard-break，辅助内容和主流程容易糊成一串白卡。",
+        "黄金对比门禁：检测到 4 个主资金/开户 CTA，应只保留一个主操作。"
+      ],
+      "suggestions": [
+        "布局组合度需要补充可执行设计约束。",
+        "块过渡质量需要补充可执行设计约束。",
+        "为连续业务路径标记 connected，为不同叙事组标记 hard-break/workbench，并让黄金 styleContract 的 chromePolicy 执行这些断点。",
+        "收敛非主题色到 --home-* token、按版式原型重排 section、并把主资金 CTA 收敛为唯一主操作。"
+      ],
+      "strengths": [
+        "存在图表、步骤、轮播或工作台式视觉结构。",
+        "已拉取漂亮积木块作为审美参考。",
+        "已命中样本库页面和功能参考。",
+        "已读取历史反馈偏好。"
+      ],
+      "sampleReferences": [
+        {
+          "id": "visual-mpkz4l4h-61340",
+          "name": "04-client-home-version-4",
+          "pageIntent": "vip"
+        },
+        {
+          "id": "visual-mpkzkzwb-112f5",
+          "name": "05-client-home-version-5",
+          "pageIntent": "vip"
+        },
+        {
+          "id": "visual-mpkvl6xu-0c30c",
+          "name": "01-client-home-original",
+          "pageIntent": "onboarding"
+        },
+        {
+          "id": "visual-mpkytenj-f80c5",
+          "name": "02-client-home-version-1",
+          "pageIntent": "onboarding"
+        }
+      ],
+      "componentReferences": [
+        {
+          "id": "asset-overview-vip-hero",
+          "name": "VIP 资产 Hero",
+          "family": "AssetOverview"
+        },
+        {
+          "id": "onboardingprogress-static-23-mmty32",
+          "name": "开户进度·新手进度",
+          "family": "OnboardingProgress"
+        },
+        {
+          "id": "faqsection-static-29-mgdnfi",
+          "name": "常见问题·常见问题",
+          "family": "FaqSection"
+        },
+        {
+          "id": "faqsection-static-38-rwnhoc",
+          "name": "常见问题·常见问题",
+          "family": "FaqSection"
+        },
+        {
+          "id": "onboardingprogress-static-33-ugcyv0",
+          "name": "开户进度·4步开启交易之旅",
+          "family": "OnboardingProgress"
+        },
+        {
+          "id": "onboardingprogress-3-mp6oobpj",
+          "name": "3步成为交易大师",
+          "family": "OnboardingProgress"
+        },
+        {
+          "id": "onboardingprogress-static-13-b34rmo",
+          "name": "开户进度·账户开通进度 0/3",
+          "family": "OnboardingProgress"
+        },
+        {
+          "id": "tradingaccounts-mp6oobtd",
+          "name": "真实模拟账号列表",
+          "family": "TradingAccounts"
+        }
+      ]
+    },
+    {
+      "id": "score-1783087852599-85be691e42ad1",
+      "at": "2026-07-03T14:10:52.599Z",
+      "action": "preview-change-score",
+      "candidateGroupId": "",
+      "candidateIndex": null,
+      "prompt": "请为 ForexCRM 用户端首页生成可发布的首页方案。分级：基础版，保留首屏和核心说明。页面布局：宽松布局：增加留白和模块呼吸感，降低同屏信息密度，适合品牌感、高净值或需要高级感的首页。首页样式丰富度：克制清爽：使用 1 个品牌主色加中性色，少量状态色，卡片边界轻，留白和信息层级优先，避免装饰性背景和过多色块。视觉：蓝色金融，清爽专业。语气：专业稳健。必选模块（不可撤销）：账户概览：使用 asset_overview 展示账户摘要，包含账户余额，钱包余额，交易账号余额，单位：USD、快捷入口：展示操作入口，4-10个快捷入口位置，icon或者icon+文字、交易账号列表：必须同时包含真实交易账号和模拟交易账号的列表，列表可参考交易账号积木块，列表或卡片形式皆可、新手 Onboarding 引导：KYC -> 开真实账户 -> 首次入金 -> 首次交易，帮助新用户完成基础流程，其中首次交易可选；需要有进度的风格，营销的感觉。交易账号模块必须同时包含真实交易账号和模拟交易账号。选填模块：欢迎模块：必须在页面的第一栏，展示客户姓名、问候语、最近登录时间、交易表现：说明Live交易账户的交易表现，左右结构；栏目左侧显示交易账号信息：账号、平台、服务器，余额、净值、信用金、已用保证金、保证金比例、杠杆信息。右侧展示净值面积图echart图表(7D/30D),PnL面积图Echart图表组件。(7D/30D)；这两个面积图优先展示净值面积图，可以点击tab切换至PnL面积图。底部走势摘要条与操作入口形成闭环；在12栏的布局中，必须8+4或者12+0的布局、钱包列表/卡片：使用 wallet_list 独立模块展示多币种钱包卡片，只展示钱包货币、币种图标和钱包余额，不把多币种明细塞到账户概览、热门信号源：宽松布局，在12栏的布局中，必须8+4或者12+0的布局，展示3个推荐的跟单信号源卡片，至少需要展示信号源名称、收益率、收益率面积图Echarts(30d)，模拟的面积图要看起来真实，吸引人，扁平化、推广链接：展示推广链接信息：链接名称、链接地址(必须)、邀请码(可选)；链接地址与邀请码栏目中有复制按钮，可以复制。统计信息(可选展示)：点击数、注册数、开户数；可以参考 ReferralLinkCard 积木字段、FAQ 常见问题：展示4-10条一些外汇平台的常见问题,通用样式;这个模块是弱化模块，放到倒数的栏目、风险提示：展示一段风险解释的文案，这个模块是弱化模块，放到最后一栏。允许在白名单内重排 sections、brickPlan、模块变体和密度，优先让所选模块和分级决定首屏。不要编造收益、下载链接、后台未提供的数据或未选择的辅助模块",
+      "source": "preview",
+      "providerId": "gemini",
+      "provider": "Gemini",
+      "model": "gemini-3.1-pro-preview-customtools",
+      "renderMode": "skeletonHtml",
+      "status": "passed",
+      "score": 88,
+      "label": "AI 新客跟单驾驶舱",
+      "message": "大模型调用失败，已使用本地安全方案回退：Gemini 调用失败：Client network socket disconnected before secure TLS connection was established",
+      "configSnapshot": {
+        "name": "AI 新客跟单驾驶舱",
+        "layoutPreset": "onboardingJourney",
+        "themePreset": "blueFinance",
+        "colorMode": "auto",
+        "density": "balanced",
+        "intent": "copytrading",
+        "strategy": "新客跟单驾驶舱契约",
+        "renderMode": "skeletonHtml",
+        "htmlScheme": "",
+        "htmlSourceType": "",
+        "htmlPipeline": "",
+        "htmlIsFallback": false,
+        "htmlMock": false,
+        "htmlQualityStatus": "",
+        "qualityScore": 0,
+        "htmlFallbackReason": "",
+        "pageGoal": "",
+        "mainVisual": "promo_banner",
+        "primaryCta": "",
+        "validationWarnings": 0,
+        "modulePolicyScore": null,
+        "blockedModules": [],
+        "repairActions": [],
+        "skeletonScheme": "AI 新客跟单驾驶舱骨架填充",
+        "skeletonSlots": 7,
+        "styleContract": "",
+        "goldenStyleContract": "",
+        "styleContractSources": [],
+        "sectionTransitions": [],
+        "brickIds": [
+          "copytradingSignals.curveCards",
+          "onboardingProgress.ribbonRail",
+          "quickActions.taskRail",
+          "assetOverview.compactMetrics",
+          "tradingAccounts.separatedList",
+          "riskDisclosure.legalStrip"
+        ],
+        "componentReferences": [],
+        "sections": [
+          "full:copytrading_signals",
+          "full:onboarding_guide",
+          "split:quick_actions+asset_overview",
+          "full:trading_accounts_list",
+          "rail:referral_link_card",
+          "full:risk_disclosure"
+        ]
+      },
+      "categories": [
+        {
+          "key": "visualFocus",
+          "label": "首屏视觉焦点",
+          "weight": 22,
+          "score": 70,
+          "notes": [
+            "缺少明确首屏焦点",
+            "主行动可被识别",
+            "有图表、步骤、轮播或工作台结构"
+          ]
+        },
+        {
+          "key": "layoutHierarchy",
+          "label": "布局层级",
+          "weight": 20,
+          "score": 94,
+          "notes": [
+            "6 个 sections",
+            "7 个可见槽位",
+            "2 类积木区域",
+            "5 个宽幅/整行模块"
+          ]
+        },
+        {
+          "key": "layoutComposition",
+          "label": "布局组合度",
+          "weight": 16,
+          "score": 56,
+          "notes": [
+            "2/5 行左右并排",
+            "有左右分栏，避免千篇一律纵向堆叠",
+            "1 个可配对宽模块 / 1 个 compact 伴随"
+          ]
+        },
+        {
+          "key": "blockTransitionQuality",
+          "label": "块过渡质量",
+          "weight": 14,
+          "score": 54,
+          "notes": [
+            "6 个 sections",
+            "0 个显式 transition",
+            "0 个 connected",
+            "0 个 hard-break",
+            "0 个 workbench",
+            "契约 onboarding-journey"
+          ]
+        },
+        {
+          "key": "componentCraft",
+          "label": "积木审美复用",
+          "weight": 22,
+          "score": 82,
+          "notes": [
+            "6 个组件家族",
+            "20 个核心 morph",
+            "23 个模块样式",
+            "组件化方案评分"
+          ]
+        },
+        {
+          "key": "brandHarmony",
+          "label": "品牌色彩与质感",
+          "weight": 14,
+          "score": 92,
+          "notes": [
+            "主题 blueFinance",
+            "CSS token 使用不足",
+            "色彩模式 auto"
+          ]
+        },
+        {
+          "key": "businessFunction",
+          "label": "页面功能完整度",
+          "weight": 14,
+          "score": 85,
+          "notes": [
+            "7 个业务块",
+            "6 个积木计划",
+            "数据契约较弱"
+          ]
+        },
+        {
+          "key": "responsiveSafety",
+          "label": "响应式与可发布安全",
+          "weight": 8,
+          "score": 100,
+          "notes": [
+            "有响应式/autoLayout",
+            "组件化安全路径"
+          ]
+        },
+        {
+          "key": "skeletonSlotQuality",
+          "label": "骨架填充质量",
+          "weight": 16,
+          "score": 97,
+          "notes": [
+            "6/7 个 slot 已填充",
+            "未发现空图表、低分组件或假图标"
+          ]
+        }
+      ],
+      "issues": [
+        "布局组合度偏弱：2/5 行左右并排；有左右分栏，避免千篇一律纵向堆叠；1 个可配对宽模块 / 1 个 compact 伴随",
+        "块过渡质量偏弱：6 个 sections；0 个显式 transition；0 个 connected；0 个 hard-break；0 个 workbench；契约 onboarding-journey",
+        "块过渡质量：只有 0/6 个 section 声明 transition，连续区和断点不够明确。",
+        "块过渡质量：长页面没有 hard-break，辅助内容和主流程容易糊成一串白卡。",
+        "黄金对比门禁：检测到 3 个主资金/开户 CTA，应只保留一个主操作。"
+      ],
+      "suggestions": [
+        "布局组合度需要补充可执行设计约束。",
+        "块过渡质量需要补充可执行设计约束。",
+        "为连续业务路径标记 connected，为不同叙事组标记 hard-break/workbench，并让黄金 styleContract 的 chromePolicy 执行这些断点。",
+        "收敛非主题色到 --home-* token、按版式原型重排 section、并把主资金 CTA 收敛为唯一主操作。"
+      ],
+      "strengths": [
+        "存在图表、步骤、轮播或工作台式视觉结构。",
+        "已拉取漂亮积木块作为审美参考。",
+        "已命中样本库页面和功能参考。",
+        "已读取历史反馈偏好。"
+      ],
+      "sampleReferences": [
+        {
+          "id": "visual-mpkz4l4h-61340",
+          "name": "04-client-home-version-4",
+          "pageIntent": "vip"
+        },
+        {
+          "id": "visual-mpkzkzwb-112f5",
+          "name": "05-client-home-version-5",
+          "pageIntent": "vip"
+        },
+        {
+          "id": "visual-mpkvl6xu-0c30c",
+          "name": "01-client-home-original",
+          "pageIntent": "onboarding"
+        },
+        {
+          "id": "visual-mpkytenj-f80c5",
+          "name": "02-client-home-version-1",
+          "pageIntent": "onboarding"
+        }
+      ],
+      "componentReferences": [
+        {
+          "id": "asset-overview-vip-hero",
+          "name": "VIP 资产 Hero",
+          "family": "AssetOverview"
+        },
+        {
+          "id": "onboardingprogress-static-23-mmty32",
+          "name": "开户进度·新手进度",
+          "family": "OnboardingProgress"
+        },
+        {
+          "id": "faqsection-static-29-mgdnfi",
+          "name": "常见问题·常见问题",
+          "family": "FaqSection"
+        },
+        {
+          "id": "faqsection-static-38-rwnhoc",
+          "name": "常见问题·常见问题",
+          "family": "FaqSection"
+        },
+        {
+          "id": "onboardingprogress-static-33-ugcyv0",
+          "name": "开户进度·4步开启交易之旅",
+          "family": "OnboardingProgress"
+        },
+        {
+          "id": "onboardingprogress-3-mp6oobpj",
+          "name": "3步成为交易大师",
+          "family": "OnboardingProgress"
+        },
+        {
+          "id": "onboardingprogress-static-13-b34rmo",
+          "name": "开户进度·账户开通进度 0/3",
+          "family": "OnboardingProgress"
+        },
+        {
+          "id": "tradingaccounts-mp6oobtd",
+          "name": "真实模拟账号列表",
+          "family": "TradingAccounts"
+        }
+      ]
+    },
+    {
+      "id": "score-1783087836612-dd91f65cb87c6",
+      "at": "2026-07-03T14:10:36.612Z",
+      "action": "preview-change-score",
+      "candidateGroupId": "",
+      "candidateIndex": null,
+      "prompt": "请为 ForexCRM 用户端首页生成可发布的首页方案。分级：基础版，保留首屏和核心说明。页面布局：宽松布局：增加留白和模块呼吸感，降低同屏信息密度，适合品牌感、高净值或需要高级感的首页。首页样式丰富度：克制清爽：使用 1 个品牌主色加中性色，少量状态色，卡片边界轻，留白和信息层级优先，避免装饰性背景和过多色块。视觉：蓝色金融，清爽专业。语气：专业稳健。必选模块（不可撤销）：账户概览：使用 asset_overview 展示账户摘要，包含账户余额，钱包余额，交易账号余额，单位：USD、快捷入口：展示操作入口，4-10个快捷入口位置，icon或者icon+文字、交易账号列表：必须同时包含真实交易账号和模拟交易账号的列表，列表可参考交易账号积木块，列表或卡片形式皆可、新手 Onboarding 引导：KYC -> 开真实账户 -> 首次入金 -> 首次交易，帮助新用户完成基础流程，其中首次交易可选；需要有进度的风格，营销的感觉。交易账号模块必须同时包含真实交易账号和模拟交易账号。选填模块：欢迎模块：必须在页面的第一栏，展示客户姓名、问候语、最近登录时间、交易表现：说明Live交易账户的交易表现，左右结构；栏目左侧显示交易账号信息：账号、平台、服务器，余额、净值、信用金、已用保证金、保证金比例、杠杆信息。右侧展示净值面积图echart图表(7D/30D),PnL面积图Echart图表组件。(7D/30D)；这两个面积图优先展示净值面积图，可以点击tab切换至PnL面积图。底部走势摘要条与操作入口形成闭环；在12栏的布局中，必须8+4或者12+0的布局、钱包列表/卡片：使用 wallet_list 独立模块展示多币种钱包卡片，只展示钱包货币、币种图标和钱包余额，不把多币种明细塞到账户概览、热门信号源：宽松布局，在12栏的布局中，必须8+4或者12+0的布局，展示3个推荐的跟单信号源卡片，至少需要展示信号源名称、收益率、收益率面积图Echarts(30d)，模拟的面积图要看起来真实，吸引人，扁平化、推广链接：展示推广链接信息：链接名称、链接地址(必须)、邀请码(可选)；链接地址与邀请码栏目中有复制按钮，可以复制。统计信息(可选展示)：点击数、注册数、开户数；可以参考 ReferralLinkCard 积木字段、FAQ 常见问题：展示4-10条一些外汇平台的常见问题,通用样式;这个模块是弱化模块，放到倒数的栏目、风险提示：展示一段风险解释的文案，这个模块是弱化模块，放到最后一栏。允许在白名单内重排 sections、brickPlan、模块变体和密度，优先让所选模块和分级决定首屏。不要编造收益、下载链接、后台未提供的数据或未选择的辅助模块",
+      "source": "preview",
+      "providerId": "gemini",
+      "provider": "Gemini",
+      "model": "gemini-3.1-pro-preview-customtools",
+      "renderMode": "skeletonHtml",
+      "status": "passed",
+      "score": 88,
+      "label": "AI 新客跟单驾驶舱",
+      "message": "大模型调用失败，已使用本地安全方案回退：Gemini 调用失败：Client network socket disconnected before secure TLS connection was established",
+      "configSnapshot": {
+        "name": "AI 新客跟单驾驶舱",
+        "layoutPreset": "onboardingJourney",
+        "themePreset": "blueFinance",
+        "colorMode": "auto",
+        "density": "balanced",
+        "intent": "copytrading",
+        "strategy": "新客跟单驾驶舱契约",
+        "renderMode": "skeletonHtml",
+        "htmlScheme": "",
+        "htmlSourceType": "",
+        "htmlPipeline": "",
+        "htmlIsFallback": false,
+        "htmlMock": false,
+        "htmlQualityStatus": "",
+        "qualityScore": 0,
+        "htmlFallbackReason": "",
+        "pageGoal": "",
+        "mainVisual": "promo_banner",
+        "primaryCta": "",
+        "validationWarnings": 0,
+        "modulePolicyScore": null,
+        "blockedModules": [],
+        "repairActions": [],
+        "skeletonScheme": "AI 新客跟单驾驶舱骨架填充",
+        "skeletonSlots": 7,
+        "styleContract": "",
+        "goldenStyleContract": "",
+        "styleContractSources": [],
+        "sectionTransitions": [],
+        "brickIds": [
+          "copytradingSignals.curveCards",
+          "onboardingProgress.ribbonRail",
+          "quickActions.taskRail",
+          "assetOverview.compactMetrics",
+          "tradingAccounts.separatedList",
+          "riskDisclosure.legalStrip"
+        ],
+        "componentReferences": [],
+        "sections": [
+          "full:copytrading_signals",
+          "full:onboarding_guide",
+          "split:quick_actions+asset_overview",
+          "full:trading_accounts_list",
+          "rail:referral_link_card",
+          "full:risk_disclosure"
+        ]
+      },
+      "categories": [
+        {
+          "key": "visualFocus",
+          "label": "首屏视觉焦点",
+          "weight": 22,
+          "score": 70,
+          "notes": [
+            "缺少明确首屏焦点",
+            "主行动可被识别",
+            "有图表、步骤、轮播或工作台结构"
+          ]
+        },
+        {
+          "key": "layoutHierarchy",
+          "label": "布局层级",
+          "weight": 20,
+          "score": 94,
+          "notes": [
+            "6 个 sections",
+            "7 个可见槽位",
+            "2 类积木区域",
+            "5 个宽幅/整行模块"
+          ]
+        },
+        {
+          "key": "layoutComposition",
+          "label": "布局组合度",
+          "weight": 16,
+          "score": 56,
+          "notes": [
+            "2/5 行左右并排",
+            "有左右分栏，避免千篇一律纵向堆叠",
+            "1 个可配对宽模块 / 1 个 compact 伴随"
+          ]
+        },
+        {
+          "key": "blockTransitionQuality",
+          "label": "块过渡质量",
+          "weight": 14,
+          "score": 54,
+          "notes": [
+            "6 个 sections",
+            "0 个显式 transition",
+            "0 个 connected",
+            "0 个 hard-break",
+            "0 个 workbench",
+            "契约 onboarding-journey"
+          ]
+        },
+        {
+          "key": "componentCraft",
+          "label": "积木审美复用",
+          "weight": 22,
+          "score": 82,
+          "notes": [
+            "6 个组件家族",
+            "20 个核心 morph",
+            "23 个模块样式",
+            "组件化方案评分"
+          ]
+        },
+        {
+          "key": "brandHarmony",
+          "label": "品牌色彩与质感",
+          "weight": 14,
+          "score": 92,
+          "notes": [
+            "主题 blueFinance",
+            "CSS token 使用不足",
+            "色彩模式 auto"
+          ]
+        },
+        {
+          "key": "businessFunction",
+          "label": "页面功能完整度",
+          "weight": 14,
+          "score": 85,
+          "notes": [
+            "7 个业务块",
+            "6 个积木计划",
+            "数据契约较弱"
+          ]
+        },
+        {
+          "key": "responsiveSafety",
+          "label": "响应式与可发布安全",
+          "weight": 8,
+          "score": 100,
+          "notes": [
+            "有响应式/autoLayout",
+            "组件化安全路径"
+          ]
+        },
+        {
+          "key": "skeletonSlotQuality",
+          "label": "骨架填充质量",
+          "weight": 16,
+          "score": 94,
+          "notes": [
+            "5/7 个 slot 已填充",
+            "未发现空图表、低分组件或假图标"
+          ]
+        }
+      ],
+      "issues": [
+        "布局组合度偏弱：2/5 行左右并排；有左右分栏，避免千篇一律纵向堆叠；1 个可配对宽模块 / 1 个 compact 伴随",
+        "块过渡质量偏弱：6 个 sections；0 个显式 transition；0 个 connected；0 个 hard-break；0 个 workbench；契约 onboarding-journey",
+        "块过渡质量：只有 0/6 个 section 声明 transition，连续区和断点不够明确。",
+        "块过渡质量：长页面没有 hard-break，辅助内容和主流程容易糊成一串白卡。",
+        "黄金对比门禁：检测到 3 个主资金/开户 CTA，应只保留一个主操作。"
+      ],
+      "suggestions": [
+        "布局组合度需要补充可执行设计约束。",
+        "块过渡质量需要补充可执行设计约束。",
+        "为连续业务路径标记 connected，为不同叙事组标记 hard-break/workbench，并让黄金 styleContract 的 chromePolicy 执行这些断点。",
+        "收敛非主题色到 --home-* token、按版式原型重排 section、并把主资金 CTA 收敛为唯一主操作。"
+      ],
+      "strengths": [
+        "存在图表、步骤、轮播或工作台式视觉结构。",
+        "已拉取漂亮积木块作为审美参考。",
+        "已命中样本库页面和功能参考。",
+        "已读取历史反馈偏好。"
+      ],
+      "sampleReferences": [
+        {
+          "id": "visual-mpkz4l4h-61340",
+          "name": "04-client-home-version-4",
+          "pageIntent": "vip"
+        },
+        {
+          "id": "visual-mpkzkzwb-112f5",
+          "name": "05-client-home-version-5",
+          "pageIntent": "vip"
+        },
+        {
+          "id": "visual-mpkvl6xu-0c30c",
+          "name": "01-client-home-original",
+          "pageIntent": "onboarding"
+        },
+        {
+          "id": "visual-mpkytenj-f80c5",
+          "name": "02-client-home-version-1",
+          "pageIntent": "onboarding"
+        }
+      ],
+      "componentReferences": [
+        {
+          "id": "asset-overview-vip-hero",
+          "name": "VIP 资产 Hero",
+          "family": "AssetOverview"
+        },
+        {
+          "id": "onboardingprogress-static-23-mmty32",
+          "name": "开户进度·新手进度",
+          "family": "OnboardingProgress"
+        },
+        {
+          "id": "faqsection-static-29-mgdnfi",
+          "name": "常见问题·常见问题",
+          "family": "FaqSection"
+        },
+        {
+          "id": "faqsection-static-38-rwnhoc",
+          "name": "常见问题·常见问题",
+          "family": "FaqSection"
+        },
+        {
+          "id": "onboardingprogress-static-33-ugcyv0",
+          "name": "开户进度·4步开启交易之旅",
+          "family": "OnboardingProgress"
+        },
+        {
+          "id": "onboardingprogress-3-mp6oobpj",
+          "name": "3步成为交易大师",
+          "family": "OnboardingProgress"
+        },
+        {
+          "id": "onboardingprogress-static-13-b34rmo",
+          "name": "开户进度·账户开通进度 0/3",
+          "family": "OnboardingProgress"
+        },
+        {
+          "id": "tradingaccounts-mp6oobtd",
+          "name": "真实模拟账号列表",
+          "family": "TradingAccounts"
+        }
+      ]
+    },
+    {
+      "id": "score-1783087813588-a0359855e623d",
+      "at": "2026-07-03T14:10:13.588Z",
+      "action": "preview-change-score",
+      "candidateGroupId": "",
+      "candidateIndex": null,
+      "prompt": "请为 ForexCRM 用户端首页生成可发布的首页方案。分级：基础版，保留首屏和核心说明。页面布局：宽松布局：增加留白和模块呼吸感，降低同屏信息密度，适合品牌感、高净值或需要高级感的首页。首页样式丰富度：克制清爽：使用 1 个品牌主色加中性色，少量状态色，卡片边界轻，留白和信息层级优先，避免装饰性背景和过多色块。视觉：蓝色金融，清爽专业。语气：专业稳健。必选模块（不可撤销）：账户概览：使用 asset_overview 展示账户摘要，包含账户余额，钱包余额，交易账号余额，单位：USD、快捷入口：展示操作入口，4-10个快捷入口位置，icon或者icon+文字、交易账号列表：必须同时包含真实交易账号和模拟交易账号的列表，列表可参考交易账号积木块，列表或卡片形式皆可、新手 Onboarding 引导：KYC -> 开真实账户 -> 首次入金 -> 首次交易，帮助新用户完成基础流程，其中首次交易可选；需要有进度的风格，营销的感觉。交易账号模块必须同时包含真实交易账号和模拟交易账号。选填模块：欢迎模块：必须在页面的第一栏，展示客户姓名、问候语、最近登录时间、交易表现：说明Live交易账户的交易表现，左右结构；栏目左侧显示交易账号信息：账号、平台、服务器，余额、净值、信用金、已用保证金、保证金比例、杠杆信息。右侧展示净值面积图echart图表(7D/30D),PnL面积图Echart图表组件。(7D/30D)；这两个面积图优先展示净值面积图，可以点击tab切换至PnL面积图。底部走势摘要条与操作入口形成闭环；在12栏的布局中，必须8+4或者12+0的布局、钱包列表/卡片：使用 wallet_list 独立模块展示多币种钱包卡片，只展示钱包货币、币种图标和钱包余额，不把多币种明细塞到账户概览、热门信号源：宽松布局，在12栏的布局中，必须8+4或者12+0的布局，展示3个推荐的跟单信号源卡片，至少需要展示信号源名称、收益率、收益率面积图Echarts(30d)，模拟的面积图要看起来真实，吸引人，扁平化、推广链接：展示推广链接信息：链接名称、链接地址(必须)、邀请码(可选)；链接地址与邀请码栏目中有复制按钮，可以复制。统计信息(可选展示)：点击数、注册数、开户数；可以参考 ReferralLinkCard 积木字段、FAQ 常见问题：展示4-10条一些外汇平台的常见问题,通用样式;这个模块是弱化模块，放到倒数的栏目、风险提示：展示一段风险解释的文案，这个模块是弱化模块，放到最后一栏。允许在白名单内重排 sections、brickPlan、模块变体和密度，优先让所选模块和分级决定首屏。不要编造收益、下载链接、后台未提供的数据或未选择的辅助模块",
+      "source": "preview",
+      "providerId": "gemini",
+      "provider": "Gemini",
+      "model": "gemini-3.1-pro-preview-customtools",
+      "renderMode": "skeletonHtml",
+      "status": "passed",
+      "score": 88,
+      "label": "AI 新客跟单驾驶舱",
+      "message": "大模型调用失败，已使用本地安全方案回退：Gemini 调用失败：Client network socket disconnected before secure TLS connection was established",
+      "configSnapshot": {
+        "name": "AI 新客跟单驾驶舱",
+        "layoutPreset": "onboardingJourney",
+        "themePreset": "blueFinance",
+        "colorMode": "auto",
+        "density": "balanced",
+        "intent": "copytrading",
+        "strategy": "新客跟单驾驶舱契约",
+        "renderMode": "skeletonHtml",
+        "htmlScheme": "",
+        "htmlSourceType": "",
+        "htmlPipeline": "",
+        "htmlIsFallback": false,
+        "htmlMock": false,
+        "htmlQualityStatus": "",
+        "qualityScore": 0,
+        "htmlFallbackReason": "",
+        "pageGoal": "",
+        "mainVisual": "promo_banner",
+        "primaryCta": "",
+        "validationWarnings": 0,
+        "modulePolicyScore": null,
+        "blockedModules": [],
+        "repairActions": [],
+        "skeletonScheme": "AI 新客跟单驾驶舱骨架填充",
+        "skeletonSlots": 7,
+        "styleContract": "",
+        "goldenStyleContract": "",
+        "styleContractSources": [],
+        "sectionTransitions": [],
+        "brickIds": [
+          "copytradingSignals.curveCards",
+          "onboardingProgress.ribbonRail",
+          "quickActions.taskRail",
+          "assetOverview.compactMetrics",
+          "tradingAccounts.separatedList",
+          "riskDisclosure.legalStrip"
+        ],
+        "componentReferences": [],
+        "sections": [
+          "full:copytrading_signals",
+          "full:onboarding_guide",
+          "split:quick_actions+asset_overview",
+          "full:trading_accounts_list",
+          "rail:referral_link_card",
+          "full:risk_disclosure"
+        ]
+      },
+      "categories": [
+        {
+          "key": "visualFocus",
+          "label": "首屏视觉焦点",
+          "weight": 22,
+          "score": 70,
+          "notes": [
+            "缺少明确首屏焦点",
+            "主行动可被识别",
+            "有图表、步骤、轮播或工作台结构"
+          ]
+        },
+        {
+          "key": "layoutHierarchy",
+          "label": "布局层级",
+          "weight": 20,
+          "score": 94,
+          "notes": [
+            "6 个 sections",
+            "7 个可见槽位",
+            "2 类积木区域",
+            "5 个宽幅/整行模块"
+          ]
+        },
+        {
+          "key": "layoutComposition",
+          "label": "布局组合度",
+          "weight": 16,
+          "score": 56,
+          "notes": [
+            "2/5 行左右并排",
+            "有左右分栏，避免千篇一律纵向堆叠",
+            "1 个可配对宽模块 / 1 个 compact 伴随"
+          ]
+        },
+        {
+          "key": "blockTransitionQuality",
+          "label": "块过渡质量",
+          "weight": 14,
+          "score": 54,
+          "notes": [
+            "6 个 sections",
+            "0 个显式 transition",
+            "0 个 connected",
+            "0 个 hard-break",
+            "0 个 workbench",
+            "契约 onboarding-journey"
+          ]
+        },
+        {
+          "key": "componentCraft",
+          "label": "积木审美复用",
+          "weight": 22,
+          "score": 82,
+          "notes": [
+            "6 个组件家族",
+            "20 个核心 morph",
+            "23 个模块样式",
+            "组件化方案评分"
+          ]
+        },
+        {
+          "key": "brandHarmony",
+          "label": "品牌色彩与质感",
+          "weight": 14,
+          "score": 92,
+          "notes": [
+            "主题 blueFinance",
+            "CSS token 使用不足",
+            "色彩模式 auto"
+          ]
+        },
+        {
+          "key": "businessFunction",
+          "label": "页面功能完整度",
+          "weight": 14,
+          "score": 85,
+          "notes": [
+            "7 个业务块",
+            "6 个积木计划",
+            "数据契约较弱"
+          ]
+        },
+        {
+          "key": "responsiveSafety",
+          "label": "响应式与可发布安全",
+          "weight": 8,
+          "score": 100,
+          "notes": [
+            "有响应式/autoLayout",
+            "组件化安全路径"
+          ]
+        },
+        {
+          "key": "skeletonSlotQuality",
+          "label": "骨架填充质量",
+          "weight": 16,
+          "score": 91,
+          "notes": [
+            "4/7 个 slot 已填充",
+            "未发现空图表、低分组件或假图标"
+          ]
+        }
+      ],
+      "issues": [
+        "布局组合度偏弱：2/5 行左右并排；有左右分栏，避免千篇一律纵向堆叠；1 个可配对宽模块 / 1 个 compact 伴随",
+        "块过渡质量偏弱：6 个 sections；0 个显式 transition；0 个 connected；0 个 hard-break；0 个 workbench；契约 onboarding-journey",
+        "块过渡质量：只有 0/6 个 section 声明 transition，连续区和断点不够明确。",
+        "块过渡质量：长页面没有 hard-break，辅助内容和主流程容易糊成一串白卡。",
+        "黄金对比门禁：检测到 3 个主资金/开户 CTA，应只保留一个主操作。"
+      ],
+      "suggestions": [
+        "布局组合度需要补充可执行设计约束。",
+        "块过渡质量需要补充可执行设计约束。",
+        "为连续业务路径标记 connected，为不同叙事组标记 hard-break/workbench，并让黄金 styleContract 的 chromePolicy 执行这些断点。",
+        "收敛非主题色到 --home-* token、按版式原型重排 section、并把主资金 CTA 收敛为唯一主操作。"
+      ],
+      "strengths": [
+        "存在图表、步骤、轮播或工作台式视觉结构。",
+        "已拉取漂亮积木块作为审美参考。",
+        "已命中样本库页面和功能参考。",
+        "已读取历史反馈偏好。"
+      ],
+      "sampleReferences": [
+        {
+          "id": "visual-mpkz4l4h-61340",
+          "name": "04-client-home-version-4",
+          "pageIntent": "vip"
+        },
+        {
+          "id": "visual-mpkzkzwb-112f5",
+          "name": "05-client-home-version-5",
+          "pageIntent": "vip"
+        },
+        {
+          "id": "visual-mpkvl6xu-0c30c",
+          "name": "01-client-home-original",
+          "pageIntent": "onboarding"
+        },
+        {
+          "id": "visual-mpkytenj-f80c5",
+          "name": "02-client-home-version-1",
+          "pageIntent": "onboarding"
+        }
+      ],
+      "componentReferences": [
+        {
+          "id": "asset-overview-vip-hero",
+          "name": "VIP 资产 Hero",
+          "family": "AssetOverview"
+        },
+        {
+          "id": "onboardingprogress-static-23-mmty32",
+          "name": "开户进度·新手进度",
+          "family": "OnboardingProgress"
+        },
+        {
+          "id": "faqsection-static-29-mgdnfi",
+          "name": "常见问题·常见问题",
+          "family": "FaqSection"
+        },
+        {
+          "id": "faqsection-static-38-rwnhoc",
+          "name": "常见问题·常见问题",
+          "family": "FaqSection"
+        },
+        {
+          "id": "onboardingprogress-static-33-ugcyv0",
+          "name": "开户进度·4步开启交易之旅",
+          "family": "OnboardingProgress"
+        },
+        {
+          "id": "onboardingprogress-3-mp6oobpj",
+          "name": "3步成为交易大师",
+          "family": "OnboardingProgress"
+        },
+        {
+          "id": "onboardingprogress-static-13-b34rmo",
+          "name": "开户进度·账户开通进度 0/3",
+          "family": "OnboardingProgress"
+        },
+        {
+          "id": "tradingaccounts-mp6oobtd",
+          "name": "真实模拟账号列表",
+          "family": "TradingAccounts"
+        }
+      ]
+    },
+    {
+      "id": "score-1783087809590-9eebd78fed0d",
+      "at": "2026-07-03T14:10:09.590Z",
+      "action": "preview-change-score",
+      "candidateGroupId": "",
+      "candidateIndex": null,
+      "prompt": "请为 ForexCRM 用户端首页生成可发布的首页方案。分级：基础版，保留首屏和核心说明。页面布局：宽松布局：增加留白和模块呼吸感，降低同屏信息密度，适合品牌感、高净值或需要高级感的首页。首页样式丰富度：克制清爽：使用 1 个品牌主色加中性色，少量状态色，卡片边界轻，留白和信息层级优先，避免装饰性背景和过多色块。视觉：蓝色金融，清爽专业。语气：专业稳健。必选模块（不可撤销）：账户概览：使用 asset_overview 展示账户摘要，包含账户余额，钱包余额，交易账号余额，单位：USD、快捷入口：展示操作入口，4-10个快捷入口位置，icon或者icon+文字、交易账号列表：必须同时包含真实交易账号和模拟交易账号的列表，列表可参考交易账号积木块，列表或卡片形式皆可、新手 Onboarding 引导：KYC -> 开真实账户 -> 首次入金 -> 首次交易，帮助新用户完成基础流程，其中首次交易可选；需要有进度的风格，营销的感觉。交易账号模块必须同时包含真实交易账号和模拟交易账号。选填模块：欢迎模块：必须在页面的第一栏，展示客户姓名、问候语、最近登录时间、交易表现：说明Live交易账户的交易表现，左右结构；栏目左侧显示交易账号信息：账号、平台、服务器，余额、净值、信用金、已用保证金、保证金比例、杠杆信息。右侧展示净值面积图echart图表(7D/30D),PnL面积图Echart图表组件。(7D/30D)；这两个面积图优先展示净值面积图，可以点击tab切换至PnL面积图。底部走势摘要条与操作入口形成闭环；在12栏的布局中，必须8+4或者12+0的布局、钱包列表/卡片：使用 wallet_list 独立模块展示多币种钱包卡片，只展示钱包货币、币种图标和钱包余额，不把多币种明细塞到账户概览、热门信号源：宽松布局，在12栏的布局中，必须8+4或者12+0的布局，展示3个推荐的跟单信号源卡片，至少需要展示信号源名称、收益率、收益率面积图Echarts(30d)，模拟的面积图要看起来真实，吸引人，扁平化、推广链接：展示推广链接信息：链接名称、链接地址(必须)、邀请码(可选)；链接地址与邀请码栏目中有复制按钮，可以复制。统计信息(可选展示)：点击数、注册数、开户数；可以参考 ReferralLinkCard 积木字段、FAQ 常见问题：展示4-10条一些外汇平台的常见问题,通用样式;这个模块是弱化模块，放到倒数的栏目、风险提示：展示一段风险解释的文案，这个模块是弱化模块，放到最后一栏。允许在白名单内重排 sections、brickPlan、模块变体和密度，优先让所选模块和分级决定首屏。不要编造收益、下载链接、后台未提供的数据或未选择的辅助模块",
+      "source": "preview",
+      "providerId": "gemini",
+      "provider": "Gemini",
+      "model": "gemini-3.1-pro-preview-customtools",
+      "renderMode": "skeletonHtml",
+      "status": "passed",
+      "score": 87,
+      "label": "AI 新客跟单驾驶舱",
+      "message": "大模型调用失败，已使用本地安全方案回退：Gemini 调用失败：Client network socket disconnected before secure TLS connection was established",
+      "configSnapshot": {
+        "name": "AI 新客跟单驾驶舱",
+        "layoutPreset": "onboardingJourney",
+        "themePreset": "blueFinance",
+        "colorMode": "auto",
+        "density": "balanced",
+        "intent": "copytrading",
+        "strategy": "新客跟单驾驶舱契约",
+        "renderMode": "skeletonHtml",
+        "htmlScheme": "",
+        "htmlSourceType": "",
+        "htmlPipeline": "",
+        "htmlIsFallback": false,
+        "htmlMock": false,
+        "htmlQualityStatus": "",
+        "qualityScore": 0,
+        "htmlFallbackReason": "",
+        "pageGoal": "",
+        "mainVisual": "promo_banner",
+        "primaryCta": "",
+        "validationWarnings": 0,
+        "modulePolicyScore": null,
+        "blockedModules": [],
+        "repairActions": [],
+        "skeletonScheme": "AI 新客跟单驾驶舱骨架填充",
+        "skeletonSlots": 7,
+        "styleContract": "",
+        "goldenStyleContract": "",
+        "styleContractSources": [],
+        "sectionTransitions": [],
+        "brickIds": [
+          "copytradingSignals.curveCards",
+          "onboardingProgress.ribbonRail",
+          "quickActions.taskRail",
+          "assetOverview.compactMetrics",
+          "tradingAccounts.separatedList",
+          "riskDisclosure.legalStrip"
+        ],
+        "componentReferences": [],
+        "sections": [
+          "full:copytrading_signals",
+          "full:onboarding_guide",
+          "split:quick_actions+asset_overview",
+          "full:trading_accounts_list",
+          "rail:referral_link_card",
+          "full:risk_disclosure"
+        ]
+      },
+      "categories": [
+        {
+          "key": "visualFocus",
+          "label": "首屏视觉焦点",
+          "weight": 22,
+          "score": 70,
+          "notes": [
+            "缺少明确首屏焦点",
+            "主行动可被识别",
+            "有图表、步骤、轮播或工作台结构"
+          ]
+        },
+        {
+          "key": "layoutHierarchy",
+          "label": "布局层级",
+          "weight": 20,
+          "score": 94,
+          "notes": [
+            "6 个 sections",
+            "7 个可见槽位",
+            "2 类积木区域",
+            "5 个宽幅/整行模块"
+          ]
+        },
+        {
+          "key": "layoutComposition",
+          "label": "布局组合度",
+          "weight": 16,
+          "score": 56,
+          "notes": [
+            "2/5 行左右并排",
+            "有左右分栏，避免千篇一律纵向堆叠",
+            "1 个可配对宽模块 / 1 个 compact 伴随"
+          ]
+        },
+        {
+          "key": "blockTransitionQuality",
+          "label": "块过渡质量",
+          "weight": 14,
+          "score": 54,
+          "notes": [
+            "6 个 sections",
+            "0 个显式 transition",
+            "0 个 connected",
+            "0 个 hard-break",
+            "0 个 workbench",
+            "契约 onboarding-journey"
+          ]
+        },
+        {
+          "key": "componentCraft",
+          "label": "积木审美复用",
+          "weight": 22,
+          "score": 82,
+          "notes": [
+            "6 个组件家族",
+            "20 个核心 morph",
+            "23 个模块样式",
+            "组件化方案评分"
+          ]
+        },
+        {
+          "key": "brandHarmony",
+          "label": "品牌色彩与质感",
+          "weight": 14,
+          "score": 92,
+          "notes": [
+            "主题 blueFinance",
+            "CSS token 使用不足",
+            "色彩模式 auto"
+          ]
+        },
+        {
+          "key": "businessFunction",
+          "label": "页面功能完整度",
+          "weight": 14,
+          "score": 85,
+          "notes": [
+            "7 个业务块",
+            "6 个积木计划",
+            "数据契约较弱"
+          ]
+        },
+        {
+          "key": "responsiveSafety",
+          "label": "响应式与可发布安全",
+          "weight": 8,
+          "score": 100,
+          "notes": [
+            "有响应式/autoLayout",
+            "组件化安全路径"
+          ]
+        },
+        {
+          "key": "skeletonSlotQuality",
+          "label": "骨架填充质量",
+          "weight": 16,
+          "score": 88,
+          "notes": [
+            "3/7 个 slot 已填充",
+            "未发现空图表、低分组件或假图标"
+          ]
+        }
+      ],
+      "issues": [
+        "布局组合度偏弱：2/5 行左右并排；有左右分栏，避免千篇一律纵向堆叠；1 个可配对宽模块 / 1 个 compact 伴随",
+        "块过渡质量偏弱：6 个 sections；0 个显式 transition；0 个 connected；0 个 hard-break；0 个 workbench；契约 onboarding-journey",
+        "块过渡质量：只有 0/6 个 section 声明 transition，连续区和断点不够明确。",
+        "块过渡质量：长页面没有 hard-break，辅助内容和主流程容易糊成一串白卡。",
+        "黄金对比门禁：检测到 2 个主资金/开户 CTA，应只保留一个主操作。"
+      ],
+      "suggestions": [
+        "布局组合度需要补充可执行设计约束。",
+        "块过渡质量需要补充可执行设计约束。",
+        "为连续业务路径标记 connected，为不同叙事组标记 hard-break/workbench，并让黄金 styleContract 的 chromePolicy 执行这些断点。",
+        "收敛非主题色到 --home-* token、按版式原型重排 section、并把主资金 CTA 收敛为唯一主操作。"
+      ],
+      "strengths": [
+        "存在图表、步骤、轮播或工作台式视觉结构。",
+        "已拉取漂亮积木块作为审美参考。",
+        "已命中样本库页面和功能参考。",
+        "已读取历史反馈偏好。"
+      ],
+      "sampleReferences": [
+        {
+          "id": "visual-mpkz4l4h-61340",
+          "name": "04-client-home-version-4",
+          "pageIntent": "vip"
+        },
+        {
+          "id": "visual-mpkzkzwb-112f5",
+          "name": "05-client-home-version-5",
+          "pageIntent": "vip"
+        },
+        {
+          "id": "visual-mpkvl6xu-0c30c",
+          "name": "01-client-home-original",
+          "pageIntent": "onboarding"
+        },
+        {
+          "id": "visual-mpkytenj-f80c5",
+          "name": "02-client-home-version-1",
+          "pageIntent": "onboarding"
+        }
+      ],
+      "componentReferences": [
+        {
+          "id": "asset-overview-vip-hero",
+          "name": "VIP 资产 Hero",
+          "family": "AssetOverview"
+        },
+        {
+          "id": "onboardingprogress-static-23-mmty32",
+          "name": "开户进度·新手进度",
+          "family": "OnboardingProgress"
+        },
+        {
+          "id": "faqsection-static-29-mgdnfi",
+          "name": "常见问题·常见问题",
+          "family": "FaqSection"
+        },
+        {
+          "id": "faqsection-static-38-rwnhoc",
+          "name": "常见问题·常见问题",
+          "family": "FaqSection"
+        },
+        {
+          "id": "onboardingprogress-static-33-ugcyv0",
+          "name": "开户进度·4步开启交易之旅",
+          "family": "OnboardingProgress"
+        },
+        {
+          "id": "onboardingprogress-3-mp6oobpj",
+          "name": "3步成为交易大师",
+          "family": "OnboardingProgress"
+        },
+        {
+          "id": "onboardingprogress-static-13-b34rmo",
+          "name": "开户进度·账户开通进度 0/3",
+          "family": "OnboardingProgress"
+        },
+        {
+          "id": "tradingaccounts-mp6oobtd",
+          "name": "真实模拟账号列表",
+          "family": "TradingAccounts"
+        }
+      ]
+    },
+    {
+      "id": "score-1783087801636-e5e9ca3971d0e",
+      "at": "2026-07-03T14:10:01.636Z",
+      "action": "preview-open-score",
+      "candidateGroupId": "",
+      "candidateIndex": null,
+      "prompt": "请为 ForexCRM 用户端首页生成可发布的首页方案。分级：基础版，保留首屏和核心说明。页面布局：宽松布局：增加留白和模块呼吸感，降低同屏信息密度，适合品牌感、高净值或需要高级感的首页。首页样式丰富度：克制清爽：使用 1 个品牌主色加中性色，少量状态色，卡片边界轻，留白和信息层级优先，避免装饰性背景和过多色块。视觉：蓝色金融，清爽专业。语气：专业稳健。必选模块（不可撤销）：账户概览：使用 asset_overview 展示账户摘要，包含账户余额，钱包余额，交易账号余额，单位：USD、快捷入口：展示操作入口，4-10个快捷入口位置，icon或者icon+文字、交易账号列表：必须同时包含真实交易账号和模拟交易账号的列表，列表可参考交易账号积木块，列表或卡片形式皆可、新手 Onboarding 引导：KYC -> 开真实账户 -> 首次入金 -> 首次交易，帮助新用户完成基础流程，其中首次交易可选；需要有进度的风格，营销的感觉。交易账号模块必须同时包含真实交易账号和模拟交易账号。选填模块：欢迎模块：必须在页面的第一栏，展示客户姓名、问候语、最近登录时间、交易表现：说明Live交易账户的交易表现，左右结构；栏目左侧显示交易账号信息：账号、平台、服务器，余额、净值、信用金、已用保证金、保证金比例、杠杆信息。右侧展示净值面积图echart图表(7D/30D),PnL面积图Echart图表组件。(7D/30D)；这两个面积图优先展示净值面积图，可以点击tab切换至PnL面积图。底部走势摘要条与操作入口形成闭环；在12栏的布局中，必须8+4或者12+0的布局、钱包列表/卡片：使用 wallet_list 独立模块展示多币种钱包卡片，只展示钱包货币、币种图标和钱包余额，不把多币种明细塞到账户概览、热门信号源：宽松布局，在12栏的布局中，必须8+4或者12+0的布局，展示3个推荐的跟单信号源卡片，至少需要展示信号源名称、收益率、收益率面积图Echarts(30d)，模拟的面积图要看起来真实，吸引人，扁平化、推广链接：展示推广链接信息：链接名称、链接地址(必须)、邀请码(可选)；链接地址与邀请码栏目中有复制按钮，可以复制。统计信息(可选展示)：点击数、注册数、开户数；可以参考 ReferralLinkCard 积木字段、FAQ 常见问题：展示4-10条一些外汇平台的常见问题,通用样式;这个模块是弱化模块，放到倒数的栏目、风险提示：展示一段风险解释的文案，这个模块是弱化模块，放到最后一栏。允许在白名单内重排 sections、brickPlan、模块变体和密度，优先让所选模块和分级决定首屏。不要编造收益、下载链接、后台未提供的数据或未选择的辅助模块",
+      "source": "preview-open",
+      "providerId": "gemini",
+      "provider": "Gemini",
+      "model": "gemini-3.1-pro-preview-customtools",
+      "renderMode": "skeletonHtml",
+      "status": "passed",
+      "score": 86,
+      "label": "AI 新客跟单驾驶舱",
+      "message": "大模型调用失败，已使用本地安全方案回退：Gemini 调用失败：Client network socket disconnected before secure TLS connection was established",
+      "configSnapshot": {
+        "name": "AI 新客跟单驾驶舱",
+        "layoutPreset": "onboardingJourney",
+        "themePreset": "blueFinance",
+        "colorMode": "auto",
+        "density": "balanced",
+        "intent": "copytrading",
+        "strategy": "新客跟单驾驶舱契约",
+        "renderMode": "skeletonHtml",
+        "htmlScheme": "",
+        "htmlSourceType": "",
+        "htmlPipeline": "",
+        "htmlIsFallback": false,
+        "htmlMock": false,
+        "htmlQualityStatus": "",
+        "qualityScore": 0,
+        "htmlFallbackReason": "",
+        "pageGoal": "",
+        "mainVisual": "promo_banner",
+        "primaryCta": "",
+        "validationWarnings": 0,
+        "modulePolicyScore": null,
+        "blockedModules": [],
+        "repairActions": [],
+        "skeletonScheme": "AI 新客跟单驾驶舱骨架填充",
+        "skeletonSlots": 7,
+        "styleContract": "",
+        "goldenStyleContract": "",
+        "styleContractSources": [],
+        "sectionTransitions": [],
+        "brickIds": [
+          "copytradingSignals.curveCards",
+          "onboardingProgress.ribbonRail",
+          "quickActions.taskRail",
+          "assetOverview.compactMetrics",
+          "tradingAccounts.separatedList",
+          "riskDisclosure.legalStrip"
+        ],
+        "componentReferences": [],
+        "sections": [
+          "full:copytrading_signals",
+          "full:onboarding_guide",
+          "split:quick_actions+asset_overview",
+          "full:trading_accounts_list",
+          "rail:referral_link_card",
+          "full:risk_disclosure"
+        ]
+      },
+      "categories": [
+        {
+          "key": "visualFocus",
+          "label": "首屏视觉焦点",
+          "weight": 22,
+          "score": 70,
+          "notes": [
+            "缺少明确首屏焦点",
+            "主行动可被识别",
+            "有图表、步骤、轮播或工作台结构"
+          ]
+        },
+        {
+          "key": "layoutHierarchy",
+          "label": "布局层级",
+          "weight": 20,
+          "score": 94,
+          "notes": [
+            "6 个 sections",
+            "7 个可见槽位",
+            "2 类积木区域",
+            "5 个宽幅/整行模块"
+          ]
+        },
+        {
+          "key": "layoutComposition",
+          "label": "布局组合度",
+          "weight": 16,
+          "score": 56,
+          "notes": [
+            "2/5 行左右并排",
+            "有左右分栏，避免千篇一律纵向堆叠",
+            "1 个可配对宽模块 / 1 个 compact 伴随"
+          ]
+        },
+        {
+          "key": "blockTransitionQuality",
+          "label": "块过渡质量",
+          "weight": 14,
+          "score": 54,
+          "notes": [
+            "6 个 sections",
+            "0 个显式 transition",
+            "0 个 connected",
+            "0 个 hard-break",
+            "0 个 workbench",
+            "契约 onboarding-journey"
+          ]
+        },
+        {
+          "key": "componentCraft",
+          "label": "积木审美复用",
+          "weight": 22,
+          "score": 82,
+          "notes": [
+            "6 个组件家族",
+            "20 个核心 morph",
+            "23 个模块样式",
+            "组件化方案评分"
+          ]
+        },
+        {
+          "key": "brandHarmony",
+          "label": "品牌色彩与质感",
+          "weight": 14,
+          "score": 92,
+          "notes": [
+            "主题 blueFinance",
+            "CSS token 使用不足",
+            "色彩模式 auto"
+          ]
+        },
+        {
+          "key": "businessFunction",
+          "label": "页面功能完整度",
+          "weight": 14,
+          "score": 85,
+          "notes": [
+            "7 个业务块",
+            "6 个积木计划",
+            "数据契约较弱"
+          ]
+        },
+        {
+          "key": "responsiveSafety",
+          "label": "响应式与可发布安全",
+          "weight": 8,
+          "score": 100,
+          "notes": [
+            "有响应式/autoLayout",
+            "组件化安全路径"
+          ]
+        },
+        {
+          "key": "skeletonSlotQuality",
+          "label": "骨架填充质量",
+          "weight": 16,
+          "score": 79,
+          "notes": [
+            "0/7 个 slot 已填充",
+            "未发现空图表、低分组件或假图标"
+          ]
+        }
+      ],
+      "issues": [
+        "布局组合度偏弱：2/5 行左右并排；有左右分栏，避免千篇一律纵向堆叠；1 个可配对宽模块 / 1 个 compact 伴随",
+        "块过渡质量偏弱：6 个 sections；0 个显式 transition；0 个 connected；0 个 hard-break；0 个 workbench；契约 onboarding-journey",
+        "块过渡质量：只有 0/6 个 section 声明 transition，连续区和断点不够明确。",
+        "块过渡质量：长页面没有 hard-break，辅助内容和主流程容易糊成一串白卡。"
+      ],
+      "suggestions": [
+        "布局组合度需要补充可执行设计约束。",
+        "块过渡质量需要补充可执行设计约束。",
+        "为连续业务路径标记 connected，为不同叙事组标记 hard-break/workbench，并让黄金 styleContract 的 chromePolicy 执行这些断点。"
+      ],
+      "strengths": [
+        "存在图表、步骤、轮播或工作台式视觉结构。",
+        "已拉取漂亮积木块作为审美参考。",
+        "已命中样本库页面和功能参考。",
+        "已读取历史反馈偏好。"
+      ],
+      "sampleReferences": [
+        {
+          "id": "visual-mpkz4l4h-61340",
+          "name": "04-client-home-version-4",
+          "pageIntent": "vip"
+        },
+        {
+          "id": "visual-mpkzkzwb-112f5",
+          "name": "05-client-home-version-5",
+          "pageIntent": "vip"
+        },
+        {
+          "id": "visual-mpkvl6xu-0c30c",
+          "name": "01-client-home-original",
+          "pageIntent": "onboarding"
+        },
+        {
+          "id": "visual-mpkytenj-f80c5",
+          "name": "02-client-home-version-1",
+          "pageIntent": "onboarding"
+        }
+      ],
+      "componentReferences": [
+        {
+          "id": "asset-overview-vip-hero",
+          "name": "VIP 资产 Hero",
+          "family": "AssetOverview"
+        },
+        {
+          "id": "onboardingprogress-static-23-mmty32",
+          "name": "开户进度·新手进度",
+          "family": "OnboardingProgress"
+        },
+        {
+          "id": "faqsection-static-29-mgdnfi",
+          "name": "常见问题·常见问题",
+          "family": "FaqSection"
+        },
+        {
+          "id": "faqsection-static-38-rwnhoc",
+          "name": "常见问题·常见问题",
+          "family": "FaqSection"
+        },
+        {
+          "id": "onboardingprogress-static-33-ugcyv0",
+          "name": "开户进度·4步开启交易之旅",
+          "family": "OnboardingProgress"
+        },
+        {
+          "id": "onboardingprogress-3-mp6oobpj",
+          "name": "3步成为交易大师",
+          "family": "OnboardingProgress"
+        },
+        {
+          "id": "onboardingprogress-static-13-b34rmo",
+          "name": "开户进度·账户开通进度 0/3",
+          "family": "OnboardingProgress"
+        },
+        {
+          "id": "tradingaccounts-mp6oobtd",
+          "name": "真实模拟账号列表",
+          "family": "TradingAccounts"
+        }
+      ]
+    },
+    {
       "id": "score-1783085305969-7d93fc7b6e415",
       "at": "2026-07-03T13:28:25.969Z",
       "action": "publish-score",
@@ -94337,1973 +95847,6 @@
           "id": "welcomeheader-mp6th632",
           "name": "欢迎头部-运营主线版",
           "family": "WelcomeHeader"
-        },
-        {
-          "id": "wallet-list-currency-table",
-          "name": "多币种钱包卡片组",
-          "family": "WalletList"
-        }
-      ]
-    },
-    {
-      "id": "score-1779844224060-7e6c039f02541",
-      "at": "2026-05-27T01:10:24.060Z",
-      "action": "preview-change-score",
-      "candidateGroupId": "",
-      "candidateIndex": null,
-      "prompt": "请为 ForexCRM 用户端首页生成可发布的首页方案。分级：专业版，加入账号、资产、数据指标或更完整的运营模块。页面布局：宽松布局：增加留白和模块呼吸感，降低同屏信息密度，适合品牌感、高净值或需要高级感的首页。首页样式丰富度：标准丰富：使用品牌主色、1-2 个辅助色和清晰状态色，允许轻量色块、图标底色和模块分区，让首页更有层次但仍保持金融专业感。视觉：蓝色金融，清爽专业。语气：专业稳健。必选模块（不可撤销）：账户概览：使用 asset_overview 展示账户摘要，包含账户余额，钱包余额，交易账号余额，单位：USD、快捷入口：展示操作入口，4-10个快捷入口位置，icon或者icon+文字、交易账号列表：必须同时包含真实交易账号和模拟交易账号的列表，列表可参考交易账号积木块，列表或卡片形式皆可、新手 Onboarding 引导：KYC -> 开真实账户 -> 首次入金 -> 首次交易，帮助新用户完成基础流程，其中首次交易可选；需要有进度的风格，营销的感觉。交易账号模块必须同时包含真实交易账号和模拟交易账号。选填模块：欢迎模块：必须在页面的第一栏，展示客户姓名、问候语、最近登录时间、广告轮播图：多张广告轮播图，整体组件需要支持轮播及切换下一张；用 promo_banner 作为首页积木承接、KYC状态：未提交、待审、通过、拒绝；只展示当前状态,未提交时补充展示去提交按钮，拒绝是展示再次提交；可以是小卡片，如果展示此项，可以塞进欢迎模块一起展示、热门信号源：宽松布局，在12栏的布局中，必须8+4或者12+0的布局，展示3个推荐的跟单信号源卡片，至少需要展示信号源名称、收益率、收益率面积图Echarts(30d)，模拟的面积图要看起来真实，吸引人，扁平化、推广链接：展示推广链接信息：链接名称、链接地址(必须)、邀请码(可选)；链接地址与邀请码栏目中有复制按钮，可以复制。统计信息(可选展示)：点击数、注册数、开户数；可以参考 ReferralLinkCard 积木字段、FAQ 常见问题：展示4-10条一些外汇平台的常见问题,通用样式;这个模块是弱化模块，放到倒数的栏目、风险提示：展示一段风险解释的文案，这个模块是弱化模块，放到最后一栏。允许在白名单内重排 sections、brickPlan、模块变体和密度，优先让所选模块和分级决定首屏。不要编造收益、下载链接、后台未提供的数据或未选择的辅助模块",
-      "source": "preview",
-      "providerId": "gemini",
-      "provider": "Gemini",
-      "model": "gemini-3.1-pro-preview-customtools",
-      "renderMode": "skeletonHtml",
-      "status": "passed",
-      "score": 99,
-      "label": "AI 新客跟单驾驶舱",
-      "message": "已按新客跟单驾驶舱重排：首屏跟单曲线推荐 + 开户旅程，资产降级。",
-      "configSnapshot": {
-        "name": "AI 新客跟单驾驶舱",
-        "layoutPreset": "onboardingJourney",
-        "themePreset": "blueFinance",
-        "colorMode": "auto",
-        "density": "spacious",
-        "intent": "onboarding",
-        "strategy": "新客开户服务端意图纠偏",
-        "renderMode": "skeletonHtml",
-        "htmlScheme": "",
-        "htmlSourceType": "",
-        "htmlPipeline": "",
-        "htmlIsFallback": false,
-        "htmlMock": false,
-        "htmlQualityStatus": "",
-        "qualityScore": 0,
-        "htmlFallbackReason": "",
-        "pageGoal": "openAccount",
-        "mainVisual": "asset_overview",
-        "primaryCta": "立即开户",
-        "validationWarnings": 0,
-        "modulePolicyScore": null,
-        "blockedModules": [],
-        "repairActions": [],
-        "skeletonScheme": "AI 新客跟单驾驶舱骨架填充",
-        "skeletonSlots": 11,
-        "styleContract": "golden-fintech",
-        "goldenStyleContract": "golden-fintech",
-        "styleContractSources": [
-          "visual-mpkz4l4h-61340",
-          "visual-mpkzkzwb-112f5",
-          "visual-mpkvl6xu-0c30c"
-        ],
-        "sectionTransitions": [
-          "hero-welcome-asset-overview:plain",
-          "activation-overview-onbo-onboard:soft-break",
-          "activation_overview-1:soft-break",
-          "account-workspace-accoun-account:connected",
-          "opportunities-copytradin-copytra:plain",
-          "opportunities-promo-promo-1-1-1-:soft-break",
-          "opportunities-1:soft-break",
-          "support_compliance-1:hard-break"
-        ],
-        "brickIds": [
-          "assetOverview.flexible",
-          "copytradingSignals.curveCards",
-          "onboardingProgress.missionBoard",
-          "quickActions.configDriven",
-          "tradingAccounts.separatedList",
-          "promoBanner.imageHero",
-          "referralLinkCard.compact",
-          "kycStatus.current",
-          "faqSection.accordion",
-          "riskDisclosure.legalStrip"
-        ],
-        "componentReferences": [
-          {
-            "componentId": "assetoverview-mp86x8sn",
-            "name": "资产概览-紧凑指标台",
-            "family": "AssetOverview",
-            "module": "AssetOverview",
-            "component": "asset_overview",
-            "variantHint": "tickerStrip",
-            "morphHint": "metricTriplet"
-          },
-          {
-            "componentId": "onboardingprogress-3-mp6oobpj",
-            "name": "3步成为交易大师",
-            "family": "OnboardingProgress",
-            "module": "OnboardingProgress",
-            "component": "onboarding_guide",
-            "variantHint": "path",
-            "morphHint": "pathSteps"
-          },
-          {
-            "componentId": "quickactions-mpeukuj7",
-            "name": "扁平快捷操作坞",
-            "family": "QuickActions",
-            "module": "QuickActions",
-            "component": "quick_actions",
-            "variantHint": "actionDock",
-            "morphHint": "actionDock"
-          },
-          {
-            "componentId": "tradingaccounts-mp6oobtd",
-            "name": "真实模拟账号列表",
-            "family": "TradingAccounts",
-            "module": "TradingAccounts",
-            "component": "trading_accounts_list",
-            "variantHint": "separatedList",
-            "morphHint": "liveDemoSplit"
-          },
-          {
-            "componentId": "copytradingsignals-mpm2feca",
-            "name": "跟单信号源推荐区",
-            "family": "CopytradingSignals",
-            "module": "CopytradingSignals",
-            "component": "copytrading_signals",
-            "variantHint": "",
-            "morphHint": ""
-          },
-          {
-            "componentId": "promotionbanner-mp87nels",
-            "name": "活动公告承接横幅",
-            "family": "PromotionBanner",
-            "module": "PromotionBanner",
-            "component": "promo_banner",
-            "variantHint": "splitVisual",
-            "morphHint": "splitVisual"
-          },
-          {
-            "componentId": "referral-link-growth-console",
-            "name": "邀请增长控制台",
-            "family": "ReferralLinkCard",
-            "module": "ReferralLinkCard",
-            "component": "referral_link_card",
-            "variantHint": "",
-            "morphHint": ""
-          },
-          {
-            "componentId": "faqsection-faq-mp6rlpsy",
-            "name": "FAQ 常见问题",
-            "family": "FaqSection",
-            "module": "FaqSection",
-            "component": "faq_section",
-            "variantHint": "compactList",
-            "morphHint": ""
-          }
-        ],
-        "sections": [
-          "hero:welcome_header",
-          "hero:asset_overview",
-          "full:onboarding_guide",
-          "split:quick_actions+kyc_status_card",
-          "full:trading_accounts_list",
-          "full:copytrading_signals",
-          "full:promo_banner",
-          "full:referral_link_card",
-          "full:faq_section",
-          "full:risk_disclosure"
-        ]
-      },
-      "categories": [
-        {
-          "key": "visualFocus",
-          "label": "首屏视觉焦点",
-          "weight": 22,
-          "score": 100,
-          "notes": [
-            "有首屏/封面/工作台焦点",
-            "主行动可被识别",
-            "有图表、步骤、轮播或工作台结构"
-          ]
-        },
-        {
-          "key": "layoutHierarchy",
-          "label": "布局层级",
-          "weight": 20,
-          "score": 100,
-          "notes": [
-            "10 个 sections",
-            "11 个可见槽位",
-            "4 类积木区域",
-            "5 个宽幅/整行模块"
-          ]
-        },
-        {
-          "key": "blockTransitionQuality",
-          "label": "块过渡质量",
-          "weight": 14,
-          "score": 86,
-          "notes": [
-            "10 个 sections",
-            "8 个显式 transition",
-            "1 个 connected",
-            "1 个 hard-break",
-            "0 个 workbench",
-            "契约 golden-fintech"
-          ]
-        },
-        {
-          "key": "componentCraft",
-          "label": "积木审美复用",
-          "weight": 22,
-          "score": 82,
-          "notes": [
-            "10 个组件家族",
-            "20 个核心 morph",
-            "23 个模块样式",
-            "组件化方案评分"
-          ]
-        },
-        {
-          "key": "brandHarmony",
-          "label": "品牌色彩与质感",
-          "weight": 14,
-          "score": 92,
-          "notes": [
-            "主题 blueFinance",
-            "CSS token 使用不足",
-            "色彩模式 auto"
-          ]
-        },
-        {
-          "key": "businessFunction",
-          "label": "页面功能完整度",
-          "weight": 14,
-          "score": 92,
-          "notes": [
-            "11 个业务块",
-            "10 个积木计划",
-            "数据契约较弱"
-          ]
-        },
-        {
-          "key": "responsiveSafety",
-          "label": "响应式与可发布安全",
-          "weight": 8,
-          "score": 100,
-          "notes": [
-            "有响应式/autoLayout",
-            "组件化安全路径"
-          ]
-        },
-        {
-          "key": "skeletonSlotQuality",
-          "label": "骨架填充质量",
-          "weight": 16,
-          "score": 76,
-          "notes": [
-            "3/11 个 slot 已填充",
-            "未发现空图表、低分组件或假图标"
-          ]
-        }
-      ],
-      "issues": [
-        "块过渡质量：单模块整行过多，但没有连续组或硬断点，容易形成平均白卡堆叠。"
-      ],
-      "suggestions": [
-        "为连续业务路径标记 connected，为不同叙事组标记 hard-break/workbench，并让黄金 styleContract 的 chromePolicy 执行这些断点。"
-      ],
-      "strengths": [
-        "首屏具备可识别焦点。",
-        "存在图表、步骤、轮播或工作台式视觉结构。",
-        "已拉取漂亮积木块作为审美参考。",
-        "已命中样本库页面和功能参考。",
-        "已读取历史反馈偏好。"
-      ],
-      "sampleReferences": [
-        {
-          "id": "visual-mpkz4l4h-61340",
-          "name": "04-client-home-version-4",
-          "pageIntent": "vip"
-        },
-        {
-          "id": "visual-mpkzkzwb-112f5",
-          "name": "05-client-home-version-5",
-          "pageIntent": "vip"
-        },
-        {
-          "id": "visual-mpkvl6xu-0c30c",
-          "name": "01-client-home-original",
-          "pageIntent": "onboarding"
-        },
-        {
-          "id": "visual-mpkytenj-f80c5",
-          "name": "02-client-home-version-1",
-          "pageIntent": "onboarding"
-        }
-      ],
-      "componentReferences": [
-        {
-          "id": "asset-overview-vip-hero",
-          "name": "VIP 资产 Hero",
-          "family": "AssetOverview"
-        },
-        {
-          "id": "assetoverview-mp86x8sn",
-          "name": "资产概览-紧凑指标台",
-          "family": "AssetOverview"
-        },
-        {
-          "id": "quickactions-mpde3a64",
-          "name": "快捷操作-九宫格入口",
-          "family": "QuickActions"
-        },
-        {
-          "id": "onboardingprogress-3-mp6oobpj",
-          "name": "3步成为交易大师",
-          "family": "OnboardingProgress"
-        },
-        {
-          "id": "referral-link-growth-console",
-          "name": "邀请增长控制台",
-          "family": "ReferralLinkCard"
-        },
-        {
-          "id": "quickactions-mpeukuj7",
-          "name": "扁平快捷操作坞",
-          "family": "QuickActions"
-        },
-        {
-          "id": "welcomeheader-mp6th632",
-          "name": "欢迎头部-运营主线版",
-          "family": "WelcomeHeader"
-        },
-        {
-          "id": "wallet-list-currency-table",
-          "name": "多币种钱包卡片组",
-          "family": "WalletList"
-        }
-      ]
-    },
-    {
-      "id": "score-1779844185046-2826798abf8fd",
-      "at": "2026-05-27T01:09:45.046Z",
-      "action": "preview-change-score",
-      "candidateGroupId": "",
-      "candidateIndex": null,
-      "prompt": "请为 ForexCRM 用户端首页生成可发布的首页方案。分级：专业版，加入账号、资产、数据指标或更完整的运营模块。页面布局：宽松布局：增加留白和模块呼吸感，降低同屏信息密度，适合品牌感、高净值或需要高级感的首页。首页样式丰富度：标准丰富：使用品牌主色、1-2 个辅助色和清晰状态色，允许轻量色块、图标底色和模块分区，让首页更有层次但仍保持金融专业感。视觉：蓝色金融，清爽专业。语气：专业稳健。必选模块（不可撤销）：账户概览：使用 asset_overview 展示账户摘要，包含账户余额，钱包余额，交易账号余额，单位：USD、快捷入口：展示操作入口，4-10个快捷入口位置，icon或者icon+文字、交易账号列表：必须同时包含真实交易账号和模拟交易账号的列表，列表可参考交易账号积木块，列表或卡片形式皆可、新手 Onboarding 引导：KYC -> 开真实账户 -> 首次入金 -> 首次交易，帮助新用户完成基础流程，其中首次交易可选；需要有进度的风格，营销的感觉。交易账号模块必须同时包含真实交易账号和模拟交易账号。选填模块：欢迎模块：必须在页面的第一栏，展示客户姓名、问候语、最近登录时间、广告轮播图：多张广告轮播图，整体组件需要支持轮播及切换下一张；用 promo_banner 作为首页积木承接、KYC状态：未提交、待审、通过、拒绝；只展示当前状态,未提交时补充展示去提交按钮，拒绝是展示再次提交；可以是小卡片，如果展示此项，可以塞进欢迎模块一起展示、热门信号源：宽松布局，在12栏的布局中，必须8+4或者12+0的布局，展示3个推荐的跟单信号源卡片，至少需要展示信号源名称、收益率、收益率面积图Echarts(30d)，模拟的面积图要看起来真实，吸引人，扁平化、推广链接：展示推广链接信息：链接名称、链接地址(必须)、邀请码(可选)；链接地址与邀请码栏目中有复制按钮，可以复制。统计信息(可选展示)：点击数、注册数、开户数；可以参考 ReferralLinkCard 积木字段、FAQ 常见问题：展示4-10条一些外汇平台的常见问题,通用样式;这个模块是弱化模块，放到倒数的栏目、风险提示：展示一段风险解释的文案，这个模块是弱化模块，放到最后一栏。允许在白名单内重排 sections、brickPlan、模块变体和密度，优先让所选模块和分级决定首屏。不要编造收益、下载链接、后台未提供的数据或未选择的辅助模块",
-      "source": "preview",
-      "providerId": "gemini",
-      "provider": "Gemini",
-      "model": "gemini-3.1-pro-preview-customtools",
-      "renderMode": "skeletonHtml",
-      "status": "passed",
-      "score": 98,
-      "label": "AI 新客跟单驾驶舱",
-      "message": "已按新客跟单驾驶舱重排：首屏跟单曲线推荐 + 开户旅程，资产降级。",
-      "configSnapshot": {
-        "name": "AI 新客跟单驾驶舱",
-        "layoutPreset": "onboardingJourney",
-        "themePreset": "blueFinance",
-        "colorMode": "auto",
-        "density": "spacious",
-        "intent": "onboarding",
-        "strategy": "新客开户服务端意图纠偏",
-        "renderMode": "skeletonHtml",
-        "htmlScheme": "",
-        "htmlSourceType": "",
-        "htmlPipeline": "",
-        "htmlIsFallback": false,
-        "htmlMock": false,
-        "htmlQualityStatus": "",
-        "qualityScore": 0,
-        "htmlFallbackReason": "",
-        "pageGoal": "openAccount",
-        "mainVisual": "asset_overview",
-        "primaryCta": "立即开户",
-        "validationWarnings": 0,
-        "modulePolicyScore": null,
-        "blockedModules": [],
-        "repairActions": [],
-        "skeletonScheme": "AI 新客跟单驾驶舱骨架填充",
-        "skeletonSlots": 11,
-        "styleContract": "golden-fintech",
-        "goldenStyleContract": "golden-fintech",
-        "styleContractSources": [
-          "visual-mpkz4l4h-61340",
-          "visual-mpkzkzwb-112f5",
-          "visual-mpkvl6xu-0c30c"
-        ],
-        "sectionTransitions": [
-          "hero-welcome-asset-overview:plain",
-          "activation-overview-onbo-onboard:soft-break",
-          "activation_overview-1:soft-break",
-          "account-workspace-accoun-account:connected",
-          "opportunities-copytradin-copytra:plain",
-          "opportunities-promo-promo-1-1-1-:soft-break",
-          "opportunities-1:soft-break",
-          "support_compliance-1:hard-break"
-        ],
-        "brickIds": [
-          "assetOverview.flexible",
-          "copytradingSignals.curveCards",
-          "onboardingProgress.missionBoard",
-          "quickActions.configDriven",
-          "tradingAccounts.separatedList",
-          "promoBanner.imageHero",
-          "referralLinkCard.compact",
-          "kycStatus.current",
-          "faqSection.accordion",
-          "riskDisclosure.legalStrip"
-        ],
-        "componentReferences": [
-          {
-            "componentId": "assetoverview-mp86x8sn",
-            "name": "资产概览-紧凑指标台",
-            "family": "AssetOverview",
-            "module": "AssetOverview",
-            "component": "asset_overview",
-            "variantHint": "tickerStrip",
-            "morphHint": "metricTriplet"
-          },
-          {
-            "componentId": "onboardingprogress-3-mp6oobpj",
-            "name": "3步成为交易大师",
-            "family": "OnboardingProgress",
-            "module": "OnboardingProgress",
-            "component": "onboarding_guide",
-            "variantHint": "path",
-            "morphHint": "pathSteps"
-          },
-          {
-            "componentId": "quickactions-mpeukuj7",
-            "name": "扁平快捷操作坞",
-            "family": "QuickActions",
-            "module": "QuickActions",
-            "component": "quick_actions",
-            "variantHint": "actionDock",
-            "morphHint": "actionDock"
-          },
-          {
-            "componentId": "tradingaccounts-mp6oobtd",
-            "name": "真实模拟账号列表",
-            "family": "TradingAccounts",
-            "module": "TradingAccounts",
-            "component": "trading_accounts_list",
-            "variantHint": "separatedList",
-            "morphHint": "liveDemoSplit"
-          },
-          {
-            "componentId": "copytradingsignals-mpm2feca",
-            "name": "跟单信号源推荐区",
-            "family": "CopytradingSignals",
-            "module": "CopytradingSignals",
-            "component": "copytrading_signals",
-            "variantHint": "",
-            "morphHint": ""
-          },
-          {
-            "componentId": "promotionbanner-mp87nels",
-            "name": "活动公告承接横幅",
-            "family": "PromotionBanner",
-            "module": "PromotionBanner",
-            "component": "promo_banner",
-            "variantHint": "splitVisual",
-            "morphHint": "splitVisual"
-          },
-          {
-            "componentId": "referral-link-growth-console",
-            "name": "邀请增长控制台",
-            "family": "ReferralLinkCard",
-            "module": "ReferralLinkCard",
-            "component": "referral_link_card",
-            "variantHint": "",
-            "morphHint": ""
-          },
-          {
-            "componentId": "faqsection-faq-mp6rlpsy",
-            "name": "FAQ 常见问题",
-            "family": "FaqSection",
-            "module": "FaqSection",
-            "component": "faq_section",
-            "variantHint": "compactList",
-            "morphHint": ""
-          }
-        ],
-        "sections": [
-          "hero:welcome_header",
-          "hero:asset_overview",
-          "full:onboarding_guide",
-          "split:quick_actions+kyc_status_card",
-          "full:trading_accounts_list",
-          "full:copytrading_signals",
-          "full:promo_banner",
-          "full:referral_link_card",
-          "full:faq_section",
-          "full:risk_disclosure"
-        ]
-      },
-      "categories": [
-        {
-          "key": "visualFocus",
-          "label": "首屏视觉焦点",
-          "weight": 22,
-          "score": 100,
-          "notes": [
-            "有首屏/封面/工作台焦点",
-            "主行动可被识别",
-            "有图表、步骤、轮播或工作台结构"
-          ]
-        },
-        {
-          "key": "layoutHierarchy",
-          "label": "布局层级",
-          "weight": 20,
-          "score": 100,
-          "notes": [
-            "10 个 sections",
-            "11 个可见槽位",
-            "4 类积木区域",
-            "5 个宽幅/整行模块"
-          ]
-        },
-        {
-          "key": "blockTransitionQuality",
-          "label": "块过渡质量",
-          "weight": 14,
-          "score": 86,
-          "notes": [
-            "10 个 sections",
-            "8 个显式 transition",
-            "1 个 connected",
-            "1 个 hard-break",
-            "0 个 workbench",
-            "契约 golden-fintech"
-          ]
-        },
-        {
-          "key": "componentCraft",
-          "label": "积木审美复用",
-          "weight": 22,
-          "score": 82,
-          "notes": [
-            "10 个组件家族",
-            "20 个核心 morph",
-            "23 个模块样式",
-            "组件化方案评分"
-          ]
-        },
-        {
-          "key": "brandHarmony",
-          "label": "品牌色彩与质感",
-          "weight": 14,
-          "score": 92,
-          "notes": [
-            "主题 blueFinance",
-            "CSS token 使用不足",
-            "色彩模式 auto"
-          ]
-        },
-        {
-          "key": "businessFunction",
-          "label": "页面功能完整度",
-          "weight": 14,
-          "score": 92,
-          "notes": [
-            "11 个业务块",
-            "10 个积木计划",
-            "数据契约较弱"
-          ]
-        },
-        {
-          "key": "responsiveSafety",
-          "label": "响应式与可发布安全",
-          "weight": 8,
-          "score": 100,
-          "notes": [
-            "有响应式/autoLayout",
-            "组件化安全路径"
-          ]
-        },
-        {
-          "key": "skeletonSlotQuality",
-          "label": "骨架填充质量",
-          "weight": 16,
-          "score": 73,
-          "notes": [
-            "2/11 个 slot 已填充",
-            "未发现空图表、低分组件或假图标"
-          ]
-        }
-      ],
-      "issues": [
-        "块过渡质量：单模块整行过多，但没有连续组或硬断点，容易形成平均白卡堆叠。"
-      ],
-      "suggestions": [
-        "为连续业务路径标记 connected，为不同叙事组标记 hard-break/workbench，并让黄金 styleContract 的 chromePolicy 执行这些断点。"
-      ],
-      "strengths": [
-        "首屏具备可识别焦点。",
-        "存在图表、步骤、轮播或工作台式视觉结构。",
-        "已拉取漂亮积木块作为审美参考。",
-        "已命中样本库页面和功能参考。",
-        "已读取历史反馈偏好。"
-      ],
-      "sampleReferences": [
-        {
-          "id": "visual-mpkz4l4h-61340",
-          "name": "04-client-home-version-4",
-          "pageIntent": "vip"
-        },
-        {
-          "id": "visual-mpkzkzwb-112f5",
-          "name": "05-client-home-version-5",
-          "pageIntent": "vip"
-        },
-        {
-          "id": "visual-mpkvl6xu-0c30c",
-          "name": "01-client-home-original",
-          "pageIntent": "onboarding"
-        },
-        {
-          "id": "visual-mpkytenj-f80c5",
-          "name": "02-client-home-version-1",
-          "pageIntent": "onboarding"
-        }
-      ],
-      "componentReferences": [
-        {
-          "id": "asset-overview-vip-hero",
-          "name": "VIP 资产 Hero",
-          "family": "AssetOverview"
-        },
-        {
-          "id": "assetoverview-mp86x8sn",
-          "name": "资产概览-紧凑指标台",
-          "family": "AssetOverview"
-        },
-        {
-          "id": "quickactions-mpde3a64",
-          "name": "快捷操作-九宫格入口",
-          "family": "QuickActions"
-        },
-        {
-          "id": "onboardingprogress-3-mp6oobpj",
-          "name": "3步成为交易大师",
-          "family": "OnboardingProgress"
-        },
-        {
-          "id": "referral-link-growth-console",
-          "name": "邀请增长控制台",
-          "family": "ReferralLinkCard"
-        },
-        {
-          "id": "quickactions-mpeukuj7",
-          "name": "扁平快捷操作坞",
-          "family": "QuickActions"
-        },
-        {
-          "id": "welcomeheader-mp6th632",
-          "name": "欢迎头部-运营主线版",
-          "family": "WelcomeHeader"
-        },
-        {
-          "id": "wallet-list-currency-table",
-          "name": "多币种钱包卡片组",
-          "family": "WalletList"
-        }
-      ]
-    },
-    {
-      "id": "score-1779844147944-38d6ef2c1377c",
-      "at": "2026-05-27T01:09:07.944Z",
-      "action": "preview-change-score",
-      "candidateGroupId": "",
-      "candidateIndex": null,
-      "prompt": "请为 ForexCRM 用户端首页生成可发布的首页方案。分级：专业版，加入账号、资产、数据指标或更完整的运营模块。页面布局：宽松布局：增加留白和模块呼吸感，降低同屏信息密度，适合品牌感、高净值或需要高级感的首页。首页样式丰富度：标准丰富：使用品牌主色、1-2 个辅助色和清晰状态色，允许轻量色块、图标底色和模块分区，让首页更有层次但仍保持金融专业感。视觉：蓝色金融，清爽专业。语气：专业稳健。必选模块（不可撤销）：账户概览：使用 asset_overview 展示账户摘要，包含账户余额，钱包余额，交易账号余额，单位：USD、快捷入口：展示操作入口，4-10个快捷入口位置，icon或者icon+文字、交易账号列表：必须同时包含真实交易账号和模拟交易账号的列表，列表可参考交易账号积木块，列表或卡片形式皆可、新手 Onboarding 引导：KYC -> 开真实账户 -> 首次入金 -> 首次交易，帮助新用户完成基础流程，其中首次交易可选；需要有进度的风格，营销的感觉。交易账号模块必须同时包含真实交易账号和模拟交易账号。选填模块：欢迎模块：必须在页面的第一栏，展示客户姓名、问候语、最近登录时间、广告轮播图：多张广告轮播图，整体组件需要支持轮播及切换下一张；用 promo_banner 作为首页积木承接、KYC状态：未提交、待审、通过、拒绝；只展示当前状态,未提交时补充展示去提交按钮，拒绝是展示再次提交；可以是小卡片，如果展示此项，可以塞进欢迎模块一起展示、热门信号源：宽松布局，在12栏的布局中，必须8+4或者12+0的布局，展示3个推荐的跟单信号源卡片，至少需要展示信号源名称、收益率、收益率面积图Echarts(30d)，模拟的面积图要看起来真实，吸引人，扁平化、推广链接：展示推广链接信息：链接名称、链接地址(必须)、邀请码(可选)；链接地址与邀请码栏目中有复制按钮，可以复制。统计信息(可选展示)：点击数、注册数、开户数；可以参考 ReferralLinkCard 积木字段、FAQ 常见问题：展示4-10条一些外汇平台的常见问题,通用样式;这个模块是弱化模块，放到倒数的栏目、风险提示：展示一段风险解释的文案，这个模块是弱化模块，放到最后一栏。允许在白名单内重排 sections、brickPlan、模块变体和密度，优先让所选模块和分级决定首屏。不要编造收益、下载链接、后台未提供的数据或未选择的辅助模块",
-      "source": "preview",
-      "providerId": "gemini",
-      "provider": "Gemini",
-      "model": "gemini-3.1-pro-preview-customtools",
-      "renderMode": "skeletonHtml",
-      "status": "passed",
-      "score": 98,
-      "label": "AI 新客跟单驾驶舱",
-      "message": "已按新客跟单驾驶舱重排：首屏跟单曲线推荐 + 开户旅程，资产降级。",
-      "configSnapshot": {
-        "name": "AI 新客跟单驾驶舱",
-        "layoutPreset": "onboardingJourney",
-        "themePreset": "blueFinance",
-        "colorMode": "auto",
-        "density": "spacious",
-        "intent": "onboarding",
-        "strategy": "新客开户服务端意图纠偏",
-        "renderMode": "skeletonHtml",
-        "htmlScheme": "",
-        "htmlSourceType": "",
-        "htmlPipeline": "",
-        "htmlIsFallback": false,
-        "htmlMock": false,
-        "htmlQualityStatus": "",
-        "qualityScore": 0,
-        "htmlFallbackReason": "",
-        "pageGoal": "openAccount",
-        "mainVisual": "asset_overview",
-        "primaryCta": "立即开户",
-        "validationWarnings": 0,
-        "modulePolicyScore": null,
-        "blockedModules": [],
-        "repairActions": [],
-        "skeletonScheme": "AI 新客跟单驾驶舱骨架填充",
-        "skeletonSlots": 11,
-        "styleContract": "golden-fintech",
-        "goldenStyleContract": "golden-fintech",
-        "styleContractSources": [
-          "visual-mpkz4l4h-61340",
-          "visual-mpkzkzwb-112f5",
-          "visual-mpkvl6xu-0c30c"
-        ],
-        "sectionTransitions": [
-          "hero-welcome-asset-overview:plain",
-          "activation-overview-onbo-onboard:soft-break",
-          "activation_overview-1:soft-break",
-          "account-workspace-accoun-account:connected",
-          "opportunities-copytradin-copytra:plain",
-          "opportunities-promo-promo-1-1-1-:soft-break",
-          "opportunities-1:soft-break",
-          "support_compliance-1:hard-break"
-        ],
-        "brickIds": [
-          "assetOverview.flexible",
-          "copytradingSignals.curveCards",
-          "onboardingProgress.missionBoard",
-          "quickActions.configDriven",
-          "tradingAccounts.separatedList",
-          "promoBanner.imageHero",
-          "referralLinkCard.compact",
-          "kycStatus.current",
-          "faqSection.accordion",
-          "riskDisclosure.legalStrip"
-        ],
-        "componentReferences": [
-          {
-            "componentId": "assetoverview-mp86x8sn",
-            "name": "资产概览-紧凑指标台",
-            "family": "AssetOverview",
-            "module": "AssetOverview",
-            "component": "asset_overview",
-            "variantHint": "tickerStrip",
-            "morphHint": "metricTriplet"
-          },
-          {
-            "componentId": "onboardingprogress-3-mp6oobpj",
-            "name": "3步成为交易大师",
-            "family": "OnboardingProgress",
-            "module": "OnboardingProgress",
-            "component": "onboarding_guide",
-            "variantHint": "path",
-            "morphHint": "pathSteps"
-          },
-          {
-            "componentId": "quickactions-mpeukuj7",
-            "name": "扁平快捷操作坞",
-            "family": "QuickActions",
-            "module": "QuickActions",
-            "component": "quick_actions",
-            "variantHint": "actionDock",
-            "morphHint": "actionDock"
-          },
-          {
-            "componentId": "tradingaccounts-mp6oobtd",
-            "name": "真实模拟账号列表",
-            "family": "TradingAccounts",
-            "module": "TradingAccounts",
-            "component": "trading_accounts_list",
-            "variantHint": "separatedList",
-            "morphHint": "liveDemoSplit"
-          },
-          {
-            "componentId": "copytradingsignals-mpm2feca",
-            "name": "跟单信号源推荐区",
-            "family": "CopytradingSignals",
-            "module": "CopytradingSignals",
-            "component": "copytrading_signals",
-            "variantHint": "",
-            "morphHint": ""
-          },
-          {
-            "componentId": "promotionbanner-mp87nels",
-            "name": "活动公告承接横幅",
-            "family": "PromotionBanner",
-            "module": "PromotionBanner",
-            "component": "promo_banner",
-            "variantHint": "splitVisual",
-            "morphHint": "splitVisual"
-          },
-          {
-            "componentId": "referral-link-growth-console",
-            "name": "邀请增长控制台",
-            "family": "ReferralLinkCard",
-            "module": "ReferralLinkCard",
-            "component": "referral_link_card",
-            "variantHint": "",
-            "morphHint": ""
-          },
-          {
-            "componentId": "faqsection-faq-mp6rlpsy",
-            "name": "FAQ 常见问题",
-            "family": "FaqSection",
-            "module": "FaqSection",
-            "component": "faq_section",
-            "variantHint": "compactList",
-            "morphHint": ""
-          }
-        ],
-        "sections": [
-          "hero:welcome_header",
-          "hero:asset_overview",
-          "full:onboarding_guide",
-          "split:quick_actions+kyc_status_card",
-          "full:trading_accounts_list",
-          "full:copytrading_signals",
-          "full:promo_banner",
-          "full:referral_link_card",
-          "full:faq_section",
-          "full:risk_disclosure"
-        ]
-      },
-      "categories": [
-        {
-          "key": "visualFocus",
-          "label": "首屏视觉焦点",
-          "weight": 22,
-          "score": 100,
-          "notes": [
-            "有首屏/封面/工作台焦点",
-            "主行动可被识别",
-            "有图表、步骤、轮播或工作台结构"
-          ]
-        },
-        {
-          "key": "layoutHierarchy",
-          "label": "布局层级",
-          "weight": 20,
-          "score": 100,
-          "notes": [
-            "10 个 sections",
-            "11 个可见槽位",
-            "4 类积木区域",
-            "5 个宽幅/整行模块"
-          ]
-        },
-        {
-          "key": "blockTransitionQuality",
-          "label": "块过渡质量",
-          "weight": 14,
-          "score": 86,
-          "notes": [
-            "10 个 sections",
-            "8 个显式 transition",
-            "1 个 connected",
-            "1 个 hard-break",
-            "0 个 workbench",
-            "契约 golden-fintech"
-          ]
-        },
-        {
-          "key": "componentCraft",
-          "label": "积木审美复用",
-          "weight": 22,
-          "score": 82,
-          "notes": [
-            "10 个组件家族",
-            "20 个核心 morph",
-            "23 个模块样式",
-            "组件化方案评分"
-          ]
-        },
-        {
-          "key": "brandHarmony",
-          "label": "品牌色彩与质感",
-          "weight": 14,
-          "score": 92,
-          "notes": [
-            "主题 blueFinance",
-            "CSS token 使用不足",
-            "色彩模式 auto"
-          ]
-        },
-        {
-          "key": "businessFunction",
-          "label": "页面功能完整度",
-          "weight": 14,
-          "score": 92,
-          "notes": [
-            "11 个业务块",
-            "10 个积木计划",
-            "数据契约较弱"
-          ]
-        },
-        {
-          "key": "responsiveSafety",
-          "label": "响应式与可发布安全",
-          "weight": 8,
-          "score": 100,
-          "notes": [
-            "有响应式/autoLayout",
-            "组件化安全路径"
-          ]
-        },
-        {
-          "key": "skeletonSlotQuality",
-          "label": "骨架填充质量",
-          "weight": 16,
-          "score": 70,
-          "notes": [
-            "1/11 个 slot 已填充",
-            "未发现空图表、低分组件或假图标"
-          ]
-        }
-      ],
-      "issues": [
-        "块过渡质量：单模块整行过多，但没有连续组或硬断点，容易形成平均白卡堆叠。"
-      ],
-      "suggestions": [
-        "为连续业务路径标记 connected，为不同叙事组标记 hard-break/workbench，并让黄金 styleContract 的 chromePolicy 执行这些断点。"
-      ],
-      "strengths": [
-        "首屏具备可识别焦点。",
-        "存在图表、步骤、轮播或工作台式视觉结构。",
-        "已拉取漂亮积木块作为审美参考。",
-        "已命中样本库页面和功能参考。",
-        "已读取历史反馈偏好。"
-      ],
-      "sampleReferences": [
-        {
-          "id": "visual-mpkz4l4h-61340",
-          "name": "04-client-home-version-4",
-          "pageIntent": "vip"
-        },
-        {
-          "id": "visual-mpkzkzwb-112f5",
-          "name": "05-client-home-version-5",
-          "pageIntent": "vip"
-        },
-        {
-          "id": "visual-mpkvl6xu-0c30c",
-          "name": "01-client-home-original",
-          "pageIntent": "onboarding"
-        },
-        {
-          "id": "visual-mpkytenj-f80c5",
-          "name": "02-client-home-version-1",
-          "pageIntent": "onboarding"
-        }
-      ],
-      "componentReferences": [
-        {
-          "id": "asset-overview-vip-hero",
-          "name": "VIP 资产 Hero",
-          "family": "AssetOverview"
-        },
-        {
-          "id": "assetoverview-mp86x8sn",
-          "name": "资产概览-紧凑指标台",
-          "family": "AssetOverview"
-        },
-        {
-          "id": "quickactions-mpde3a64",
-          "name": "快捷操作-九宫格入口",
-          "family": "QuickActions"
-        },
-        {
-          "id": "onboardingprogress-3-mp6oobpj",
-          "name": "3步成为交易大师",
-          "family": "OnboardingProgress"
-        },
-        {
-          "id": "referral-link-growth-console",
-          "name": "邀请增长控制台",
-          "family": "ReferralLinkCard"
-        },
-        {
-          "id": "quickactions-mpeukuj7",
-          "name": "扁平快捷操作坞",
-          "family": "QuickActions"
-        },
-        {
-          "id": "welcomeheader-mp6th632",
-          "name": "欢迎头部-运营主线版",
-          "family": "WelcomeHeader"
-        },
-        {
-          "id": "wallet-list-currency-table",
-          "name": "多币种钱包卡片组",
-          "family": "WalletList"
-        }
-      ]
-    },
-    {
-      "id": "score-1779844118668-a169d00ba9f43",
-      "at": "2026-05-27T01:08:38.668Z",
-      "action": "preview-change-score",
-      "candidateGroupId": "",
-      "candidateIndex": null,
-      "prompt": "请为 ForexCRM 用户端首页生成可发布的首页方案。分级：专业版，加入账号、资产、数据指标或更完整的运营模块。页面布局：宽松布局：增加留白和模块呼吸感，降低同屏信息密度，适合品牌感、高净值或需要高级感的首页。首页样式丰富度：标准丰富：使用品牌主色、1-2 个辅助色和清晰状态色，允许轻量色块、图标底色和模块分区，让首页更有层次但仍保持金融专业感。视觉：蓝色金融，清爽专业。语气：专业稳健。必选模块（不可撤销）：账户概览：使用 asset_overview 展示账户摘要，包含账户余额，钱包余额，交易账号余额，单位：USD、快捷入口：展示操作入口，4-10个快捷入口位置，icon或者icon+文字、交易账号列表：必须同时包含真实交易账号和模拟交易账号的列表，列表可参考交易账号积木块，列表或卡片形式皆可、新手 Onboarding 引导：KYC -> 开真实账户 -> 首次入金 -> 首次交易，帮助新用户完成基础流程，其中首次交易可选；需要有进度的风格，营销的感觉。交易账号模块必须同时包含真实交易账号和模拟交易账号。选填模块：欢迎模块：必须在页面的第一栏，展示客户姓名、问候语、最近登录时间、广告轮播图：多张广告轮播图，整体组件需要支持轮播及切换下一张；用 promo_banner 作为首页积木承接、KYC状态：未提交、待审、通过、拒绝；只展示当前状态,未提交时补充展示去提交按钮，拒绝是展示再次提交；可以是小卡片，如果展示此项，可以塞进欢迎模块一起展示、热门信号源：宽松布局，在12栏的布局中，必须8+4或者12+0的布局，展示3个推荐的跟单信号源卡片，至少需要展示信号源名称、收益率、收益率面积图Echarts(30d)，模拟的面积图要看起来真实，吸引人，扁平化、推广链接：展示推广链接信息：链接名称、链接地址(必须)、邀请码(可选)；链接地址与邀请码栏目中有复制按钮，可以复制。统计信息(可选展示)：点击数、注册数、开户数；可以参考 ReferralLinkCard 积木字段、FAQ 常见问题：展示4-10条一些外汇平台的常见问题,通用样式;这个模块是弱化模块，放到倒数的栏目、风险提示：展示一段风险解释的文案，这个模块是弱化模块，放到最后一栏。允许在白名单内重排 sections、brickPlan、模块变体和密度，优先让所选模块和分级决定首屏。不要编造收益、下载链接、后台未提供的数据或未选择的辅助模块",
-      "source": "preview",
-      "providerId": "gemini",
-      "provider": "Gemini",
-      "model": "gemini-3.1-pro-preview-customtools",
-      "renderMode": "skeletonHtml",
-      "status": "passed",
-      "score": 98,
-      "label": "AI 新客跟单驾驶舱",
-      "message": "已按新客跟单驾驶舱重排：首屏跟单曲线推荐 + 开户旅程，资产降级。",
-      "configSnapshot": {
-        "name": "AI 新客跟单驾驶舱",
-        "layoutPreset": "onboardingJourney",
-        "themePreset": "blueFinance",
-        "colorMode": "auto",
-        "density": "spacious",
-        "intent": "onboarding",
-        "strategy": "新客开户服务端意图纠偏",
-        "renderMode": "skeletonHtml",
-        "htmlScheme": "",
-        "htmlSourceType": "",
-        "htmlPipeline": "",
-        "htmlIsFallback": false,
-        "htmlMock": false,
-        "htmlQualityStatus": "",
-        "qualityScore": 0,
-        "htmlFallbackReason": "",
-        "pageGoal": "openAccount",
-        "mainVisual": "asset_overview",
-        "primaryCta": "立即开户",
-        "validationWarnings": 0,
-        "modulePolicyScore": null,
-        "blockedModules": [],
-        "repairActions": [],
-        "skeletonScheme": "AI 新客跟单驾驶舱骨架填充",
-        "skeletonSlots": 11,
-        "styleContract": "golden-fintech",
-        "goldenStyleContract": "golden-fintech",
-        "styleContractSources": [
-          "visual-mpkz4l4h-61340",
-          "visual-mpkzkzwb-112f5",
-          "visual-mpkvl6xu-0c30c"
-        ],
-        "sectionTransitions": [
-          "hero-welcome-asset-overview:plain",
-          "activation-overview-onbo-onboard:soft-break",
-          "activation_overview-1:soft-break",
-          "account-workspace-accoun-account:connected",
-          "opportunities-copytradin-copytra:plain",
-          "opportunities-promo-promo-1-1-1-:soft-break",
-          "opportunities-1:soft-break",
-          "support_compliance-1:hard-break"
-        ],
-        "brickIds": [
-          "assetOverview.flexible",
-          "copytradingSignals.curveCards",
-          "onboardingProgress.missionBoard",
-          "quickActions.configDriven",
-          "tradingAccounts.separatedList",
-          "promoBanner.imageHero",
-          "referralLinkCard.compact",
-          "kycStatus.current",
-          "faqSection.accordion",
-          "riskDisclosure.legalStrip"
-        ],
-        "componentReferences": [
-          {
-            "componentId": "assetoverview-mp86x8sn",
-            "name": "资产概览-紧凑指标台",
-            "family": "AssetOverview",
-            "module": "AssetOverview",
-            "component": "asset_overview",
-            "variantHint": "tickerStrip",
-            "morphHint": "metricTriplet"
-          },
-          {
-            "componentId": "onboardingprogress-3-mp6oobpj",
-            "name": "3步成为交易大师",
-            "family": "OnboardingProgress",
-            "module": "OnboardingProgress",
-            "component": "onboarding_guide",
-            "variantHint": "path",
-            "morphHint": "pathSteps"
-          },
-          {
-            "componentId": "quickactions-mpeukuj7",
-            "name": "扁平快捷操作坞",
-            "family": "QuickActions",
-            "module": "QuickActions",
-            "component": "quick_actions",
-            "variantHint": "actionDock",
-            "morphHint": "actionDock"
-          },
-          {
-            "componentId": "tradingaccounts-mp6oobtd",
-            "name": "真实模拟账号列表",
-            "family": "TradingAccounts",
-            "module": "TradingAccounts",
-            "component": "trading_accounts_list",
-            "variantHint": "separatedList",
-            "morphHint": "liveDemoSplit"
-          },
-          {
-            "componentId": "copytradingsignals-mpm2feca",
-            "name": "跟单信号源推荐区",
-            "family": "CopytradingSignals",
-            "module": "CopytradingSignals",
-            "component": "copytrading_signals",
-            "variantHint": "",
-            "morphHint": ""
-          },
-          {
-            "componentId": "promotionbanner-mp87nels",
-            "name": "活动公告承接横幅",
-            "family": "PromotionBanner",
-            "module": "PromotionBanner",
-            "component": "promo_banner",
-            "variantHint": "splitVisual",
-            "morphHint": "splitVisual"
-          },
-          {
-            "componentId": "referral-link-growth-console",
-            "name": "邀请增长控制台",
-            "family": "ReferralLinkCard",
-            "module": "ReferralLinkCard",
-            "component": "referral_link_card",
-            "variantHint": "",
-            "morphHint": ""
-          },
-          {
-            "componentId": "faqsection-faq-mp6rlpsy",
-            "name": "FAQ 常见问题",
-            "family": "FaqSection",
-            "module": "FaqSection",
-            "component": "faq_section",
-            "variantHint": "compactList",
-            "morphHint": ""
-          }
-        ],
-        "sections": [
-          "hero:welcome_header",
-          "hero:asset_overview",
-          "full:onboarding_guide",
-          "split:quick_actions+kyc_status_card",
-          "full:trading_accounts_list",
-          "full:copytrading_signals",
-          "full:promo_banner",
-          "full:referral_link_card",
-          "full:faq_section",
-          "full:risk_disclosure"
-        ]
-      },
-      "categories": [
-        {
-          "key": "visualFocus",
-          "label": "首屏视觉焦点",
-          "weight": 22,
-          "score": 100,
-          "notes": [
-            "有首屏/封面/工作台焦点",
-            "主行动可被识别",
-            "有图表、步骤、轮播或工作台结构"
-          ]
-        },
-        {
-          "key": "layoutHierarchy",
-          "label": "布局层级",
-          "weight": 20,
-          "score": 100,
-          "notes": [
-            "10 个 sections",
-            "11 个可见槽位",
-            "4 类积木区域",
-            "5 个宽幅/整行模块"
-          ]
-        },
-        {
-          "key": "blockTransitionQuality",
-          "label": "块过渡质量",
-          "weight": 14,
-          "score": 86,
-          "notes": [
-            "10 个 sections",
-            "8 个显式 transition",
-            "1 个 connected",
-            "1 个 hard-break",
-            "0 个 workbench",
-            "契约 golden-fintech"
-          ]
-        },
-        {
-          "key": "componentCraft",
-          "label": "积木审美复用",
-          "weight": 22,
-          "score": 82,
-          "notes": [
-            "10 个组件家族",
-            "20 个核心 morph",
-            "23 个模块样式",
-            "组件化方案评分"
-          ]
-        },
-        {
-          "key": "brandHarmony",
-          "label": "品牌色彩与质感",
-          "weight": 14,
-          "score": 92,
-          "notes": [
-            "主题 blueFinance",
-            "CSS token 使用不足",
-            "色彩模式 auto"
-          ]
-        },
-        {
-          "key": "businessFunction",
-          "label": "页面功能完整度",
-          "weight": 14,
-          "score": 92,
-          "notes": [
-            "11 个业务块",
-            "10 个积木计划",
-            "数据契约较弱"
-          ]
-        },
-        {
-          "key": "responsiveSafety",
-          "label": "响应式与可发布安全",
-          "weight": 8,
-          "score": 100,
-          "notes": [
-            "有响应式/autoLayout",
-            "组件化安全路径"
-          ]
-        },
-        {
-          "key": "skeletonSlotQuality",
-          "label": "骨架填充质量",
-          "weight": 16,
-          "score": 67,
-          "notes": [
-            "0/11 个 slot 已填充",
-            "未发现空图表、低分组件或假图标"
-          ]
-        }
-      ],
-      "issues": [
-        "骨架填充质量偏弱：0/11 个 slot 已填充；未发现空图表、低分组件或假图标",
-        "块过渡质量：单模块整行过多，但没有连续组或硬断点，容易形成平均白卡堆叠。"
-      ],
-      "suggestions": [
-        "骨架填充质量需要补充可执行设计约束。",
-        "为连续业务路径标记 connected，为不同叙事组标记 hard-break/workbench，并让黄金 styleContract 的 chromePolicy 执行这些断点。"
-      ],
-      "strengths": [
-        "首屏具备可识别焦点。",
-        "存在图表、步骤、轮播或工作台式视觉结构。",
-        "已拉取漂亮积木块作为审美参考。",
-        "已命中样本库页面和功能参考。",
-        "已读取历史反馈偏好。"
-      ],
-      "sampleReferences": [
-        {
-          "id": "visual-mpkz4l4h-61340",
-          "name": "04-client-home-version-4",
-          "pageIntent": "vip"
-        },
-        {
-          "id": "visual-mpkzkzwb-112f5",
-          "name": "05-client-home-version-5",
-          "pageIntent": "vip"
-        },
-        {
-          "id": "visual-mpkvl6xu-0c30c",
-          "name": "01-client-home-original",
-          "pageIntent": "onboarding"
-        },
-        {
-          "id": "visual-mpkytenj-f80c5",
-          "name": "02-client-home-version-1",
-          "pageIntent": "onboarding"
-        }
-      ],
-      "componentReferences": [
-        {
-          "id": "asset-overview-vip-hero",
-          "name": "VIP 资产 Hero",
-          "family": "AssetOverview"
-        },
-        {
-          "id": "assetoverview-mp86x8sn",
-          "name": "资产概览-紧凑指标台",
-          "family": "AssetOverview"
-        },
-        {
-          "id": "quickactions-mpde3a64",
-          "name": "快捷操作-九宫格入口",
-          "family": "QuickActions"
-        },
-        {
-          "id": "onboardingprogress-3-mp6oobpj",
-          "name": "3步成为交易大师",
-          "family": "OnboardingProgress"
-        },
-        {
-          "id": "referral-link-growth-console",
-          "name": "邀请增长控制台",
-          "family": "ReferralLinkCard"
-        },
-        {
-          "id": "quickactions-mpeukuj7",
-          "name": "扁平快捷操作坞",
-          "family": "QuickActions"
-        },
-        {
-          "id": "welcomeheader-mp6th632",
-          "name": "欢迎头部-运营主线版",
-          "family": "WelcomeHeader"
-        },
-        {
-          "id": "wallet-list-currency-table",
-          "name": "多币种钱包卡片组",
-          "family": "WalletList"
-        }
-      ]
-    },
-    {
-      "id": "score-1779844118140-7b76062748d4c",
-      "at": "2026-05-27T01:08:38.140Z",
-      "action": "preview-open-score",
-      "candidateGroupId": "",
-      "candidateIndex": null,
-      "prompt": "请为 ForexCRM 用户端首页生成可发布的首页方案。分级：专业版，加入账号、资产、数据指标或更完整的运营模块。页面布局：宽松布局：增加留白和模块呼吸感，降低同屏信息密度，适合品牌感、高净值或需要高级感的首页。首页样式丰富度：标准丰富：使用品牌主色、1-2 个辅助色和清晰状态色，允许轻量色块、图标底色和模块分区，让首页更有层次但仍保持金融专业感。视觉：蓝色金融，清爽专业。语气：专业稳健。必选模块（不可撤销）：账户概览：使用 asset_overview 展示账户摘要，包含账户余额，钱包余额，交易账号余额，单位：USD、快捷入口：展示操作入口，4-10个快捷入口位置，icon或者icon+文字、交易账号列表：必须同时包含真实交易账号和模拟交易账号的列表，列表可参考交易账号积木块，列表或卡片形式皆可、新手 Onboarding 引导：KYC -> 开真实账户 -> 首次入金 -> 首次交易，帮助新用户完成基础流程，其中首次交易可选；需要有进度的风格，营销的感觉。交易账号模块必须同时包含真实交易账号和模拟交易账号。选填模块：欢迎模块：必须在页面的第一栏，展示客户姓名、问候语、最近登录时间、广告轮播图：多张广告轮播图，整体组件需要支持轮播及切换下一张；用 promo_banner 作为首页积木承接、KYC状态：未提交、待审、通过、拒绝；只展示当前状态,未提交时补充展示去提交按钮，拒绝是展示再次提交；可以是小卡片，如果展示此项，可以塞进欢迎模块一起展示、热门信号源：宽松布局，在12栏的布局中，必须8+4或者12+0的布局，展示3个推荐的跟单信号源卡片，至少需要展示信号源名称、收益率、收益率面积图Echarts(30d)，模拟的面积图要看起来真实，吸引人，扁平化、推广链接：展示推广链接信息：链接名称、链接地址(必须)、邀请码(可选)；链接地址与邀请码栏目中有复制按钮，可以复制。统计信息(可选展示)：点击数、注册数、开户数；可以参考 ReferralLinkCard 积木字段、FAQ 常见问题：展示4-10条一些外汇平台的常见问题,通用样式;这个模块是弱化模块，放到倒数的栏目、风险提示：展示一段风险解释的文案，这个模块是弱化模块，放到最后一栏。允许在白名单内重排 sections、brickPlan、模块变体和密度，优先让所选模块和分级决定首屏。不要编造收益、下载链接、后台未提供的数据或未选择的辅助模块",
-      "source": "preview-open",
-      "providerId": "gemini",
-      "provider": "Gemini",
-      "model": "gemini-3.1-pro-preview-customtools",
-      "renderMode": "skeletonHtml",
-      "status": "passed",
-      "score": 98,
-      "label": "AI 新客跟单驾驶舱",
-      "message": "已按新客跟单驾驶舱重排：首屏跟单曲线推荐 + 开户旅程，资产降级。",
-      "configSnapshot": {
-        "name": "AI 新客跟单驾驶舱",
-        "layoutPreset": "onboardingJourney",
-        "themePreset": "blueFinance",
-        "colorMode": "auto",
-        "density": "spacious",
-        "intent": "onboarding",
-        "strategy": "新客开户服务端意图纠偏",
-        "renderMode": "skeletonHtml",
-        "htmlScheme": "",
-        "htmlSourceType": "",
-        "htmlPipeline": "",
-        "htmlIsFallback": false,
-        "htmlMock": false,
-        "htmlQualityStatus": "",
-        "qualityScore": 0,
-        "htmlFallbackReason": "",
-        "pageGoal": "openAccount",
-        "mainVisual": "asset_overview",
-        "primaryCta": "立即开户",
-        "validationWarnings": 0,
-        "modulePolicyScore": null,
-        "blockedModules": [],
-        "repairActions": [],
-        "skeletonScheme": "AI 新客跟单驾驶舱骨架填充",
-        "skeletonSlots": 11,
-        "styleContract": "golden-fintech",
-        "goldenStyleContract": "golden-fintech",
-        "styleContractSources": [
-          "visual-mpkz4l4h-61340",
-          "visual-mpkzkzwb-112f5",
-          "visual-mpkvl6xu-0c30c"
-        ],
-        "sectionTransitions": [
-          "hero-welcome-asset-overview:plain",
-          "activation-overview-onbo-onboard:soft-break",
-          "activation_overview-1:soft-break",
-          "account-workspace-accoun-account:connected",
-          "opportunities-copytradin-copytra:plain",
-          "opportunities-promo-promo-1-1-1-:soft-break",
-          "opportunities-1:soft-break",
-          "support_compliance-1:hard-break"
-        ],
-        "brickIds": [
-          "assetOverview.flexible",
-          "copytradingSignals.curveCards",
-          "onboardingProgress.missionBoard",
-          "quickActions.configDriven",
-          "tradingAccounts.separatedList",
-          "promoBanner.imageHero",
-          "referralLinkCard.compact",
-          "kycStatus.current",
-          "faqSection.accordion",
-          "riskDisclosure.legalStrip"
-        ],
-        "componentReferences": [
-          {
-            "componentId": "assetoverview-mp86x8sn",
-            "name": "资产概览-紧凑指标台",
-            "family": "AssetOverview",
-            "module": "AssetOverview",
-            "component": "asset_overview",
-            "variantHint": "tickerStrip",
-            "morphHint": "metricTriplet"
-          },
-          {
-            "componentId": "onboardingprogress-3-mp6oobpj",
-            "name": "3步成为交易大师",
-            "family": "OnboardingProgress",
-            "module": "OnboardingProgress",
-            "component": "onboarding_guide",
-            "variantHint": "path",
-            "morphHint": "pathSteps"
-          },
-          {
-            "componentId": "quickactions-mpeukuj7",
-            "name": "扁平快捷操作坞",
-            "family": "QuickActions",
-            "module": "QuickActions",
-            "component": "quick_actions",
-            "variantHint": "actionDock",
-            "morphHint": "actionDock"
-          },
-          {
-            "componentId": "tradingaccounts-mp6oobtd",
-            "name": "真实模拟账号列表",
-            "family": "TradingAccounts",
-            "module": "TradingAccounts",
-            "component": "trading_accounts_list",
-            "variantHint": "separatedList",
-            "morphHint": "liveDemoSplit"
-          },
-          {
-            "componentId": "copytradingsignals-mpm2feca",
-            "name": "跟单信号源推荐区",
-            "family": "CopytradingSignals",
-            "module": "CopytradingSignals",
-            "component": "copytrading_signals",
-            "variantHint": "",
-            "morphHint": ""
-          },
-          {
-            "componentId": "promotionbanner-mp87nels",
-            "name": "活动公告承接横幅",
-            "family": "PromotionBanner",
-            "module": "PromotionBanner",
-            "component": "promo_banner",
-            "variantHint": "splitVisual",
-            "morphHint": "splitVisual"
-          },
-          {
-            "componentId": "referral-link-growth-console",
-            "name": "邀请增长控制台",
-            "family": "ReferralLinkCard",
-            "module": "ReferralLinkCard",
-            "component": "referral_link_card",
-            "variantHint": "",
-            "morphHint": ""
-          },
-          {
-            "componentId": "faqsection-faq-mp6rlpsy",
-            "name": "FAQ 常见问题",
-            "family": "FaqSection",
-            "module": "FaqSection",
-            "component": "faq_section",
-            "variantHint": "compactList",
-            "morphHint": ""
-          }
-        ],
-        "sections": [
-          "hero:welcome_header",
-          "hero:asset_overview",
-          "full:onboarding_guide",
-          "split:quick_actions+kyc_status_card",
-          "full:trading_accounts_list",
-          "full:copytrading_signals",
-          "full:promo_banner",
-          "full:referral_link_card",
-          "full:faq_section",
-          "full:risk_disclosure"
-        ]
-      },
-      "categories": [
-        {
-          "key": "visualFocus",
-          "label": "首屏视觉焦点",
-          "weight": 22,
-          "score": 100,
-          "notes": [
-            "有首屏/封面/工作台焦点",
-            "主行动可被识别",
-            "有图表、步骤、轮播或工作台结构"
-          ]
-        },
-        {
-          "key": "layoutHierarchy",
-          "label": "布局层级",
-          "weight": 20,
-          "score": 100,
-          "notes": [
-            "10 个 sections",
-            "11 个可见槽位",
-            "4 类积木区域",
-            "5 个宽幅/整行模块"
-          ]
-        },
-        {
-          "key": "blockTransitionQuality",
-          "label": "块过渡质量",
-          "weight": 14,
-          "score": 86,
-          "notes": [
-            "10 个 sections",
-            "8 个显式 transition",
-            "1 个 connected",
-            "1 个 hard-break",
-            "0 个 workbench",
-            "契约 golden-fintech"
-          ]
-        },
-        {
-          "key": "componentCraft",
-          "label": "积木审美复用",
-          "weight": 22,
-          "score": 82,
-          "notes": [
-            "10 个组件家族",
-            "20 个核心 morph",
-            "23 个模块样式",
-            "组件化方案评分"
-          ]
-        },
-        {
-          "key": "brandHarmony",
-          "label": "品牌色彩与质感",
-          "weight": 14,
-          "score": 92,
-          "notes": [
-            "主题 blueFinance",
-            "CSS token 使用不足",
-            "色彩模式 auto"
-          ]
-        },
-        {
-          "key": "businessFunction",
-          "label": "页面功能完整度",
-          "weight": 14,
-          "score": 92,
-          "notes": [
-            "11 个业务块",
-            "10 个积木计划",
-            "数据契约较弱"
-          ]
-        },
-        {
-          "key": "responsiveSafety",
-          "label": "响应式与可发布安全",
-          "weight": 8,
-          "score": 100,
-          "notes": [
-            "有响应式/autoLayout",
-            "组件化安全路径"
-          ]
-        },
-        {
-          "key": "skeletonSlotQuality",
-          "label": "骨架填充质量",
-          "weight": 16,
-          "score": 67,
-          "notes": [
-            "0/11 个 slot 已填充",
-            "未发现空图表、低分组件或假图标"
-          ]
-        }
-      ],
-      "issues": [
-        "骨架填充质量偏弱：0/11 个 slot 已填充；未发现空图表、低分组件或假图标",
-        "块过渡质量：单模块整行过多，但没有连续组或硬断点，容易形成平均白卡堆叠。"
-      ],
-      "suggestions": [
-        "骨架填充质量需要补充可执行设计约束。",
-        "为连续业务路径标记 connected，为不同叙事组标记 hard-break/workbench，并让黄金 styleContract 的 chromePolicy 执行这些断点。"
-      ],
-      "strengths": [
-        "首屏具备可识别焦点。",
-        "存在图表、步骤、轮播或工作台式视觉结构。",
-        "已拉取漂亮积木块作为审美参考。",
-        "已命中样本库页面和功能参考。",
-        "已读取历史反馈偏好。"
-      ],
-      "sampleReferences": [
-        {
-          "id": "visual-mpkz4l4h-61340",
-          "name": "04-client-home-version-4",
-          "pageIntent": "vip"
-        },
-        {
-          "id": "visual-mpkzkzwb-112f5",
-          "name": "05-client-home-version-5",
-          "pageIntent": "vip"
-        },
-        {
-          "id": "visual-mpkvl6xu-0c30c",
-          "name": "01-client-home-original",
-          "pageIntent": "onboarding"
-        },
-        {
-          "id": "visual-mpkytenj-f80c5",
-          "name": "02-client-home-version-1",
-          "pageIntent": "onboarding"
-        }
-      ],
-      "componentReferences": [
-        {
-          "id": "asset-overview-vip-hero",
-          "name": "VIP 资产 Hero",
-          "family": "AssetOverview"
-        },
-        {
-          "id": "assetoverview-mp86x8sn",
-          "name": "资产概览-紧凑指标台",
-          "family": "AssetOverview"
-        },
-        {
-          "id": "quickactions-mpde3a64",
-          "name": "快捷操作-九宫格入口",
-          "family": "QuickActions"
-        },
-        {
-          "id": "onboardingprogress-3-mp6oobpj",
-          "name": "3步成为交易大师",
-          "family": "OnboardingProgress"
-        },
-        {
-          "id": "referral-link-growth-console",
-          "name": "邀请增长控制台",
-          "family": "ReferralLinkCard"
-        },
-        {
-          "id": "quickactions-mpeukuj7",
-          "name": "扁平快捷操作坞",
-          "family": "QuickActions"
-        },
-        {
-          "id": "welcomeheader-mp6th632",
-          "name": "欢迎头部-运营主线版",
-          "family": "WelcomeHeader"
-        },
-        {
-          "id": "wallet-list-currency-table",
-          "name": "多币种钱包卡片组",
-          "family": "WalletList"
-        }
-      ]
-    },
-    {
-      "id": "score-1779789655385-53e0feafc729f",
-      "at": "2026-05-26T10:00:55.385Z",
-      "action": "preview-change-score",
-      "candidateGroupId": "",
-      "candidateIndex": null,
-      "prompt": "请为 ForexCRM 用户端首页生成可发布的首页方案。分级：增长版，在基础能力上加入活动权益、按钮和转化承接。页面布局：宽松布局：增加留白和模块呼吸感，降低同屏信息密度，适合品牌感、高净值或需要高级感的首页。首页样式丰富度：标准丰富：使用品牌主色、1-2 个辅助色和清晰状态色，允许轻量色块、图标底色和模块分区，让首页更有层次但仍保持金融专业感。视觉：蓝色金融，清爽专业。语气：高净值客户导向。必选模块（不可撤销）：账户概览：使用 asset_overview 展示账户摘要，包含账户余额，钱包余额，交易账号余额，单位：USD、快捷入口：展示操作入口，4-10个快捷入口位置，icon或者icon+文字、交易账号列表：必须同时包含真实交易账号和模拟交易账号的列表，列表可参考交易账号积木块，列表或卡片形式皆可、新手 Onboarding 引导：KYC -> 开真实账户 -> 首次入金 -> 首次交易，帮助新用户完成基础流程，其中首次交易可选；需要有进度的风格，营销的感觉。交易账号模块必须同时包含真实交易账号和模拟交易账号。选填模块：欢迎模块：必须在页面的第一栏，展示客户姓名、问候语、最近登录时间、交易表现：说明Live交易账户的交易表现，左右结构；栏目左侧显示交易账号信息：账号、平台、服务器，余额、净值、信用金、已用保证金、保证金比例、杠杆信息。右侧展示净值面积图echart图表(7D/30D),PnL面积图Echart图表组件。(7D/30D)；这两个面积图优先展示净值面积图，可以点击tab切换至PnL面积图。底部走势摘要条与操作入口形成闭环；在12栏的布局中，必须8+4或者12+0的布局、热门信号源：宽松布局，在12栏的布局中，必须8+4或者12+0的布局，展示3个推荐的跟单信号源卡片，至少需要展示信号源名称、收益率、收益率面积图Echarts(30d)，模拟的面积图要看起来真实，吸引人，扁平化、推广链接：展示推广链接信息：链接名称、链接地址(必须)、邀请码(可选)；链接地址与邀请码栏目中有复制按钮，可以复制。统计信息(可选展示)：点击数、注册数、开户数；可以参考 ReferralLinkCard 积木字段、FAQ 常见问题：展示4-10条一些外汇平台的常见问题,通用样式;这个模块是弱化模块，放到倒数的栏目。允许在白名单内重排 sections、brickPlan、模块变体和密度，优先让所选模块和分级决定首屏。不要编造收益、下载链接、后台未提供的数据或未选择的辅助模块",
-      "source": "preview",
-      "providerId": "gemini",
-      "provider": "Gemini",
-      "model": "gemini-3.1-pro-preview-customtools",
-      "renderMode": "skeletonHtml",
-      "status": "passed",
-      "score": 100,
-      "label": "AI 新客跟单驾驶舱",
-      "message": "已按新客跟单驾驶舱重排：首屏跟单曲线推荐 + 开户旅程，资产降级。",
-      "configSnapshot": {
-        "name": "AI 新客跟单驾驶舱",
-        "layoutPreset": "onboardingJourney",
-        "themePreset": "blueFinance",
-        "colorMode": "light",
-        "density": "spacious",
-        "intent": "onboarding",
-        "strategy": "新客开户服务端意图纠偏",
-        "renderMode": "skeletonHtml",
-        "htmlScheme": "",
-        "htmlSourceType": "",
-        "htmlPipeline": "",
-        "htmlIsFallback": false,
-        "htmlMock": false,
-        "htmlQualityStatus": "",
-        "qualityScore": 0,
-        "htmlFallbackReason": "",
-        "pageGoal": "openAccount",
-        "mainVisual": "asset_overview",
-        "primaryCta": "立即开户",
-        "validationWarnings": 0,
-        "modulePolicyScore": null,
-        "blockedModules": [],
-        "repairActions": [],
-        "skeletonScheme": "AI 新客跟单驾驶舱骨架填充",
-        "skeletonSlots": 9,
-        "styleContract": "golden-fintech",
-        "goldenStyleContract": "golden-fintech",
-        "styleContractSources": [
-          "visual-mpkz4l4h-61340",
-          "visual-mpkzkzwb-112f5",
-          "visual-mpkvl6xu-0c30c"
-        ],
-        "sectionTransitions": [
-          "account-workspace-accoun-account:hard-break",
-          "account-workspace-perfor-perform:connected",
-          "opportunities-copytradin-copytra:plain",
-          "opportunities-1:soft-break",
-          "support_compliance-1:hard-break"
-        ],
-        "brickIds": [
-          "assetOverview.flexible",
-          "onboardingProgress.missionBoard",
-          "copytradingSignals.curveCards",
-          "quickActions.configDriven",
-          "tradingAccounts.separatedList",
-          "accountPerformance.proChart",
-          "referralLinkCard.compact",
-          "faqSection.accordion"
-        ],
-        "componentReferences": [
-          {
-            "componentId": "asset-overview-vip-hero",
-            "name": "VIP 资产 Hero",
-            "family": "AssetOverview",
-            "module": "AssetOverview",
-            "component": "asset_overview",
-            "variantHint": "wealthPlate",
-            "morphHint": "wealthPlate"
-          },
-          {
-            "componentId": "onboardingprogress-3-mp6oobpj",
-            "name": "3步成为交易大师",
-            "family": "OnboardingProgress",
-            "module": "OnboardingProgress",
-            "component": "onboarding_guide",
-            "variantHint": "path",
-            "morphHint": "pathSteps"
-          },
-          {
-            "componentId": "quickactions-mpeukuj7",
-            "name": "扁平快捷操作坞",
-            "family": "QuickActions",
-            "module": "QuickActions",
-            "component": "quick_actions",
-            "variantHint": "actionDock",
-            "morphHint": "actionDock"
-          },
-          {
-            "componentId": "tradingaccounts-mp6oobtd",
-            "name": "真实模拟账号列表",
-            "family": "TradingAccounts",
-            "module": "TradingAccounts",
-            "component": "trading_accounts_list",
-            "variantHint": "separatedList",
-            "morphHint": "liveDemoSplit"
-          },
-          {
-            "componentId": "accountperformance-mp7wwo5l",
-            "name": "账号表现紧凑面板",
-            "family": "AccountPerformance",
-            "module": "AccountPerformance",
-            "component": "trading_account_highlight",
-            "variantHint": "cleanSnapshot",
-            "morphHint": "cleanSnapshot"
-          },
-          {
-            "componentId": "copytradingsignals-mpm2feca",
-            "name": "跟单信号源推荐区",
-            "family": "CopytradingSignals",
-            "module": "CopytradingSignals",
-            "component": "copytrading_signals",
-            "variantHint": "",
-            "morphHint": ""
-          },
-          {
-            "componentId": "referral-link-growth-console",
-            "name": "邀请增长控制台",
-            "family": "ReferralLinkCard",
-            "module": "ReferralLinkCard",
-            "component": "referral_link_card",
-            "variantHint": "",
-            "morphHint": ""
-          },
-          {
-            "componentId": "faqsection-faq-mp6rlpsy",
-            "name": "FAQ 常见问题",
-            "family": "FaqSection",
-            "module": "FaqSection",
-            "component": "faq_section",
-            "variantHint": "compactList",
-            "morphHint": ""
-          }
-        ],
-        "sections": [
-          "hero:welcome_header+asset_overview",
-          "full:onboarding_guide",
-          "full:quick_actions",
-          "full:trading_accounts_list",
-          "full:trading_account_highlight",
-          "full:copytrading_signals",
-          "full:referral_link_card",
-          "full:faq_section"
-        ]
-      },
-      "categories": [
-        {
-          "key": "visualFocus",
-          "label": "首屏视觉焦点",
-          "weight": 22,
-          "score": 100,
-          "notes": [
-            "有首屏/封面/工作台焦点",
-            "主行动可被识别",
-            "有图表、步骤、轮播或工作台结构"
-          ]
-        },
-        {
-          "key": "layoutHierarchy",
-          "label": "布局层级",
-          "weight": 20,
-          "score": 100,
-          "notes": [
-            "8 个 sections",
-            "9 个可见槽位",
-            "4 类积木区域",
-            "4 个宽幅/整行模块"
-          ]
-        },
-        {
-          "key": "blockTransitionQuality",
-          "label": "块过渡质量",
-          "weight": 14,
-          "score": 100,
-          "notes": [
-            "8 个 sections",
-            "5 个显式 transition",
-            "1 个 connected",
-            "2 个 hard-break",
-            "0 个 workbench",
-            "契约 golden-fintech"
-          ]
-        },
-        {
-          "key": "componentCraft",
-          "label": "积木审美复用",
-          "weight": 22,
-          "score": 82,
-          "notes": [
-            "8 个组件家族",
-            "20 个核心 morph",
-            "23 个模块样式",
-            "组件化方案评分"
-          ]
-        },
-        {
-          "key": "brandHarmony",
-          "label": "品牌色彩与质感",
-          "weight": 14,
-          "score": 88,
-          "notes": [
-            "主题 blueFinance",
-            "CSS token 使用不足",
-            "色彩模式 light"
-          ]
-        },
-        {
-          "key": "businessFunction",
-          "label": "页面功能完整度",
-          "weight": 14,
-          "score": 92,
-          "notes": [
-            "9 个业务块",
-            "8 个积木计划",
-            "数据契约较弱"
-          ]
-        },
-        {
-          "key": "responsiveSafety",
-          "label": "响应式与可发布安全",
-          "weight": 8,
-          "score": 100,
-          "notes": [
-            "有响应式/autoLayout",
-            "组件化安全路径"
-          ]
-        },
-        {
-          "key": "skeletonSlotQuality",
-          "label": "骨架填充质量",
-          "weight": 16,
-          "score": 100,
-          "notes": [
-            "9/9 个 slot 已填充",
-            "未发现空图表、低分组件或假图标"
-          ]
-        }
-      ],
-      "issues": [],
-      "suggestions": [],
-      "strengths": [
-        "首屏具备可识别焦点。",
-        "存在图表、步骤、轮播或工作台式视觉结构。",
-        "已拉取漂亮积木块作为审美参考。",
-        "已命中样本库页面和功能参考。",
-        "已读取历史反馈偏好。"
-      ],
-      "sampleReferences": [
-        {
-          "id": "visual-mpkz4l4h-61340",
-          "name": "04-client-home-version-4",
-          "pageIntent": "vip"
-        },
-        {
-          "id": "visual-mpkzkzwb-112f5",
-          "name": "05-client-home-version-5",
-          "pageIntent": "vip"
-        },
-        {
-          "id": "visual-mpkvl6xu-0c30c",
-          "name": "01-client-home-original",
-          "pageIntent": "onboarding"
-        },
-        {
-          "id": "visual-mpkytenj-f80c5",
-          "name": "02-client-home-version-1",
-          "pageIntent": "onboarding"
-        }
-      ],
-      "componentReferences": [
-        {
-          "id": "asset-overview-vip-hero",
-          "name": "VIP 资产 Hero",
-          "family": "AssetOverview"
-        },
-        {
-          "id": "assetoverview-mp86x8sn",
-          "name": "资产概览-紧凑指标台",
-          "family": "AssetOverview"
-        },
-        {
-          "id": "quickactions-mpde3a64",
-          "name": "快捷操作-九宫格入口",
-          "family": "QuickActions"
-        },
-        {
-          "id": "referral-link-growth-console",
-          "name": "邀请增长控制台",
-          "family": "ReferralLinkCard"
-        },
-        {
-          "id": "onboardingprogress-3-mp6oobpj",
-          "name": "3步成为交易大师",
-          "family": "OnboardingProgress"
-        },
-        {
-          "id": "tradingaccounts-mp6oobtd",
-          "name": "真实模拟账号列表",
-          "family": "TradingAccounts"
-        },
-        {
-          "id": "quickactions-mpeukuj7",
-          "name": "扁平快捷操作坞",
-          "family": "QuickActions"
         },
         {
           "id": "wallet-list-currency-table",

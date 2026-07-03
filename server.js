@@ -814,6 +814,13 @@ const COMPACT_COMPANION_HOME_BLOCKS = new Set([
   "kyc_status_card",
 ]);
 
+// 真·大块：只有这些密集表格/整宽模块必须独占整行，绝不进 split。
+// 其余 LARGE 里的"宽但可配对"块（onboarding/promo/账号表现/pamm）允许在 6/6 双栏里并排，
+// 用来保证即使模块以大块为主，也能产出左右布局（不再千篇一律纵向堆叠）。
+const TRULY_LARGE_FULL_ROW_HOME_BLOCKS = new Set(
+  [...LARGE_FULL_ROW_HOME_BLOCKS].filter((block) => !WIDE_PAIRABLE_HOME_BLOCKS.has(block)),
+);
+
 function homepageLargeBlockSize(slot) {
   const canonical = canonicalHomeBlock(slot);
   return LARGE_FULL_ROW_HOME_BLOCK_SIZES[canonical] || "";
@@ -12988,8 +12995,9 @@ function validateHomepageSectionSkeleton(skeleton = {}) {
       }
     });
     const compositeId = cleanText(row.compositeId, "", 64);
-    const hasLarge = slots.some((slot) => LARGE_FULL_ROW_HOME_BLOCKS.has(slot.module));
-    // composite hub（#3）刻意把大模块收进一个共享表面，豁免"含 LARGE 的横向行拆成 full"的规则。
+    const hasLarge = slots.some((slot) => TRULY_LARGE_FULL_ROW_HOME_BLOCKS.has(slot.module));
+    // 只对"真·大表"(账号列表/跟单/钱包)拆分；宽但可配对的块(onboarding/promo/账号表现/pamm)允许留在 6/6 双栏。
+    // composite hub（#3）刻意把大模块收进一个共享表面，也豁免拆分。
     if (!compositeId && slots.length > 1 && (row.type === "split" || row.type === "hero") && hasLarge) {
       warnings.push(`server-pair row contained LARGE block, split to full rows: ${slots.map((slot) => slot.module).join("+")}`);
       slots.forEach((slot) => normalized.push({ type: "full", pair: "", slots: [slot] }));
@@ -13015,8 +13023,8 @@ function validateHomepageSectionSkeleton(skeleton = {}) {
     mainSeen = true;
   }
   const countServerHorizontal = () => normalized.filter((row) => row.slots.length >= 2 && (row.type === "split" || row.type === "hero" || row.type === "hub")).length;
-  // salvage：模块稀疏导致 server 搭档缺席、零横向行时，把前两个非 LARGE 单槽 full 行
-  // （排除合规收尾）合并成一个 split[6,6]，保证"至少一行左右结构"对稀疏模块集也成立。
+  // salvage：零横向行时，把前两个"非真·大表"单槽 full 行（排除合规收尾）合并成 split[6,6]，
+  // 保证"每页至少一行左右结构"——即使模块以大块为主（宽可配对块也算合格，故 opportunities 等页型不再全纵向）。
   if (countServerHorizontal() === 0) {
     const eligible = [];
     normalized.forEach((row, index) => {
@@ -13025,7 +13033,7 @@ function validateHomepageSectionSkeleton(skeleton = {}) {
         row.slots.length === 1 &&
         slot &&
         slot.module !== "risk_disclosure" &&
-        !LARGE_FULL_ROW_HOME_BLOCKS.has(slot.module)
+        !TRULY_LARGE_FULL_ROW_HOME_BLOCKS.has(slot.module)
       ) {
         eligible.push(index);
       }
@@ -13069,8 +13077,13 @@ function validateHomepageSectionSkeleton(skeleton = {}) {
 // 因此天然满足校验器约束（LARGE 不进 split、main 前置、risk 收尾），也能被零-LLM 的 skeleton preview 直接验证。
 function homepageLayoutVariantId(payload = {}) {
   const v = Number(payload && payload.variant);
-  if (!Number.isFinite(v)) return 0;
-  return ((Math.trunc(v) % 3) + 3) % 3; // 0 均衡 / 1 双栏 / 2 三栏网格
+  if (Number.isFinite(v)) return ((Math.trunc(v) % 3) + 3) % 3; // 显式 variant（多候选 0/1/2）优先
+  // 单次生成未显式指定 variant 时，从 prompt 派生一个稳定原型：不同 prompt → 不同布局，
+  // 同 prompt → 同布局（可复现）；避免每次都落到 variant 0 导致同 goal 千篇一律。
+  const seed = String((payload && payload.prompt) || "");
+  let hash = 0;
+  for (let i = 0; i < seed.length; i += 1) hash = (hash * 31 + seed.charCodeAt(i)) | 0;
+  return Math.abs(hash) % 3;
 }
 
 function homepageArchetypeMergeableRow(row) {
@@ -13082,7 +13095,7 @@ function homepageArchetypeMergeableRow(row) {
       slot.module &&
       slot.module !== "risk_disclosure" &&
       !slot.main &&
-      !LARGE_FULL_ROW_HOME_BLOCKS.has(slot.module),
+      !TRULY_LARGE_FULL_ROW_HOME_BLOCKS.has(slot.module),
   );
 }
 
