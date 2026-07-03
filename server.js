@@ -11581,6 +11581,7 @@ function buildComponentPrompt(payload) {
     "推广链接(ReferralLinkCard)、客服(SupportContact)、APP 下载(AppDownload)这类模块必须把 sampleData 里的示例链接(https://…)、邀请码、电话/邮箱/二维码等渲染成可见且可复制/可点击的元素，绝不能出现没有链接或联系方式的空模块。",
     "每一个可点击动作（入金、出金、转账、复制链接/邀请码、开真实/模拟账户、绑定账号、跟单、参与活动、联系客服、下载 App、查看详情等）对应的 button 或 a 必须带 data-home-action 属性并绑定动作角色（如 deposit/withdraw/transfer/copyLink/openAccount/bindAccount/follow/joinCampaign/contactSupport/downloadApp/viewDetail），让租户预览时可交互；不要只放纯文字或无动作语义的按钮。",
     "数据预留位：每一个会被真实接口替换的业务值（余额、净值、账号号、币种金额、日期、点击/注册数、收益率、邀请链接、邀请码等）必须包在一个叶子元素里并带 data-field 属性，属性值用 dataRequirements 里的字段名（如 <b data-field=\"balance\">999,999.99</b>、<span data-field=\"inviteCode\">INV8K3D9</span>）；元素内文案填 sampleData 的逼真 mock 值作为 fallback。纯静态文案（标题、标签、按钮文字）不要加 data-field。这样接口数据到位后可直接按 data-field 填充，缺字段时保留 mock 不塌页。",
+    "组件内交互（筛选/标签页/折叠/区间/隐藏余额）禁止写 <script> 或内联事件，只输出声明式标记，由首页交互运行时统一驱动：① 筛选分段控件——外层组 data-home-filter=\"字段名\"，各 tab 带 data-home-filter-value=\"all|live|demo|...\"，被筛选的每一行/卡片带 data-home-filter-item 且 data-home-filter-kind=\"live\"(其归属值)；② 标签页——tab 带 data-home-tab=\"panelId\"，面板带 data-home-tabpanel=\"panelId\"；③ 折叠(如 FAQ)——每条包在 data-home-toggle-item 内，问题触发元素带 data-home-toggle，答案带 data-home-toggle-body；④ 区间(如 7D/30D)——组 data-home-range-group，tab 带 data-home-range=\"7d|30d\"；⑤ 隐藏余额——触发带 data-home-mask-toggle，需隐藏的数值带 data-home-mask。凡是出现 全部/Live/Demo 这类筛选、可切换标签、可展开问答、时间区间切换的，必须打上对应标记，否则交互不生效。",
   ].join("\n");
 
   const user = [
