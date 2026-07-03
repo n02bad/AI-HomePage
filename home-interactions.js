@@ -155,6 +155,7 @@
   /* ---------------- 初始化默认态 ---------------- */
   function bind(root) {
     root = root || doc;
+    injectBaseStyles();
     all(root, "[data-home-filter]").forEach(function (group) {
       if (group.__homeFilterBound) return;
       group.__homeFilterBound = true;
@@ -176,6 +177,31 @@
       var first = group.querySelector("[data-home-range]");
       if (first) onRangeClick(first);
     });
+  }
+
+  /* ---------------- 基线交互状态样式（随运行时注入一次，保证激活态/折叠/显隐视觉正确） ----------------
+   * 只针对交互状态做最小化补充，不重排组件自身布局：
+   * - 激活态统一用 [aria-selected="true"] / .is-active 驱动（组件 CSS 可覆盖）；
+   * - 折叠箭头、指针光标、hidden 强制隐藏。 */
+  var BASE_STYLE_ID = "home-interactions-base-style";
+  var BASE_STYLE = [
+    '[data-home-filter-value],[data-home-range],[data-home-tab],[data-home-toggle],[data-home-mask-toggle]{cursor:pointer;user-select:none}',
+    '[data-home-filter-value],[data-home-range]{transition:background-color .15s ease,color .15s ease}',
+    '[data-home-filter-value][aria-selected="true"],[data-home-filter-value].is-active,[data-home-range][aria-selected="true"],[data-home-range].is-active{background:var(--home-primary-soft,#dbe7ff);color:var(--home-primary-strong,#1d4ed8);border-radius:var(--home-radius-sm,8px);font-weight:900}',
+    '[data-home-tab]{transition:color .15s ease,border-color .15s ease}',
+    '[data-home-tab][aria-selected="true"],[data-home-tab].is-active{color:var(--home-primary-strong,#1d4ed8);font-weight:900}',
+    '[data-home-toggle]{display:flex;align-items:center;gap:8px}',
+    '[data-home-toggle]::after{content:"";margin-left:auto;width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);transition:transform .18s ease;opacity:.55}',
+    '[data-home-toggle-item].is-open [data-home-toggle]::after,[data-home-toggle][aria-expanded="true"]::after{transform:rotate(-135deg)}',
+    '[data-home-toggle-body]{transition:none}',
+    '[hidden]{display:none !important}',
+  ].join("");
+  function injectBaseStyles() {
+    if (doc.getElementById(BASE_STYLE_ID)) return;
+    var style = doc.createElement("style");
+    style.id = BASE_STYLE_ID;
+    style.textContent = BASE_STYLE;
+    (doc.head || doc.documentElement).appendChild(style);
   }
 
   var HomeInteractions = { bind: bind, version: "1.0.0" };
